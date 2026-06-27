@@ -545,6 +545,12 @@
 								{{ item.item_name }}
 							</h3>
 							<p
+								v-if="item.custom_medida"
+								class="text-[8px] sm:text-[9px] text-gray-500 truncate leading-tight mb-0.5"
+							>
+								{{ item.custom_medida }}
+							</p>
+							<p
 								v-if="item.attributes"
 								class="text-[8px] sm:text-[9px] text-gray-400 truncate leading-tight"
 							>
@@ -804,6 +810,12 @@
 									:title="item.item_name"
 								>
 									{{ item.item_name }}
+								</div>
+								<div
+									v-if="item.custom_medida"
+									class="text-[8px] sm:text-[9px] text-gray-500 truncate leading-tight mt-0.5"
+								>
+									{{ item.custom_medida }}
 								</div>
 								<div
 									v-if="item.attributes"

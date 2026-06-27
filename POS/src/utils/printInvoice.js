@@ -168,7 +168,10 @@ export function buildReceiptHTML(invoiceData) {
 			const subtotal = qty * displayRate;
 			return `
 						<div class="item-row">
-							<div class="item-name">${item.item_name || item.item_code} ${isFree ? __("(FREE)") : ""}</div>
+							<div class="item-name">
+								${item.item_name || item.item_code} ${isFree ? __("(FREE)") : ""}
+								${item.custom_medida ? `<div style="font-size: 9px; color: #555; margin-top: 2px;">Medida: ${item.custom_medida}</div>` : ""}
+							</div>
 							<div class="item-details">
 								<span>${qty} × ${formatCurrency(displayRate)}</span>
 								<span><strong>${formatCurrency(subtotal)}</strong></span>

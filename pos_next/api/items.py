@@ -26,6 +26,7 @@ ITEM_RESULT_FIELDS = [
 	"has_variants",
 	"variant_of",
 	"disabled",
+	"custom_medida",
 ]
 
 ITEM_RESULT_COLUMNS = ",\n\t".join(ITEM_RESULT_FIELDS)
@@ -1209,7 +1210,7 @@ def get_items(
 			search_words = [word.strip() for word in effective_search_term.split() if word.strip()]
 
 			# Word-order independent: all words must appear somewhere in item fields
-			search_text = "CONCAT(COALESCE(i.name, ''), ' ', COALESCE(i.item_name, ''), ' ', COALESCE(i.item_group, ''), ' ', COALESCE(i.description, ''))"
+			search_text = "CONCAT(COALESCE(i.name, ''), ' ', COALESCE(i.item_name, ''), ' ', COALESCE(i.item_group, ''), ' ', COALESCE(i.description, ''), ' ', COALESCE(i.custom_medida, ''))"
 			word_conditions = " AND ".join([f"{search_text} LIKE %s"] * len(search_words))
 
 			# Also match if barcode contains the search term
