@@ -151,6 +151,10 @@ export const useBootstrapStore = defineStore("bootstrap", () => {
 		error.value = null;
 	}
 
+	function canCheckout() {
+		return data.value?.can_checkout !== false;
+	}
+
 	return {
 		// State
 		loaded,
@@ -169,5 +173,6 @@ export const useBootstrapStore = defineStore("bootstrap", () => {
 		hasBootstrapData,
 		reset,
 		getSiteName,
+		canCheckout,
 	};
 });

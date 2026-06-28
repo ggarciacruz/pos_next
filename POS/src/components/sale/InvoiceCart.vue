@@ -794,14 +794,25 @@
 					<!-- Invoice History -->
 					<button
 						type="button"
-						@click="$emit('show-history')"
-						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
+						@click="handleInvoiceHistory"
+						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
+						:class="!canCheckout ? 'opacity-80 cursor-not-allowed' : 'hover:border-gray-300 hover:bg-gray-50'"
 						:title="__('View invoice history')"
 					>
 						<div
-							class="w-9 h-9 sm:w-10 sm:h-10 bg-gray-50 rounded-full flex items-center justify-center mb-2 group-hover:bg-gray-100 transition-colors"
+							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors"
+							:class="!canCheckout ? 'bg-gray-100' : 'bg-gray-50 group-hover:bg-gray-100'"
 						>
 							<svg
+								v-if="!canCheckout"
+								class="w-5 h-5 text-gray-400"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+							>
+								<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+							</svg>
+							<svg
+								v-else
 								class="w-5 h-5 text-gray-600"
 								fill="none"
 								stroke="currentColor"
@@ -823,14 +834,25 @@
 					<!-- Return Invoice -->
 					<button
 						type="button"
-						@click="$emit('show-return')"
-						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-red-300 hover:bg-red-50 active:bg-red-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
+						@click="handleReturnInvoice"
+						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
+						:class="!canCheckout ? 'opacity-80 cursor-not-allowed' : 'hover:border-red-300 hover:bg-red-50'"
 						:title="__('Process return invoice')"
 					>
 						<div
-							class="w-9 h-9 sm:w-10 sm:h-10 bg-red-50 rounded-full flex items-center justify-center mb-2 group-hover:bg-red-100 transition-colors"
+							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors"
+							:class="!canCheckout ? 'bg-gray-100' : 'bg-red-50 group-hover:bg-red-100'"
 						>
 							<svg
+								v-if="!canCheckout"
+								class="w-5 h-5 text-gray-400"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+							>
+								<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+							</svg>
+							<svg
+								v-else
 								class="w-5 h-5 text-red-600"
 								fill="none"
 								stroke="currentColor"
@@ -852,14 +874,25 @@
 					<!-- Close Shift -->
 					<button
 						type="button"
-						@click="$emit('close-shift')"
-						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 active:bg-orange-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
+						@click="handleCloseShift"
+						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
+						:class="!canCheckout ? 'opacity-80 cursor-not-allowed' : 'hover:border-orange-300 hover:bg-orange-50'"
 						:title="__('Close current shift')"
 					>
 						<div
-							class="w-9 h-9 sm:w-10 sm:h-10 bg-orange-50 rounded-full flex items-center justify-center mb-2 group-hover:bg-orange-100 transition-colors"
+							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors"
+							:class="!canCheckout ? 'bg-gray-100' : 'bg-orange-50 group-hover:bg-orange-100'"
 						>
 							<svg
+								v-if="!canCheckout"
+								class="w-5 h-5 text-gray-400"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+							>
+								<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+							</svg>
+							<svg
+								v-else
 								class="w-5 h-5 text-orange-600"
 								fill="none"
 								stroke="currentColor"
@@ -1398,11 +1431,22 @@
 						'flex-1 py-2.5 px-3 rounded-lg font-bold text-xs text-white transition-all flex items-center justify-center touch-manipulation',
 						items.length === 0
 							? 'bg-gray-300 cursor-not-allowed'
-							: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg hover:shadow-xl active:scale-[0.98]',
+							: !canCheckout
+								? 'bg-gray-400 opacity-80 cursor-not-allowed shadow-none active:scale-100'
+								: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg hover:shadow-xl active:scale-[0.98]',
 					]"
 					:aria-label="__('Proceed to payment')"
 				>
 					<svg
+						v-if="!canCheckout"
+						class="w-4 h-4 me-1.5 text-yellow-200"
+						fill="currentColor"
+						viewBox="0 0 20 20"
+					>
+						<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+					</svg>
+					<svg
+						v-else
 						class="w-4 h-4 me-1.5"
 						fill="none"
 						stroke="currentColor"
@@ -1472,6 +1516,8 @@ import { isOffline } from "@/utils/offline";
 import { offlineWorker } from "@/utils/offline/workerClient";
 import { logger } from "@/utils/logger";
 import { FeatherIcon } from "frappe-ui";
+import { useBootstrapStore } from "@/stores/bootstrap";
+import { useToast } from "@/composables/useToast";
 
 const log = logger.create("InvoiceCart");
 import { createResource } from "frappe-ui";
@@ -1487,10 +1533,42 @@ const cartStore = usePOSCartStore(); // Pinia store for cart state management
 const settingsStore = usePOSSettingsStore(); // Pinia store for POS settings
 const offersStore = usePOSOffersStore(); // Pinia store for offers/promotions
 const customerSearchStore = useCustomerSearchStore(); // Pinia store for customer search
+const bootstrapStore = useBootstrapStore();
+const { showWarning } = useToast();
 const { formatQuantity } = useFormatters(); // Quantity formatting utilities
 
+const canCheckout = computed(() => bootstrapStore.canCheckout());
+
 function handleProceedToPayment() {
+	if (!canCheckout.value) {
+		showWarning(__("This function is reserved for cashiers."));
+		return;
+	}
 	emit("proceed-to-payment");
+}
+
+function handleCloseShift() {
+	if (!canCheckout.value) {
+		showWarning(__("This function is reserved for cashiers."));
+		return;
+	}
+	emit("close-shift");
+}
+
+function handleInvoiceHistory() {
+	if (!canCheckout.value) {
+		showWarning(__("This function is reserved for cashiers."));
+		return;
+	}
+	emit("show-history");
+}
+
+function handleReturnInvoice() {
+	if (!canCheckout.value) {
+		showWarning(__("This function is reserved for cashiers."));
+		return;
+	}
+	emit("show-return");
 }
 
 /**

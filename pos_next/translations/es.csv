@@ -193,6 +193,7 @@
 "Failed to create customer","Error al crear cliente",""
 "Customer {0} updated successfully","Cliente {0} actualizado exitosamente",""
 "Failed to update customer","Error al actualizar cliente",""
+"This function is reserved for cashiers.","Esta función está reservada para cajeros.",""
 "Customer Name is required","El nombre del cliente es obligatorio",""
 "Enter the actual counted amounts for each payment method","Ingrese los montos reales contados para cada método de pago",""
 "Shift closed successfully - Review the final reconciliation below","Turno cerrado exitosamente - Revise la conciliación final abajo",""
