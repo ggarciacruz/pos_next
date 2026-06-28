@@ -1757,11 +1757,17 @@ def get_draft_invoices(pos_opening_shift, doctype="Sales Order"):
 		"docstatus": 0,
 	}
 
-	# Add pos_opening_shift filter if the field exists
-	if frappe.db.has_column(doctype, "posa_pos_opening_shift"):
-		filters["posa_pos_opening_shift"] = pos_opening_shift
-	elif frappe.db.has_column(doctype, "pos_opening_shift"):
-		filters["pos_opening_shift"] = pos_opening_shift
+	company = frappe.db.get_value("POS Opening Shift", pos_opening_shift, "company")
+	if company:
+		filters["company"] = company
+
+	# For Sales Invoice (POS), restrict to cashier's active shift.
+	# For Sales Order (pre-sales), allow pulling from any shift/vendedor in the same company.
+	if doctype != "Sales Order":
+		if frappe.db.has_column(doctype, "posa_pos_opening_shift"):
+			filters["posa_pos_opening_shift"] = pos_opening_shift
+		elif frappe.db.has_column(doctype, "pos_opening_shift"):
+			filters["pos_opening_shift"] = pos_opening_shift
 
 	# Performance: Get all invoice names first
 	invoices_list = frappe.get_list(
