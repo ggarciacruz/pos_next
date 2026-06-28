@@ -519,7 +519,7 @@ async function searchCachedItems(searchTerm = "", limit = 50, offset = 0) {
 		if (!searchTerm || searchTerm.trim().length === 0) {
 			const results = await db
 				.table("items")
-				.orderBy("item_name")
+				.orderBy("item_group")
 				.filter((item) => shouldShowItem(item))
 				.offset(offset)
 				.limit(limit)

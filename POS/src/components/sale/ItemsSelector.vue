@@ -734,15 +734,27 @@
 							</th>
 							<th
 								scope="col"
-								class="px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 max-w-[120px] sm:max-w-[180px] md:max-w-[200px]"
+								class="px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 max-w-[120px] sm:max-w-[150px]"
 							>
-								{{ __("Name") }}
+								{{ __("Group") }}
 							</th>
 							<th
 								scope="col"
-								class="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 sm:max-w-[150px]"
+								class="px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 sm:max-w-[120px]"
 							>
 								{{ __("Code") }}
+							</th>
+							<th
+								scope="col"
+								class="px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 sm:max-w-[100px]"
+							>
+								{{ __("Medida", null, "Medida") }}
+							</th>
+							<th
+								scope="col"
+								class="px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 max-w-[180px] md:max-w-[220px]"
+							>
+								{{ __("Name") }}
 							</th>
 							<th
 								scope="col"
@@ -819,35 +831,49 @@
 								</div>
 							</td>
 							<td
-								class="px-2 sm:px-3 py-2 max-w-[120px] sm:max-w-[180px] md:max-w-[200px]"
+								class="px-2 sm:px-3 py-2 max-w-[120px] sm:max-w-[150px]"
 							>
 								<div
-									class="text-xs sm:text-sm font-medium text-gray-900 truncate"
+									class="text-xs sm:text-sm text-gray-500 truncate"
+									:title="item.item_group"
+								>
+									{{ item.item_group }}
+								</div>
+							</td>
+							<td
+								class="px-2 sm:px-3 py-2 sm:max-w-[120px]"
+							>
+								<div
+									class="text-xs sm:text-sm text-gray-900 font-medium truncate"
+									:title="item.item_code"
+								>
+									{{ item.item_code }}
+								</div>
+							</td>
+							<td
+								class="px-2 sm:px-3 py-2 sm:max-w-[100px]"
+							>
+								<div
+									class="text-xs sm:text-sm text-gray-500 truncate"
+									:title="item.custom_medida"
+								>
+									{{ item.custom_medida || '-' }}
+								</div>
+							</td>
+							<td
+								class="px-2 sm:px-3 py-2 max-w-[180px] md:max-w-[220px]"
+							>
+								<div
+									class="text-xs sm:text-sm text-gray-900 truncate"
 									:title="item.item_name"
 								>
 									{{ item.item_name }}
 								</div>
 								<div
-									v-if="item.custom_medida"
-									class="text-[8px] sm:text-[9px] text-gray-500 truncate leading-tight mt-0.5"
-								>
-									{{ item.custom_medida }}
-								</div>
-								<div
 									v-if="item.attributes"
-									class="text-[8px] sm:text-[9px] text-gray-400 truncate leading-tight"
+									class="text-[8px] sm:text-[9px] text-gray-400 truncate leading-tight mt-0.5"
 								>
 									{{ Object.values(item.attributes).join(" / ") }}
-								</div>
-							</td>
-							<td
-								class="hidden sm:table-cell px-2 sm:px-3 py-2 whitespace-nowrap sm:max-w-[150px]"
-							>
-								<div
-									class="text-xs sm:text-sm text-gray-500 truncate"
-									:title="item.item_code"
-								>
-									{{ item.item_code }}
 								</div>
 							</td>
 							<td class="px-2 sm:px-3 py-2 whitespace-nowrap w-[70px] sm:w-[100px]">

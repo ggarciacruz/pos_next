@@ -626,6 +626,23 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				// Apply sort order (asc or desc)
 				return sortOrder.value === "desc" ? -compareResult : compareResult;
 			});
+		} else {
+			// Default visual sorting: Grupo -> Código (item_code) -> Medida (custom_medida) ascending
+			itemsWithStock.sort((a, b) => {
+				const groupA = a.item_group || "";
+				const groupB = b.item_group || "";
+				const compGroup = groupA.localeCompare(groupB);
+				if (compGroup !== 0) return compGroup;
+
+				const codeA = a.item_code || "";
+				const codeB = b.item_code || "";
+				const compCode = codeA.localeCompare(codeB);
+				if (compCode !== 0) return compCode;
+
+				const medidaA = a.custom_medida || "";
+				const medidaB = b.custom_medida || "";
+				return medidaA.localeCompare(medidaB);
+			});
 		}
 
 		return itemsWithStock;

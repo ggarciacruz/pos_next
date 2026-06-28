@@ -1243,11 +1243,11 @@ def get_items(
 				prefix_pattern,
 				prefix_pattern,
 			]
-			order_by = f"{relevance} DESC, i.item_name ASC"
+			order_by = f"{relevance} DESC, i.item_group ASC, i.name ASC, i.custom_medida ASC"
 		else:
 			# No search term - simple ordering
 			score_params = []
-			order_by = "i.item_name ASC"
+			order_by = "i.item_group ASC, i.name ASC, i.custom_medida ASC"
 
 		where_clause = " AND ".join(conditions)
 
@@ -1611,7 +1611,7 @@ def get_items_bulk(
 			{extra_joins}
 			WHERE {where_clause}
 			GROUP BY {group_by_columns}
-			ORDER BY i.item_name ASC
+			ORDER BY i.item_group ASC, i.name ASC, i.custom_medida ASC
 			LIMIT %s OFFSET %s
 		"""
 		all_params = [*params, int(limit), int(start)]
