@@ -2481,7 +2481,7 @@ function confirmPrintDraft() {
 			customer_name: draft.customer?.customer_name || draft.customer?.name || draft.customer || "S/N",
 			status: "Draft",
 			header: "Draft",
-			footer: "Este documento es una pre-venta y no representa una factura válida ni un comprobante de pago oficial.",
+			footer: "Este documento es una orden de venta y no representa una factura válida ni un comprobante de pago oficial.",
 		};
 		printInvoiceCustom(invoiceData);
 	} catch (error) {
