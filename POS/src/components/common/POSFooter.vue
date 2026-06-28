@@ -182,31 +182,23 @@ const ensureStylePresence = () => {
 		styleElement = document.createElement("style");
 		styleElement.textContent = `
 			.pos-footer-component {
-				pointer-events: auto !important;
-				min-height: 45px;
+				pointer-events: none !important;
+				min-height: 0px !important;
+				height: 0px !important;
+				padding: 0px !important;
+				margin: 0px !important;
+				border: none !important;
+				border-top: none !important;
+				background: transparent !important;
+				box-shadow: none !important;
+				overflow: hidden !important;
 				position: fixed !important;
 				bottom: 0 !important;
 				left: 0 !important;
 				right: 0 !important;
 			}
-			.pos-footer-component .footer-content {
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				gap: 6px;
-			}
-			.pos-footer-component .footer-text {
-				color: #6b7280;
-			}
-			.pos-footer-component .footer-link {
-				color: #3b82f6;
-				text-decoration: none;
-				font-weight: 600;
-				transition: color 0.2s;
-			}
-			.pos-footer-component .footer-link:hover {
-				color: #2563eb;
-				text-decoration: underline;
+			.pos-footer-component * {
+				display: none !important;
 			}
 		`;
 		document.head.appendChild(styleElement);

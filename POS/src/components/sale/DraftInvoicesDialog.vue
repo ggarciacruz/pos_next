@@ -50,9 +50,10 @@
 										])
 									}}
 								</p>
-								<p class="text-xs text-gray-400 mt-0.5">
-									{{ formatDateTime(draft.created_at) }}
-								</p>
+								<div class="text-xs text-gray-400 mt-1 flex items-center justify-between gap-2">
+									<span>{{ formatDateTime(draft.created_at) }}</span>
+									<span class="text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded text-[10px]">{{ getTimeAgo(draft.created_at) }}</span>
+								</div>
 							</div>
 							<div class="flex items-center gap-1">
 								<button
@@ -342,5 +343,22 @@ function calculateTotal(items) {
 			return sum + roundCurrency(qty * roundCurrency(rate));
 		}, 0)
 	);
+}
+
+function getTimeAgo(createdAt) {
+	if (!createdAt) return "";
+	const date = new Date(createdAt);
+	const now = new Date();
+	const diffMs = now - date;
+	const diffMins = Math.floor(diffMs / 60000);
+
+	if (diffMins < 1) return __("Just now");
+	if (diffMins < 60) return __("{0} min ago", [diffMins]);
+
+	const diffHours = Math.floor(diffMins / 60);
+	if (diffHours < 24) return __("{0} hr ago", [diffHours]);
+
+	const diffDays = Math.floor(diffHours / 24);
+	return __("{0} day ago", [diffDays]);
 }
 </script>

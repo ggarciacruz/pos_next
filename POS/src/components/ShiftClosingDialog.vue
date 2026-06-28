@@ -1205,12 +1205,14 @@ const isInEntryMode = computed(() => hideExpectedAmount.value && !showSuccessRep
 
 const reconciliationMessage = computed(() => {
 	if (isInEntryMode.value) {
-		return "Enter the actual counted amounts for each payment method";
+		return __("Enter the actual counted amounts for each payment method");
 	}
+
 	if (showSuccessReport.value && hideExpectedAmount.value) {
-		return "Shift closed successfully - Review the final reconciliation below";
+		return __("Shift closed successfully - Review the final reconciliation below");
 	}
-	return "Count your cash and enter actual amounts below";
+	return __("Count your cash and enter actual amounts below");
+
 });
 
 // Computed properties for real-time recalculation

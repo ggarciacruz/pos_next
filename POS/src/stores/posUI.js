@@ -54,8 +54,9 @@ export const usePOSUIStore = defineStore("posUI", () => {
 	const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
 
 	// Layout state
-	const leftPanelWidth = ref(800);
+	const leftPanelWidth = ref(1150);
 	const isResizing = ref(false);
+
 
 	// Computed
 	const isDesktop = computed(() => windowWidth.value >= 1024);

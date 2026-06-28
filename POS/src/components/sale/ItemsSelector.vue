@@ -5,12 +5,13 @@
 			class="px-1.5 sm:px-3 pt-1.5 sm:pt-3 pb-1.5 sm:pb-2 bg-white border-b border-gray-200"
 		>
 			<div
-				class="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory"
+				ref="tabsContainer"
+				class="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab active:cursor-grabbing select-none"
 			>
 				<button
 					@click="handleAllFilterClick"
 					:class="[
-						'flex items-center px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium whitespace-nowrap transition-[background-color,border-color] duration-75 touch-manipulation snap-start flex-shrink-0',
+						'flex items-center px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium whitespace-nowrap transition-[background-color,border-color] duration-75 touch-manipulation flex-shrink-0',
 						!activeFilterValue
 							? 'bg-blue-50 text-blue-600 border-2 border-blue-500 shadow-sm'
 							: 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-100',
@@ -36,7 +37,7 @@
 					:key="option.value"
 					@click="handleFilterClick(option.value)"
 					:class="[
-						'flex items-center px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium whitespace-nowrap transition-[background-color,border-color] duration-75 touch-manipulation snap-start flex-shrink-0',
+						'flex items-center px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium whitespace-nowrap transition-[background-color,border-color] duration-75 touch-manipulation flex-shrink-0',
 						activeFilterValue === option.value
 							? 'bg-blue-50 text-blue-600 border-2 border-blue-500 shadow-sm'
 							: 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-100',
@@ -431,13 +432,10 @@
 							'group relative bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2.5 touch-manipulation transition-[border-color,box-shadow] duration-100 cursor-pointer hover:border-blue-400 hover:shadow-md',
 						]"
 					>
-						<!-- Stock Badge - Tap to select, long press to view warehouse availability -->
+						<!-- Stock Badge - Click to view warehouse availability -->
 						<div
 							v-if="(item.is_stock_item || item.is_bundle) && !item.has_variants"
-							@pointerdown="onLongPressStart(item)"
-							@pointerup="onLongPressEnd"
-							@pointercancel="clearLongPress"
-							@pointerleave="clearLongPress"
+							@click.stop="showWarehouseAvailability(item)"
 							:class="[
 								'absolute -top-1.5 -end-1.5 sm:-top-2 sm:-end-2 rounded-md shadow-lg z-10',
 								'px-2 sm:px-2.5 py-1 sm:py-1 text-[10px] sm:text-xs font-bold',
@@ -446,7 +444,7 @@
 								getStockStatus(item.actual_qty ?? item.stock_qty ?? 0).color,
 								getStockStatus(item.actual_qty ?? item.stock_qty ?? 0).textColor,
 							]"
-							:title="__('Check availability in other warehouses')"
+							:title="__('Click to check availability in other warehouses')"
 						>
 							{{ Math.floor(item.actual_qty ?? item.stock_qty ?? 0) }}
 						</div>
@@ -506,18 +504,15 @@
 								</div>
 							</div>
 
-							<!-- Info Icon Overlay - Tap to select, long press to show warehouse availability -->
+							<!-- Info Icon Overlay - Click to show warehouse availability -->
 							<div
 								v-if="
 									(item.is_stock_item || item.is_bundle) &&
 									(item.actual_qty ?? item.stock_qty ?? 0) <= 0
 								"
-								@pointerdown="onLongPressStart(item)"
-								@pointerup="onLongPressEnd"
-								@pointercancel="clearLongPress"
-								@pointerleave="clearLongPress"
+								@click.stop="showWarehouseAvailability(item)"
 								class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 cursor-pointer select-none"
-								:title="__('Check availability in other warehouses')"
+								:title="__('Click to check availability in other warehouses')"
 							>
 								<div
 									class="p-2.5 bg-white/80 backdrop-blur-sm rounded-full pointer-events-none"
@@ -567,6 +562,27 @@
 									}}</span
 								>
 							</p>
+
+							<!-- Double Stock Display -->
+							<div
+								v-if="item.is_stock_item || item.is_bundle"
+								class="text-[8px] sm:text-[9px] text-gray-500 mt-1 flex flex-wrap gap-x-2 gap-y-0.5 leading-tight select-none cursor-pointer"
+								@click.stop="showWarehouseAvailability(item)"
+								:title="__('Click to view all warehouses')"
+							>
+								<span class="inline-flex items-center gap-0.5">
+									<span class="font-medium text-gray-700">Esta Tienda:</span>
+									<span :class="(item.actual_qty ?? item.stock_qty ?? 0) > 0 ? 'text-green-600 font-bold' : 'text-red-500 font-bold'">
+										{{ Math.floor(item.actual_qty ?? item.stock_qty ?? 0) }}
+									</span>
+								</span>
+								<span class="inline-flex items-center gap-0.5" v-if="item.other_qty !== undefined">
+									<span class="font-medium text-gray-700">Otros Almacenes:</span>
+									<span :class="item.other_qty > 0 ? 'text-blue-600 font-bold' : 'text-gray-400 font-normal'">
+										{{ Math.floor(item.other_qty) }}
+									</span>
+								</span>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -839,33 +855,40 @@
 									{{ formatCurrency(item.rate || item.price_list_rate || 0) }}
 								</div>
 							</td>
-							<td class="px-2 sm:px-3 py-2 whitespace-nowrap w-[70px] sm:w-[100px]">
-								<!-- Stock Badge - Tap to select, long press to view warehouse availability -->
-								<div
-									v-if="
-										(item.is_stock_item || item.is_bundle) &&
-										!item.has_variants
-									"
-									@pointerdown="onLongPressStart(item)"
-									@pointerup="onLongPressEnd"
-									@pointercancel="clearLongPress"
-									@pointerleave="clearLongPress"
-									:class="[
-										'inline-block px-1.5 sm:px-3 py-0.5 sm:py-1.5 rounded-md shadow-sm',
-										'text-[10px] sm:text-sm font-bold cursor-pointer select-none',
-										'hover:scale-105 hover:shadow-md transition-all duration-200',
-										getStockStatus(item.actual_qty ?? item.stock_qty ?? 0)
-											.color,
-										getStockStatus(item.actual_qty ?? item.stock_qty ?? 0)
-											.textColor,
-									]"
-									:title="__('Check availability in other warehouses')"
-								>
-									{{ Math.floor(item.actual_qty ?? item.stock_qty ?? 0) }}
+							<td class="px-2 sm:px-3 py-2 whitespace-nowrap w-[90px] sm:w-[130px]">
+								<div class="flex flex-col items-start gap-1">
+									<!-- Stock Badge - Click to view warehouse availability -->
+									<div
+										v-if="
+											(item.is_stock_item || item.is_bundle) &&
+											!item.has_variants
+										"
+										@click.stop="showWarehouseAvailability(item)"
+										:class="[
+											'inline-block px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-md shadow-sm',
+											'text-[10px] sm:text-xs font-bold cursor-pointer select-none',
+											'hover:scale-105 hover:shadow-md transition-all duration-200',
+											getStockStatus(item.actual_qty ?? item.stock_qty ?? 0)
+												.color,
+											getStockStatus(item.actual_qty ?? item.stock_qty ?? 0)
+												.textColor,
+										]"
+										:title="__('Click to check availability in other warehouses')"
+									>
+										T: {{ Math.floor(item.actual_qty ?? item.stock_qty ?? 0) }}
+									</div>
+									<div
+										v-if="item.other_qty !== undefined && !item.has_variants"
+										class="text-[9px] text-gray-500 font-medium whitespace-nowrap cursor-pointer hover:text-blue-600 select-none"
+										@click.stop="showWarehouseAvailability(item)"
+										:title="__('Click to view all warehouses')"
+									>
+										O: <span class="font-bold" :class="item.other_qty > 0 ? 'text-blue-600' : 'text-gray-400'">{{ Math.floor(item.other_qty) }}</span>
+									</div>
+									<span v-else-if="!item.is_stock_item && !item.is_bundle" class="text-xs sm:text-sm text-gray-400 italic">
+										{{ __("N/A") }}
+									</span>
 								</div>
-								<span v-else class="text-xs sm:text-sm text-gray-400 italic">
-									{{ __("N/A") }}
-								</span>
 							</td>
 							<td
 								class="hidden md:table-cell px-2 sm:px-3 py-2 whitespace-nowrap md:w-[80px]"
@@ -1099,7 +1122,7 @@ const {
 
 // Local state
 const viewMode = ref("grid");
-const itemThreshold = ref(50); // Threshold for auto-switching to list view
+const itemThreshold = ref(1000); // Threshold for auto-switching to list view
 const userManuallySetView = ref(false); // Track if user manually changed view mode
 const lastAutoSwitchCount = ref(0);
 const showSortDropdown = ref(false); // Sort dropdown visibility
@@ -1112,6 +1135,8 @@ const warehouseDialogItem = ref(null);
 // Infinite scroll refs
 const gridScrollContainer = ref(null);
 const listScrollContainer = ref(null);
+const tabsContainer = ref(null);
+let dragMoved = false;
 
 // Store scroll listener cleanup functions
 const scrollCleanupFns = ref([]);
@@ -1320,6 +1345,45 @@ onMounted(() => {
 	// Items are now loaded automatically by setPosProfile() in the watcher
 	// This ensures item group filters are loaded BEFORE fetching items
 
+	// Setup drag scroll for item groups tabs list
+	if (tabsContainer.value) {
+		const el = tabsContainer.value;
+		let isDragging = false;
+		let startX = 0;
+		let scrollLeft = 0;
+
+		const onMouseDown = (e) => {
+			isDragging = true;
+			dragMoved = false;
+			startX = e.pageX - el.offsetLeft;
+			scrollLeft = el.scrollLeft;
+		};
+
+		const onMouseLeave = () => {
+			isDragging = false;
+		};
+
+		const onMouseUp = () => {
+			isDragging = false;
+		};
+
+		const onMouseMove = (e) => {
+			if (!isDragging) return;
+			e.preventDefault();
+			const x = e.pageX - el.offsetLeft;
+			const walk = (x - startX) * 1.5;
+			el.scrollLeft = scrollLeft - walk;
+			if (Math.abs(walk) > 5) {
+				dragMoved = true;
+			}
+		};
+
+		el.addEventListener("mousedown", onMouseDown);
+		el.addEventListener("mouseleave", onMouseLeave);
+		el.addEventListener("mouseup", onMouseUp);
+		el.addEventListener("mousemove", onMouseMove);
+	}
+
 	// Add passive scroll listeners for better performance
 	// Only bind to the currently active view
 	if (viewMode.value === "grid" && gridScrollContainer.value) {
@@ -1511,6 +1575,10 @@ function setViewMode(mode) {
 }
 
 function handleAllFilterClick() {
+	if (dragMoved) {
+		dragMoved = false;
+		return;
+	}
 	if (isBrandSortActive.value) {
 		itemStore.setSelectedBrand(null);
 		return;
@@ -1519,6 +1587,10 @@ function handleAllFilterClick() {
 }
 
 function handleFilterClick(value) {
+	if (dragMoved) {
+		dragMoved = false;
+		return;
+	}
 	if (isBrandSortActive.value) {
 		itemStore.setSelectedBrand(value);
 		return;

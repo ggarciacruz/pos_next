@@ -957,7 +957,8 @@ def update_invoice(data):
 			invoice_doc.base_grand_total = 0.0
 
 		# Set accounts for payment methods before saving
-		_set_payment_accounts(invoice_doc.payments, invoice_doc.company)
+		if doctype == "Sales Invoice" and hasattr(invoice_doc, "payments"):
+			_set_payment_accounts(invoice_doc.payments, invoice_doc.company)
 
 		# For return invoices, ensure payments are negative
 		if invoice_doc.get("is_return"):
@@ -1456,6 +1457,15 @@ def submit_invoice(invoice=None, data=None):
 				frappe.throw(_("Credit sales are not enabled for this POS Profile."))
 			invoice_doc.flags.pos_next_credit_sale = 1
 
+		# Auto-submit linked draft Sales Orders before invoice save/submission
+		linked_sales_orders = list({item.sales_order for item in invoice_doc.items if item.get("sales_order")})
+		for so_name in linked_sales_orders:
+			if frappe.db.exists("Sales Order", so_name):
+				so_doc = frappe.get_doc("Sales Order", so_name)
+				if so_doc.docstatus == 0:
+					so_doc.flags.ignore_permissions = True
+					so_doc.submit()
+
 		# Save before submit
 		invoice_doc.flags.ignore_permissions = True
 		frappe.flags.ignore_account_permission = True
@@ -1741,14 +1751,16 @@ def get_invoices(pos_profile: str, limit: int = 100, start: int = 0) -> list:
 
 
 @frappe.whitelist()
-def get_draft_invoices(pos_opening_shift, doctype="Sales Invoice"):
+def get_draft_invoices(pos_opening_shift, doctype="Sales Order"):
 	"""Get all draft invoices for a POS opening shift."""
 	filters = {
 		"docstatus": 0,
 	}
 
 	# Add pos_opening_shift filter if the field exists
-	if frappe.db.has_column(doctype, "pos_opening_shift"):
+	if frappe.db.has_column(doctype, "posa_pos_opening_shift"):
+		filters["posa_pos_opening_shift"] = pos_opening_shift
+	elif frappe.db.has_column(doctype, "pos_opening_shift"):
 		filters["pos_opening_shift"] = pos_opening_shift
 
 	# Performance: Get all invoice names first
@@ -1771,18 +1783,18 @@ def get_draft_invoices(pos_opening_shift, doctype="Sales Invoice"):
 
 @frappe.whitelist()
 def delete_invoice(invoice):
-	"""Delete draft invoice."""
-	doctype = "Sales Invoice"
+	"""Delete draft invoice or sales order."""
+	doctype = "Sales Order" if frappe.db.exists("Sales Order", invoice) else "Sales Invoice"
 
 	if not frappe.db.exists(doctype, invoice):
-		frappe.throw(_("Invoice {0} does not exist").format(invoice))
+		frappe.throw(_("Document {0} does not exist").format(invoice))
 
 	# Check if it's a draft
 	if frappe.db.get_value(doctype, invoice, "docstatus") != 0:
-		frappe.throw(_("Cannot delete submitted invoice {0}").format(invoice))
+		frappe.throw(_("Cannot delete submitted document {0}").format(invoice))
 
 	frappe.delete_doc(doctype, invoice, force=1)
-	return _("Invoice {0} Deleted").format(invoice)
+	return _("Document {0} Deleted").format(invoice)
 
 
 @frappe.whitelist()

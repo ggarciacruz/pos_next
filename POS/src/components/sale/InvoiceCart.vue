@@ -1041,6 +1041,14 @@
 								</button>
 							</div>
 
+							<!-- Item Subtitle: Code & Measure -->
+							<div class="flex flex-wrap items-center gap-1.5 text-[10px] text-gray-500 mb-1.5 leading-none select-none">
+								<span>{{ item.item_code }}</span>
+								<span v-if="item.custom_medida" class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-bold text-[9px]">
+									{{ item.custom_medida }}
+								</span>
+							</div>
+
 							<!-- Single Row: Quantity Counter, UOM, Price & Total -->
 							<div class="flex items-center justify-between gap-1.5">
 								<div class="flex items-center gap-1.5">

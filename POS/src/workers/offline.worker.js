@@ -584,7 +584,6 @@ async function searchCachedItems(searchTerm = "", limit = 50, offset = 0) {
 		const allItems = await db
 			.table("items")
 			.filter((item) => !item.disabled)
-			.limit(limit * 10)
 			.toArray();
 
 		const results = allItems

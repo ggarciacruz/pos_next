@@ -83,6 +83,7 @@ def create_customer(
 	pos_profile=None,
 	custom_governorate=None,
 	custom_district=None,
+	tax_id=None,
 ):
 	"""
 	Create a new customer from POS.
@@ -97,6 +98,7 @@ def create_customer(
 	    pos_profile (str): POS Profile (optional, preferred for context-aware loyalty assignment)
 	    custom_governorate (str): Governorate (optional)
 	    custom_district (str): District (optional, must belong to the governorate)
+	    tax_id (str): Tax ID / NIT / CI (optional)
 
 	Returns:
 	    dict: Created customer document
@@ -142,8 +144,10 @@ def create_customer(
 			"loyalty_program": loyalty_program,
 			"custom_governorate": custom_governorate or None,
 			"custom_district": custom_district or None,
+			"tax_id": tax_id or "",
 		}
 	)
+
 
 	frappe.flags.pos_next_customer_company = company
 	frappe.flags.pos_next_customer_pos_profile = pos_profile

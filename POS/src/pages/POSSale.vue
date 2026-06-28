@@ -868,6 +868,28 @@
 				</template>
 			</Dialog>
 
+			<!-- Print Pre-ticket Confirmation Dialog -->
+			<Dialog
+				v-model="showPrintDraftConfirmDialog"
+				:options="{ title: __('Print Pre-ticket'), size: 'sm' }"
+			>
+				<template #body-content>
+					<p class="text-sm text-gray-600 py-3 text-start">
+						{{ __("Pre-sale saved successfully. Do you want to print the pre-ticket?") }}
+					</p>
+				</template>
+				<template #actions>
+					<div class="flex gap-2">
+						<Button variant="solid" @click="confirmPrintDraft">
+							{{ __("Yes") }}
+						</Button>
+						<Button variant="subtle" @click="showPrintDraftConfirmDialog = false">
+							{{ __("No") }}
+						</Button>
+					</div>
+				</template>
+			</Dialog>
+
 			<!-- Success Dialog -->
 			<Dialog
 				v-model="uiStore.showSuccessDialog"
@@ -1039,6 +1061,7 @@ import {
 	printInvoice,
 	printInvoiceByName,
 	printWithSilentFallback,
+	printInvoiceCustom,
 } from "@/utils/printInvoice";
 import { qzConnected, connect as qzConnect, disconnect as qzDisconnect } from "@/utils/qzTray";
 
@@ -1117,6 +1140,11 @@ const logoutAfterClose = ref(false);
 const editCustomer = ref(null); // Customer being edited (null for create mode)
 const showClearCacheDialog = ref(false);
 const clearCacheOverlayRef = ref(null);
+
+// Dialog state for printing saved draft
+const showPrintDraftConfirmDialog = ref(false);
+const lastSavedDraft = ref(null);
+
 
 // Debounce timer for offer reapplication
 const offerReapplyTimer = ref(null);
@@ -2425,11 +2453,43 @@ async function handleSaveDraft() {
 		cartStore.currentDraftId
 	);
 	if (savedDraft) {
+		lastSavedDraft.value = savedDraft;
 		cartStore.clearCart();
 		// Reset cart hash when cart is saved as draft and cleared
 		previousCartHash = "";
+		// Open the print confirmation dialog
+		showPrintDraftConfirmDialog.value = true;
 	}
 }
+
+function confirmPrintDraft() {
+	showPrintDraftConfirmDialog.value = false;
+	if (!lastSavedDraft.value) return;
+
+	try {
+		const draft = lastSavedDraft.value;
+		const itemsList = draft.items || [];
+		const grandTotal = itemsList.reduce((total, item) => total + (item.amount || (item.price * item.qty) || 0), 0);
+
+		const invoiceData = {
+			name: draft.draft_id,
+			company: shiftStore.profileCompany,
+			items: itemsList,
+			payments: [],
+			grand_total: grandTotal,
+			posting_date: draft.created_at,
+			customer_name: draft.customer?.customer_name || draft.customer?.name || draft.customer || "S/N",
+			status: "Draft",
+			header: "Draft",
+			footer: "Este documento es una pre-venta y no representa una factura válida ni un comprobante de pago oficial.",
+		};
+		printInvoiceCustom(invoiceData);
+	} catch (error) {
+		console.error("Error printing draft:", error);
+		showError(__("Failed to print draft"));
+	}
+}
+
 
 async function handleLoadDraft(draft) {
 	try {

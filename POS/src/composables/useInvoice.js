@@ -270,6 +270,7 @@ export function useInvoice() {
 				image: item.image,
 				uom: item.uom || item.stock_uom,
 				stock_uom: item.stock_uom,
+				custom_medida: item.custom_medida || "",
 				conversion_factor: item.conversion_factor || 1,
 				warehouse: item.warehouse,
 				actual_batch_qty: item.actual_batch_qty || 0,
@@ -730,7 +731,7 @@ export function useInvoice() {
 	 * @param {Array} items - Raw cart items
 	 * @returns {Array} Items formatted for ERPNext Sales Invoice
 	 */
-	function formatItemsForSubmission(items) {
+	function formatItemsForSubmission(items, draftId = null) {
 		const mapRow = (item) => ({
 			item_code: item.item_code,
 			item_name: item.item_name,
@@ -752,6 +753,8 @@ export function useInvoice() {
 			is_rate_manually_edited: item.is_rate_manually_edited || 0,
 			original_rate: item.original_rate || null,
 			is_free_item: item.is_free_item || 0,
+			sales_order: draftId && draftId.startsWith("SAL-ORD-") ? draftId : undefined,
+			so_detail: item.so_detail || undefined,
 		});
 
 		const out = [];
@@ -959,7 +962,8 @@ export function useInvoice() {
 		deliveryDate = null,
 		writeOffAmount = 0,
 		isCreditSale = false,
-		receivableAccount = null
+		receivableAccount = null,
+		draftId = null
 	) {
 		/**
 		 * Two-step submission process with mutex protection:
@@ -998,7 +1002,7 @@ export function useInvoice() {
 					pos_profile: posProfile.value,
 					posa_pos_opening_shift: posOpeningShift.value,
 					customer: customer.value?.name || customer.value,
-					items: formatItemsForSubmission(rawItems),
+					items: formatItemsForSubmission(rawItems, draftId),
 					payments: invoicePayments,
 					discount_amount: additionalDiscount.value || 0,
 					coupon_code: couponCode.value,

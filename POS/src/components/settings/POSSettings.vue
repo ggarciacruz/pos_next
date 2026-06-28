@@ -334,7 +334,7 @@
 														class="text-xs text-blue-800 leading-relaxed"
 														:inner="
 															__(
-																'&lt;strong&gt;Note:&lt;strong&gt; When enabled, the system will allow sales even when stock quantity is zero or negative. This is useful for handling stock sync delays or backorders. All transactions are tracked in the stock ledger.'
+																'<strong>Note:</strong> When enabled, the system will allow sales even when stock quantity is zero or negative. This is useful for handling stock sync delays or backorders. All transactions are tracked in the stock ledger.'
 															)
 														"
 													/>

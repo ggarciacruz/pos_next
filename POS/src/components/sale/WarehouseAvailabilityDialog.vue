@@ -615,35 +615,49 @@
 													{{ warehouse.item_code }}
 												</p>
 											</div>
-											<div class="text-end flex-shrink-0">
-												<div
-													:class="[
-														'text-base font-bold',
-														warehouse.available_qty > 0
-															? 'text-green-600'
-															: 'text-red-500',
-													]"
+											<div class="flex-shrink-0 flex items-center gap-2">
+												<!-- Sell Button -->
+												<button
+													v-if="warehouse.available_qty > 0"
+													@click="sellFromWarehouse(warehouse)"
+													class="px-2 py-1 text-[10px] font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded transition-colors flex items-center gap-0.5 shadow-sm"
 												>
-													{{ Math.floor(warehouse.available_qty) }}
-													{{ getVariantUom(warehouse.item_code) }}
-												</div>
-												<div class="text-xs text-gray-500 mt-0.5">
-													<span
-														v-if="warehouse.reserved_qty > 0"
-														class="text-orange-600"
+													<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+														<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+													</svg>
+													<span>{{ __("Vender") }}</span>
+												</button>
+
+												<div class="text-end flex-shrink-0">
+													<div
+														:class="[
+															'text-base font-bold',
+															warehouse.available_qty > 0
+																? 'text-green-600'
+																: 'text-red-500',
+														]"
 													>
-														{{
-															__("{0} reserved", [
-																Math.floor(warehouse.reserved_qty),
-															])
-														}}
-													</span>
-													<span
-														v-if="warehouse.rate"
-														class="text-gray-500"
-														>{{ formatPrice(warehouse.rate) }}</span
-													>
-													<span v-else>{{ __("Available") }}</span>
+														{{ Math.floor(warehouse.available_qty) }}
+														{{ getVariantUom(warehouse.item_code) }}
+													</div>
+													<div class="text-xs text-gray-500 mt-0.5">
+														<span
+															v-if="warehouse.reserved_qty > 0"
+															class="text-orange-600"
+														>
+															{{
+																__("{0} reserved", [
+																	Math.floor(warehouse.reserved_qty),
+																])
+															}}
+														</span>
+														<span
+															v-if="warehouse.rate"
+															class="text-gray-500"
+															>{{ formatPrice(warehouse.rate) }}</span
+														>
+														<span v-else>{{ __("Available") }}</span>
+													</div>
 												</div>
 											</div>
 										</div>
@@ -694,22 +708,35 @@
 											{{ getVariantName(warehouse.item_code) }}
 										</p>
 									</div>
-									<div class="text-end flex-shrink-0">
-										<div
-											:class="[
-												'text-lg font-bold',
-												warehouse.available_qty > 0
-													? 'text-green-600'
-													: 'text-red-500',
-											]"
+									<div class="flex-shrink-0 flex items-center gap-3">
+										<!-- Sell Button -->
+										<button
+											v-if="warehouse.available_qty > 0"
+											@click="sellFromWarehouse(warehouse)"
+											class="px-2.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
 										>
-											{{ Math.floor(warehouse.available_qty) }}
-											{{
-												warehouse.item_code
-													? getVariantUom(warehouse.item_code)
-													: displayUom
-											}}
-										</div>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+											</svg>
+											<span>{{ __("Vender de aquí") }}</span>
+										</button>
+
+										<div class="text-end flex-shrink-0">
+											<div
+												:class="[
+													'text-lg font-bold',
+													warehouse.available_qty > 0
+														? 'text-green-600'
+														: 'text-red-500',
+												]"
+											>
+												{{ Math.floor(warehouse.available_qty) }}
+												{{
+													warehouse.item_code
+														? getVariantUom(warehouse.item_code)
+														: displayUom
+												}}
+											</div>
 										<!-- Converted quantity in barcode UOM if different -->
 										<div
 											v-if="
@@ -743,6 +770,7 @@
 										</div>
 									</div>
 								</div>
+							</div>
 								<!-- Actual vs Available -->
 								<div
 									v-if="warehouse.actual_qty !== warehouse.available_qty"
@@ -855,6 +883,9 @@
 import { ref, computed, watch, nextTick } from "vue";
 import { call, Dialog } from "frappe-ui";
 import { __ } from "@/utils/translation";
+import { usePOSCartStore } from "@/stores/posCart";
+import { usePOSShiftStore } from "@/stores/posShift";
+import { usePOSSettingsStore } from "@/stores/posSettings";
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -926,6 +957,12 @@ const loading = ref(false);
 const error = ref(null);
 const warehouses = ref([]);
 const isReady = ref(false); // Gate to prevent showing content before data is ready
+
+const cartStore = usePOSCartStore();
+const shiftStore = usePOSShiftStore();
+const settingsStore = usePOSSettingsStore();
+
+const selectedItemObj = ref(null);
 
 // Computed display values
 const displayItemName = computed(() => {
@@ -1001,6 +1038,7 @@ watch(
 						limit: 1,
 					});
 					const item = itemResponse?.[0];
+					selectedItemObj.value = item;
 					if (item && item.has_variants) {
 						selectedItemCode.value = props.itemCode;
 						selectedItemName.value = props.itemName || props.itemCode;
@@ -1139,6 +1177,7 @@ function selectFirstResult() {
 async function selectItem(item) {
 	// Set loading state before clearing search results
 	loading.value = true;
+	selectedItemObj.value = item;
 
 	selectedItemCode.value = item.item_code;
 	selectedItemName.value = item.item_name;
@@ -1321,6 +1360,28 @@ async function loadAvailability() {
 		error.value = err.message || __("Failed to load warehouse availability");
 	} finally {
 		loading.value = false;
+	}
+}
+
+function sellFromWarehouse(w) {
+	const itemToSell = {
+		...(selectedItemObj.value || {
+			item_code: w.item_code || selectedItemCode.value || props.itemCode,
+			item_name: displayItemName.value,
+			image: selectedItemImage.value,
+			uom: w.item_code ? getVariantUom(w.item_code) : displayUom.value,
+			stock_uom: w.item_code ? getVariantUom(w.item_code) : displayUom.value,
+			item_uoms: selectedItemUoms.value,
+		}),
+		warehouse: w.warehouse || w.name,
+		actual_qty: w.actual_qty ?? w.available_qty ?? 0,
+	};
+
+	try {
+		cartStore.addItem(itemToSell, 1, true, shiftStore.currentProfile);
+		closeDialog();
+	} catch (error) {
+		console.error("Error adding item to cart from warehouse:", error);
 	}
 }
 

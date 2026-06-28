@@ -21,6 +21,18 @@
 					/>
 				</div>
 
+				<!-- NIT / CI -->
+				<div>
+					<label class="block text-start text-sm font-medium text-gray-700 mb-2">
+						{{ __("NIT / CI") }}
+					</label>
+					<Input
+						v-model="customerData.tax_id"
+						type="text"
+						:placeholder="__('Enter NIT or CI')"
+					/>
+				</div>
+
 				<!-- Mobile Number with Country Code Selector -->
 				<div>
 					<label class="block text-start text-sm font-medium text-gray-700 mb-2">
@@ -328,6 +340,7 @@ const districts = ref([]);
 
 const customerData = ref({
 	customer_name: "",
+	tax_id: "",
 	mobile_no: "",
 	email_id: "",
 	customer_group: "",
@@ -447,6 +460,7 @@ const createCustomerResource = createResource({
 		territory: customerData.value.territory || "",
 		custom_governorate: customerData.value.custom_governorate || "",
 		custom_district: customerData.value.custom_district || "",
+		tax_id: customerData.value.tax_id || "",
 		pos_profile: props.posProfile,
 	}),
 	onSuccess: (data) => {
@@ -473,6 +487,7 @@ const updateCustomerResource = createResource({
 			email_id: customerData.value.email_id || "",
 			custom_governorate: customerData.value.custom_governorate || "",
 			custom_district: customerData.value.custom_district || "",
+			tax_id: customerData.value.tax_id || "",
 		},
 	}),
 	onSuccess: (data) => {
@@ -685,6 +700,7 @@ watch(
 	(customer) => {
 		if (customer?.name) {
 			customerData.value.customer_name = customer.customer_name || "";
+			customerData.value.tax_id = customer.tax_id || "";
 			customerData.value.email_id = customer.email_id || "";
 			customerData.value.customer_group =
 				customer.customer_group || customerGroups.value[0] || "";

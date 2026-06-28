@@ -1306,6 +1306,7 @@ def get_items(
 
 		# Batch query stock for all items at once using Query Builder
 		stock_map = {}
+		other_stock_map = {}
 		if item_codes and pos_profile_doc.warehouse:
 			stock_items = [item["item_code"] for item in items if item.get("is_stock_item")]
 			if stock_items:
@@ -1318,6 +1319,32 @@ def get_items(
 					.run(as_dict=True)
 				)
 				stock_map = {s["item_code"]: s["actual_qty"] for s in stocks}
+
+				# Query stock for all other active warehouses of the company
+				local_warehouses = [pos_profile_doc.warehouse]
+				if frappe.db.get_value("Warehouse", pos_profile_doc.warehouse, "is_group"):
+					local_warehouses = frappe.db.get_descendants("Warehouse", pos_profile_doc.warehouse) or []
+
+				all_active_warehouses = frappe.get_list(
+					"Warehouse",
+					filters={
+						"company": pos_profile_doc.company,
+						"disabled": 0,
+						"is_group": 0
+					},
+					pluck="name"
+				)
+				other_warehouses = [w for w in all_active_warehouses if w not in local_warehouses]
+				if other_warehouses:
+					other_stocks = (
+						frappe.qb.from_(Bin)
+						.select(Bin.item_code, fn.Sum(Bin.actual_qty).as_("qty"))
+						.where(Bin.item_code.isin(stock_items))
+						.where(Bin.warehouse.isin(other_warehouses))
+						.groupby(Bin.item_code)
+						.run(as_dict=True)
+					)
+					other_stock_map = {s["item_code"]: flt(s["qty"]) for s in other_stocks}
 
 		# ===================================================================
 		# PRODUCT BUNDLE AVAILABILITY: Calculate bundle stock (bulk optimized)
@@ -1462,6 +1489,11 @@ def get_items(
 				stock_map.get(item["item_code"], 0)
 				if item.get("is_stock_item")
 				else bundle_availability_map.get(item["item_code"], 0)
+			)
+			item["other_qty"] = (
+				other_stock_map.get(item["item_code"], 0)
+				if item.get("is_stock_item")
+				else 0
 			)
 
 			# ===================================================================
@@ -1626,6 +1658,7 @@ def get_items_bulk(
 		# Stock
 		warehouse = pos_profile_doc.warehouse
 		stock_map = {}
+		other_stock_map = {}
 		if warehouse and item_codes:
 			warehouses = [warehouse]
 			if frappe.db.get_value("Warehouse", warehouse, "is_group"):
@@ -1641,6 +1674,28 @@ def get_items_bulk(
 				.run(as_dict=True)
 			)
 			stock_map = {s.item_code: flt(s.qty) for s in stock_data}
+
+			# Query stock for all other active warehouses of the company
+			all_active_warehouses = frappe.get_list(
+				"Warehouse",
+				filters={
+					"company": pos_profile_doc.company,
+					"disabled": 0,
+					"is_group": 0
+				},
+				pluck="name"
+			)
+			other_warehouses = [w for w in all_active_warehouses if w not in warehouses]
+			if other_warehouses:
+				other_stocks = (
+					frappe.qb.from_(Bin)
+					.select(Bin.item_code, fn.Sum(Bin.actual_qty).as_("qty"))
+					.where(Bin.item_code.isin(item_codes))
+					.where(Bin.warehouse.isin(other_warehouses))
+					.groupby(Bin.item_code)
+					.run(as_dict=True)
+				)
+				other_stock_map = {s["item_code"]: flt(s["qty"]) for s in other_stocks}
 
 		# Bundle availability
 		bundle_availability_map = {}
@@ -1679,6 +1734,11 @@ def get_items_bulk(
 				stock_map.get(item_code, 0)
 				if item.get("is_stock_item")
 				else bundle_availability_map.get(item_code, 0)
+			)
+			item["other_qty"] = (
+				other_stock_map.get(item_code, 0)
+				if item.get("is_stock_item")
+				else 0
 			)
 			item["warehouse"] = warehouse
 
