@@ -234,8 +234,13 @@
 								<div
 									v-for="draft in paginatedDrafts"
 									:key="draft.draft_id"
-									class="bg-white border border-gray-200 hover:border-blue-500 rounded-xl p-4.5 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 group"
-									@click="$emit('load-draft', draft)"
+									:class="
+										isDraftAlreadyProcessed(draft)
+											? 'bg-gray-50/50 border-gray-150 opacity-70 cursor-not-allowed select-none'
+											: 'bg-white border-gray-200 hover:border-blue-500 hover:shadow-md cursor-pointer'
+									"
+									class="border rounded-xl p-4.5 transition-all duration-200 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 group"
+									@click="handleDraftClick(draft)"
 								>
 									<!-- Left Section: Doc info -->
 									<div class="flex flex-col justify-center min-w-[220px] border-b lg:border-b-0 lg:border-r border-gray-100 pb-3 lg:pb-0 lg:pe-4 flex-shrink-0">
@@ -251,9 +256,23 @@
 											</span>
 											<span
 												class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider"
-												:class="draft.status === 'Ordered' ? 'bg-purple-50 text-purple-700 border-purple-200' : draft.docstatus === 1 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'"
+												:class="
+													draft.status === 'Ordered' || draft.status === 'Billed' || draft.status === 'Completed'
+														? 'bg-purple-50 text-purple-700 border-purple-200'
+														: draft.docstatus === 1
+														? 'bg-green-50 text-green-700 border-green-200'
+														: 'bg-yellow-50 text-yellow-700 border-yellow-200'
+												"
 											>
-												{{ draft.status === 'Ordered' ? __('Ordenada') : draft.docstatus === 1 ? __('Validada') : __('Borrador') }}
+												{{
+													draft.status === 'Ordered'
+														? __('Ordenada')
+														: draft.status === 'Billed' || draft.status === 'Completed'
+														? __('Facturada')
+														: draft.docstatus === 1
+														? __('Validada')
+														: __('Borrador')
+												}}
 											</span>
 										</div>
 										<p class="text-xs text-gray-500">
@@ -502,7 +521,7 @@ import { usePOSDraftsStore } from "@/stores/posDrafts";
 import { Button, Dialog } from "frappe-ui";
 import { onMounted, ref, watch, computed } from "vue";
 
-const { showSuccess, showError } = useToast();
+const { showSuccess, showError, showWarning } = useToast();
 const shiftStore = usePOSShiftStore();
 const draftsStore = usePOSDraftsStore();
 
@@ -604,6 +623,24 @@ function isDraftQuotation(draft) {
 		draftId.startsWith("QTN-") ||
 		draftId.startsWith("COT-")
 	);
+}
+
+function isDraftAlreadyProcessed(draft) {
+	if (!draft) return false;
+	const isQuotation = isDraftQuotation(draft);
+	if (isQuotation) {
+		return draft.status === "Ordered";
+	} else {
+		return draft.status === "Billed" || draft.status === "Completed";
+	}
+}
+
+function handleDraftClick(draft) {
+	if (isDraftAlreadyProcessed(draft)) {
+		showWarning(__("Este documento ya ha sido facturado o procesado."));
+		return;
+	}
+	emit("load-draft", draft);
 }
 
 watch(
