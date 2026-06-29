@@ -1,32 +1,80 @@
 <template>
-	<!-- Main Dialog -->
-	<Dialog v-model="show" :options="{ title: __('Cargar Nota de Venta / Cotización'), size: 'lg' }">
+		<!-- Main Dialog -->
+	<Dialog v-model="show" :options="{ title: __('Cargar Venta / Cotización'), size: '3xl' }">
 		<template #body-content>
 			<div class="flex flex-col gap-3">
-				<!-- Tabs -->
-				<div class="flex border-b border-gray-200 mb-2">
-					<button
-						type="button"
-						@click="activeTab = 'pre_sales'"
-						class="flex-1 py-2.5 text-center text-sm font-semibold transition-all border-b-2 cursor-pointer focus:outline-none"
-						:class="activeTab === 'pre_sales' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
-					>
-						{{ __("Ordenes de Venta") }}
-					</button>
-					<button
-						type="button"
-						@click="activeTab = 'quotations'"
-						class="flex-1 py-2.5 text-center text-sm font-semibold transition-all border-b-2 cursor-pointer focus:outline-none"
-						:class="activeTab === 'quotations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
-					>
-						{{ __("Cotizaciones") }}
-					</button>
+				<!-- Search and Tabs Header -->
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-3">
+					<!-- Tabs -->
+					<div class="flex bg-gray-100 p-0.5 rounded-lg w-full sm:w-auto">
+						<button
+							type="button"
+							@click="activeTab = 'pre_sales'"
+							class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
+							:class="activeTab === 'pre_sales' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+						>
+							{{ __("Ordenes de Venta") }}
+						</button>
+						<button
+							type="button"
+							@click="activeTab = 'quotations'"
+							class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
+							:class="activeTab === 'quotations' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+						>
+							{{ __("Cotizaciones") }}
+						</button>
+					</div>
+
+					<!-- Instant Search Box -->
+					<div class="relative w-full sm:w-72">
+						<div class="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
+							<svg
+								class="w-4 h-4 text-gray-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+								/>
+							</svg>
+						</div>
+						<input
+							type="text"
+							v-model="searchQuery"
+							:placeholder="__('Buscar por número o cliente...')"
+							class="w-full h-8.5 ps-9 pe-8 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
+						/>
+						<button
+							v-if="searchQuery"
+							type="button"
+							@click="searchQuery = ''"
+							class="absolute inset-y-0 end-0 pe-2.5 flex items-center text-gray-400 hover:text-gray-600"
+						>
+							<svg
+								class="w-3.5 h-3.5"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M6 18L18 6M6 6l12 12"
+								/>
+							</svg>
+						</button>
+					</div>
 				</div>
 
 				<!-- Empty State -->
-				<div v-if="filteredDrafts.length === 0" class="text-center py-8">
+				<div v-if="filteredDrafts.length === 0" class="text-center py-12">
 					<div
-						class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3"
+						class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-gray-100"
 					>
 						<svg
 							class="h-8 w-8 text-gray-400"
@@ -42,55 +90,106 @@
 							/>
 						</svg>
 					</div>
-					<p class="text-sm font-medium text-gray-900">
-						{{ activeTab === 'quotations' ? __("No hay cotizaciones") : __("No hay órdenes de venta") }}
+					<p class="text-sm font-semibold text-gray-900">
+						{{ searchQuery ? __("No se encontraron resultados") : (activeTab === 'quotations' ? __("No hay cotizaciones") : __("No hay órdenes de venta")) }}
 					</p>
-					<p class="text-xs text-gray-500 mt-1">
-						{{ activeTab === 'quotations' ? __("Cree cotizaciones en el mostrador para recuperarlas aquí") : __("Guarde las ventas como órdenes de venta para continuar más tarde") }}
+					<p class="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+						{{ searchQuery ? __("Intente buscar con términos diferentes o borre el filtro") : (activeTab === 'quotations' ? __("Cree cotizaciones en el mostrador para recuperarlas aquí") : __("Guarde las ventas como órdenes de venta para continuar más tarde")) }}
 					</p>
 				</div>
 
-				<!-- Drafts List -->
-				<div v-else class="flex flex-col gap-2 max-h-96 overflow-y-auto">
+				<!-- Drafts Grid Layout (Wide View) -->
+				<div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 max-h-[60vh] overflow-y-auto p-0.5">
 					<div
 						v-for="draft in filteredDrafts"
 						:key="draft.draft_id"
-						class="bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-400 transition-all cursor-pointer"
+						class="bg-white border border-gray-200 hover:border-blue-500 rounded-xl p-4 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between group relative"
 						@click="$emit('load-draft', draft)"
 					>
-						<div class="flex items-start justify-between mb-2">
-							<div class="flex-1">
-								<div class="flex items-center gap-2 mb-1">
-									<h4 class="text-sm font-semibold text-gray-900">
+						<!-- Upper Content -->
+						<div>
+							<div class="flex items-start justify-between gap-2 mb-2">
+								<div class="min-w-0 flex-1">
+									<h4 class="text-xs font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
 										{{ draft.draft_id }}
 									</h4>
-									<!-- Badge -->
-									<span
-										class="px-1.5 py-0.5 rounded text-[10px] font-bold border"
-										:class="draft.doctype === 'Quotation' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-green-50 text-green-700 border-green-200'"
-									>
-										{{ draft.doctype === 'Quotation' ? __('Cotización') : __('Pre-venta') }}
+									<!-- Date Badge -->
+									<span class="text-[9px] text-gray-400 block mt-0.5">
+										{{ formatDateTime(draft.created_at) }}
 									</span>
 								</div>
-								<p v-if="draft.customer" class="text-xs text-gray-500 mt-0.5">
-									{{
-										__("Customer: {0}", [
-											draft.customer?.customer_name ||
-												draft.customer?.name ||
-												draft.customer,
-										])
-									}}
+
+								<!-- Type Badges -->
+								<span
+									class="px-1.5 py-0.5 rounded text-[9px] font-bold border flex-shrink-0"
+									:class="isDraftQuotation(draft) ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-orange-50 text-orange-700 border-orange-200'"
+								>
+									{{ isDraftQuotation(draft) ? __('Cotización') : __('Pre-venta') }}
+								</span>
+							</div>
+
+							<!-- Customer Row -->
+							<div v-if="draft.customer" class="flex items-center gap-1.5 bg-gray-50 rounded-lg p-2 mb-3">
+								<div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+									<svg
+										class="w-3 h-3 text-blue-600"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+										/>
+									</svg>
+								</div>
+								<p class="text-xs text-gray-700 font-semibold truncate flex-1 leading-tight">
+									{{ draft.customer?.customer_name || draft.customer?.name || draft.customer }}
 								</p>
-								<div class="text-xs text-gray-400 mt-1 flex items-center justify-between gap-2">
-									<span>{{ formatDateTime(draft.created_at) }}</span>
-									<span class="text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded text-[10px]">{{ getTimeAgo(draft.created_at) }}</span>
+							</div>
+
+							<!-- Items Preview -->
+							<div
+								v-if="draft.items && draft.items.length > 0"
+								class="border-t border-gray-100 pt-2 mb-3"
+							>
+								<div class="flex flex-wrap gap-1 max-h-12 overflow-y-auto">
+									<span
+										v-for="(item, idx) in draft.items.slice(0, 4)"
+										:key="idx"
+										class="text-[9px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded truncate max-w-full"
+									>
+										{{ item.item_name }} ({{ item.quantity || item.qty }})
+									</span>
+									<span
+										v-if="draft.items.length > 4"
+										class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold"
+									>
+										+{{ draft.items.length - 4 }}
+									</span>
 								</div>
 							</div>
-							<div class="flex items-center gap-1">
+						</div>
+
+						<!-- Lower Content (Footer of Card) -->
+						<div class="border-t border-gray-100 pt-2.5 flex items-center justify-between mt-auto">
+							<div class="flex flex-col">
+								<span class="text-[9px] text-gray-400 font-medium uppercase tracking-wider leading-none">
+									{{ __("Total") }}
+								</span>
+								<span class="text-sm font-bold text-blue-600 mt-0.5">
+									{{ formatCurrency(calculateTotal(draft.items)) }}
+								</span>
+							</div>
+
+							<!-- Actions inside Card -->
+							<div class="flex items-center gap-1.5" @click.stop>
 								<button
 									v-if="props.allowPrintDraftInvoices"
 									@click.stop="handlePrintDraft(draft)"
-									class="text-gray-400 hover:text-blue-600 transition-colors p-1"
+									class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition-all"
 									:title="__('Print draft')"
 								>
 									<svg
@@ -109,7 +208,7 @@
 								</button>
 								<button
 									@click.stop="handleDeleteDraft(draft.draft_id)"
-									class="text-gray-400 hover:text-red-600 transition-colors p-1"
+									class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition-all"
 									:title="__('Delete draft')"
 								>
 									<svg
@@ -126,38 +225,6 @@
 										/>
 									</svg>
 								</button>
-							</div>
-						</div>
-
-						<!-- Items Preview -->
-						<div class="flex items-center justify-between text-xs">
-							<span class="text-gray-600">
-								{{ __("{0} item(s)", [draft.items?.length || 0]) }}
-							</span>
-							<span class="font-bold text-blue-600">
-								{{ formatCurrency(calculateTotal(draft.items)) }}
-							</span>
-						</div>
-
-						<!-- Items List (condensed) -->
-						<div
-							v-if="draft.items && draft.items.length > 0"
-							class="mt-2 pt-2 border-t border-gray-100"
-						>
-							<div class="flex flex-wrap gap-1">
-								<span
-									v-for="(item, idx) in draft.items.slice(0, 3)"
-									:key="idx"
-									class="text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded"
-								>
-									{{ item.item_name }} ({{ item.quantity || item.qty }})
-								</span>
-								<span
-									v-if="draft.items.length > 3"
-									class="text-[10px] text-gray-500 px-1.5 py-0.5"
-								>
-									{{ __("+{0} more", [draft.items.length - 3]) }}
-								</span>
 							</div>
 						</div>
 					</div>
@@ -263,13 +330,43 @@ const showDeleteDialog = ref(false);
 const showClearAllDialog = ref(false);
 const draftToDelete = ref(null);
 const activeTab = ref("pre_sales"); // "pre_sales" or "quotations"
+const searchQuery = ref("");
 
 const filteredDrafts = computed(() => {
 	return drafts.value.filter(draft => {
-		const isQuotation = draft.doctype === "Quotation" || (draft.draft_id && (draft.draft_id.startsWith("QTN-") || draft.draft_id.startsWith("COT-")));
-		return activeTab.value === "quotations" ? isQuotation : !isQuotation;
+		const isQuotation = isDraftQuotation(draft);
+		
+		// Filter by tab
+		const matchesTab = activeTab.value === "quotations" ? isQuotation : !isQuotation;
+		if (!matchesTab) return false;
+
+		// Filter by search query
+		if (searchQuery.value.trim()) {
+			const q = searchQuery.value.toLowerCase().trim();
+			const matchesId = draft.draft_id && draft.draft_id.toLowerCase().includes(q);
+			
+			const custName = draft.customer?.customer_name || draft.customer?.name || draft.customer || "";
+			const matchesCustomer = custName.toLowerCase().includes(q);
+
+			return matchesId || matchesCustomer;
+		}
+
+		return true;
 	});
 });
+
+function isDraftQuotation(draft) {
+	if (!draft) return false;
+	if (draft.doctype === "Quotation") return true;
+
+	const draftId = draft.draft_id;
+	return draftId && (
+		draftId.includes("-QTN-") ||
+		draftId.includes("-COT-") ||
+		draftId.startsWith("QTN-") ||
+		draftId.startsWith("COT-")
+	);
+}
 
 watch(
 	() => props.modelValue,
@@ -305,7 +402,7 @@ function handlePrintDraft(draft) {
 	}
 
 	try {
-		const isQuotation = draft.doctype === "Quotation" || (draft.draft_id && (draft.draft_id.startsWith("QTN-") || draft.draft_id.startsWith("COT-")));
+		const isQuotation = isDraftQuotation(draft);
 
 		const invoiceData = {
 			name: draft.draft_id,
