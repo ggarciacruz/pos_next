@@ -124,49 +124,66 @@
 									</button>
 								</div>
 
-								<!-- Instant Search Box -->
-								<div class="relative w-full sm:w-72">
-									<div class="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
-										<svg
-											class="w-4 h-4 text-gray-400"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-											/>
-										</svg>
-									</div>
-									<input
-										type="text"
-										v-model="searchQuery"
-										:placeholder="__('Buscar por número o cliente...')"
-										class="w-full h-8.5 ps-9 pe-8 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
-									/>
+								<!-- Controls: Search and Queue Sort -->
+								<div class="flex items-center gap-2 w-full sm:w-auto">
+									<!-- Queue Sorting Button -->
 									<button
-										v-if="searchQuery"
 										type="button"
-										@click="searchQuery = ''"
-										class="absolute inset-y-0 end-0 pe-2.5 flex items-center text-gray-400 hover:text-gray-600"
+										@click="sortByWaiting = !sortByWaiting"
+										class="h-8.5 px-3 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer focus:outline-none flex-shrink-0"
+										:class="
+											sortByWaiting
+												? 'bg-amber-50 text-amber-700 border-amber-300 shadow-sm'
+												: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+										"
 									>
-										<svg
-											class="w-3.5 h-3.5"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M6 18L18 6M6 6l12 12"
-											/>
-										</svg>
+										<span>{{ sortByWaiting ? '⏳ Mayor Espera' : '🕒 Recientes' }}</span>
 									</button>
+
+									<!-- Instant Search Box -->
+									<div class="relative w-full sm:w-72 flex-shrink-0">
+										<div class="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
+											<svg
+												class="w-4 h-4 text-gray-400"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+												/>
+											</svg>
+										</div>
+										<input
+											type="text"
+											v-model="searchQuery"
+											:placeholder="__('Buscar por número o cliente...')"
+											class="w-full h-8.5 ps-9 pe-8 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
+										/>
+										<button
+											v-if="searchQuery"
+											type="button"
+											@click="searchQuery = ''"
+											class="absolute inset-y-0 end-0 pe-2.5 flex items-center text-gray-400 hover:text-gray-600"
+										>
+											<svg
+												class="w-3.5 h-3.5"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M6 18L18 6M6 6l12 12"
+												/>
+											</svg>
+										</button>
+									</div>
 								</div>
 							</div>
 
@@ -228,7 +245,19 @@
 											{{ formatDateTime(draft.created_at) }}
 										</p>
 										<div class="mt-2">
-											<span class="inline-block text-[10px] font-bold bg-orange-100 text-orange-800 px-2 py-0.5 rounded-md">
+											<span
+												class="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md border uppercase tracking-wider transition-all"
+												:class="
+													getWaitingStatus(draft.created_at) === 'critical'
+														? 'bg-red-50 text-red-700 border-red-200 shadow-sm animate-pulse'
+														: getWaitingStatus(draft.created_at) === 'warning'
+														? 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
+														: 'bg-green-50 text-green-700 border-green-200'
+												"
+											>
+												<span v-if="getWaitingStatus(draft.created_at) === 'critical'">🚨</span>
+												<span v-else-if="getWaitingStatus(draft.created_at) === 'warning'">⏳</span>
+												<span v-else>🟢</span>
 												{{ getTimeAgo(draft.created_at) }}
 											</span>
 										</div>
@@ -472,18 +501,29 @@ const searchQuery = ref("");
 const isRefreshing = ref(false);
 const currentPage = ref(1);
 const pageSize = 10;
+const sortByWaiting = ref(false);
+
+const sortedDrafts = computed(() => {
+	const list = [...filteredDrafts.value];
+	list.sort((a, b) => {
+		const dateA = a.created_at ? new Date(a.created_at) : 0;
+		const dateB = b.created_at ? new Date(b.created_at) : 0;
+		return sortByWaiting.value ? dateA - dateB : dateB - dateA;
+	});
+	return list;
+});
 
 const totalPages = computed(() => {
-	return Math.ceil(filteredDrafts.value.length / pageSize) || 1;
+	return Math.ceil(sortedDrafts.value.length / pageSize) || 1;
 });
 
 const paginatedDrafts = computed(() => {
 	const start = (currentPage.value - 1) * pageSize;
 	const end = start + pageSize;
-	return filteredDrafts.value.slice(start, end);
+	return sortedDrafts.value.slice(start, end);
 });
 
-watch([activeTab, searchQuery], () => {
+watch([activeTab, searchQuery, sortByWaiting], () => {
 	currentPage.value = 1;
 });
 
@@ -672,5 +712,15 @@ function getTimeAgo(createdAt) {
 
 	const diffDays = Math.floor(diffHours / 24);
 	return __("{0} day ago", [diffDays]);
+}
+
+function getWaitingStatus(createdAt) {
+	if (!createdAt) return "normal";
+	const date = new Date(createdAt);
+	const now = new Date();
+	const diffMins = Math.floor((now - date) / 60000);
+	if (diffMins >= 20) return "critical";
+	if (diffMins >= 10) return "warning";
+	return "normal";
 }
 </script>
