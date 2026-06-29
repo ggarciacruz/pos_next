@@ -154,6 +154,11 @@
 				</svg>
 				<span class="mx-4">{{ __("Logout") }}</span>
 			</button>
+
+			<!-- App Version Footer -->
+			<div class="px-4 py-1.5 text-center border-t border-gray-100 mt-2 bg-gray-50/50 rounded-b-xl">
+				<span class="text-[10px] font-semibold text-gray-400">MDX POS v{{ appVersion }}</span>
+			</div>
 		</div>
 	</div>
 </template>
@@ -161,6 +166,9 @@
 <script setup>
 import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
 import { useLocale } from "@/composables/useLocale";
+import { version } from "../../../package.json";
+
+const appVersion = version;
 
 // Avatar Sub-component
 const Avatar = (props) => {

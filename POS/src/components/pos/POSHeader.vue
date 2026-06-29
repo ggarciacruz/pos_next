@@ -29,14 +29,6 @@
 							>
 								{{ "MDX POS" }}
 							</h1>
-							<span
-								class="hidden sm:inline-flex relative items-center px-1 sm:px-2 py-0.5 text-[8px] sm:text-[10px] font-bold bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-md shadow-sm hover:shadow-md transition-shadow flex-shrink-0"
-							>
-								<span
-									class="absolute inset-0 bg-white/20 rounded-md animate-pulse"
-								></span>
-								<span class="relative">v{{ appVersion }}</span>
-							</span>
 						</div>
 						<p
 							v-if="profileName"
@@ -393,10 +385,8 @@ import UserMenu from "@/components/common/UserMenu.vue";
 import LanguageSwitcher from "@/components/common/LanguageSwitcher.vue";
 import { DEFAULT_LOCALE } from "@/utils/currency";
 import { ref } from "vue";
-import { version } from "../../../package.json";
 
 const showCacheTooltip = ref(false);
-const appVersion = version;
 
 const emit = defineEmits([
 	"sync-click",
