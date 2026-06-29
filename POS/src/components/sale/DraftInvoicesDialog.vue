@@ -254,25 +254,23 @@
 											>
 												{{ isDraftQuotation(draft) ? __('Cotización') : __('Pre-venta') }}
 											</span>
+											<!-- Processed Checkmark Badge -->
 											<span
-												class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider"
-												:class="
-													draft.status === 'Ordered' || draft.status === 'Billed' || draft.status === 'Completed'
-														? 'bg-purple-50 text-purple-700 border-purple-200'
-														: draft.docstatus === 1
-														? 'bg-green-50 text-green-700 border-green-200'
-														: 'bg-yellow-50 text-yellow-700 border-yellow-200'
-												"
+												v-if="isDraftAlreadyProcessed(draft)"
+												class="inline-flex items-center justify-center p-0.5 rounded-full bg-green-50 text-green-600 border border-green-200"
+												:title="__('Procesado')"
 											>
-												{{
-													draft.status === 'Ordered'
-														? __('Ordenada')
-														: draft.status === 'Billed' || draft.status === 'Completed'
-														? __('Facturada')
-														: draft.docstatus === 1
-														? __('Validada')
-														: __('Borrador')
-												}}
+												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+													<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+												</svg>
+											</span>
+											<!-- Regular Doc Status Badge -->
+											<span
+												v-else
+												class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider"
+												:class="draft.docstatus === 1 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'"
+											>
+												{{ draft.docstatus === 1 ? __('Validada') : __('Borrador') }}
 											</span>
 										</div>
 										<p class="text-xs text-gray-500">
