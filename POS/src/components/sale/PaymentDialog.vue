@@ -76,7 +76,7 @@
 								/>
 							</svg>
 							<span class="text-xs font-semibold text-blue-700">
-								{{ __("Emitir Factura Oficial") }}
+								{{ __("C/ Fact.") }}
 							</span>
 						</div>
 						<label class="relative inline-flex items-center cursor-pointer">
