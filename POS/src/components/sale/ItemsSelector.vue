@@ -2,11 +2,57 @@
 	<div class="flex flex-col h-full bg-gray-50">
 		<!-- Item Groups Filter Tabs -->
 		<div
-			class="px-1.5 sm:px-3 pt-1.5 sm:pt-3 pb-1.5 sm:pb-2 bg-white border-b border-gray-200"
+			class="px-1.5 sm:px-3 pt-1.5 sm:pt-3 pb-1.5 sm:pb-2 bg-white border-b border-gray-200 flex items-center gap-2"
 		>
+			<!-- Group Filter Instant Search Input -->
+			<div class="relative w-36 sm:w-44 flex-shrink-0">
+				<div class="absolute inset-y-0 start-0 ps-2.5 flex items-center pointer-events-none">
+					<svg
+						class="h-3 w-3 text-gray-400"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2.5"
+							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+						/>
+					</svg>
+				</div>
+				<input
+					type="text"
+					v-model="groupSearchQuery"
+					:placeholder="isBrandSortActive ? __('Filtrar marcas...') : __('Filtrar grupos...')"
+					class="w-full text-[10px] sm:text-xs border border-gray-200 rounded-lg py-1.2 sm:py-1.5 ps-7 pe-6 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent bg-gray-50/50 focus:bg-white transition-all"
+				/>
+				<button
+					v-if="groupSearchQuery"
+					type="button"
+					@click="groupSearchQuery = ''"
+					class="absolute inset-y-0 end-0 pe-2 flex items-center text-gray-400 hover:text-gray-600"
+				>
+					<svg
+						class="w-3 h-3"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/>
+					</svg>
+				</button>
+			</div>
+
+			<!-- Tabs scroll list -->
 			<div
 				ref="tabsContainer"
-				class="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab active:cursor-grabbing select-none"
+				class="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab active:cursor-grabbing select-none flex-1"
 			>
 				<button
 					@click="handleAllFilterClick"
@@ -1148,6 +1194,7 @@ const {
 
 // Local state
 const viewMode = ref("grid");
+const groupSearchQuery = ref("");
 const itemThreshold = ref(1000); // Threshold for auto-switching to list view
 const userManuallySetView = ref(false); // Track if user manually changed view mode
 const lastAutoSwitchCount = ref(0);
@@ -1281,11 +1328,17 @@ const sortOptions = computed(() => {
 const activeFilterValue = computed(() =>
 	isBrandSortActive.value ? selectedBrand.value : selectedItemGroup.value
 );
-const activeFilterOptions = computed(() =>
-	isBrandSortActive.value
+const activeFilterOptions = computed(() => {
+	const allOptions = isBrandSortActive.value
 		? (brands.value || []).map((b) => ({ value: b.brand, label: b.brand }))
-		: (itemGroups.value || []).map((g) => ({ value: g.item_group, label: g.item_group }))
-);
+		: (itemGroups.value || []).map((g) => ({ value: g.item_group, label: g.item_group }));
+
+	if (groupSearchQuery.value.trim()) {
+		const q = groupSearchQuery.value.toLowerCase().trim();
+		return allOptions.filter(opt => opt.label.toLowerCase().includes(q));
+	}
+	return allOptions;
+});
 const selectedFilterLabel = computed(() => selectedBrand.value || selectedItemGroup.value || null);
 
 // Watch for cart items and pos profile changes (optimized - uses length + hash instead of deep watch)
