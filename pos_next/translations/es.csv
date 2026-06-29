@@ -1,373 +1,617 @@
-"Complete Payment","Completar Pago",""
-"Exact amount only","Solo monto exacto",""
-"optional","opcional",""
-"Payment Method","Método de Pago",""
-"Refund Amount","Monto a Reembolsar",""
-"Enter amount...","Ingresar monto...",""
-"Total Amount","Monto Total",""
-"Remaining","Restante",""
-"Change Due","Cambio a Entregar",""
-"On Account","A Cuenta / Crédito",""
-"Paid in Full","Pagado Totalmente",""
-"Fully Paid","Pagado Totalmente",""
-"Paid Amount","Monto Pagado",""
-"Paid: {0}","Pagado: {0}",""
-"Customer Credit Available","Crédito del Cliente Disponible",""
-"Outstanding Balance","Saldo Pendiente",""
-"Credit can be applied to invoice","El crédito puede aplicarse a la factura",""
-"Amount owed by customer","Monto adeudado por el cliente",""
-"No outstanding balance","Sin saldo pendiente",""
-"Save","Guardar",""
-"Cancel","Cancelar",""
-"Open POS Shift","Abrir Turno de POS",""
-"Select POS Profile","Seleccionar Perfil de POS",""
-"Select Profile","Seleccionar Perfil",""
-"No POS Profiles available. Please contact your administrator.","No hay perfiles de POS disponibles. Por favor contacte al administrador.",""
-"Next","Siguiente",""
-"Close Shift","Cerrar Turno",""
-"Customer","Cliente",""
-"Warehouse","Almacén",""
-"Open Amount","Monto de Apertura",""
-"Search...","Buscar...",""
-"Items","Artículos",""
-"Pay","Pagar",""
-"Checkout","Cobrar",""
-"Print Receipt","Imprimir Recibo",""
-"New Order","Nueva Orden",""
-"Search by name, barcode, code...","Buscar por nombre, código de barras...",""
-"Add Customer","Agregar Cliente",""
-"Search customer...","Buscar cliente...",""
-"Discount","Descuento",""
-"Tax","Impuesto",""
-"Subtotal","Subtotal",""
-"Total","Total",""
-"Opening Balance","Saldo de Apertura",""
-"Cashier","Cajero",""
-"Shift","Turno",""
-"Status","Estado",""
-"Date","Fecha",""
-"Time","Hora",""
-"User","Usuario",""
-"English","Inglés",""
-"Spanish","Español",""
-"Arabic","Árabe",""
-"Indonesian","Indonesio",""
-"Portuguese (Brazil)","Portugués (Brasil)",""
-"View Shift","Ver Turno",""
-"Draft Invoices","Cargar Orden de Venta",""
-"Invoice History","Historial de Facturas",""
-"Return Invoice","Devolver Factura",""
-"Search or add customer...","Buscar o agregar cliente...",""
-"Your cart is empty","Tu carrito está vacío",""
-"Select items to start or choose a quick action","Selecciona artículos para empezar o elige una acción rápida",""
-"Search by item code, name, item group or scan barcode","Buscar por código, nombre, grupo o escanear código...",""
-"unit","unidad",""
-"units","unidades",""
-"\"{0}\" is out of stock in warehouse \"{1}\".","\"{0}\" no tiene stock en el almacén \"{1}\".",""
-"Not enough stock for \"{0}\".\n\nYou requested {1} {2}, but only {3} {4} available in \"{5}\".","No hay suficiente stock para \"{0}\".\n\nSolicitó {1} {2}, pero solo hay {3} {4} disponibles en \"{5}\".",""
-"Not enough stock for \"{0}\".\n\nYou need {1} {2} but the warehouse \"{3}\" doesn't have enough available.\n\nPlease reduce the quantity or check another warehouse.","No hay suficiente stock para \"{0}\".\n\nNecesita {1} {2} pero el almacén \"{3}\" no tiene suficiente disponible.\n\nPor favor reduzca la cantidad o consulte otro almacén.",""
-"Not enough stock available in the warehouse.\n\nPlease reduce the quantity or check stock availability.","No hay suficiente stock disponible en el almacén.\n\nPor favor reduzca la cantidad o verifique la disponibilidad de stock.",""
-"Cart Items","Artículos del Carrito",""
-"Offers","Ofertas",""
-"Coupon","Cupón",""
-"{0} - {1} of {2}","{0} - {1} de {2}",""
-"Click to check availability in other warehouses","Haga clic para ver disponibilidad en otros almacenes",""
-"Click to view all warehouses","Haga clic para ver todos los almacenes",""
-"Stock Lookup","Buscador de Stock",""
-"Total Available:","Total Disponible:",""
-"in {0} warehouse","en {0} almacén",""
-"in {0} warehouses","en {0} almacenes",""
-"{0} Piece","{0} Pieza",""
-"{0} Pieces","{0} Piezas",""
-"Available","Disponible",""
-"Vender de aquí","Vender de aquí",""
-"Cerrar","Cerrar",""
-"All Brands","Todas las Marcas",""
-"All Items","Todos los Productos",""
-"Search items","Buscar artículos",""
-"Barcode Scanner: ON (Click to disable)","Lector de código de barras: ENCENDIDO (Clic para desactivar)",""
-"Barcode Scanner: OFF (Click to enable)","Lector de código de barras: APAGADO (Clic para activar)",""
-"Disable barcode scanner","Desactivar lector de código de barras",""
-"Enable barcode scanner","Activar lector de código de barras",""
-"Auto-Add: ON - Press Enter to add items to cart","Agregar automático: SÍ - Presione Enter para agregar al carrito",""
-"Auto-Add: OFF - Press Enter to focus next action","Agregar automático: NO - Presione Enter para enfocar siguiente acción",""
-"Auto-Add: ON","Agregar automático: SÍ",""
-"Auto-Add: OFF","Agregar automático: NO",""
-"Grid View","Vista Cuadrícula",""
-"List View","Vista Lista",""
-"Filters","Filtros",""
-"Active Filters:","Filtros Activos:",""
-"Sort By:","Ordenar Por:",""
-"Clear All","Limpiar Todo",""
-"No items found","No se encontraron artículos",""
-"Try adjusting your search or filters","Intente ajustar su búsqueda o filtros",""
-"Items per page","Artículos por página",""
-"Previous Page","Página Anterior",""
-"Next Page","Página Siguiente",""
-"Invoice Created Successfully","Factura Creada Exitosamente",""
-"Invoice {0} created successfully!","¡Factura {0} creada exitosamente!",""
-"Invoice {0} created successfully","Factura {0} creada exitosamente",""
-"Customer {0} created successfully","Cliente {0} creado exitosamente",""
-"Promotion created successfully","Promoción creada exitosamente",""
-"Return invoice {0} created successfully","Factura de devolución {0} creada exitosamente",""
-"Coupon created successfully","Cupón creado exitosamente",""
-"Print Invoice","Imprimir Factura",""
-"Addition Order","Orden de Agregado",""
-"Name","Nombre",""
-"Price","Precio",""
-"Quantity","Cantidad",""
-"Total","Total",""
-"Sort","Ordenar",""
-"Sort Cart","Ordenar Carrito",""
-"No Sorting","Sin Ordenar",""
-"Sort cart items","Ordenar artículos del carrito",""
-"Sorted by {0} A-Z","Ordenado por {0} A-Z",""
-"Sorted by {0} Z-A","Ordenado por {0} Z-A",""
-"Reports & Configuration","Informes y Configuración",""
-"Offers & Coupons","Ofertas y Cupones",""
-"Start POS","Iniciar POS",""
-"Sales vs Shifts Report","Reporte de Ventas vs Turnos",""
-"Cashier Performance Report","Reporte de Rendimiento de Cajero",""
-"Payments and Cash Control Report","Reporte de Pagos y Control de Caja",""
-"Inventory Impact and Fast Movers Report","Reporte de Impacto de Inventario y Rotación",""
-"Offline Sync and System Health Report","Reporte de Sincronización y Salud del Sistema",""
-"POS Settings","Configuración de POS",""
-"POS Profile","Perfil de POS",""
-"POS Offer","Oferta de POS",""
-"POS Coupon","Cupón de POS",""
-"POS Opening Shift","Apertura de Caja",""
-"POS Closing Shift","Cierre de Caja",""
-"Pos Settings","Configuración de POS",""
-"Pos Profile","Perfil de POS",""
-"Pos Offer","Oferta de POS",""
-"Pos Coupon","Cupón de POS",""
-"Pos Opening Shift","Apertura de Caja",""
-"Pos Closing Shift","Cierre de Caja",""
-"Reports &amp; Configuration","Informes y Configuración",""
-"Offers &amp; Coupons","Ofertas y Cupones",""
-"Hold:order","Crear Orden de Venta",""
-"Hold","Crear Orden de Venta",""
-"Hold order as draft","Guardar pedido como orden de venta",""
-"Drafts","Órdenes de Venta",""
-"Delete Draft?","¿Eliminar Orden de Venta?",""
-"Clear All Drafts?","¿Limpiar todas las órdenes de venta?",""
-"Draft invoice deleted","Orden de Venta eliminada",""
-"Draft invoice loaded successfully","Orden de Venta cargada exitosamente",""
-"Draft deleted successfully","Orden de Venta eliminada exitosamente",""
-"No draft invoices","No hay órdenes de venta",""
-"Save invoices as drafts to continue later","Guarde las ventas como órdenes de venta para continuar más tarde",""
-"Customer: {0}","Cliente: {0}",""
-"Print draft","Imprimir orden de venta",""
-"Delete draft","Eliminar orden de venta",""
-"{0} item(s)","{0} artículo(s)",""
-"+{0} more","+{0} más",""
-"Permanently delete this draft invoice?","¿Eliminar permanentemente esta orden de venta?",""
-"Permanently delete all {0} draft invoices?","¿Eliminar permanentemente todas las {0} órdenes de venta?",""
-"Failed to load draft invoices","Error al cargar las órdenes de venta",""
-"Failed to print draft","Error al imprimir orden de venta",""
-"Failed to delete draft","Error al eliminar orden de venta",""
-"All draft invoices deleted","Todas las órdenes de venta fueron eliminadas",""
-"Failed to clear drafts","Error al limpiar las órdenes de venta",""
-"Edit Customer","Editar Cliente",""
-"Create New Customer","Crear Nuevo Cliente",""
-"Customer Name","Nombre del Cliente",""
-"Enter customer name","Ingrese el nombre del cliente",""
-"Mobile Number","Número de Celular",""
-"Search country or code...","Buscar país o código...",""
-"No countries found","No se encontraron países",""
-"Enter phone number","Ingrese el número de teléfono",""
-"Email","Correo electrónico",""
-"Enter email address","Ingrese la dirección de correo electrónico",""
-"Customer Group","Grupo de Clientes",""
-"Select Customer Group","Seleccionar Grupo de Clientes",""
-"Territory","Territorio",""
-"Select Territory","Seleccionar Territorio",""
-"Governorate","Provincia",""
-"Select Governorate","Seleccionar Provincia",""
-"District","Distrito",""
-"Select District","Seleccionar Distrito",""
-"Select a governorate first","Seleccione una provincia primero",""
-"Permission Required","Permiso Requerido",""
-"Save Changes","Guardar Cambios",""
-"Create Customer","Crear Cliente",""
-"Failed to create customer","Error al crear cliente",""
-"Customer {0} updated successfully","Cliente {0} actualizado exitosamente",""
-"Failed to update customer","Error al actualizar cliente",""
-"This function is reserved for cashiers.","Esta función está reservada para cajeros.",""
-"Customer Name is required","El nombre del cliente es obligatorio",""
-"Enter the actual counted amounts for each payment method","Ingrese los montos reales contados para cada método de pago",""
-"Shift closed successfully - Review the final reconciliation below","Turno cerrado exitosamente - Revise la conciliación final abajo",""
-"Count your cash and enter actual amounts below","Cuente su efectivo e ingrese los montos reales abajo",""
-"Opening","Apertura",""
-"Expected","Esperado",""
-"Actual Amount *","Monto Real *",""
-"Shift start","Inicio de turno",""
-"No sales","Sin ventas",""
-"Final Amount","Monto Final",""
-"Count & enter","Contar y registrar",""
-"Cash Over","Sobrante de Caja",""
-"Cash Short","Faltante de Caja",""
-"You have more than expected.","Tiene más de lo esperado.",""
-"You have less than expected.","Tiene menos de lo esperado.",""
-"Total Expected","Total Esperado",""
-"Total Actual","Total Real",""
-"Net Variance","Diferencia Neta",""
-"Tax Summary","Resumen de Impuestos",""
-"Search by invoice number or customer...","Buscar por número de factura o cliente...",""
-"Please enter all closing amounts","Por favor ingrese todos los montos de cierre",""
-"Expected: &lt;span class=&quot;font-medium&quot;&gt;{0}&lt;/span&gt;","Esperado: &lt;span class=&quot;font-medium&quot;&gt;{0}&lt;/span&gt;",""
-"Expected: <span class=\"font-medium\">{0}</span>","Esperado: <span class=\"font-medium\">{0}</span>",""
-"✓ Balanced","✓ Cuadrado",""
-"Over {0}","Sobrante: {0}",""
-"Short {0}","Faltante: {0}",""
-"Gross Sales","Ventas Brutas",""
-"Net Sales","Ventas Netas",""
-"Tax Collected","Impuestos Recaudados",""
-"Duration","Duración",""
-"After returns","Después de devoluciones",""
-"Net tax","Impuesto neto",""
-"Net Total:","Total Neto:",""
-"Invoice Details","Detalles de la Factura",""
-"Invoice","Factura",""
-"Type","Tipo",""
-"Customer","Cliente",""
-"Time","Hora",""
-"Amount","Importe",""
-"Sale","Venta",""
-"Return","Devolución",""
-"Close POS Shift","Cerrar Turno de POS",""
-"{0} invoices","{0} facturas",""
-"{0} returns","{0} devoluciones",""
-"{0} transactions • {1}","{0} transacciones • {1}",""
-"Expected: <span class=""font-medium"">{0}</span>","Esperado: <span class=""font-medium"">{0}</span>",""
-"Expected: &lt;span class=&quot;font-medium&quot;&gt;{0}&lt;/span&gt;","Esperado: &lt;span class=&quot;font-medium&quot;&gt;{0}&lt;/span&gt;",""
-"Print Pre-ticket","Imprimir Pre-ticket",""
-"Pre-sale saved successfully. Do you want to print the pre-ticket?","Orden de Venta guardada exitosamente. ¿Desea imprimir el pre-ticket?",""
-"Yes","Sí",""
-"No","No",""
-"Just now","Hace unos instantes",""
-"{0} min ago","Hace {0} min",""
-"{0} hr ago","Hace {0} h",""
-"{0} day ago","Hace {0} d",""
-"Stock Management","Gestión de Inventario",""
-"Sales Management","Gestión de Ventas",""
-"Configure warehouse and inventory settings","Configure los almacenes y la configuración de inventario",""
-"Stock Controls","Controles de Stock",""
-"Warehouse Selection","Selección de Almacén",""
-"Active Warehouse","Almacén Activo",""
-"All stock operations will use this warehouse. Stock quantities will refresh after saving.","Todas las operaciones de stock utilizarán este almacén. Las cantidades de stock se actualizarán después de guardar.",""
-"Stock Validation Policy","Política de Validación de Stock",""
-"Allow Negative Stock","Permitir Inventario Negativo",""
-"Enable selling items even when stock reaches zero or below. Integrates with Back Office stock settings.","Permitir la venta de artículos incluso cuando el stock llega a cero o menos. Se integra con la configuración de stock de ERPNext.",""
-"<strong>Note:</strong> When enabled, the system will allow sales even when stock quantity is zero or negative. This is useful for handling stock sync delays or backorders. All transactions are tracked in the stock ledger.","<strong>Nota:</strong> Cuando está activado, el sistema permitirá ventas incluso cuando el stock es cero o negativo. Esto es útil para manejar retrasos en la sincronización de stock o pedidos pendientes. Todas las transacciones se registran en el libro de stock.",""
-"Background Stock Sync","Sincronización de Stock en Segundo Plano",""
-"Enable Automatic Stock Sync","Activar Sincronización Automática de Stock",""
-"Periodically sync stock quantities from server in the background (runs in Web Worker)","Sincronizar periódicamente las cantidades de stock del servidor en segundo plano (se ejecuta en Web Worker)",""
-"Sync Interval (seconds)","Intervalo de Sincronización (segundos)",""
-"How often to check server for stock updates (minimum 10 seconds)","Frecuencia para verificar actualizaciones de stock en el servidor (mínimo 10 segundos)",""
-"<strong>Status:</strong> Running","<strong>Estado:</strong> Ejecutándose",""
-"<strong>Status:</strong> Stopped","<strong>Estado:</strong> Detenido",""
-"<strong>Items Tracked:</strong> {0}","<strong>Artículos Registrados:</strong> {0}",""
-"<strong>Warehouse:</strong> {0}","<strong>Almacén:</strong> {0}",""
-"<strong>Last Sync:</strong> {0}","<strong>Última Sincronización:</strong> {0}",""
-"<strong>Last Sync:</strong> Never","<strong>Última Sincronización:</strong> Nunca",""
-"Warehouse not set","Almacén no configurado",""
-"Please select a customer before saving a pre-sale","Por favor, seleccione un cliente antes de guardar una orden de venta",""
-"Failed to save draft","Error al guardar la orden de venta",""
-"Invoice saved as draft successfully","Orden de Venta guardada exitosamente",""
-"Refresh","Actualizar",""
-"Save Changes","Guardar Cambios",""
-"Sales Controls","Controles de Ventas",""
-"Pricing & Discounts","Precios y Descuentos",""
-"Tax Inclusive","Impuestos Incluidos",""
-"When enabled, displayed prices include tax. When disabled, tax is calculated separately. Changes apply immediately to your cart when you save.","Cuando está activado, los precios mostrados incluyen impuestos. Cuando está desactivado, el impuesto se calcula por separado. Los cambios se aplican inmediatamente al carrito al guardar.",""
-"Max Discount (%)","Descuento Máximo (%)",""
-"Maximum discount per item","Descuento máximo por artículo",""
-"Use Percentage Discount","Usar Descuento Porcentual",""
-"Show discounts as percentages","Mostrar descuentos como porcentajes",""
-"Allow Additional Discount","Permitir Descuento Adicional",""
-"Enable invoice-level discount","Habilitar descuento a nivel de factura",""
-"Allow Item Discount","Permitir Descuento por Artículo",""
-"Enable item-level discount in edit dialog","Habilitar descuento a nivel de artículo en el diálogo de edición",""
-"Allow User To Edit Rate","Permitir al Usuario Editar Precios",""
-"Allow editing item rate in cart. Disabled when offers are applied.","Permitir la edición de precios de los artículos en el carrito. Desactivado cuando hay ofertas aplicadas.",""
-"Disable Rounded Total","Desactivar Redondeo del Total",""
-"Show exact totals without rounding","Mostrar totales exactos sin redondeo",""
-"Sales Operations","Operaciones de Venta",""
-"Allow Credit Sale","Permitir Venta a Crédito",""
-"Enable sales on credit","Habilitar ventas a crédito",""
-"Allow Return","Permitir Devolución",""
-"Enable product returns","Habilitar devoluciones de productos",""
-"Allow Write Off Change","Permitir Ajuste de Cambio",""
-"Write off small change amounts","Ajustar pequeñas diferencias de cambio de caja",""
-"Allow Partial Payment","Permitir Pago Parcial",""
-"Enable partial payment for invoices","Habilitar pagos parciales para facturas",""
-"Silent Print","Impresión Silenciosa",""
-"Send receipts directly to a thermal printer via QZ Tray (no browser dialog)","Enviar recibos directamente a una impresora térmica a través de QZ Tray (sin diálogo de navegador)",""
-"Connecting to QZ Tray...","Conectando a QZ Tray...",""
-"QZ Tray Connected","QZ Tray Conectado",""
-"QZ Tray Not Connected","QZ Tray No Conectado",""
-"Retry","Reintentar",""
-"Printer","Impresora",""
-"No printers found. Is QZ Tray running?","No se encontraron impresoras. ¿Está ejecutándose QZ Tray?",""
-"Refresh printer list","Actualizar lista de impresoras",""
-"Silent Print Certificate","Certificado de Impresión Silenciosa",""
-"Installed","Instalado",""
-"Not Installed","No Instalado",""
-"Checking...","Verificando...",""
-"Certificate is installed and signing is active. Print jobs will be sent silently without confirmation dialogs.","El certificado está instalado y la firma está activa. Los trabajos de impresión se enviarán de forma silenciosa sin diálogos de confirmación.",""
-"Certificate is not installed on this machine. Generate a certificate, download it, and import it into QZ Tray.","El certificado no está instalado en esta máquina. Genere un certificado, descárguelo e impórtelo en QZ Tray.",""
-"To print without confirmation dialogs, generate a signing certificate and install it on each POS machine.","Para imprimir sin diálogos de confirmación, genere un certificado de firma e instálelo en cada máquina POS.",""
-"All items removed from cart","Todos los artículos fueron eliminados del carrito",""
-"No pending invoices to sync","No hay facturas pendientes por sincronizar",""
-"Online - Click to sync","En línea - Haz clic para sincronizar",""
-"Cache syncing","Sincronizando caché",""
-"Invoice saved offline. Will sync when online","Factura guardada fuera de línea. Se sincronizará cuando esté en línea",""
-"Cannot edit while syncing — please wait for sync to finish.","No se puede editar mientras se sincroniza — por favor espera a que termine la sincronización.",""
-"Cannot delete while syncing — please wait for sync to finish.","No se puede eliminar mientras se sincroniza — por favor espera a que termine la sincronización.",""
-"Cannot sync while offline","No se puede sincronizar mientras está fuera de línea",""
-"{0} invoice(s) failed to sync","{0} factura(s) no se pudieron sincronizar",""
-"{0} invoice(s) synced successfully","{0} factura(s) sincronizada(s) con éxito",""
-"POS is offline without cached data. Please connect to sync.","El POS está fuera de línea y sin datos en caché. Por favor conéctate para sincronizar.",""
-"Syncing catalog in background... {0} items cached","Sincronizando catálogo en segundo plano... {0} artículos guardados en caché",""
-"Invoice Management","Gestión de Facturas",""
-"Shift Open:","Turno abierto:",""
-"Hour","Hora",""
-"Hours","Horas",""
-"Minute","Minuto",""
-"Minutes","Minutos",""
-"Second","Segundo",""
-"Seconds","Segundos",""
-"Search for items across warehouses","Buscar artículos en todos los almacenes",""
-"Type to search items...","Escribe para buscar artículos...",""
-"Search by item name, code, or scan barcode","Busca por nombre de artículo, código o escanea el código de barras",""
-"Search for an item","Buscar un artículo",""
-"Start typing to see suggestions","Comienza a escribir para ver sugerencias",""
-"Navigate","Navegar",""
-"Sign Out Confirmation","Confirmación de Cierre de Sesión",""
-"Your Shift is Still Open!","¡Tu turno aún está abierto!",""
-"Close your shift first to save all transactions properly","Cierra tu turno primero para guardar todas las transacciones correctamente",""
-"Close Shift & Sign Out","Cerrar turno y salir",""
-"Skip & Sign Out","Omitir y salir",""
-"Access your point of sale system","Acceda a su sistema de punto de venta",""
-"User ID / Email","ID de usuario / Correo electrónico",""
-"Enter your username or email","Introduzca su nombre de usuario o correo electrónico",""
-"Sign in","Iniciar sesión",""
-"Signing in...","Iniciando sesión...",""
-"Sign in to MDX POS","Iniciar sesión en MDX POS",""
-"Welcome to MDX POS!","¡Bienvenido a MDX POS!",""
-"Welcome to MDX POS","Bienvenido a MDX POS",""
-"Are you sure you want to sign out of MDX POS?","¿Está seguro de que desea cerrar sesión en MDX POS?",""
-"You will be logged out of MDX POS","Se cerrará su sesión de MDX POS",""
-"Error Report - MDX POS","Reporte de Error - MDX POS",""
+&lt;strong&gt;Opened:&lt;/strong&gt; {0},&lt;strong&gt;Abierto:&lt;/strong&gt; {0},
+&lt;strong&gt;Opened:&lt;strong&gt;,&lt;strong&gt;Abierto:&lt;strong&gt;,
+&lt;strong&gt;POS Profile:&lt;/strong&gt; {0},&lt;strong&gt;Perfil de POS:&lt;/strong&gt; {0},
+&lt;strong&gt;POS Profile:&lt;strong&gt; {0},&lt;strong&gt;Perfil de POS:&lt;strong&gt; {0},
++{0} more,+{0} más,
+<strong>Items Tracked:</strong> {0},<strong>Artículos Registrados:</strong> {0},
+<strong>Last Sync:</strong> Never,<strong>Última Sincronización:</strong> Nunca,
+<strong>Last Sync:</strong> {0},<strong>Última Sincronización:</strong> {0},
+"<strong>Note:</strong> When enabled, the system will allow sales even when stock quantity is zero or negative. This is useful for handling stock sync delays or backorders. All transactions are tracked in the stock ledger.","<strong>Nota:</strong> Cuando está activado, el sistema permitirá ventas incluso cuando el stock es cero o negativo. Esto es útil para manejar retrasos en la sincronización de stock o pedidos pendientes. Todas las transacciones se registran en el libro de stock.",
+<strong>Status:</strong> Running,<strong>Estado:</strong> Ejecutándose,
+<strong>Status:</strong> Stopped,<strong>Estado:</strong> Detenido,
+<strong>Warehouse:</strong> {0},<strong>Almacén:</strong> {0},
+Access your point of sale system,Acceda a su sistema de punto de venta,
+Active Filters:,Filtros Activos:,
+Active Shift Detected,Turno activo detectado,
+Active Warehouse,Almacén Activo,
+Actual Amount *,Monto Real *,
+Add Customer,Agregar Cliente,
+Add to Customer Credit Balance,Agregar al saldo de crédito del cliente,
+Addition Order,Orden de Agregado,
+After returns,Después de devoluciones,
+All Brands,Todas las Marcas,
+All Items,Todos los Productos,
+All draft invoices deleted,Todas las órdenes de venta fueron eliminadas,
+All items removed from cart,Todos los artículos fueron eliminados del carrito,
+All stock operations will use this warehouse. Stock quantities will refresh after saving.,Todas las operaciones de stock utilizarán este almacén. Las cantidades de stock se actualizarán después de guardar.,
+Allow Additional Discount,Permitir Descuento Adicional,
+Allow Credit Sale,Permitir Venta a Crédito,
+Allow Item Discount,Permitir Descuento por Artículo,
+Allow Negative Stock,Permitir Inventario Negativo,
+Allow Partial Payment,Permitir Pago Parcial,
+Allow Return,Permitir Devolución,
+Allow User To Edit Rate,Permitir al Usuario Editar Precios,
+Allow Write Off Change,Permitir Ajuste de Cambio,
+Allow editing item rate in cart. Disabled when offers are applied.,Permitir la edición de precios de los artículos en el carrito. Desactivado cuando hay ofertas aplicadas.,
+Amount,Importe,
+Amount owed by customer,Monto adeudado por el cliente,
+Arabic,Árabe,
+Are you sure you want to sign out of MDX POS?,¿Está seguro de que desea cerrar sesión en MDX POS?,
+Auto-Add: OFF,Agregar automático: NO,
+Auto-Add: OFF - Press Enter to focus next action,Agregar automático: NO - Presione Enter para enfocar siguiente acción,
+Auto-Add: ON,Agregar automático: SÍ,
+Auto-Add: ON - Press Enter to add items to cart,Agregar automático: SÍ - Presione Enter para agregar al carrito,
+Available,Disponible,
+BALANCE DUE:,SALDO PENDIENTE:,
+Background Stock Sync,Sincronización de Stock en Segundo Plano,
+Bank Transfer,Transferencia bancaria,
+Barcode Scanner: OFF (Click to enable),Lector de código de barras: APAGADO (Clic para activar),
+Barcode Scanner: ON (Click to disable),Lector de código de barras: ENCENDIDO (Clic para desactivar),
+Cache syncing,Sincronizando caché,
+Cancel,Cancelar,
+Cannot delete while syncing — please wait for sync to finish.,No se puede eliminar mientras se sincroniza — por favor espera a que termine la sincronización.,
+Cannot edit while syncing — please wait for sync to finish.,No se puede editar mientras se sincroniza — por favor espera a que termine la sincronización.,
+Cannot sync while offline,No se puede sincronizar mientras está fuera de línea,
+Cart Items,Artículos del Carrito,
+Cash,Efectivo,
+Cash Over,Sobrante de Caja,
+Cash Short,Faltante de Caja,
+Cashier,Cajero,
+Cashier Performance Report,Reporte de Rendimiento de Cajero,
+Cerrar,Cerrar,
+Certificate is installed and signing is active. Print jobs will be sent silently without confirmation dialogs.,El certificado está instalado y la firma está activa. Los trabajos de impresión se enviarán de forma silenciosa sin diálogos de confirmación.,
+"Certificate is not installed on this machine. Generate a certificate, download it, and import it into QZ Tray.","El certificado no está instalado en esta máquina. Genere un certificado, descárguelo e impórtelo en QZ Tray.",
+Change Due,Cambio a Entregar,
+Change Profile,Cambiar perfil,
+Checking...,Verificando...,
+Checkout,Cobrar,
+Clear All,Limpiar Todo,
+Clear All Drafts?,¿Limpiar todas las órdenes de venta?,
+Click to check availability in other warehouses,Haga clic para ver disponibilidad en otros almacenes,
+Click to view all warehouses,Haga clic para ver todos los almacenes,
+Close,Cerrar,
+Close & Open New,Cerrar y abrir nuevo,
+Close POS Shift,Cerrar Turno de POS,
+Close Shift,Cerrar Turno,
+Close Shift & Sign Out,Cerrar turno y salir,
+Close your shift first to save all transactions properly,Cierra tu turno primero para guardar todas las transacciones correctamente,
+Closing Balance,Saldo de cierre,
+Closing Shift...,Cerrando turno...,
+Complete Payment,Completar Pago,
+Configure warehouse and inventory settings,Configure los almacenes y la configuración de inventario,
+Connecting to QZ Tray...,Conectando a QZ Tray...,
+Count & enter,Contar y registrar,
+Count your cash and enter actual amounts below,Cuente su efectivo e ingrese los montos reales abajo,
+Coupon,Cupón,
+Coupon created successfully,Cupón creado exitosamente,
+Create Customer,Crear Cliente,
+Create New Customer,Crear Nuevo Cliente,
+Credit Balance,Saldo de crédito,
+Credit Card,Tarjeta de crédito,
+Credit can be applied to invoice,El crédito puede aplicarse a la factura,
+Customer,Cliente,
+Customer Credit Available,Crédito del Cliente Disponible,
+Customer Group,Grupo de Clientes,
+Customer Name,Nombre del Cliente,
+Customer Name is required,El nombre del cliente es obligatorio,
+Customer {0} created successfully,Cliente {0} creado exitosamente,
+Customer {0} updated successfully,Cliente {0} actualizado exitosamente,
+Customer: {0},Cliente: {0},
+Date,Fecha,
+Delete Draft?,¿Eliminar Orden de Venta?,
+Delete draft,Eliminar orden de venta,
+Difference,Diferencia,
+Disable Rounded Total,Desactivar Redondeo del Total,
+Disable barcode scanner,Desactivar lector de código de barras,
+Discount,Descuento,
+District,Distrito,
+Draft Invoices,Cargar Orden de Venta,
+Draft deleted successfully,Orden de Venta eliminada exitosamente,
+Draft invoice deleted,Orden de Venta eliminada,
+Draft invoice loaded successfully,Orden de Venta cargada exitosamente,
+Drafts,Órdenes de Venta,
+Duration,Duración,
+Edit Customer,Editar Cliente,
+Email,Correo electrónico,
+Enable Automatic Stock Sync,Activar Sincronización Automática de Stock,
+Enable barcode scanner,Activar lector de código de barras,
+Enable invoice-level discount,Habilitar descuento a nivel de factura,
+Enable item-level discount in edit dialog,Habilitar descuento a nivel de artículo en el diálogo de edición,
+Enable partial payment for invoices,Habilitar pagos parciales para facturas,
+Enable product returns,Habilitar devoluciones de productos,
+Enable sales on credit,Habilitar ventas a crédito,
+Enable selling items even when stock reaches zero or below. Integrates with Back Office stock settings.,Permitir la venta de artículos incluso cuando el stock llega a cero o menos. Se integra con la configuración de stock de ERPNext.,
+English,Inglés,
+Enter amount...,Ingresar monto...,
+Enter customer name,Ingrese el nombre del cliente,
+Enter email address,Ingrese la dirección de correo electrónico,
+Enter phone number,Ingrese el número de teléfono,
+Enter the actual counted amounts for each payment method,Ingrese los montos reales contados para cada método de pago,
+Enter your username or email,Introduzca su nombre de usuario o correo electrónico,
+Error,Error,
+Error Closing Shift,Error al cerrar el turno,
+Error Report - MDX POS,Reporte de Error - MDX POS,
+Exact amount only,Solo monto exacto,
+Existing Shift Found,Turno existente encontrado,
+Expected,Esperado,
+Expected Balance,Saldo esperado,
+Expected: &lt;span class=&quot;font-medium&quot;&gt;{0}&lt;/span&gt;,Esperado: &lt;span class=&quot;font-medium&quot;&gt;{0}&lt;/span&gt;,
+"Expected: <span class=""font-medium"">{0}</span>","Esperado: <span class=""font-medium"">{0}</span>",
+"Expected: <span class=\font-medium\"">{0}</span>""","Esperado: <span class=\font-medium\"">{0}</span>""",
+Failed to Load Shift Data,Fallo al cargar datos del turno,
+Failed to add payment,Fallo al agregar el pago,
+Failed to check invoice,Fallo al comprobar la factura,
+Failed to clear drafts,Error al limpiar las órdenes de venta,
+Failed to create customer,Error al crear cliente,
+Failed to create return invoice,Fallo al crear la factura de devolución,
+Failed to delete draft,Error al eliminar orden de venta,
+Failed to delete offline invoice,Fallo al eliminar la factura fuera de línea,
+Failed to load draft invoices,Error al cargar las órdenes de venta,
+Failed to load invoice details,Fallo al cargar detalles de la factura,
+Failed to load invoices,Fallo al cargar facturas,
+Failed to load partial payments,Fallo al cargar pagos parciales,
+Failed to load recent invoices,Fallo al cargar facturas recientes,
+Failed to load unpaid invoices,Fallo al cargar facturas pendientes de pago,
+Failed to print draft,Error al imprimir orden de venta,
+Failed to save current cart. Draft loading cancelled to prevent data loss.,Fallo al guardar el carrito actual. Carga de borrador cancelada para prevenir pérdida de datos.,
+Failed to save draft,Error al guardar la orden de venta,
+"Failed to sync invoice for {0}
 
+${1}
 
+You can delete this invoice from the offline queue if you don't need it.","Fallo al sincronizar la factura de {0}
 
+${1}
 
-
-
-
-
-
-
-
+Puede eliminar esta factura de la cola fuera de línea si no la necesita.",
+Failed to update customer,Error al actualizar cliente,
+Filters,Filtros,
+Final Amount,Monto Final,
+Frequent Customers,Clientes frecuentes,
+From Date,Desde fecha,
+Fully Paid,Pagado Totalmente,
+Gift Card,Tarjeta de regalo,
+Governorate,Provincia,
+Grand Total,Gran total,
+Grand Total:,Gran total:,
+Grid View,Vista Cuadrícula,
+Gross Sales,Ventas Brutas,
+Hold,Crear Orden de Venta,
+Hold order as draft,Guardar pedido como orden de venta,
+Hold:order,Crear Orden de Venta,
+Hour,Hora,
+Hours,Horas,
+How often to check server for stock updates (minimum 10 seconds),Frecuencia para verificar actualizaciones de stock en el servidor (mínimo 10 segundos),
+Indonesian,Indonesio,
+Installed,Instalado,
+"Instead of cash refund, add the return amount to customer credit balance for future purchases.","En lugar de un reembolso en efectivo, agregue el monto de la devolución al saldo de crédito del cliente para futuras compras.",
+Inventory Impact and Fast Movers Report,Reporte de Impacto de Inventario y Rotación,
+Invoice,Factura,
+Invoice #:,Factura #:,
+Invoice - {0},Factura - {0},
+Invoice Created Successfully,Factura Creada Exitosamente,
+Invoice Date,Fecha de factura,
+Invoice Details,Detalles de la Factura,
+Invoice History,Historial de Facturas,
+Invoice ID: {0},ID de factura: {0},
+Invoice Management,Gestión de Facturas,
+Invoice Summary,Resumen de factura,
+Invoice fully paid. No additional payment needed.,Factura completamente pagada. No se necesita pago adicional.,
+Invoice loaded to cart for editing,Factura cargada al carrito para edición,
+Invoice not found,Factura no encontrada,
+Invoice saved as draft successfully,Orden de Venta guardada exitosamente,
+Invoice saved offline. Will sync when online,Factura guardada fuera de línea. Se sincronizará cuando esté en línea,
+Invoice {0} created and sent to printer,Factura {0} creada y enviada a la impresora,
+Invoice {0} created but print failed,Factura {0} creada pero falló la impresión,
+Invoice {0} created successfully,Factura {0} creada exitosamente,
+Invoice {0} created successfully!,¡Factura {0} creada exitosamente!,
+Invoice {0} saved offline and sent to printer — will sync when online,Factura {0} guardada fuera de línea y enviada a la impresora — se sincronizará cuando esté en línea,
+Invoice {0} saved offline but print failed — open Print from the success dialog,Factura {0} guardada fuera de línea pero falló la impresión — abra Imprimir desde el diálogo de éxito,
+Item Discount,Descuento de artículo,
+Items,Artículos,
+Items per page,Artículos por página,
+Items to Return:,Artículos a devolver:,
+Just now,Hace unos instantes,
+Large Overpayment,Sobrepago grande,
+List View,Vista Lista,
+Loading customers for offline use...,Cargando clientes para uso fuera de línea...,
+Loading customers...,Cargando clientes...,
+Loading shift data...,Cargando datos del turno...,
+Manage all your invoices in one place,Gestione todas sus facturas en un solo lugar,
+Manage invoices with pending payments,Gestionar facturas con pagos pendientes,
+Max Discount (%),Descuento Máximo (%),
+Maximum Discount Amount,Monto máximo de descuento,
+Maximum allowed discount is {0}%,El descuento máximo permitido es {0}%,
+Maximum allowed discount is {0}% ({1} {2}),El descuento máximo permitido es {0}% ({1} {2}),
+Maximum cart value exceeded ({0}),Se superó el valor máximo del carrito ({0}),
+Maximum discount per item,Descuento máximo por artículo,
+Minimum Cart Amount,Monto mínimo del carrito,
+Minimum cart value of {0} required,Se requiere un valor mínimo de carrito de {0},
+Minute,Minuto,
+Minutes,Minutos,
+Mixed payment cannot exceed invoice total. Limit: {0},El pago mixto no puede exceder el total de la factura. Límite: {0},
+Mobile Number,Número de Celular,
+My Gift Cards ({0}),Mis tarjetas de regalo ({0}),
+NIT / CI,NIT / CI,
+Name,Nombre,
+Naming Series Error,Error de serie de numeración,
+Navigate,Navegar,
+Net Sales,Ventas Netas,
+Net Total,Total neto,
+Net Total:,Total Neto:,
+Net Variance,Diferencia Neta,
+Net tax,Impuesto neto,
+New Order,Nueva Orden,
+Next,Siguiente,
+Next Page,Página Siguiente,
+No,No,
+No Active Shift,Sin turno activo,
+No POS Profile Selected,Ningún perfil de POS seleccionado,
+No POS Profiles available. Please contact your administrator.,No hay perfiles de POS disponibles. Por favor contacte al administrador.,
+No Partial Payments,Sin pagos parciales,
+No Sales During This Shift,Sin ventas durante este turno,
+No Sorting,Sin Ordenar,
+No Unpaid Invoices,Sin facturas pendientes de pago,
+No additional units of measurement configured for this item.,No hay unidades de medida adicionales configuradas para este artículo.,
+No countries found,No se encontraron países,
+No customers available,No hay clientes disponibles,
+No draft invoices,No hay órdenes de venta,
+No invoices found,No se encontraron facturas,
+No items available for return,No hay artículos disponibles para devolución,
+No items found,No se encontraron artículos,
+No outstanding balance,Sin saldo pendiente,
+No payment methods configured for this POS Profile,No hay métodos de pago configurados para este perfil de POS,
+No pending invoices to sync,No hay facturas pendientes por sincronizar,
+No pending offline invoices,Sin facturas fuera de línea pendientes,
+No printers found. Is QZ Tray running?,No se encontraron impresoras. ¿Está ejecutándose QZ Tray?,
+No return invoices,Sin facturas de devolución,
+No sales,Sin ventas,
+Non-cash payment must equal {0} exactly,El pago que no es en efectivo debe ser exactamente igual a {0},
+Not Installed,No Instalado,
+Not enough stock available in the warehouse.\n\nPlease reduce the quantity or check stock availability.,No hay suficiente stock disponible en el almacén.\n\nPor favor reduzca la cantidad o verifique la disponibilidad de stock.,
+"Not enough stock for \{0}\"".\n\nYou need {1} {2} but the warehouse \""{3}\"" doesn't have enough available.\n\nPlease reduce the quantity or check another warehouse.""","No hay suficiente stock para \{0}\"".\n\nNecesita {1} {2} pero el almacén \""{3}\"" no tiene suficiente disponible.\n\nPor favor reduzca la cantidad o consulte otro almacén.""",
+"Not enough stock for \{0}\"".\n\nYou requested {1} {2}"," but only {3} {4} available in \""{5}\"".""","No hay suficiente stock para \{0}\"".\n\nSolicitó {1} {2}"
+Offers,Ofertas,
+Offers & Coupons,Ofertas y Cupones,
+Offers &amp; Coupons,Ofertas y Cupones,
+Offline Invoices,Facturas fuera de línea,
+Offline Sync and System Health Report,Reporte de Sincronización y Salud del Sistema,
+Offline invoice deleted successfully,Factura fuera de línea eliminada con éxito,
+On Account,A Cuenta / Crédito,
+Online - Click to sync,En línea - Haz clic para sincronizar,
+Only one unit available,Solo una unidad disponible,
+"Only {0} units of ""{1}"" available in ""{2}"". Current quantity: {3}","Solo {0} unidades de ""{1}"" disponibles en ""{2}"". Cantidad actual: {3}",
+Open Amount,Monto de Apertura,
+Open POS Shift,Abrir Turno de POS,
+Open Shift,Abrir turno,
+Open a shift before creating a return invoice.,Abra un turno antes de crear una factura de devolución.,
+Opened:,Abierto:,
+Opened: {0},Abierto: {0},
+Opening,Apertura,
+Opening Balance,Saldo de Apertura,
+Opening Balance (Optional),Saldo de apertura (Opcional),
+Outstanding Balance,Saldo Pendiente,
+Outstanding Payments,Pagos pendientes,
+Over {0},Sobrante: {0},
+Overpayment,Sobrepago,
+PARTIAL PAYMENT,PAGO PARCIAL,
+POS Closing Shift,Cierre de Caja,
+POS Coupon,Cupón de POS,
+POS Offer,Oferta de POS,
+POS Opening Shift,Apertura de Caja,
+POS Profile,Perfil de POS,
+POS Profile:,Perfil de POS:,
+POS Profile: {0},Perfil de POS: {0},
+POS Settings,Configuración de POS,
+POS is offline without cached data. Please connect to sync.,El POS está fuera de línea y sin datos en caché. Por favor conéctate para sincronizar.,
+Paid Amount,Monto Pagado,
+Paid in Full,Pagado Totalmente,
+Paid: {0},Pagado: {0},
+Partial Payment,Pago parcial,
+Partial Payments,Pagos parciales,
+Partially Paid Invoice,Factura parcialmente pagada,
+Pay,Pagar,
+Payment Error,Error de pago,
+Payment History,Historial de pagos,
+Payment Method,Método de Pago,
+Payment Mode,Modo de pago,
+Payment Reconciliation,Conciliación de pago,
+Payment Total:,Total pagado:,
+Payment added successfully,Pago agregado con éxito,
+Payment amount is correct,El monto del pago es correcto,
+Payments,Pagos,
+Payments and Cash Control Report,Reporte de Pagos y Control de Caja,
+Payments cannot be added while offline,No se pueden agregar pagos mientras está fuera de línea,
+Payments cannot be added while offline. Connect to the internet to add payments.,No se pueden agregar pagos mientras está fuera de línea. Conéctese a internet para agregar pagos.,
+Payments:,Pagos:,
+Periodically sync stock quantities from server in the background (runs in Web Worker),Sincronizar periódicamente las cantidades de stock del servidor en segundo plano (se ejecuta en Web Worker),
+Permanently delete all {0} draft invoices?,¿Eliminar permanentemente todas las {0} órdenes de venta?,
+Permanently delete this draft invoice?,¿Eliminar permanentemente esta orden de venta?,
+Permission Required,Permiso Requerido,
+Please add items to cart before proceeding to payment,Por favor agregue artículos al carrito antes de proceder al pago,
+Please contact your manager if you need to process this return.,Por favor contacte a su gerente si necesita procesar esta devolución.,
+Please enter a valid discount amount,Ingrese un monto de descuento válido,
+Please enter a valid discount percentage (1-100),Ingrese un porcentaje de descuento válido (1-100),
+Please enter all closing amounts,Por favor ingrese todos los montos de cierre,
+Please open a shift to start making sales,Por favor abra un turno para comenzar a realizar ventas,
+Please select a POS Profile to configure settings,Por favor seleccione un perfil de POS para configurar los ajustes,
+Please select a customer,Por favor seleccione un cliente,
+Please select a customer before proceeding,Por favor seleccione un cliente antes de continuar,
+Please select a customer before saving a pre-sale,"Por favor, seleccione un cliente antes de guardar una orden de venta",
+Please select a customer for gift card,Por favor seleccione un cliente para la tarjeta de regalo,
+Please select a discount type,Seleccione un tipo de descuento,
+Portuguese (Brazil),Portugués (Brasil),
+Pos Closing Shift,Cierre de Caja,
+Pos Coupon,Cupón de POS,
+Pos Offer,Oferta de POS,
+Pos Opening Shift,Apertura de Caja,
+Pos Profile,Perfil de POS,
+Pos Settings,Configuración de POS,
+Pre-sale saved successfully. Do you want to print the pre-ticket?,Orden de Venta guardada exitosamente. ¿Desea imprimir el pre-ticket?,
+Previous Page,Página Anterior,
+Price,Precio,
+Prices are now tax-exclusive. This will apply to new items added to cart.,Los precios ahora son sin impuestos. Esto aplicará a los nuevos artículos agregados al carrito.,
+Prices are now tax-inclusive. This will apply to new items added to cart.,Los precios ahora son con impuestos incluidos. Esto aplicará a los nuevos artículos agregados al carrito.,
+Pricing & Discounts,Precios y Descuentos,
+Print Invoice,Imprimir Factura,
+Print Pre-ticket,Imprimir Pre-ticket,
+Print Receipt,Imprimir Recibo,
+Print draft,Imprimir orden de venta,
+Printed invoices cannot be edited — use Return to issue a credit note,Las facturas impresas no se pueden editar — use Devolución para emitir una nota de crédito,
+Printer,Impresora,
+Proceed to payment,Proceder al pago,
+Process Return,Procesar devolución,
+Process return invoice,Procesar factura de devolución,
+Promotion created successfully,Promoción creada exitosamente,
+QZ Tray Connected,QZ Tray Conectado,
+QZ Tray Not Connected,QZ Tray No Conectado,
+Quantity,Cantidad,
+Rate reduction of {0}% exceeds maximum allowed discount of {1}%,La reducción de tarifa del {0}% supera el descuento máximo permitido del {1}%,
+Refresh,Actualizar,
+Refresh items and customers,Actualizar artículos y clientes,
+Refresh printer list,Actualizar lista de impresoras,
+Refund Amount,Monto a Reembolsar,
+Refund Payment Methods,Métodos de pago de reembolso,
+Refundable Amount:,Monto reembolsable:,
+Remaining,Restante,
+Remove all {0} items from cart?,¿Eliminar todos los {0} artículos del carrito?,
+Remove customer,Eliminar cliente,
+Reports & Configuration,Informes y Configuración,
+Reports &amp; Configuration,Informes y Configuración,
+Resume Shift,Reanudar turno,
+Retry,Reintentar,
+Return,Devolución,
+Return Against:,Devolución contra:,
+Return Allowed Within,Devolución permitida dentro de,
+Return Invoice,Devolver Factura,
+Return Period Expired,Período de devolución expirado,
+Return Qty:,Cant. a devolver:,
+Return Reason,Razón de la devolución,
+Return Summary,Resumen de devolución,
+Return Value:,Valor de devolución:,
+Return against {0},Devolución contra {0},
+Return invoice {0} created successfully,Factura de devolución {0} creada exitosamente,
+Return invoices cannot be processed while offline. Please connect to the internet to search for invoices and create returns.,Las facturas de devolución no se pueden procesar fuera de línea. Conéctese a internet para buscar facturas y crear devoluciones.,
+Return invoices will appear here,Las facturas de devolución aparecerán aquí,
+Returns,Devoluciones,
+Sale,Venta,
+Sales Controls,Controles de Ventas,
+Sales Invoice,Factura de Venta,
+Sales Management,Gestión de Ventas,
+Sales Operations,Operaciones de Venta,
+Sales vs Shifts Report,Reporte de Ventas vs Turnos,
+Save,Guardar,
+Save Changes,Guardar Cambios,
+Save invoices as drafts to continue later,Guarde las ventas como órdenes de venta para continuar más tarde,
+Search Again,Buscar de nuevo,
+Search and select a customer for the transaction,Busque y seleccione un cliente para la transacción,
+Search by invoice number or customer...,Buscar por número de factura o cliente...,
+"Search by invoice, customer, or mobile...","Buscar por factura, cliente o celular...",
+"Search by item code, name, item group or scan barcode","Buscar por código, nombre, grupo o escanear código...",
+"Search by item name, code, or scan barcode","Busca por nombre de artículo, código o escanea el código de barras",
+"Search by name, barcode, code...","Buscar por nombre, código de barras...",
+Search country or code...,Buscar país o código...,
+Search customer by name or mobile...,Buscar cliente por nombre o celular...,
+Search customer in cart,Buscar cliente en el carrito,
+Search customer...,Buscar cliente...,
+Search customers,Buscar clientes,
+"Search customers by name, mobile, or email...","Buscar clientes por nombre, celular o correo...",
+Search customers...,Buscar clientes...,
+Search for an item,Buscar un artículo,
+Search for items across warehouses,Buscar artículos en todos los almacenes,
+Search invoices...,Buscar facturas...,
+Search items,Buscar artículos,
+Search or add customer...,Buscar o agregar cliente...,
+Search...,Buscar...,
+Searching database...,Buscando base de datos...,
+Searching...,Buscando...,
+Second,Segundo,
+Seconds,Segundos,
+Select,Seleccionar,
+Select All,Seleccionar todo,
+Select Customer Group,Seleccionar Grupo de Clientes,
+Select District,Seleccionar Distrito,
+Select Governorate,Seleccionar Provincia,
+Select Invoice to Return,Seleccionar factura a devolver,
+Select Items to Return,Seleccionar artículos a devolver,
+Select Option,Seleccionar opción,
+Select POS Profile,Seleccionar Perfil de POS,
+Select Profile,Seleccionar Perfil,
+Select Territory,Seleccionar Territorio,
+Select Unit of Measure,Seleccionar unidad de medida,
+Select a governorate first,Seleccione una provincia primero,
+Select a payment method,Seleccione un método de pago,
+Select a payment method to start,Seleccione un método de pago para comenzar,
+Select items to start or choose a quick action,Selecciona artículos para empezar o elige una acción rápida,
+Select the unit of measure for this item:,Seleccione la unidad de medida para este artículo:,
+Select {0},Seleccionar {0},
+Selected,Seleccionado,
+Send receipts directly to a thermal printer via QZ Tray (no browser dialog),Enviar recibos directamente a una impresora térmica a través de QZ Tray (sin diálogo de navegador),
+Server Error,Error del servidor,
+Settings saved successfully,Ajustes guardados con éxito,
+"Settings saved. Tax mode is now ""exclusive"". Cart will be recalculated.","Ajustes guardados. El modo de impuestos ahora es ""exclusivo"". Se recalculará el carrito.",
+"Settings saved. Tax mode is now ""inclusive"". Cart will be recalculated.","Ajustes guardados. El modo de impuestos ahora es ""inclusivo"". Se recalculará el carrito.",
+Shift,Turno,
+Shift Open,Turno abierto,
+Shift Open:,Turno abierto:,
+Shift Status,Estado del turno,
+Shift closed successfully,Turno cerrado con éxito,
+Shift closed successfully - Review the final reconciliation below,Turno cerrado exitosamente - Revise la conciliación final abajo,
+Shift is Open,El turno está abierto,
+Shift start,Inicio de turno,
+Short {0},Faltante: {0},
+Show discounts as percentages,Mostrar descuentos como porcentajes,
+Show exact totals without rounding,Mostrar totales exactos sin redondeo,
+Sign Out Confirmation,Confirmación de Cierre de Sesión,
+Sign in,Iniciar sesión,
+Sign in to MDX POS,Iniciar sesión en MDX POS,
+Signing in...,Iniciando sesión...,
+Silent Print,Impresión Silenciosa,
+Silent Print Certificate,Certificado de Impresión Silenciosa,
+Silent Print: Connected,Impresión silenciosa: Conectada,
+Silent Print: Disconnected,Impresión silenciosa: Desconectada,
+Skip & Sign Out,Omitir y salir,
+Sort,Ordenar,
+Sort By:,Ordenar Por:,
+Sort Cart,Ordenar Carrito,
+Sort cart items,Ordenar artículos del carrito,
+Sorted by {0} A-Z,Ordenado por {0} A-Z,
+Sorted by {0} Z-A,Ordenado por {0} Z-A,
+Spanish,Español,
+Start POS,Iniciar POS,
+Start typing to see suggestions,Comienza a escribir para ver sugerencias,
+Status,Estado,
+Stock Controls,Controles de Stock,
+Stock Lookup,Buscador de Stock,
+Stock Management,Gestión de Inventario,
+Stock Validation Policy,Política de Validación de Stock,
+Stock unit,Unidad de stock,
+Stock: {0},Stock: {0},
+Subtotal,Subtotal,
+Subtotal (before tax),Subtotal (antes de impuestos),
+Subtotal:,Subtotal:,
+Success,Éxito,
+Switch To Desk,Ir al Escritorio,
+Switched to {0}. Stock quantities refreshed.,Cambiado a {0}. Cantidades de stock actualizadas.,
+Sync Interval (seconds),Intervalo de Sincronización (segundos),
+Syncing catalog in background... {0} items cached,Sincronizando catálogo en segundo plano... {0} artículos guardados en caché,
+TOTAL:,TOTAL:,
+Tax,Impuesto,
+Tax Collected,Impuestos Recaudados,
+Tax Configuration Error,Error de configuración de impuestos,
+Tax Inclusive,Impuestos Incluidos,
+Tax Summary,Resumen de Impuestos,
+Tax mode updated. Cart recalculated with new tax settings.,Modo de impuestos actualizado. Carrito recalculado con nuevos ajustes de impuestos.,
+Tax:,Impuesto:,
+Taxes:,Impuestos:,
+Technical: {0},Técnico: {0},
+Territory,Territorio,
+Test Connection,Probar conexión,
+The customer received a cash refund for this return.,El cliente recibió un reembolso en efectivo por esta devolución.,
+The return amount was added to the customer credit balance. No cash refund was given.,El monto de la devolución se agregó al saldo de crédito del cliente. No se realizó reembolso en efectivo.,
+The return amount will be added to the customer credit balance. No cash refund will be given.,El monto de la devolución se agregará al saldo de crédito del cliente. No se realizará reembolso en efectivo.,
+These invoices will be submitted when you're back online,Estas facturas se enviarán cuando vuelva a estar en línea,
+This Month,Este mes,
+This Week,Esta semana,
+This action cannot be undone.,Esta acción no se puede deshacer.,
+This dialog has been open for over a minute. Please close the shift or close this dialog to resume the shift timer.,Este diálogo ha estado abierto por más de un minuto. Por favor cierre el turno o este diálogo para reanudar el temporizador.,
+This function is reserved for cashiers.,Esta función está reservada para cajeros.,
+This invoice cannot be returned because the return period has expired.,Esta factura no puede ser devuelta porque el período de devolución ha expirado.,
+This invoice was paid on account (credit sale). The return will reverse the accounts receivable balance. No cash refund will be processed.,Esta factura fue pagada a cuenta (venta a crédito). La devolución revertirá el saldo de cuentas por cobrar. No se procesará reembolso en efectivo.,
+This invoice was partially paid. The refund will be split proportionally.,Esta factura fue parcialmente pagada. El reembolso se dividirá proporcionalmente.,
+This invoice was sold on credit. The customer owes the full amount.,Esta factura fue vendida a crédito. El cliente debe el monto total.,
+This item is out of stock in all warehouses,Este artículo está agotado en todos los almacenes,
+"This offline receipt is no longer in browser storage. Complete checkout again or sync, then print from history.","Este recibo fuera de línea ya no está en el almacenamiento del navegador. Complete el proceso de pago nuevamente o sincronice, luego imprima desde el historial.",
+"This offline receipt is no longer in browser storage. Sync the invoice, then print from history.","Este recibo fuera de línea ya no está en el almacenamiento del navegador. Sincronice la factura, luego imprima desde el historial.",
+This offline receipt is no longer in browser storage. Use browser print from the success dialog after checkout.,Este recibo fuera de línea ya no está en el almacenamiento del navegador. Use la impresión del navegador desde el diálogo de éxito después del pago.,
+Time,Hora,
+Timestamp: {0},Marca de tiempo: {0},
+Title: {0},Título: {0},
+To Date,Hasta fecha,
+"To print without confirmation dialogs, generate a signing certificate and install it on each POS machine.","Para imprimir sin diálogos de confirmación, genere un certificado de firma e instálelo en cada máquina POS.",
+Today,Hoy,
+Total,Total,
+Total Actual,Total Real,
+Total Amount,Monto Total,
+Total Available,Total disponible,
+Total Available:,Total Disponible:,
+Total Expected,Total Esperado,
+Total Paid:,Total pagado:,
+Total Quantity,Cantidad total,
+Total Refund:,Reembolso total:,
+Total Sales,Ventas totales,
+Total Variance,Variación total,
+Total must equal invoice amount,El total debe ser igual al monto de la factura,
+Total:,Total:,
+Try Again,Intentar de nuevo,
+Try adjusting your search or filters,Intente ajustar su búsqueda o filtros,
+Type,Tipo,
+Type to search items...,Escribe para buscar artículos...,
+Type: {0},Tipo: {0},
+UOM,UOM,
+UOM locked (barcode item),UOM bloqueada (artículo con código de barras),
+Unit changed to {0},Unidad cambiada a {0},
+Unknown,Desconocido,
+Update,Actualizar,
+Use Percentage Discount,Usar Descuento Porcentual,
+User,Usuario,
+User ID / Email,ID de usuario / Correo electrónico,
+Validation Error,Error de validación,
+Vender,Vendedor,
+Vender de aquí,Vender de aquí,
+Verifying...,Verificando...,
+View Shift,Ver Turno,
+View current shift details,Ver detalles del turno actual,
+Walk-in Customer,Cliente eventual,
+Warehouse,Almacén,
+Warehouse Selection,Selección de Almacén,
+Warehouse not set,Almacén no configurado,
+Warehouse updated but failed to reload stock. Please refresh manually.,Almacén actualizado pero falló la recarga de stock. Actualice manualmente.,
+Welcome to MDX POS,Bienvenido a MDX POS,
+Welcome to MDX POS!,¡Bienvenido a MDX POS!,
+"When enabled, displayed prices include tax. When disabled, tax is calculated separately. Changes apply immediately to your cart when you save.","Cuando está activado, los precios mostrados incluyen impuestos. Cuando está desactivado, el impuesto se calcula por separado. Los cambios se aplican inmediatamente al carrito al guardar.",
+Write off small change amounts,Ajustar pequeñas diferencias de cambio de caja,
+Yes,Sí,
+Yesterday,Ayer,
+You don't have permission to create customers. Contact your administrator.,No tiene permiso para crear clientes. Contacte a su administrador.,
+You have an active shift open. Would you like to:,Tiene un turno activo abierto. ¿Desea:,
+You have an open shift. Would you like to resume it or close it and open a new one?,Tiene un turno abierto. ¿Desea reanudarlo o cerrarlo y abrir uno nuevo?,
+You have less than expected.,Tiene menos de lo esperado.,
+You have more than expected.,Tiene más de lo esperado.,
+You need to open a shift before you can start making sales.,Debe abrir un turno antes de comenzar a realizar ventas.,
+You will be logged out of MDX POS,Se cerrará su sesión de MDX POS,
+Your Shift is Still Open!,¡Tu turno aún está abierto!,
+Your cart is empty,Tu carrito está vacío,
+"\{0}\"" is out of stock in warehouse \""{1}\"".""","\{0}\"" no tiene stock en el almacén \""{1}\"".""",
+discount ({0}),descuento ({0}),
+in {0} warehouse,en {0} almacén,
+in {0} warehouses,en {0} almacenes,
+incl. {0} tax,incl. {0} impuesto,
+optional,opcional,
+unit,unidad,
+units,unidades,
+{0} ({1}) added to cart,{0} ({1}) agregado al carrito,
+{0} - {1} of {2},{0} - {1} de {2},
+{0} Pending Invoice(s),{0} factura(s) pendiente(s),
+{0} Piece,{0} Pieza,
+{0} Pieces,{0} Piezas,
+{0} added to cart,{0} agregado al carrito,
+{0} day ago,Hace {0} d,
+{0} hr ago,Hace {0} h,
+{0} invoice - {1} outstanding,{0} factura - {1} pendiente,
+{0} invoice(s) failed to sync,{0} factura(s) no se pudieron sincronizar,
+{0} invoice(s) synced successfully,{0} factura(s) sincronizada(s) con éxito,
+{0} invoices,{0} facturas,
+{0} invoices - {1} outstanding,{0} facturas - {1} pendientes,
+{0} item(s),{0} artículo(s),
+{0} min ago,Hace {0} min,
+{0} returns,{0} devoluciones,
+{0} transactions • {1},{0} transacciones • {1},
+⚠️ Payment total must equal refund amount,⚠️ El pago total debe ser igual al monto del reembolso,
+⚠️ Payment total must equal refundable amount,⚠️ El pago total debe ser igual al monto reembolsable,
+⚠️ {0} already returned,⚠️ {0} ya devuelto,
+✓ Balanced,✓ Cuadrado,
+✓ Connection successful: {0},✓ Conexión exitosa: {0},
+✓ Shift Closed,✓ Turno cerrado,
+✓ Shift closed successfully,✓ Turno cerrado con éxito,
+✗ Connection failed: {0},✗ Conexión fallida: {0},
