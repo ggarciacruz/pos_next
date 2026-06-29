@@ -1,6 +1,6 @@
 <template>
-		<!-- Main Dialog -->
-	<Dialog v-model="show" :options="{ title: __('Cargar Venta / Cotización'), size: '3xl' }">
+	<!-- Main Dialog -->
+	<Dialog v-model="show" :options="{ title: __('Cargar Venta / Cotización'), size: '5xl' }">
 		<template #body-content>
 			<div class="flex flex-col gap-3">
 				<!-- Search and Tabs Header -->
@@ -98,102 +98,100 @@
 					</p>
 				</div>
 
-				<!-- Drafts Grid Layout (Wide View) -->
-				<div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 max-h-[60vh] overflow-y-auto p-0.5">
+				<!-- Drafts Horizontal List Layout -->
+				<div v-else class="flex flex-col gap-3 max-h-[60vh] overflow-y-auto p-1">
 					<div
 						v-for="draft in filteredDrafts"
 						:key="draft.draft_id"
-						class="bg-white border border-gray-200 hover:border-blue-500 rounded-xl p-4 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between group relative"
+						class="bg-white border border-gray-200 hover:border-blue-500 rounded-xl p-4.5 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 group"
 						@click="$emit('load-draft', draft)"
 					>
-						<!-- Upper Content -->
-						<div>
-							<div class="flex items-start justify-between gap-2 mb-2">
-								<div class="min-w-0 flex-1">
-									<h4 class="text-xs font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
-										{{ draft.draft_id }}
-									</h4>
-									<!-- Date Badge -->
-									<span class="text-[9px] text-gray-400 block mt-0.5">
-										{{ formatDateTime(draft.created_at) }}
-									</span>
-								</div>
-
-								<!-- Type Badges -->
+						<!-- Left Section: Doc info -->
+						<div class="flex flex-col justify-center min-w-[220px] border-b lg:border-b-0 lg:border-r border-gray-100 pb-3 lg:pb-0 lg:pe-4 flex-shrink-0">
+							<div class="flex items-center gap-2 mb-1.5 flex-wrap">
+								<h4 class="text-sm md:text-base font-extrabold text-gray-900 group-hover:text-blue-600 transition-colors">
+									{{ draft.draft_id }}
+								</h4>
 								<span
-									class="px-1.5 py-0.5 rounded text-[9px] font-bold border flex-shrink-0"
+									class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider"
 									:class="isDraftQuotation(draft) ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-orange-50 text-orange-700 border-orange-200'"
 								>
 									{{ isDraftQuotation(draft) ? __('Cotización') : __('Pre-venta') }}
 								</span>
 							</div>
-
-							<!-- Customer Row -->
-							<div v-if="draft.customer" class="flex items-center gap-1.5 bg-gray-50 rounded-lg p-2 mb-3">
-								<div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-									<svg
-										class="w-3 h-3 text-blue-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-										/>
-									</svg>
-								</div>
-								<p class="text-xs text-gray-700 font-semibold truncate flex-1 leading-tight">
-									{{ draft.customer?.customer_name || draft.customer?.name || draft.customer }}
-								</p>
-							</div>
-
-							<!-- Items Preview -->
-							<div
-								v-if="draft.items && draft.items.length > 0"
-								class="border-t border-gray-100 pt-2 mb-3"
-							>
-								<div class="flex flex-wrap gap-1 max-h-12 overflow-y-auto">
-									<span
-										v-for="(item, idx) in draft.items.slice(0, 4)"
-										:key="idx"
-										class="text-[9px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded truncate max-w-full"
-									>
-										{{ item.item_name }} ({{ item.quantity || item.qty }})
-									</span>
-									<span
-										v-if="draft.items.length > 4"
-										class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold"
-									>
-										+{{ draft.items.length - 4 }}
-									</span>
-								</div>
+							<p class="text-xs text-gray-500">
+								{{ formatDateTime(draft.created_at) }}
+							</p>
+							<div class="mt-2">
+								<span class="inline-block text-[10px] font-bold bg-orange-100 text-orange-800 px-2 py-0.5 rounded-md">
+									{{ getTimeAgo(draft.created_at) }}
+								</span>
 							</div>
 						</div>
 
-						<!-- Lower Content (Footer of Card) -->
-						<div class="border-t border-gray-100 pt-2.5 flex items-center justify-between mt-auto">
-							<div class="flex flex-col">
-								<span class="text-[9px] text-gray-400 font-medium uppercase tracking-wider leading-none">
-									{{ __("Total") }}
+						<!-- Middle Section: Customer info -->
+						<div class="flex-1 min-w-0 flex items-center gap-3">
+							<div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 border border-blue-100">
+								<svg
+									class="w-5 h-5 text-blue-600"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2.5"
+										d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+									/>
+								</svg>
+							</div>
+							<div class="min-w-0">
+								<span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">
+									{{ __("Cliente") }}
 								</span>
-								<span class="text-sm font-bold text-blue-600 mt-0.5">
+								<p class="text-sm md:text-base font-extrabold text-gray-800 truncate leading-snug">
+									{{ draft.customer?.customer_name || draft.customer?.name || draft.customer }}
+								</p>
+							</div>
+						</div>
+
+						<!-- Right Section: Items list (condensed badges) -->
+						<div class="flex-1 min-w-0 border-t lg:border-t-0 lg:border-x border-gray-100 pt-3 lg:pt-0 lg:px-4 flex flex-col justify-center">
+							<span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">
+								{{ __("Detalle de Items") }} ({{ draft.items?.length || 0 }})
+							</span>
+							<div class="flex flex-wrap gap-1.5 max-h-16 overflow-y-auto">
+								<span
+									v-for="(item, idx) in draft.items"
+									:key="idx"
+									class="text-[11px] bg-gray-50 border border-gray-200 text-gray-700 px-2 py-0.5 rounded-lg truncate max-w-full font-medium"
+								>
+									{{ item.item_name }} <span class="text-blue-600 font-bold">x{{ item.quantity || item.qty }}</span>
+								</span>
+							</div>
+						</div>
+
+						<!-- Far Right Section: Total & Quick Actions -->
+						<div class="min-w-[160px] border-t lg:border-t-0 border-gray-100 pt-3 lg:pt-0 lg:ps-4 flex items-center justify-between lg:justify-end gap-4 flex-shrink-0">
+							<div class="flex flex-col lg:items-end">
+								<span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider leading-none">
+									{{ __("Total a Cobrar") }}
+								</span>
+								<span class="text-base md:text-lg font-extrabold text-blue-600 mt-1">
 									{{ formatCurrency(calculateTotal(draft.items)) }}
 								</span>
 							</div>
 
-							<!-- Actions inside Card -->
 							<div class="flex items-center gap-1.5" @click.stop>
 								<button
 									v-if="props.allowPrintDraftInvoices"
 									@click.stop="handlePrintDraft(draft)"
-									class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition-all"
+									class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 rounded-xl transition-all touch-manipulation"
 									:title="__('Print draft')"
 								>
 									<svg
-										class="w-4 h-4"
+										class="w-4.5 h-4.5"
 										fill="none"
 										stroke="currentColor"
 										viewBox="0 0 24 24"
@@ -201,18 +199,18 @@
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
-											stroke-width="2"
+											stroke-width="2.5"
 											d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
 										/>
 									</svg>
 								</button>
 								<button
 									@click.stop="handleDeleteDraft(draft.draft_id)"
-									class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition-all"
+									class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-700 rounded-xl transition-all touch-manipulation"
 									:title="__('Delete draft')"
 								>
 									<svg
-										class="w-4 h-4"
+										class="w-4.5 h-4.5"
 										fill="none"
 										stroke="currentColor"
 										viewBox="0 0 24 24"
@@ -220,7 +218,7 @@
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
-											stroke-width="2"
+											stroke-width="2.5"
 											d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
 										/>
 									</svg>
