@@ -119,7 +119,6 @@
 									{{ isDraftQuotation(draft) ? __('Cotización') : __('Pre-venta') }}
 								</span>
 								<span
-									v-if="!isDraftQuotation(draft)"
 									class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider"
 									:class="draft.docstatus === 1 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'"
 								>

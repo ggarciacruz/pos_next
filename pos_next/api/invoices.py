@@ -1796,8 +1796,8 @@ def get_draft_invoices(pos_opening_shift, doctype="Sales Order"):
 	"""Get all draft invoices for a POS opening shift."""
 	filters = {}
 	if doctype == "Quotation":
-		filters["docstatus"] = 1
-		filters["status"] = ["in", ["Open", "Draft"]]
+		filters["docstatus"] = ["in", [0, 1]]
+		filters["status"] = ["not in", ["Cancelled"]]
 	elif doctype == "Sales Order":
 		filters["docstatus"] = ["in", [0, 1]]
 		filters["status"] = ["not in", ["Completed", "Billed", "Cancelled"]]
