@@ -1466,15 +1466,14 @@
 				</div>
 			</div>
 
-			<!-- Action Buttons -->
-			<div class="flex flex-col p-3 bg-white border-t border-gray-100 gap-1.5">
-				<div class="flex gap-2">
-					<!-- Checkout Button (Primary - 50% width) -->
+			<!-- Action Buttons -->			<div class="flex flex-col p-3 bg-white border-t border-gray-100 gap-1.5">
+				<div class="flex">
+					<!-- Checkout Button (Primary - 100% width) -->
 					<button
 						type="button"
 						@click="handleProceedToPayment"
 						:disabled="items.length === 0"
-						class="flex-1 py-2.5 px-3 rounded-lg font-semibold text-xs text-white transition-all touch-manipulation active:scale-[0.98] flex items-center justify-center"
+						class="w-full py-2.5 px-3 rounded-lg font-bold text-sm text-white transition-all touch-manipulation active:scale-[0.98] flex items-center justify-center gap-1.5"
 						:class="[
 							items.length === 0
 								? 'bg-gray-300 cursor-not-allowed'
@@ -1508,42 +1507,53 @@
 						</svg>
 						<span>{{ __("Checkout") }}</span>
 					</button>
-
-					<!-- Hold Order Button (Secondary - 50% width) -->
-					<button
-						type="button"
-						v-if="items.length > 0"
-						@click="$emit('save-draft')"
-						class="flex-1 py-2.5 px-2 rounded-lg font-semibold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 transition-all touch-manipulation active:scale-[0.98] flex items-center justify-center"
-						:aria-label="__('Hold order as draft')"
-					>
-						<svg
-							class="w-4 h-4 me-1.5"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							stroke-width="2"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-							/>
-						</svg>
-						<span>{{ __("Hold", null, "order") }}</span>
-					</button>
 				</div>
-				<!-- Discrete Quotation Button -->
-				<button
-					type="button"
-					v-if="items.length > 0"
-					@click="$emit('save-quotation')"
-					class="w-full text-center text-xs text-blue-600 hover:text-blue-800 hover:underline py-1 mt-0.5 font-medium transition-colors cursor-pointer"
-				>
-					{{ __("Create Quotation") }}
-				</button>
+
+				<div v-if="items.length > 0" class="flex flex-col gap-2 mt-2 pt-2 border-t border-gray-100">
+					<!-- Pre-venta (Sales Order) Row -->
+					<div class="flex items-center gap-2">
+						<span class="text-[10px] font-extrabold text-gray-500 w-16 uppercase tracking-wider">{{ __("Pre-venta") }}:</span>
+						<button
+							type="button"
+							@click="$emit('save-draft', false)"
+							class="flex-1 py-1.5 px-2 rounded-md font-bold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 border border-orange-200 transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
+						>
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+							<span>{{ __("Borrador") }}</span>
+						</button>
+						<button
+							type="button"
+							@click="$emit('save-draft', true)"
+							class="flex-1 py-1.5 px-2 rounded-md font-bold text-xs text-white bg-orange-600 hover:bg-orange-700 active:bg-orange-800 transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
+						>
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+							<span>{{ __("Validar") }}</span>
+						</button>
+					</div>
+
+					<!-- Cotización (Quotation) Row -->
+					<div class="flex items-center gap-2">
+						<span class="text-[10px] font-extrabold text-gray-500 w-16 uppercase tracking-wider">{{ __("Cotización") }}:</span>
+						<button
+							type="button"
+							@click="$emit('save-quotation', false)"
+							class="flex-1 py-1.5 px-2 rounded-md font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 border border-blue-200 transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
+						>
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+							<span>{{ __("Borrador") }}</span>
+						</button>
+						<button
+							type="button"
+							@click="$emit('save-quotation', true)"
+							class="flex-1 py-1.5 px-2 rounded-md font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
+						>
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+							<span>{{ __("Validar") }}</span>
+						</button>
+					</div>
+				</div>
 			</div>
-		</div>
+		</div>>
 
 		<!-- Edit Item Dialog -->
 		<EditItemDialog

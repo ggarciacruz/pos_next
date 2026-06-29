@@ -1021,12 +1021,29 @@ def update_invoice(data):
 		# Save as draft / Submit quotation
 		invoice_doc.flags.ignore_permissions = True
 		frappe.flags.ignore_account_permission = True
+		req_docstatus = cint(data.get("docstatus", 0))
 		if doctype == "Quotation":
-			invoice_doc.docstatus = 0
-			invoice_doc.insert(ignore_permissions=True)
+			if not invoice_doc.name or not frappe.db.exists("Quotation", invoice_doc.name):
+				invoice_doc.docstatus = 0
+				invoice_doc.insert(ignore_permissions=True)
+			else:
+				invoice_doc.docstatus = 0
+				invoice_doc.save()
+			
+			if req_docstatus == 1:
+				invoice_doc.submit()
 		else:
-			invoice_doc.docstatus = 0
-			invoice_doc.save()
+			if req_docstatus == 1:
+				if not invoice_doc.name or not frappe.db.exists("Sales Order", invoice_doc.name):
+					invoice_doc.docstatus = 0
+					invoice_doc.insert(ignore_permissions=True)
+				else:
+					invoice_doc.docstatus = 0
+					invoice_doc.save()
+				invoice_doc.submit()
+			else:
+				invoice_doc.docstatus = 0
+				invoice_doc.save()
 
 		return invoice_doc.as_dict()
 	except Exception:

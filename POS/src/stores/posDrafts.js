@@ -115,7 +115,8 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 		posProfile,
 		appliedOffers = [],
 		draftId = null,
-		doctype = "Sales Order"
+		doctype = "Sales Order",
+		submit = false
 	) {
 		if (invoiceItems.length === 0) {
 			showWarning(__("Cannot save an empty cart as draft"));
@@ -143,6 +144,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 
 				const invoiceData = {
 					doctype: doctype,
+					docstatus: submit ? 1 : 0,
 					pos_profile: posProfile,
 					posa_pos_opening_shift: shiftStore.currentShift?.name,
 					customer: customer?.name || customer,

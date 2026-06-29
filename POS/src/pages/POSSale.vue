@@ -2469,13 +2469,15 @@ function logoutWithCloseShift() {
 	uiStore.showCloseShiftDialog = true;
 }
 
-async function handleSaveDraft() {
+async function handleSaveDraft(submit = false) {
 	const savedDraft = await draftsStore.saveDraftInvoice(
 		cartStore.invoiceItems,
 		cartStore.customer,
 		cartStore.posProfile,
 		cartStore.appliedOffers,
-		cartStore.currentDraftId
+		cartStore.currentDraftId,
+		"Sales Order",
+		submit
 	);
 	if (savedDraft) {
 		lastSavedDraft.value = savedDraft;
@@ -2487,7 +2489,7 @@ async function handleSaveDraft() {
 	}
 }
 
-async function handleSaveQuotation() {
+async function handleSaveQuotation(submit = false) {
 	if (!cartStore.customer) {
 		frappe.show_alert({
 			message: __("Please select a customer before proceeding"),
@@ -2501,7 +2503,8 @@ async function handleSaveQuotation() {
 		cartStore.posProfile,
 		cartStore.appliedOffers,
 		null, // always insert new Quotation
-		"Quotation"
+		"Quotation",
+		submit
 	);
 	if (savedDraft) {
 		lastSavedDraft.value = savedDraft;
