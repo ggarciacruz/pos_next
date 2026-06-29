@@ -79,7 +79,7 @@
 								{{ __("Emitir Factura Oficial") }}
 							</span>
 						</div>
-						<div class="relative inline-flex items-center cursor-pointer">
+						<label class="relative inline-flex items-center cursor-pointer">
 							<input
 								type="checkbox"
 								v-model="emitOfficialInvoice"
@@ -88,7 +88,7 @@
 							<div
 								class="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"
 							></div>
-						</div>
+						</label>
 					</div>
 
 					<!-- Sales Person Selection (Compact) -->
