@@ -1509,47 +1509,63 @@
 					</button>
 				</div>
 
-				<div v-if="items.length > 0" class="flex flex-col gap-2 mt-2 pt-2 border-t border-gray-100">
+				<div v-if="items.length > 0" class="mt-4 pt-3 border-t border-gray-100 flex flex-col gap-3">
+					<!-- Title section -->
+					<div class="flex items-center gap-1.5 px-0.5">
+						<span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{{ __("Opciones de Guardado") }}</span>
+						<div class="h-[1px] bg-gray-100 flex-1"></div>
+					</div>
+
 					<!-- Pre-venta (Sales Order) Row -->
-					<div class="flex items-center gap-2">
-						<span class="text-[10px] font-extrabold text-gray-500 w-16 uppercase tracking-wider">{{ __("Pre-venta") }}:</span>
-						<button
-							type="button"
-							@click="$emit('save-draft', false)"
-							class="flex-1 py-1.5 px-2 rounded-md font-bold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 border border-orange-200 transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-							<span>{{ __("Borrador") }}</span>
-						</button>
-						<button
-							type="button"
-							@click="$emit('save-draft', true)"
-							class="flex-1 py-1.5 px-2 rounded-md font-bold text-xs text-white bg-orange-600 hover:bg-orange-700 active:bg-orange-800 transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-							<span>{{ __("Validar") }}</span>
-						</button>
+					<div class="bg-gray-50/50 border border-gray-100/80 rounded-xl p-2.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition-all duration-200">
+						<div class="flex items-center gap-2 flex-shrink-0">
+							<span class="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-sm shadow-orange-300"></span>
+							<span class="text-xs font-bold text-gray-700 tracking-wide">{{ __("Pre-venta") }}</span>
+						</div>
+						<div class="flex items-center gap-1.5 flex-1 justify-end max-w-[220px]">
+							<button
+								type="button"
+								@click="$emit('save-draft', false)"
+								class="flex-1 py-1.5 px-2.5 rounded-lg font-bold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200/80 border border-orange-200/60 transition-all flex items-center justify-center gap-1 active:scale-[0.97]"
+							>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+								<span>{{ __("Borrador") }}</span>
+							</button>
+							<button
+								type="button"
+								@click="$emit('save-draft', true)"
+								class="flex-1 py-1.5 px-2.5 rounded-lg font-bold text-xs text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 active:scale-[0.97] shadow-sm shadow-orange-200/50 hover:shadow-md transition-all flex items-center justify-center gap-1"
+							>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+								<span>{{ __("Validar") }}</span>
+							</button>
+						</div>
 					</div>
 
 					<!-- Cotización (Quotation) Row -->
-					<div class="flex items-center gap-2">
-						<span class="text-[10px] font-extrabold text-gray-500 w-16 uppercase tracking-wider">{{ __("Cotización") }}:</span>
-						<button
-							type="button"
-							@click="$emit('save-quotation', false)"
-							class="flex-1 py-1.5 px-2 rounded-md font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 border border-blue-200 transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-							<span>{{ __("Borrador") }}</span>
-						</button>
-						<button
-							type="button"
-							@click="$emit('save-quotation', true)"
-							class="flex-1 py-1.5 px-2 rounded-md font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-							<span>{{ __("Validar") }}</span>
-						</button>
+					<div class="bg-gray-50/50 border border-gray-100/80 rounded-xl p-2.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition-all duration-200">
+						<div class="flex items-center gap-2 flex-shrink-0">
+							<span class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-300"></span>
+							<span class="text-xs font-bold text-gray-700 tracking-wide">{{ __("Cotización") }}</span>
+						</div>
+						<div class="flex items-center gap-1.5 flex-1 justify-end max-w-[220px]">
+							<button
+								type="button"
+								@click="$emit('save-quotation', false)"
+								class="flex-1 py-1.5 px-2.5 rounded-lg font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200/80 border border-blue-200/60 transition-all flex items-center justify-center gap-1 active:scale-[0.97]"
+							>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+								<span>{{ __("Borrador") }}</span>
+							</button>
+							<button
+								type="button"
+								@click="$emit('save-quotation', true)"
+								class="flex-1 py-1.5 px-2.5 rounded-lg font-bold text-xs text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:scale-[0.97] shadow-sm shadow-blue-200/50 hover:shadow-md transition-all flex items-center justify-center gap-1"
+							>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+								<span>{{ __("Validar") }}</span>
+							</button>
+						</div>
 					</div>
 				</div>
 			</div>
