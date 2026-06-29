@@ -319,6 +319,17 @@
 "Certificate is not installed on this machine. Generate a certificate, download it, and import it into QZ Tray.","El certificado no está instalado en esta máquina. Genere un certificado, descárguelo e impórtelo en QZ Tray.",""
 "To print without confirmation dialogs, generate a signing certificate and install it on each POS machine.","Para imprimir sin diálogos de confirmación, genere un certificado de firma e instálelo en cada máquina POS.",""
 "All items removed from cart","Todos los artículos fueron eliminados del carrito",""
+"No pending invoices to sync","No hay facturas pendientes por sincronizar",""
+"Online - Click to sync","En línea - Haz clic para sincronizar",""
+"Cache syncing","Sincronizando caché",""
+"Invoice saved offline. Will sync when online","Factura guardada fuera de línea. Se sincronizará cuando esté en línea",""
+"Cannot edit while syncing — please wait for sync to finish.","No se puede editar mientras se sincroniza — por favor espera a que termine la sincronización.",""
+"Cannot delete while syncing — please wait for sync to finish.","No se puede eliminar mientras se sincroniza — por favor espera a que termine la sincronización.",""
+"Cannot sync while offline","No se puede sincronizar mientras está fuera de línea",""
+"{0} invoice(s) failed to sync","{0} factura(s) no se pudieron sincronizar",""
+"{0} invoice(s) synced successfully","{0} factura(s) sincronizada(s) con éxito",""
+"POS is offline without cached data. Please connect to sync.","El POS está fuera de línea y sin datos en caché. Por favor conéctate para sincronizar.",""
+"Syncing catalog in background... {0} items cached","Sincronizando catálogo en segundo plano... {0} artículos guardados en caché",""
 
 
 
