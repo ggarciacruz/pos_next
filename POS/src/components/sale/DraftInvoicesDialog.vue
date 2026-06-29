@@ -5,23 +5,50 @@
 			<div class="flex flex-col gap-3">
 				<!-- Search and Tabs Header -->
 				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-3">
-					<!-- Tabs -->
-					<div class="flex bg-gray-100 p-0.5 rounded-lg w-full sm:w-auto">
+					<!-- Tabs and Refresh Button wrapper -->
+					<div class="flex items-center gap-2 w-full sm:w-auto">
+						<!-- Tabs -->
+						<div class="flex bg-gray-100 p-0.5 rounded-lg flex-1 sm:flex-initial">
+							<button
+								type="button"
+								@click="activeTab = 'pre_sales'"
+								class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
+								:class="activeTab === 'pre_sales' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+							>
+								{{ __("Ordenes de Venta") }}
+							</button>
+							<button
+								type="button"
+								@click="activeTab = 'quotations'"
+								class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
+								:class="activeTab === 'quotations' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+							>
+								{{ __("Cotizaciones") }}
+							</button>
+						</div>
+
+						<!-- Refresh Button -->
 						<button
 							type="button"
-							@click="activeTab = 'pre_sales'"
-							class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
-							:class="activeTab === 'pre_sales' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+							@click="refreshData"
+							:disabled="isRefreshing"
+							class="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 active:bg-blue-100 transition-all flex items-center justify-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+							:title="__('Actualizar datos')"
 						>
-							{{ __("Ordenes de Venta") }}
-						</button>
-						<button
-							type="button"
-							@click="activeTab = 'quotations'"
-							class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
-							:class="activeTab === 'quotations' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-						>
-							{{ __("Cotizaciones") }}
+							<svg
+								class="w-4.5 h-4.5"
+								:class="{ 'animate-spin': isRefreshing }"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+								stroke-width="2.5"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M21 3v5h-5"
+								/>
+							</svg>
 						</button>
 					</div>
 
@@ -335,6 +362,19 @@ const showClearAllDialog = ref(false);
 const draftToDelete = ref(null);
 const activeTab = ref("pre_sales"); // "pre_sales" or "quotations"
 const searchQuery = ref("");
+const isRefreshing = ref(false);
+
+async function refreshData() {
+	isRefreshing.value = true;
+	try {
+		await loadDrafts();
+		showSuccess(__("Datos actualizados correctamente"));
+	} catch (error) {
+		console.error("Error refreshing drafts:", error);
+	} finally {
+		isRefreshing.value = false;
+	}
+}
 
 const filteredDrafts = computed(() => {
 	return drafts.value.filter(draft => {
