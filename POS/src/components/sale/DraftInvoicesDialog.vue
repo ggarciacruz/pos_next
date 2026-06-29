@@ -130,14 +130,29 @@
 									<button
 										type="button"
 										@click="sortByWaiting = !sortByWaiting"
-										class="h-8.5 px-3 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer focus:outline-none flex-shrink-0"
+										class="h-8.5 px-3 text-xs font-bold rounded-lg border transition-all flex items-center gap-2 cursor-pointer focus:outline-none flex-shrink-0"
 										:class="
 											sortByWaiting
 												? 'bg-amber-50 text-amber-700 border-amber-300 shadow-sm'
 												: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
 										"
 									>
-										<span>{{ sortByWaiting ? '⏳ Mayor Espera' : '🕒 Recientes' }}</span>
+										<!-- Clock/Waiting icon -->
+										<svg
+											class="w-3.5 h-3.5"
+											:class="sortByWaiting ? 'text-amber-600 animate-pulse' : 'text-gray-400'"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											stroke-width="2.5"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+											/>
+										</svg>
+										<span>{{ sortByWaiting ? 'Mayor Espera' : 'Recientes' }}</span>
 									</button>
 
 									<!-- Instant Search Box -->
@@ -246,18 +261,32 @@
 										</p>
 										<div class="mt-2">
 											<span
-												class="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md border uppercase tracking-wider transition-all"
+												class="inline-flex items-center gap-1.5 text-[10px] font-extrabold px-2 py-0.5 rounded-md border uppercase tracking-wider transition-all"
 												:class="
 													getWaitingStatus(draft.created_at) === 'critical'
-														? 'bg-red-50 text-red-700 border-red-200 shadow-sm animate-pulse'
+														? 'bg-red-50 text-red-700 border-red-200 shadow-sm'
 														: getWaitingStatus(draft.created_at) === 'warning'
-														? 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
+														? 'bg-amber-50 text-amber-700 border-amber-200'
 														: 'bg-green-50 text-green-700 border-green-200'
 												"
 											>
-												<span v-if="getWaitingStatus(draft.created_at) === 'critical'">🚨</span>
-												<span v-else-if="getWaitingStatus(draft.created_at) === 'warning'">⏳</span>
-												<span v-else>🟢</span>
+												<!-- Modern status indicator dot -->
+												<span class="relative flex h-1.5 w-1.5 flex-shrink-0">
+													<span
+														v-if="getWaitingStatus(draft.created_at) === 'critical'"
+														class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"
+													></span>
+													<span
+														class="relative inline-flex rounded-full h-1.5 w-1.5"
+														:class="
+															getWaitingStatus(draft.created_at) === 'critical'
+																? 'bg-red-500'
+																: getWaitingStatus(draft.created_at) === 'warning'
+																? 'bg-amber-500'
+																: 'bg-green-500'
+														"
+													></span>
+												</span>
 												{{ getTimeAgo(draft.created_at) }}
 											</span>
 										</div>
