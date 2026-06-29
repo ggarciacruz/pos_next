@@ -465,6 +465,52 @@
 			</div>
 		</div>
 
+		<!-- Active Pre-sale / Quotation Banner -->
+		<div
+			v-if="cartStore.currentDraftId"
+			class="px-2.5 py-1.5 bg-yellow-50 border-b border-yellow-200 flex items-center justify-between flex-shrink-0"
+		>
+			<div class="flex items-center gap-1.5 min-w-0">
+				<svg
+					class="w-4 h-4 text-yellow-600 flex-shrink-0"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+					/>
+				</svg>
+				<span class="text-xs font-semibold text-yellow-800 truncate">
+					{{ isQuotationDraft ? __("Cotización activa") : __("Pre-venta activa") }}: {{ cartStore.currentDraftId }}
+				</span>
+			</div>
+			<!-- Button to unlink draft -->
+			<button
+				type="button"
+				@click="clearActiveDraft"
+				class="text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 rounded-md p-1 transition-colors"
+				:title="__('Desvincular documento')"
+			>
+				<svg
+					class="w-3.5 h-3.5"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M6 18L18 6M6 6l12 12"
+					/>
+				</svg>
+			</button>
+		</div>
+
 		<!-- Action Buttons Section -->
 		<div v-if="items.length > 0" class="px-2 py-2 border-b border-gray-200 bg-white">
 			<div class="flex items-center justify-between mb-1.5">
@@ -1549,6 +1595,20 @@ const { showWarning } = useToast();
 const { formatQuantity } = useFormatters(); // Quantity formatting utilities
 
 const canCheckout = computed(() => bootstrapStore.canCheckout());
+
+const isQuotationDraft = computed(() => {
+	const draftId = cartStore.currentDraftId;
+	return draftId && (
+		draftId.includes("-QTN-") ||
+		draftId.includes("-COT-") ||
+		draftId.startsWith("QTN-") ||
+		draftId.startsWith("COT-")
+	);
+});
+
+function clearActiveDraft() {
+	cartStore.currentDraftId = null;
+}
 
 function handleProceedToPayment() {
 	if (!canCheckout.value) {

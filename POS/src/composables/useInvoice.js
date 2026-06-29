@@ -732,7 +732,12 @@ export function useInvoice() {
 	 * @returns {Array} Items formatted for ERPNext Sales Invoice
 	 */
 	function formatItemsForSubmission(items, draftId = null) {
-		const isQuotation = draftId && (draftId.startsWith("QTN-") || draftId.startsWith("COT-"));
+		const isQuotation = draftId && (
+			draftId.includes("-QTN-") ||
+			draftId.includes("-COT-") ||
+			draftId.startsWith("QTN-") ||
+			draftId.startsWith("COT-")
+		);
 		const isSalesOrder = draftId && !isQuotation;
 
 		const mapRow = (item) => ({
