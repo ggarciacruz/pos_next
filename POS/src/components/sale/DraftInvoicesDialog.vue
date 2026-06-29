@@ -100,6 +100,14 @@
 								<div class="flex bg-gray-100 p-0.5 rounded-lg w-full sm:w-auto">
 									<button
 										type="button"
+										@click="activeTab = 'all'"
+										class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
+										:class="activeTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+									>
+										{{ __("Todos") }}
+									</button>
+									<button
+										type="button"
 										@click="activeTab = 'pre_sales'"
 										class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
 										:class="activeTab === 'pre_sales' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
@@ -459,7 +467,7 @@ const drafts = ref([]);
 const showDeleteDialog = ref(false);
 const showClearAllDialog = ref(false);
 const draftToDelete = ref(null);
-const activeTab = ref("pre_sales"); // "pre_sales" or "quotations"
+const activeTab = ref("all"); // "all", "pre_sales" or "quotations"
 const searchQuery = ref("");
 const isRefreshing = ref(false);
 const currentPage = ref(1);
@@ -496,8 +504,10 @@ const filteredDrafts = computed(() => {
 		const isQuotation = isDraftQuotation(draft);
 		
 		// Filter by tab
-		const matchesTab = activeTab.value === "quotations" ? isQuotation : !isQuotation;
-		if (!matchesTab) return false;
+		if (activeTab.value !== "all") {
+			const matchesTab = activeTab.value === "quotations" ? isQuotation : !isQuotation;
+			if (!matchesTab) return false;
+		}
 
 		// Filter by search query
 		if (searchQuery.value.trim()) {

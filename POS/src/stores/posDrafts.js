@@ -94,7 +94,13 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 						applied_offers: draft.applied_offers || [],
 					}));
 
-					drafts.value = [...mappedDrafts, ...mappedQuotations];
+					const allDrafts = [...mappedDrafts, ...mappedQuotations];
+					allDrafts.sort((a, b) => {
+						const dateA = a.created_at ? new Date(a.created_at) : 0;
+						const dateB = b.created_at ? new Date(b.created_at) : 0;
+						return dateB - dateA;
+					});
+					drafts.value = allDrafts;
 					draftsCount.value = drafts.value.length;
 					return;
 				}
