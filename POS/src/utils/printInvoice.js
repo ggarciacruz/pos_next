@@ -7,7 +7,7 @@ import { printHTML as qzPrintHTML } from "@/utils/qzTray";
 
 const log = logger.create("PrintInvoice");
 
-const DEFAULT_PRINT_FORMAT = "POS Next Receipt";
+const DEFAULT_PRINT_FORMAT = "MDX POS Receipt";
 
 // ============================================================================
 // Shared helpers
@@ -205,7 +205,7 @@ export function buildReceiptHTML(invoiceData) {
 	return `
 			<div class="receipt">
 				<div class="header">
-					<div class="company-name">${invoiceData.company || "POS Next"}</div>
+					<div class="company-name">${invoiceData.company || "MDX POS"}</div>
 					<div style="font-size: 12px;">${invoiceData.header || __("TAX INVOICE")}</div>
 				</div>
 
