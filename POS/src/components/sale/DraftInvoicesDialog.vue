@@ -1,6 +1,6 @@
 <template>
 	<!-- Main Dialog -->
-	<Dialog v-model="show" :options="{ title: __('Cargar Pre-venta / Cotización'), size: 'lg' }">
+	<Dialog v-model="show" :options="{ title: __('Cargar Nota de Venta / Cotización'), size: 'lg' }">
 		<template #body-content>
 			<div class="flex flex-col gap-3">
 				<!-- Tabs -->
@@ -11,7 +11,7 @@
 						class="flex-1 py-2.5 text-center text-sm font-semibold transition-all border-b-2 cursor-pointer focus:outline-none"
 						:class="activeTab === 'pre_sales' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
 					>
-						{{ __("Pre-ventas") }}
+						{{ __("Ordenes de Venta") }}
 					</button>
 					<button
 						type="button"
@@ -43,7 +43,7 @@
 						</svg>
 					</div>
 					<p class="text-sm font-medium text-gray-900">
-						{{ activeTab === 'quotations' ? __("No hay cotizaciones") : __("No hay pre-ventas") }}
+						{{ activeTab === 'quotations' ? __("No hay cotizaciones") : __("No hay órdenes de venta") }}
 					</p>
 					<p class="text-xs text-gray-500 mt-1">
 						{{ activeTab === 'quotations' ? __("Cree cotizaciones en el mostrador para recuperarlas aquí") : __("Guarde las ventas como órdenes de venta para continuar más tarde") }}

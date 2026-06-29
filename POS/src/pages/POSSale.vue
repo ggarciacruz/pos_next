@@ -876,7 +876,7 @@
 			>
 				<template #body-content>
 					<p class="text-sm text-gray-600 py-3 text-start">
-						{{ __("Pre-sale saved successfully. Do you want to print the pre-ticket?") }}
+						{{ lastSavedDraft?.doctype === 'Quotation' ? __("Quotation saved successfully. Do you want to print the quotation?") : __("Pre-sale saved successfully. Do you want to print the pre-ticket?") }}
 					</p>
 				</template>
 				<template #actions>
