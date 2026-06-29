@@ -617,13 +617,13 @@
 								:title="__('Click to view all warehouses')"
 							>
 								<span class="inline-flex items-center gap-0.5">
-									<span class="font-medium text-gray-700">Esta Tienda:</span>
+									<span class="font-medium text-gray-700">{{ currentWarehouseName }}:</span>
 									<span :class="(item.actual_qty ?? item.stock_qty ?? 0) > 0 ? 'text-green-600 font-bold' : 'text-red-500 font-bold'">
 										{{ Math.floor(item.actual_qty ?? item.stock_qty ?? 0) }}
 									</span>
 								</span>
 								<span class="inline-flex items-center gap-0.5" v-if="item.other_qty !== undefined">
-									<span class="font-medium text-gray-700">Otros Almacenes:</span>
+									<span class="font-medium text-gray-700">{{ __("Otros") }}:</span>
 									<span :class="item.other_qty > 0 ? 'text-blue-600 font-bold' : 'text-gray-400 font-normal'">
 										{{ Math.floor(item.other_qty) }}
 									</span>
@@ -1117,6 +1117,7 @@ import LazyImage from "@/components/common/LazyImage.vue";
 import WarehouseAvailabilityDialog from "@/components/sale/WarehouseAvailabilityDialog.vue";
 import { useItemSearchStore } from "@/stores/itemSearch";
 import { usePOSSettingsStore } from "@/stores/posSettings";
+import { usePOSShiftStore } from "@/stores/posShift";
 import { useStock } from "@/composables/useStock";
 import { useDialogState } from "@/composables/useDialogState";
 import { useSearchInput } from "@/composables/useSearchInput";
@@ -1154,6 +1155,15 @@ const { showError, showWarning } = useToast();
 const { isAnyDialogOpen } = useDialogState();
 
 // Use Pinia store
+const shiftStore = usePOSShiftStore();
+
+const currentWarehouseName = computed(() => {
+	const wh = shiftStore.profileWarehouse;
+	if (!wh) return __("Esta Tienda");
+	// Replace hyphen with a space to make it look premium (e.g. "Sucursal - NE" -> "Sucursal NE")
+	return wh.replace(/\s*-\s*/g, ' ');
+});
+
 const itemStore = useItemSearchStore();
 const {
 	filteredItems,
