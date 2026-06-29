@@ -761,9 +761,9 @@ export function useInvoice() {
 			is_rate_manually_edited: item.is_rate_manually_edited || 0,
 			original_rate: item.original_rate || null,
 			is_free_item: item.is_free_item || 0,
-			sales_order: isSalesOrder ? draftId : undefined,
+			sales_order: (isSalesOrder && item.so_detail) ? draftId : undefined,
 			so_detail: isSalesOrder ? (item.so_detail || undefined) : undefined,
-			against_quotation: isQuotation ? draftId : undefined,
+			against_quotation: (isQuotation && item.so_detail) ? draftId : undefined,
 			quotation_item: isQuotation ? (item.so_detail || undefined) : undefined,
 		});
 

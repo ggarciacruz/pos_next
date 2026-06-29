@@ -2245,11 +2245,18 @@ async function handlePaymentCompleted(paymentData) {
 
 				// Delete draft after successful submission
 				if (draftIdToDelete) {
-					const draftObj = draftsStore.drafts.find(d => d.draft_id === draftIdToDelete);
-					const isSubmitted = draftObj && draftObj.docstatus === 1;
-					const isQuotation = draftIdToDelete.includes("-QTN-") || draftIdToDelete.includes("-COT-") || draftIdToDelete.startsWith("QTN-") || draftIdToDelete.startsWith("COT-");
+					// We must NEVER delete or cancel Sales Orders (pre-sales) or Quotations
+					// created by salespeople because they represent permanent audit trails.
+					// We should only delete temporary draft Sales Invoices created in the POS itself.
+					const isTemporaryPOSDraft = draftIdToDelete.startsWith("DRAFT-") || 
+						(!draftIdToDelete.includes("-ORD-") && 
+						 !draftIdToDelete.includes("-QTN-") && 
+						 !draftIdToDelete.includes("-COT-") && 
+						 !draftIdToDelete.startsWith("SAL-ORD-") && 
+						 !draftIdToDelete.startsWith("QTN-") && 
+						 !draftIdToDelete.startsWith("COT-"));
 					
-					if (!isQuotation && !isSubmitted) {
+					if (isTemporaryPOSDraft) {
 						draftsStore.deleteDraft(draftIdToDelete);
 					} else {
 						draftsStore.loadDrafts();
