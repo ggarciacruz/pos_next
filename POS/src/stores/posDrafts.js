@@ -39,11 +39,20 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 			if (!isOffline()) {
 				const shiftName = shiftStore.currentShift?.name;
 				if (shiftName) {
-					const serverDrafts = await call("pos_next.api.invoices.get_draft_invoices", {
-						pos_opening_shift: shiftName
-					});
-					drafts.value = (serverDrafts || []).map(draft => ({
+					const [serverDrafts, serverQuotations] = await Promise.all([
+						call("pos_next.api.invoices.get_draft_invoices", {
+							pos_opening_shift: shiftName,
+							doctype: "Sales Order"
+						}),
+						call("pos_next.api.invoices.get_draft_invoices", {
+							pos_opening_shift: shiftName,
+							doctype: "Quotation"
+						})
+					]);
+
+					const mappedDrafts = (serverDrafts || []).map(draft => ({
 						draft_id: draft.name,
+						doctype: "Sales Order",
 						customer: draft.customer,
 						created_at: draft.creation,
 						items: (draft.items || []).map(item => ({
@@ -60,6 +69,28 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 						})),
 						applied_offers: draft.applied_offers || [],
 					}));
+
+					const mappedQuotations = (serverQuotations || []).map(draft => ({
+						draft_id: draft.name,
+						doctype: "Quotation",
+						customer: draft.customer,
+						created_at: draft.creation,
+						items: (draft.items || []).map(item => ({
+							item_code: item.item_code,
+							item_name: item.item_name,
+							rate: item.rate,
+							price_list_rate: item.price_list_rate,
+							quantity: item.qty || item.quantity,
+							uom: item.uom,
+							stock_uom: item.stock_uom || item.uom,
+							custom_medida: item.custom_medida || "",
+							image: item.image,
+							so_detail: item.name, // Will be mapped to quotation_item during checkout
+						})),
+						applied_offers: draft.applied_offers || [],
+					}));
+
+					drafts.value = [...mappedDrafts, ...mappedQuotations];
 					draftsCount.value = drafts.value.length;
 					return;
 				}
@@ -81,7 +112,8 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 		customer,
 		posProfile,
 		appliedOffers = [],
-		draftId = null
+		draftId = null,
+		doctype = "Sales Order"
 	) {
 		if (invoiceItems.length === 0) {
 			showWarning(__("Cannot save an empty cart as draft"));
@@ -108,14 +140,24 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 				}));
 
 				const invoiceData = {
-					doctype: "Sales Order",
+					doctype: doctype,
 					pos_profile: posProfile,
 					posa_pos_opening_shift: shiftStore.currentShift?.name,
 					customer: customer?.name || customer,
 					items: formattedItems,
-					delivery_date: today, // Required for Sales Order
-					transaction_date: today, // Required for Sales Order
 				};
+
+				if (doctype === "Sales Order") {
+					invoiceData.delivery_date = today;
+					invoiceData.transaction_date = today;
+					invoiceData.items = formattedItems.map(item => ({
+						...item,
+						delivery_date: today
+					}));
+				} else if (doctype === "Quotation") {
+					invoiceData.transaction_date = today;
+					invoiceData.valid_till = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]; // Valid for 3 days
+				}
 
 				// If we are updating an existing server draft
 				if (draftId && !draftId.startsWith("DRAFT-")) {
@@ -133,6 +175,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 
 				const savedDraft = {
 					draft_id: serverDoc.name,
+					doctype: serverDoc.doctype || doctype,
 					customer: serverDoc.customer,
 					created_at: serverDoc.creation,
 					items: invoiceItems,
@@ -140,7 +183,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 				};
 
 				await loadDrafts();
-				showSuccess(__("Invoice saved as draft successfully"));
+				showSuccess(doctype === "Quotation" ? __("Quotation created successfully") : __("Invoice saved as draft successfully"));
 				return savedDraft;
 			} else {
 				const draftData = {

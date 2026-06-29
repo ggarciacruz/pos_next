@@ -732,6 +732,9 @@ export function useInvoice() {
 	 * @returns {Array} Items formatted for ERPNext Sales Invoice
 	 */
 	function formatItemsForSubmission(items, draftId = null) {
+		const isQuotation = draftId && (draftId.startsWith("QTN-") || draftId.startsWith("COT-"));
+		const isSalesOrder = draftId && !isQuotation;
+
 		const mapRow = (item) => ({
 			item_code: item.item_code,
 			item_name: item.item_name,
@@ -753,8 +756,10 @@ export function useInvoice() {
 			is_rate_manually_edited: item.is_rate_manually_edited || 0,
 			original_rate: item.original_rate || null,
 			is_free_item: item.is_free_item || 0,
-			sales_order: draftId && draftId.startsWith("SAL-ORD-") ? draftId : undefined,
-			so_detail: item.so_detail || undefined,
+			sales_order: isSalesOrder ? draftId : undefined,
+			so_detail: isSalesOrder ? (item.so_detail || undefined) : undefined,
+			against_quotation: isQuotation ? draftId : undefined,
+			quotation_item: isQuotation ? (item.so_detail || undefined) : undefined,
 		});
 
 		const out = [];

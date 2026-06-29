@@ -1,10 +1,30 @@
 <template>
 	<!-- Main Dialog -->
-	<Dialog v-model="show" :options="{ title: __('Draft Invoices'), size: 'lg' }">
+	<Dialog v-model="show" :options="{ title: __('Cargar Pre-venta / Cotización'), size: 'lg' }">
 		<template #body-content>
 			<div class="flex flex-col gap-3">
+				<!-- Tabs -->
+				<div class="flex border-b border-gray-200 mb-2">
+					<button
+						type="button"
+						@click="activeTab = 'pre_sales'"
+						class="flex-1 py-2.5 text-center text-sm font-semibold transition-all border-b-2 cursor-pointer focus:outline-none"
+						:class="activeTab === 'pre_sales' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+					>
+						{{ __("Pre-ventas") }}
+					</button>
+					<button
+						type="button"
+						@click="activeTab = 'quotations'"
+						class="flex-1 py-2.5 text-center text-sm font-semibold transition-all border-b-2 cursor-pointer focus:outline-none"
+						:class="activeTab === 'quotations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+					>
+						{{ __("Cotizaciones") }}
+					</button>
+				</div>
+
 				<!-- Empty State -->
-				<div v-if="drafts.length === 0" class="text-center py-8">
+				<div v-if="filteredDrafts.length === 0" class="text-center py-8">
 					<div
 						class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3"
 					>
@@ -22,25 +42,36 @@
 							/>
 						</svg>
 					</div>
-					<p class="text-sm font-medium text-gray-900">{{ __("No draft invoices") }}</p>
+					<p class="text-sm font-medium text-gray-900">
+						{{ activeTab === 'quotations' ? __("No hay cotizaciones") : __("No hay pre-ventas") }}
+					</p>
 					<p class="text-xs text-gray-500 mt-1">
-						{{ __("Save invoices as drafts to continue later") }}
+						{{ activeTab === 'quotations' ? __("Cree cotizaciones en el mostrador para recuperarlas aquí") : __("Guarde las ventas como órdenes de venta para continuar más tarde") }}
 					</p>
 				</div>
 
 				<!-- Drafts List -->
 				<div v-else class="flex flex-col gap-2 max-h-96 overflow-y-auto">
 					<div
-						v-for="draft in drafts"
+						v-for="draft in filteredDrafts"
 						:key="draft.draft_id"
 						class="bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-400 transition-all cursor-pointer"
 						@click="$emit('load-draft', draft)"
 					>
 						<div class="flex items-start justify-between mb-2">
 							<div class="flex-1">
-								<h4 class="text-sm font-semibold text-gray-900">
-									{{ draft.draft_id }}
-								</h4>
+								<div class="flex items-center gap-2 mb-1">
+									<h4 class="text-sm font-semibold text-gray-900">
+										{{ draft.draft_id }}
+									</h4>
+									<!-- Badge -->
+									<span
+										class="px-1.5 py-0.5 rounded text-[10px] font-bold border"
+										:class="draft.doctype === 'Quotation' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-green-50 text-green-700 border-green-200'"
+									>
+										{{ draft.doctype === 'Quotation' ? __('Cotización') : __('Pre-venta') }}
+									</span>
+								</div>
 								<p v-if="draft.customer" class="text-xs text-gray-500 mt-0.5">
 									{{
 										__("Customer: {0}", [
@@ -204,11 +235,13 @@ import { clearAllDrafts, deleteDraft, getAllDrafts } from "@/utils/draftManager"
 import { printInvoiceCustom } from "@/utils/printInvoice";
 import { useToast } from "@/composables/useToast";
 import { usePOSShiftStore } from "@/stores/posShift";
+import { usePOSDraftsStore } from "@/stores/posDrafts";
 import { Button, Dialog } from "frappe-ui";
-import { onMounted, ref, watch } from "vue";
+import { onMounted, ref, watch, computed } from "vue";
 
 const { showSuccess, showError } = useToast();
 const shiftStore = usePOSShiftStore();
+const draftsStore = usePOSDraftsStore();
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -229,6 +262,14 @@ const drafts = ref([]);
 const showDeleteDialog = ref(false);
 const showClearAllDialog = ref(false);
 const draftToDelete = ref(null);
+const activeTab = ref("pre_sales"); // "pre_sales" or "quotations"
+
+const filteredDrafts = computed(() => {
+	return drafts.value.filter(draft => {
+		const isQuotation = draft.doctype === "Quotation" || (draft.draft_id && (draft.draft_id.startsWith("QTN-") || draft.draft_id.startsWith("COT-")));
+		return activeTab.value === "quotations" ? isQuotation : !isQuotation;
+	});
+});
 
 watch(
 	() => props.modelValue,
@@ -250,7 +291,8 @@ onMounted(() => {
 
 async function loadDrafts() {
 	try {
-		drafts.value = await getAllDrafts();
+		await draftsStore.loadDrafts();
+		drafts.value = draftsStore.drafts;
 	} catch (error) {
 		console.error("Error loading drafts:", error);
 		showError(__("Failed to load draft invoices"));
@@ -263,6 +305,8 @@ function handlePrintDraft(draft) {
 	}
 
 	try {
+		const isQuotation = draft.doctype === "Quotation" || (draft.draft_id && (draft.draft_id.startsWith("QTN-") || draft.draft_id.startsWith("COT-")));
+
 		const invoiceData = {
 			name: draft.draft_id,
 			company: shiftStore.profileCompany,
@@ -271,9 +315,11 @@ function handlePrintDraft(draft) {
 			grand_total: calculateTotal(draft.items),
 			posting_date: draft.created_at,
 			customer_name: draft.customer?.customer_name || draft.customer?.name || draft.customer,
-			status: "Draft",
-			header: "Draft",
-			footer: "الفاتورة لم يتم تسجيلها في حسابات الجهة، وبالتالي لا يُعتد بها، ولا تتحمل الجهة أي مسؤولية عن أي أضرار قد تنتج عنها.",
+			status: isQuotation ? "Quotation" : "Draft",
+			header: isQuotation ? "Quotation" : "Draft",
+			footer: isQuotation
+				? "Este documento es una cotización informativa y no representa una factura ni compromiso de compra. Válido por 3 días."
+				: "Este documento es una orden de venta y no representa una factura válida ni un comprobante de pago oficial.",
 		};
 		printInvoiceCustom(invoiceData);
 	} catch (error) {
@@ -289,7 +335,7 @@ function handleDeleteDraft(draftId) {
 
 async function confirmDeleteDraft() {
 	try {
-		await deleteDraft(draftToDelete.value);
+		await draftsStore.deleteDraft(draftToDelete.value);
 		await loadDrafts();
 		showDeleteDialog.value = false;
 		draftToDelete.value = null;

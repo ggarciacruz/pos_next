@@ -202,17 +202,21 @@ export function buildReceiptHTML(invoiceData) {
 		})
 		.join("");
 
+	const isQuotation = invoiceData.header === "Quotation" || (invoiceData.name && (invoiceData.name.startsWith("QTN-") || invoiceData.name.startsWith("COT-")));
+	const docLabel = isQuotation ? __("Quotation #:") : __("Invoice #:");
+	const displayHeader = isQuotation ? __("COTIZACIÓN DE PRODUCTOS") : (invoiceData.header === "Draft" ? __("ORDEN DE VENTA") : (invoiceData.header || __("TAX INVOICE")));
+
 	return `
 			<div class="receipt">
 				<div class="header">
 					<div class="company-name">${invoiceData.company || "MDX POS"}</div>
-					<div style="font-size: 12px;">${invoiceData.header || __("TAX INVOICE")}</div>
+					<div style="font-size: 12px; font-weight: bold;">${displayHeader}</div>
 				</div>
 
 				${invoiceData.is_offline ? `<div class="offline-badge">${__("OFFLINE — PENDING SYNC")}</div>` : ""}
 
 				<div class="invoice-info">
-					<div><span>${__("Invoice #:")}</span><span><strong>${invoiceData.name}</strong></span></div>
+					<div><span>${docLabel}</span><span><strong>${invoiceData.name}</strong></span></div>
 					<div><span>${__("Date:")}</span><span>${new Date(
 		invoiceData.posting_date || Date.now()
 	).toLocaleString()}</span></div>

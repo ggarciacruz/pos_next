@@ -1421,69 +1421,80 @@
 			</div>
 
 			<!-- Action Buttons -->
-			<div class="flex gap-1.5">
-				<!-- Checkout Button (Primary - 50% width) -->
-				<button
-					type="button"
-					@click="handleProceedToPayment"
-					:disabled="items.length === 0"
-					:class="[
-						'flex-1 py-2.5 px-3 rounded-lg font-bold text-xs text-white transition-all flex items-center justify-center touch-manipulation',
-						items.length === 0
-							? 'bg-gray-300 cursor-not-allowed'
-							: !canCheckout
-								? 'bg-gray-400 opacity-80 cursor-not-allowed shadow-none active:scale-100'
-								: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg hover:shadow-xl active:scale-[0.98]',
-					]"
-					:aria-label="__('Proceed to payment')"
-				>
-					<svg
-						v-if="!canCheckout"
-						class="w-4 h-4 me-1.5 text-yellow-200"
-						fill="currentColor"
-						viewBox="0 0 20 20"
+			<div class="flex flex-col p-3 bg-white border-t border-gray-100 gap-1.5">
+				<div class="flex gap-2">
+					<!-- Checkout Button (Primary - 50% width) -->
+					<button
+						type="button"
+						@click="handleProceedToPayment"
+						:disabled="items.length === 0"
+						class="flex-1 py-2.5 px-3 rounded-lg font-semibold text-xs text-white transition-all touch-manipulation active:scale-[0.98] flex items-center justify-center"
+						:class="[
+							items.length === 0
+								? 'bg-gray-300 cursor-not-allowed'
+								: !canCheckout
+									? 'bg-gray-400 opacity-80 cursor-not-allowed shadow-none active:scale-100'
+									: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg hover:shadow-xl active:scale-[0.98]',
+						]"
+						:aria-label="__('Proceed to payment')"
 					>
-						<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-					</svg>
-					<svg
-						v-else
-						class="w-4 h-4 me-1.5"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-						stroke-width="2"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-						/>
-					</svg>
-					<span>{{ __("Checkout") }}</span>
-				</button>
+						<svg
+							v-if="!canCheckout"
+							class="w-4 h-4 me-1.5 text-yellow-200"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+						>
+							<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+						</svg>
+						<svg
+							v-else
+							class="w-4 h-4 me-1.5"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							stroke-width="2"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+							/>
+						</svg>
+						<span>{{ __("Checkout") }}</span>
+					</button>
 
-				<!-- Hold Order Button (Secondary - 50% width) -->
+					<!-- Hold Order Button (Secondary - 50% width) -->
+					<button
+						type="button"
+						v-if="items.length > 0"
+						@click="$emit('save-draft')"
+						class="flex-1 py-2.5 px-2 rounded-lg font-semibold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 transition-all touch-manipulation active:scale-[0.98] flex items-center justify-center"
+						:aria-label="__('Hold order as draft')"
+					>
+						<svg
+							class="w-4 h-4 me-1.5"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							stroke-width="2"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+							/>
+						</svg>
+						<span>{{ __("Hold", null, "order") }}</span>
+					</button>
+				</div>
+				<!-- Discrete Quotation Button -->
 				<button
 					type="button"
 					v-if="items.length > 0"
-					@click="$emit('save-draft')"
-					class="flex-1 py-2.5 px-2 rounded-lg font-semibold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 transition-all touch-manipulation active:scale-[0.98] flex items-center justify-center"
-					:aria-label="__('Hold order as draft')"
+					@click="$emit('save-quotation')"
+					class="w-full text-center text-xs text-blue-600 hover:text-blue-800 hover:underline py-1 mt-0.5 font-medium transition-colors cursor-pointer"
 				>
-					<svg
-						class="w-4 h-4 me-1.5"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-						stroke-width="2"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-						/>
-					</svg>
-					<span>{{ __("Hold", null, "order") }}</span>
+					{{ __("Create Quotation") }}
 				</button>
 			</div>
 		</div>
@@ -1638,6 +1649,7 @@ const emit = defineEmits([
 	"proceed-to-payment", // () - Navigate to payment screen
 	"clear-cart", // () - Clear all items from cart
 	"save-draft", // () - Save current cart as draft/hold order
+	"save-quotation", // () - Save current cart as Quotation
 	"apply-coupon", // () - Open coupon application dialog
 	"show-coupons", // () - Show available coupons
 	"show-offers", // () - Show available offers dialog

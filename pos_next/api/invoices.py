@@ -718,6 +718,11 @@ def update_invoice(data):
 		else:
 			invoice_doc = frappe.get_doc(data)
 
+		if doctype == "Quotation":
+			invoice_doc.quotation_to = "Customer"
+			invoice_doc.party_name = data.get("customer")
+			invoice_doc.customer = data.get("customer")
+
 		# Important: set before set_missing_values()/pricing/validation paths that may
 		# read linked docs (e.g., Customer) and trigger controller permission checks.
 		invoice_doc.flags.ignore_permissions = True
@@ -730,7 +735,8 @@ def update_invoice(data):
 			except Exception:
 				frappe.throw(_("Unable to load POS Profile {0}").format(pos_profile))
 
-			invoice_doc.pos_profile = pos_profile
+			if invoice_doc.meta.has_field("pos_profile"):
+				invoice_doc.pos_profile = pos_profile
 
 			if pos_profile_doc:
 				if pos_profile_doc.company and not invoice_doc.get("company"):
@@ -739,7 +745,7 @@ def update_invoice(data):
 					invoice_doc.currency = pos_profile_doc.currency
 
 				# Copy accounting dimensions from POS Profile
-				if hasattr(pos_profile_doc, "branch") and pos_profile_doc.branch:
+				if hasattr(pos_profile_doc, "branch") and pos_profile_doc.branch and invoice_doc.meta.has_field("branch"):
 					invoice_doc.branch = pos_profile_doc.branch
 					# Also set branch on all items for GL entries
 					for item in invoice_doc.get("items", []):
@@ -921,7 +927,8 @@ def update_invoice(data):
 		if pos_settings_cache and pos_settings_cache.get(FIELD_DISABLE_ROUNDED_TOTAL) is not None:
 			disable_rounded = cint(pos_settings_cache.get(FIELD_DISABLE_ROUNDED_TOTAL))
 
-		invoice_doc.disable_rounded_total = disable_rounded
+		if invoice_doc.meta.has_field("disable_rounded_total"):
+			invoice_doc.disable_rounded_total = disable_rounded
 
 		# ========================================================================
 		# POPULATE MISSING FIELDS — using for_validate=True intentionally
@@ -991,8 +998,8 @@ def update_invoice(data):
 					)
 					frappe.throw(_(error_msg))
 
-				# Store coupon code on invoice for tracking
-				invoice_doc.coupon_code = coupon_code
+				if invoice_doc.meta.has_field("coupon_code"):
+					invoice_doc.coupon_code = coupon_code
 
 		# Validate stock availability before saving draft
 		# is_stock_item may not be set on unsaved doc items (frontend doesn't send it),
@@ -1011,11 +1018,16 @@ def update_invoice(data):
 					if errors:
 						frappe.throw(frappe.as_json({"errors": errors}), frappe.ValidationError)
 
-		# Save as draft
+		# Save as draft / Submit quotation
 		invoice_doc.flags.ignore_permissions = True
 		frappe.flags.ignore_account_permission = True
-		invoice_doc.docstatus = 0
-		invoice_doc.save()
+		if doctype == "Quotation":
+			invoice_doc.docstatus = 0
+			invoice_doc.insert(ignore_permissions=True)
+			invoice_doc.submit()
+		else:
+			invoice_doc.docstatus = 0
+			invoice_doc.save()
 
 		return invoice_doc.as_dict()
 	except Exception:
@@ -1310,6 +1322,16 @@ def submit_invoice(invoice=None, data=None):
 		# Store the sync record name for later update
 		sync_record_name = dedup_result.get("sync_record_name") if dedup_result else None
 
+	# Collect Quotation items references to update after submission
+	quotation_items_to_update = []
+	for item_data in invoice.get("items", []):
+		if item_data.get("against_quotation") and item_data.get("quotation_item"):
+			quotation_items_to_update.append({
+				"quotation": item_data.get("against_quotation"),
+				"quotation_item": item_data.get("quotation_item"),
+				"qty": flt(item_data.get("qty"))
+			})
+
 	# Track whether invoice was successfully submitted
 	invoice_submitted = False
 
@@ -1474,6 +1496,25 @@ def submit_invoice(invoice=None, data=None):
 		# Submit invoice
 		invoice_doc.submit()
 		invoice_submitted = True
+
+		# Update Quotation items ordered quantity and parent Quotation status
+		for q_item in quotation_items_to_update:
+			try:
+				if frappe.db.exists("Quotation Item", q_item["quotation_item"]):
+					current_ordered_qty = flt(frappe.db.get_value("Quotation Item", q_item["quotation_item"], "ordered_qty"))
+					frappe.db.set_value(
+						"Quotation Item",
+						q_item["quotation_item"],
+						"ordered_qty",
+						current_ordered_qty + q_item["qty"]
+					)
+					
+					# Update status of parent Quotation
+					if frappe.db.exists("Quotation", q_item["quotation"]):
+						quote_doc = frappe.get_doc("Quotation", q_item["quotation"])
+						quote_doc.set_status(update=True)
+			except Exception as q_error:
+				frappe.log_error(f"Failed to update Quotation status for {q_item['quotation']}: {q_error}", "POS Quotation Sync Error")
 		# Handle wallet transaction reversal for returns
 		wallet_reversal_ok = False
 		if invoice_doc.get("is_return") and invoice_doc.get("return_against"):
@@ -1753,9 +1794,12 @@ def get_invoices(pos_profile: str, limit: int = 100, start: int = 0) -> list:
 @frappe.whitelist()
 def get_draft_invoices(pos_opening_shift, doctype="Sales Order"):
 	"""Get all draft invoices for a POS opening shift."""
-	filters = {
-		"docstatus": 0,
-	}
+	filters = {}
+	if doctype == "Quotation":
+		filters["docstatus"] = 1
+		filters["status"] = ["in", ["Open", "Draft"]]
+	else:
+		filters["docstatus"] = 0
 
 	company = frappe.db.get_value("POS Opening Shift", pos_opening_shift, "company")
 	if company:
@@ -1763,7 +1807,8 @@ def get_draft_invoices(pos_opening_shift, doctype="Sales Order"):
 
 	# For Sales Invoice (POS), restrict to cashier's active shift.
 	# For Sales Order (pre-sales), allow pulling from any shift/vendedor in the same company.
-	if doctype != "Sales Order":
+	# For Quotation, it doesn't have shift column, so skip.
+	if doctype not in ["Sales Order", "Quotation"]:
 		if frappe.db.has_column(doctype, "posa_pos_opening_shift"):
 			filters["posa_pos_opening_shift"] = pos_opening_shift
 		elif frappe.db.has_column(doctype, "pos_opening_shift"):

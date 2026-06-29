@@ -378,6 +378,7 @@
 								@proceed-to-payment="handleProceedToPayment"
 								@clear-cart="handleClearCart"
 								@save-draft="handleSaveDraft"
+								@save-quotation="handleSaveQuotation"
 								@apply-coupon="uiStore.showCouponDialog = true"
 								@show-offers="uiStore.showOffersDialog = true"
 								@remove-offer="
@@ -2462,6 +2463,30 @@ async function handleSaveDraft() {
 	}
 }
 
+async function handleSaveQuotation() {
+	if (!cartStore.customer) {
+		frappe.show_alert({
+			message: __("Please select a customer before proceeding"),
+			indicator: "orange",
+		});
+		return;
+	}
+	const savedDraft = await draftsStore.saveDraftInvoice(
+		cartStore.invoiceItems,
+		cartStore.customer,
+		cartStore.posProfile,
+		cartStore.appliedOffers,
+		null, // always insert new Quotation
+		"Quotation"
+	);
+	if (savedDraft) {
+		lastSavedDraft.value = savedDraft;
+		cartStore.clearCart();
+		previousCartHash = "";
+		showPrintDraftConfirmDialog.value = true;
+	}
+}
+
 function confirmPrintDraft() {
 	showPrintDraftConfirmDialog.value = false;
 	if (!lastSavedDraft.value) return;
@@ -2471,6 +2496,8 @@ function confirmPrintDraft() {
 		const itemsList = draft.items || [];
 		const grandTotal = itemsList.reduce((total, item) => total + (item.amount || (item.price * item.qty) || 0), 0);
 
+		const isQuotation = draft.doctype === "Quotation" || (draft.draft_id && (draft.draft_id.startsWith("QTN-") || draft.draft_id.startsWith("COT-")));
+
 		const invoiceData = {
 			name: draft.draft_id,
 			company: shiftStore.profileCompany,
@@ -2479,9 +2506,11 @@ function confirmPrintDraft() {
 			grand_total: grandTotal,
 			posting_date: draft.created_at,
 			customer_name: draft.customer?.customer_name || draft.customer?.name || draft.customer || "S/N",
-			status: "Draft",
-			header: "Draft",
-			footer: "Este documento es una orden de venta y no representa una factura válida ni un comprobante de pago oficial.",
+			status: isQuotation ? "Quotation" : "Draft",
+			header: isQuotation ? "Quotation" : "Draft",
+			footer: isQuotation
+				? "Este documento es una cotización informativa y no representa una factura ni compromiso de compra. Válido por 3 días."
+				: "Este documento es una orden de venta y no representa una factura válida ni un comprobante de pago oficial.",
 		};
 		printInvoiceCustom(invoiceData);
 	} catch (error) {
