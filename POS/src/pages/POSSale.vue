@@ -2106,6 +2106,14 @@ async function handlePaymentCompleted(paymentData) {
 				edited_from: editingOfflineContext?.originalOfflineId || null,
 			};
 
+			if (paymentData.emit_official_invoice) {
+				invoiceData.naming_series = "ACC-SINV-.YYYY.-";
+				invoiceData.taxes_and_charges = "IVA Débito Fiscal - NE";
+			} else {
+				invoiceData.naming_series = "NV-.YYYY.-";
+				invoiceData.taxes_and_charges = "";
+			}
+
 			// Save to the offline queue first so we can use the worker's
 			// canonical pos_offline_<uuid> id as the cache key — keeping
 			// IndexedDB and sessionStorage aligned on a single identifier.
@@ -2198,6 +2206,7 @@ async function handlePaymentCompleted(paymentData) {
 			const result = await cartStore.submitInvoice({
 				isCreditSale: Boolean(paymentData.is_credit_sale),
 				receivableAccount: paymentData.receivable_account || null,
+				emitOfficialInvoice: Boolean(paymentData.emit_official_invoice),
 			});
 
 			if (result) {

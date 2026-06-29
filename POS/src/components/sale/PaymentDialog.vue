@@ -56,6 +56,41 @@
 						</div>
 					</div>
 
+					<!-- Toggle for Official Invoice (Facturado) -->
+					<div
+						v-if="!isSalesOrder"
+						class="bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex items-center justify-between"
+					>
+						<div class="flex items-center gap-2">
+							<svg
+								class="w-4 h-4 text-blue-600 flex-shrink-0"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/>
+							</svg>
+							<span class="text-xs font-semibold text-blue-700">
+								{{ __("Emitir Factura Oficial") }}
+							</span>
+						</div>
+						<div class="relative inline-flex items-center cursor-pointer">
+							<input
+								type="checkbox"
+								v-model="emitOfficialInvoice"
+								class="sr-only peer"
+							/>
+							<div
+								class="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"
+							></div>
+						</div>
+					</div>
+
 					<!-- Sales Person Selection (Compact) -->
 					<div
 						v-if="settingsStore.enableSalesPersons"
@@ -2144,6 +2179,7 @@ const walletPaymentMethods = ref(new Set()); // Set of mode_of_payment names tha
 const deliveryDate = ref("");
 const today = new Date().toISOString().split("T")[0];
 const isSalesOrder = computed(() => props.targetDoctype === "Sales Order");
+const emitOfficialInvoice = ref(false);
 
 // Column refs for height matching
 const rightColumnRef = ref(null);
@@ -3414,6 +3450,7 @@ function completePayment() {
 		// the allow_credit_sale gate).
 		receivable_account: receivableAccount,
 		is_credit_sale: !!receivableAccount && paymentEntries.value.length === 0,
+		emit_official_invoice: emitOfficialInvoice.value,
 	};
 
 	log.debug("[PaymentDialog] Emitting payment-completed:", paymentData);

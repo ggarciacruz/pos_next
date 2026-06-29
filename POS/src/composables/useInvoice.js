@@ -968,7 +968,8 @@ export function useInvoice() {
 		writeOffAmount = 0,
 		isCreditSale = false,
 		receivableAccount = null,
-		draftId = null
+		draftId = null,
+		emitOfficialInvoice = false
 	) {
 		/**
 		 * Two-step submission process with mutex protection:
@@ -1014,6 +1015,16 @@ export function useInvoice() {
 					is_pos: 1,
 					update_stock: 1, // Critical: Ensures stock is updated
 				};
+
+				if (targetDoctype === "Sales Invoice") {
+					if (emitOfficialInvoice) {
+						invoiceData.naming_series = "ACC-SINV-.YYYY.-";
+						invoiceData.taxes_and_charges = "IVA Débito Fiscal - NE";
+					} else {
+						invoiceData.naming_series = "NV-.YYYY.-";
+						invoiceData.taxes_and_charges = "";
+					}
+				}
 
 				// "Pay on Receivable Account": route the invoice's debit_to to a chosen AR
 				if (receivableAccount) {
