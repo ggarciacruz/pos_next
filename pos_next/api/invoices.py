@@ -1024,7 +1024,6 @@ def update_invoice(data):
 		if doctype == "Quotation":
 			invoice_doc.docstatus = 0
 			invoice_doc.insert(ignore_permissions=True)
-			invoice_doc.submit()
 		else:
 			invoice_doc.docstatus = 0
 			invoice_doc.save()
