@@ -41,12 +41,12 @@
 								fill="none"
 								stroke="currentColor"
 								viewBox="0 0 24 24"
-								stroke-width="2.5"
+								stroke-width="2.2"
 							>
 								<path
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M21 3v5h-5"
+									d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
 								/>
 							</svg>
 						</button>
