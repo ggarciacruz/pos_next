@@ -120,9 +120,9 @@
 								</span>
 								<span
 									class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider"
-									:class="draft.docstatus === 1 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'"
+									:class="draft.status === 'Ordered' ? 'bg-purple-50 text-purple-700 border-purple-200' : draft.docstatus === 1 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'"
 								>
-									{{ draft.docstatus === 1 ? __('Validada') : __('Borrador') }}
+									{{ draft.status === 'Ordered' ? __('Ordenada') : draft.docstatus === 1 ? __('Validada') : __('Borrador') }}
 								</span>
 							</div>
 							<p class="text-xs text-gray-500">
