@@ -53,6 +53,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					const mappedDrafts = (serverDrafts || []).map(draft => ({
 						draft_id: draft.name,
 						doctype: "Sales Order",
+						docstatus: draft.docstatus,
 						customer: draft.customer ? { name: draft.customer, customer_name: draft.customer_name || draft.customer } : null,
 						created_at: draft.creation,
 						items: (draft.items || []).map(item => ({
@@ -73,6 +74,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					const mappedQuotations = (serverQuotations || []).map(draft => ({
 						draft_id: draft.name,
 						doctype: "Quotation",
+						docstatus: draft.docstatus,
 						customer: draft.party_name ? { name: draft.party_name, customer_name: draft.customer_name || draft.party_name } : null,
 						created_at: draft.creation,
 						items: (draft.items || []).map(item => ({

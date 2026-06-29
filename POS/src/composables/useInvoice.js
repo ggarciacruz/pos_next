@@ -1029,6 +1029,16 @@ export function useInvoice() {
 						invoiceData.naming_series = "NV-.YYYY.-";
 						invoiceData.taxes_and_charges = "";
 					}
+					
+					const isQuotation = draftId && (
+						draftId.includes("-QTN-") ||
+						draftId.includes("-COT-") ||
+						draftId.startsWith("QTN-") ||
+						draftId.startsWith("COT-")
+					);
+					if (isQuotation) {
+						invoiceData.custom_against_quotation = draftId;
+					}
 				}
 
 				// "Pay on Receivable Account": route the invoice's debit_to to a chosen AR

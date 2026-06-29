@@ -2245,7 +2245,15 @@ async function handlePaymentCompleted(paymentData) {
 
 				// Delete draft after successful submission
 				if (draftIdToDelete) {
-					draftsStore.deleteDraft(draftIdToDelete);
+					const draftObj = draftsStore.drafts.find(d => d.draft_id === draftIdToDelete);
+					const isSubmitted = draftObj && draftObj.docstatus === 1;
+					const isQuotation = draftIdToDelete.includes("-QTN-") || draftIdToDelete.includes("-COT-") || draftIdToDelete.startsWith("QTN-") || draftIdToDelete.startsWith("COT-");
+					
+					if (!isQuotation && !isSubmitted) {
+						draftsStore.deleteDraft(draftIdToDelete);
+					} else {
+						draftsStore.loadDrafts();
+					}
 				}
 
 				// Refresh stock - Direct API (50-200ms), no Socket.IO lag!
