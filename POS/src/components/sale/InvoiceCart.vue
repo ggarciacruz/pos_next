@@ -1608,6 +1608,11 @@ const isQuotationDraft = computed(() => {
 
 function clearActiveDraft() {
 	cartStore.currentDraftId = null;
+	if (cartStore.invoiceItems) {
+		cartStore.invoiceItems.forEach(item => {
+			item.so_detail = null;
+		});
+	}
 }
 
 function handleProceedToPayment() {
