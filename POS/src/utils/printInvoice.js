@@ -202,22 +202,24 @@ export function buildReceiptHTML(invoiceData) {
 		})
 		.join("");
 
-	const isQuotation = invoiceData.header === "Quotation" || (invoiceData.name && (invoiceData.name.startsWith("QTN-") || invoiceData.name.startsWith("COT-")));
-	const docLabel = isQuotation ? __("Quotation #:") : __("Invoice #:");
-	const displayHeader = isQuotation ? __("COTIZACIÓN DE PRODUCTOS") : (invoiceData.header === "Draft" ? __("ORDEN DE VENTA") : (invoiceData.header || __("TAX INVOICE")));
+	const isQuotation = invoiceData.doctype === "Quotation" || invoiceData.header === "Quotation" || (invoiceData.name && (invoiceData.name.startsWith("QTN-") || invoiceData.name.startsWith("COT-")));
+	const isSalesOrder = invoiceData.doctype === "Sales Order" || invoiceData.header === "Draft" || (invoiceData.name && (invoiceData.name.startsWith("SAL-ORD-") || invoiceData.name.startsWith("PRE-")));
+	
+	const docLabel = isQuotation ? __("Cotización #:") : (isSalesOrder ? __("Pre-venta #:") : __("Factura #:"));
+	const displayHeader = isQuotation ? __("COTIZACIÓN") : (isSalesOrder ? __("PRE-VENTA") : __("FACTURA"));
 
 	return `
 			<div class="receipt">
 				<div class="header">
 					<div class="company-name">${invoiceData.company || "MDX POS"}</div>
-					<div style="font-size: 12px; font-weight: bold;">${displayHeader}</div>
+					<div style="font-size: 13px; font-weight: bold; letter-spacing: 0.5px; margin-top: 3px;">${displayHeader}</div>
 				</div>
 
 				${invoiceData.is_offline ? `<div class="offline-badge">${__("OFFLINE — PENDING SYNC")}</div>` : ""}
 
 				<div class="invoice-info">
 					<div><span>${docLabel}</span><span><strong>${invoiceData.name}</strong></span></div>
-					<div><span>${__("Date:")}</span><span>${new Date(
+					<div><span>${__("Fecha:")}</span><span>${new Date(
 		invoiceData.posting_date || Date.now()
 	).toLocaleString()}</span></div>
 					${
@@ -260,7 +262,7 @@ export function buildReceiptHTML(invoiceData) {
 					${
 						invoiceData.discount_amount
 							? `
-					<div class="total-row" style="color: #28a745;"><span>Additional Discount${
+					<div class="total-row" style="color: #28a745;"><span>${__("Additional Discount")}${
 						invoiceData.additional_discount_percentage
 							? ` (${Number(invoiceData.additional_discount_percentage).toFixed(
 									1
@@ -389,41 +391,11 @@ export async function printInvoice(invoiceData, printFormat = null, letterhead =
 
 		invoiceData = await hydrateLocalOnlyInvoice(invoiceData);
 
-		// Pending offline / local IDs are not in ERPNext — use embedded receipt HTML.
-		if (isLocalOnlyInvoiceName(invoiceData.name)) {
-			if (invoiceData.items?.length > 0) return printInvoiceCustom(invoiceData);
-			throw new Error(
-				__(
-					"This offline receipt is no longer in browser storage. Sync the invoice, then print from history."
-				)
-			);
-		}
-
-		const doctype = invoiceData.doctype || "Sales Invoice";
-		const format = printFormat || DEFAULT_PRINT_FORMAT;
-
-		const params = new URLSearchParams({
-			doctype,
-			name: invoiceData.name,
-			format,
-			no_letterhead: letterhead ? 0 : 1,
-			_lang: "en",
-			trigger_print: 1,
-			_t: Date.now(),
-		});
-		if (letterhead) params.append("letterhead", letterhead);
-
-		const printWindow = window.open(`/printview?${params}`, "_blank", "width=800,height=600");
-		if (!printWindow) {
-			throw new Error("Popup blocked — check your browser settings.");
-		}
-		return true;
-	} catch (error) {
-		log.error("Browser print failed:", error);
-		if (isLocalOnlyInvoiceName(invoiceData?.name) && !(invoiceData.items?.length > 0)) {
-			throw error;
-		}
+		// Always use the unified short, simple thermal receipt layout
 		return printInvoiceCustom(invoiceData);
+	} catch (error) {
+		log.error("Print failed:", error);
+		return false;
 	}
 }
 
@@ -497,11 +469,14 @@ export async function silentPrintInvoice(invoiceName, printFormat = null) {
 			)
 		);
 	}
-	const format = printFormat || DEFAULT_PRINT_FORMAT;
 
-	await silentPrintDoc("Sales Invoice", invoiceName, format);
-	log.info(`Silent print sent for ${invoiceName}`);
-	return true;
+	const doc = await call("pos_next.api.invoices.get_invoice", {
+		invoice_name: invoiceName,
+	});
+	if (doc?.items?.length > 0) {
+		return silentPrintInvoiceFromDoc(doc);
+	}
+	throw new Error("Invoice not found");
 }
 
 /**
@@ -525,34 +500,17 @@ export async function printWithSilentFallback(invoiceData, printFormat = null) {
 	const invoiceName = invoiceData?.name;
 	if (!invoiceName) throw new Error("Invalid invoice data — missing name");
 
-	if (isLocalOnlyInvoiceName(invoiceName) && invoiceData.items?.length > 0) {
-		try {
-			await silentPrintInvoiceFromDoc(invoiceData);
-			return { method: "silent", success: true };
-		} catch (err) {
-			log.warn("Silent local receipt failed, falling back to browser:", err?.message || err);
-		}
-		try {
-			printInvoiceCustom(invoiceData);
-			return { method: "browser", success: true };
-		} catch (err) {
-			log.error("Browser print for local receipt failed:", err);
-			return { method: "browser", success: false };
-		}
-	}
-
 	try {
-		await silentPrintInvoice(invoiceName, printFormat);
+		await silentPrintInvoiceFromDoc(invoiceData);
 		return { method: "silent", success: true };
 	} catch (err) {
-		log.warn("Silent print failed, falling back to browser:", err?.message || err);
+		log.warn("Silent local receipt failed, falling back to browser:", err?.message || err);
 	}
-
 	try {
-		await printInvoiceByName(invoiceName, printFormat);
+		printInvoiceCustom(invoiceData);
 		return { method: "browser", success: true };
 	} catch (err) {
-		log.error("Browser print fallback also failed:", err);
+		log.error("Browser print for local receipt failed:", err);
 		return { method: "browser", success: false };
 	}
 }
