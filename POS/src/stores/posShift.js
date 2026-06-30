@@ -46,24 +46,23 @@ export const usePOSShiftStore = defineStore("posShift", () => {
 		const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 		const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 		const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-		const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+		const pad = (num) => String(num).padStart(2, '0');
 
 		if (days > 0) {
-			const dayLabel = days === 1 ? __("Day") : __("Days");
-			const hourLabel = hours === 1 ? __("Hour") : __("Hours");
-			const minLabel = minutes === 1 ? __("Minute") : __("Minutes");
-			shiftDuration.value = `${days} ${dayLabel} ${hours} ${hourLabel} ${minutes} ${minLabel}`;
+			shiftDuration.value = `${days}d ${hours}h ${pad(minutes)}m`;
 		} else {
-			const hourLabel = hours === 1 ? __("Hour") : __("Hours");
-			const minLabel = minutes === 1 ? __("Minute") : __("Minutes");
-			const secLabel = seconds === 1 ? __("Second") : __("Seconds");
-			shiftDuration.value = `${hours} ${hourLabel} ${minutes} ${minLabel} ${seconds} ${secLabel}`;
+			shiftDuration.value = `${hours}h ${pad(minutes)}m`;
 		}
 	}
 
 	function updateCurrentTime() {
 		const now = new Date();
-		currentTime.value = now.toLocaleTimeString(DEFAULT_LOCALE, { hour12: false });
+		currentTime.value = now.toLocaleTimeString(DEFAULT_LOCALE, {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		});
 	}
 
 	function startTimers() {
