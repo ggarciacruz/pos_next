@@ -17,6 +17,87 @@ function formatCurrency(amount) {
 	return Number.parseFloat(amount || 0).toFixed(2);
 }
 
+function getInvoiceNumber(name) {
+	if (!name) return "0";
+	const match = name.match(/-(\d+)$/);
+	return match ? parseInt(match[1], 10) : name;
+}
+
+function getCUF(invoiceData) {
+	if (invoiceData.cuf) return invoiceData.cuf;
+	const seed = invoiceData.name || "MOCK";
+	let hash = "";
+	for (let i = 0; i < 64; i++) {
+		const charCode = (seed.charCodeAt(i % seed.length) + i * 17) % 16;
+		hash += charCode.toString(16).toUpperCase();
+	}
+	return hash;
+}
+
+function numberToSpanishWords(amount) {
+	const number = Math.floor(amount);
+	const cents = Math.round((amount - number) * 100);
+	
+	const formatCents = String(cents).padStart(2, "0") + "/100 Bolivianos";
+	
+	if (number === 0) return "Cero " + formatCents;
+	
+	const unidades = ["", "Uno", "Dos", "Tres", "Cuatro", "Cinco", "Seis", "Siete", "Ocho", "Nueve"];
+	const decenas = ["", "Diez", "Veinte", "Treinta", "Cuarenta", "Cincuenta", "Sesenta", "Setenta", "Ochenta", "Noventa"];
+	const especiales = ["Diez", "Once", "Doce", "Trece", "Catorce", "Quince", "Dieciséis", "Diecisiete", "Dieciocho", "Diecinueve"];
+	const centenas = ["", "Ciento", "Doscientos", "Trescientos", "Cuatrocientos", "Quinientos", "Seiscientos", "Setecientos", "Ochocientos", "Novecientos"];
+	
+	function convertGroup(n) {
+		let output = "";
+		const c = Math.floor(n / 100);
+		const d = Math.floor((n % 100) / 10);
+		const u = n % 10;
+		
+		if (c > 0) {
+			if (c === 1 && d === 0 && u === 0) {
+				output += "Cien ";
+			} else {
+				output += centenas[c] + " ";
+			}
+		}
+		
+		if (d === 1) {
+			output += especiales[u] + " ";
+		} else if (d > 1) {
+			output += decenas[d] + (u > 0 ? " y " + unidades[u] : "") + " ";
+		} else if (u > 0) {
+			if (u === 1) {
+				output += "Un ";
+			} else {
+				output += unidades[u] + " ";
+			}
+		}
+		return output;
+	}
+	
+	let words = "";
+	const millones = Math.floor(number / 1000000);
+	const miles = Math.floor((number % 1000000) / 1000);
+	const resto = number % 1000;
+	
+	if (millones > 0) {
+		words += millones === 1 ? "Un Millón " : convertGroup(millones) + "Millones ";
+	}
+	if (miles > 0) {
+		words += miles === 1 ? "Mil " : convertGroup(miles) + "Mil ";
+	}
+	if (resto > 0) {
+		words += convertGroup(resto);
+	}
+	
+	words = words.trim().replace(/\s+/g, " ");
+	words = words.charAt(0).toUpperCase() + words.slice(1);
+	
+	if (words === "Un") words = "Uno";
+	
+	return "Son: " + words + " " + formatCents;
+}
+
 /**
  * Fall back to summing payment rows when paid_amount is not set —
  * offline invoices lack paid_amount until server submission.
@@ -167,35 +248,21 @@ export function buildReceiptHTML(invoiceData) {
 			const displayRate = item.price_list_rate || item.rate || 0;
 			const subtotal = qty * displayRate;
 			return `
-						<div class="item-row">
-							<div class="item-name">
-								${item.item_name || item.item_code} ${isFree ? __("(FREE)") : ""}
-								${item.custom_medida ? `<div style="font-size: 9px; color: #555; margin-top: 2px;">Medida: ${item.custom_medida}</div>` : ""}
+						<div class="item-row" style="margin-bottom: 8px; font-size: 11px;">
+							<div class="item-name" style="font-weight: bold;">
+								${item.item_code} - ${item.item_name} ${isFree ? __("(GRATIS)") : ""}
+								${item.custom_medida ? `<div style="font-size: 9px; color: #555; font-weight: normal; margin-top: 1px;">Medida: ${item.custom_medida}</div>` : ""}
 							</div>
-							<div class="item-details">
+							<div class="item-details" style="display: flex; justify-content: space-between; font-size: 10px; margin-top: 2px;">
 								<span>${qty} × ${formatCurrency(displayRate)}</span>
 								<span><strong>${formatCurrency(subtotal)}</strong></span>
 							</div>
 							${
 								hasDiscount
-									? `<div class="item-discount"><span>Discount ${
-											item.discount_percentage
-												? `(${Number(item.discount_percentage).toFixed(
-														2
-												  )}%)`
-												: ""
-									  }</span><span>-${formatCurrency(
-											item.discount_amount || 0
-									  )}</span></div>`
-									: ""
-							}
-							${
-								item.serial_no
-									? `<div class="item-serials"><div class="item-serials-label">${__(
-											"Serial No:"
-									  )}</div><div class="item-serials-list">${String(
-											item.serial_no
-									  ).replace(/\n/g, ", ")}</div></div>`
+									? `<div class="item-discount" style="display: flex; justify-content: space-between; font-size: 9px; color: #28a745; margin-top: 1px;">
+											<span>Descuento (${Number(item.discount_percentage).toFixed(1)}%)</span>
+											<span>-${formatCurrency(item.discount_amount || 0)}</span>
+									   </div>`
 									: ""
 							}
 						</div>`;
@@ -204,14 +271,139 @@ export function buildReceiptHTML(invoiceData) {
 
 	const isQuotation = invoiceData.doctype === "Quotation" || invoiceData.header === "Quotation" || (invoiceData.name && (invoiceData.name.startsWith("QTN-") || invoiceData.name.startsWith("COT-")));
 	const isSalesOrder = invoiceData.doctype === "Sales Order" || invoiceData.header === "Draft" || (invoiceData.name && (invoiceData.name.startsWith("SAL-ORD-") || invoiceData.name.startsWith("PRE-")));
-	
+	const isInvoice = !isQuotation && !isSalesOrder;
+
 	const docLabel = isQuotation ? __("Cotización #:") : (isSalesOrder ? __("Pre-venta #:") : __("Factura #:"));
 	const displayHeader = isQuotation ? __("COTIZACIÓN") : (isSalesOrder ? __("PRE-VENTA") : __("FACTURA"));
 
+	if (isInvoice) {
+		const invoiceNumber = getInvoiceNumber(invoiceData.name);
+		const cuf = getCUF(invoiceData);
+		const customerName = (invoiceData.customer_name || invoiceData.customer || "SIN NOMBRE").toUpperCase();
+		const customerTaxId = invoiceData.tax_id || invoiceData.customer_tax_id || "0";
+		const qrData = `https://siat.impuestos.gob.bo/consulta/QR?nit=102384729023&cuf=${cuf}&numero=${invoiceNumber}&fecha=${invoiceData.posting_date || new Date().toISOString().slice(0,10)}&monto=${formatCurrency(invoiceData.grand_total)}`;
+		const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrData)}`;
+		const amountInWords = numberToSpanishWords(invoiceData.grand_total);
+
+		return `
+			<div class="receipt">
+				<div class="header" style="text-align: center; margin-bottom: 12px; padding-bottom: 8px;">
+					<div class="company-name" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${invoiceData.company || "NUEVA ERA"}</div>
+					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">CASA MATRIZ</div>
+					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">Av. Banzer entre 3er y 4to Anillo</div>
+					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">Teléfono: 3345678</div>
+					<div style="font-size: 9px; font-weight: normal; margin-bottom: 2px;">Santa Cruz - Bolivia</div>
+					<div style="font-size: 8px; font-weight: normal; text-transform: uppercase; line-height: 1.2; padding: 0 4px; color: #333;">
+						Actividad: VENTA DE AUTO PARTES Y ACCESORIOS DE VEHÍCULOS
+					</div>
+					<div style="font-size: 13px; font-weight: bold; letter-spacing: 0.5px; margin-top: 8px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0;">
+						${displayHeader}
+					</div>
+				</div>
+
+				<div class="tributary-panel" style="font-size: 10px; margin: 10px 0; border: 1px solid #000; padding: 6px; border-radius: 4px; line-height: 1.4; font-family: monospace;">
+					<div><strong>NIT EMISOR:</strong> 102384729023</div>
+					<div><strong>NRO. FACTURA:</strong> ${invoiceNumber}</div>
+					<div><strong>NRO. AUTORIZACIÓN (CUF):</strong></div>
+					<div style="font-size: 7.5px; word-break: break-all; margin-top: 2px; line-height: 1.1; font-weight: normal;">${cuf}</div>
+				</div>
+
+				<div class="invoice-info" style="font-size: 10.5px; margin-bottom: 10px; line-height: 1.4; border-bottom: 1px dashed #000; padding-bottom: 8px;">
+					<div style="display: flex; justify-content: space-between;"><span><strong>Fecha:</strong></span><span>${new Date(invoiceData.posting_date || Date.now()).toLocaleDateString()}</span></div>
+					<div style="display: flex; justify-content: space-between;"><span><strong>Nombre/Razón Social:</strong></span><span>${customerName}</span></div>
+					<div style="display: flex; justify-content: space-between;"><span><strong>NIT/CI:</strong></span><span>${customerTaxId}</span></div>
+				</div>
+
+				<div class="items-table">
+					${itemsHtml}
+				</div>
+
+				<div class="totals" style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 8px;">
+					${
+						invoiceData.total_taxes_and_charges &&
+						invoiceData.total_taxes_and_charges > 0
+							? `
+					<div class="total-row" style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px;"><span>${__("Subtotal:")}</span><span>${formatCurrency(
+									(invoiceData.grand_total || 0) -
+										(invoiceData.total_taxes_and_charges || 0)
+							  )}</span></div>
+					<div class="total-row" style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px;"><span>${__("IVA 13%:")}</span><span>${formatCurrency(
+									invoiceData.total_taxes_and_charges
+							  )}</span></div>`
+							: ""
+					}
+					${
+						invoiceData.discount_amount
+							? `
+					<div class="total-row" style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; color: #28a745;"><span>${__("Descuento Adicional")}${
+						invoiceData.additional_discount_percentage
+							? ` (${Number(invoiceData.additional_discount_percentage).toFixed(
+									1
+							  )}%)`
+							: ""
+					}:</span><span>-${formatCurrency(
+									Math.abs(invoiceData.discount_amount)
+							  )}</span></div>`
+							: ""
+					}
+					<div class="total-row grand-total" style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; border-top: 2px solid #000; padding-top: 6px; margin-top: 6px;">
+						<span>${__("TOTAL A PAGAR BOB:")}</span><span>${formatCurrency(invoiceData.grand_total)}</span>
+					</div>
+					<div class="total-row" style="display: flex; justify-content: space-between; font-size: 10.5px; margin-top: 4px; font-weight: normal;">
+						<span>${__("Importe Base Crédito Fiscal:")}</span><span>${formatCurrency(invoiceData.grand_total)}</span>
+					</div>
+				</div>
+
+				<div style="font-size: 9.5px; font-style: italic; margin-top: 8px; line-height: 1.3; font-weight: normal; text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px;">
+					${amountInWords}
+				</div>
+
+				${
+					invoiceData.payments && invoiceData.payments.length > 0
+						? `
+				<div class="payments" style="margin-top: 10px; padding-bottom: 8px; border-bottom: 1px dashed #000;">
+					<div style="font-weight: bold; margin-bottom: 4px; font-size: 11px;">${__("Detalle Pagos:")}</div>
+					${invoiceData.payments
+						.map(
+							(p) =>
+								`<div class="payment-row" style="display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 10px;"><span>${
+									p.mode_of_payment
+								}:</span><span>${formatCurrency(p.amount)}</span></div>`
+						)
+						.join("")}
+					<div class="payment-row total-paid" style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; font-size: 10.5px;"><span>${__("Total Pagado:")}</span><span>${formatCurrency(
+								paidAmount
+						  )}</span></div>
+					${
+						invoiceData.change_amount && invoiceData.change_amount > 0
+							? `<div class="payment-row" style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 2px; font-size: 10.5px;"><span>${__(
+									"Cambio:"
+							  )}</span><span>${formatCurrency(
+									invoiceData.change_amount
+							  )}</span></div>`
+							: ""
+					}
+				</div>`
+						: ""
+				}
+
+				<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 15px 0;">
+					<img src="${qrUrl}" alt="QR Factura" style="width: 110px; height: 110px; border: 1px solid #ddd; padding: 4px; border-radius: 4px;" />
+				</div>
+
+				<div class="footer" style="text-align: center; font-size: 8.5px; font-weight: normal; line-height: 1.3; margin-top: 10px; color: #333;">
+					<div style="margin-bottom: 5px; font-weight: bold;">"ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÍS, EL USO ILÍCITO DE ÉSTA SERÁ SANCIONADO DE ACUERDO A LEY"</div>
+					<div style="margin-bottom: 5px; font-style: italic;">"Este documento es la representación gráfica de un Documento Digital Emitido en una Modalidad de Facturación en Línea"</div>
+					<div>${invoiceData.footer || __("¡Gracias por su preferencia!")}</div>
+				</div>
+			</div>`;
+	}
+
+	// For Quotations and Sales Orders (Pre-ventas / Cotizaciones)
 	return `
 			<div class="receipt">
 				<div class="header">
-					<div class="company-name">${invoiceData.company || "MDX POS"}</div>
+					<div class="company-name">${invoiceData.company || "NUEVA ERA"}</div>
 					<div style="font-size: 13px; font-weight: bold; letter-spacing: 0.5px; margin-top: 3px;">${displayHeader}</div>
 				</div>
 
@@ -224,19 +416,9 @@ export function buildReceiptHTML(invoiceData) {
 	).toLocaleString()}</span></div>
 					${
 						invoiceData.customer_name || invoiceData.customer
-							? `<div><span>${__("Customer:")}</span><span>${
+							? `<div><span>${__("Cliente:")}</span><span>${
 									invoiceData.customer_name || invoiceData.customer
 							  }</span></div>`
-							: ""
-					}
-					${
-						invoiceData.status === "Partly Paid" ||
-						(invoiceData.outstanding_amount &&
-							invoiceData.outstanding_amount > 0 &&
-							invoiceData.outstanding_amount < invoiceData.grand_total)
-							? `<div class="partial-status"><span>${__("Status:")}</span><span>${__(
-									"PARTIAL PAYMENT"
-							  )}</span></div>`
 							: ""
 					}
 				</div>
@@ -246,78 +428,13 @@ export function buildReceiptHTML(invoiceData) {
 				</div>
 
 				<div class="totals">
-					${
-						invoiceData.total_taxes_and_charges &&
-						invoiceData.total_taxes_and_charges > 0
-							? `
-					<div class="total-row"><span>${__("Subtotal:")}</span><span>${formatCurrency(
-									(invoiceData.grand_total || 0) -
-										(invoiceData.total_taxes_and_charges || 0)
-							  )}</span></div>
-					<div class="total-row"><span>${__("Tax:")}</span><span>${formatCurrency(
-									invoiceData.total_taxes_and_charges
-							  )}</span></div>`
-							: ""
-					}
-					${
-						invoiceData.discount_amount
-							? `
-					<div class="total-row" style="color: #28a745;"><span>${__("Additional Discount")}${
-						invoiceData.additional_discount_percentage
-							? ` (${Number(invoiceData.additional_discount_percentage).toFixed(
-									1
-							  )}%)`
-							: ""
-					}:</span><span>-${formatCurrency(
-									Math.abs(invoiceData.discount_amount)
-							  )}</span></div>`
-							: ""
-					}
 					<div class="total-row grand-total"><span>${__("TOTAL:")}</span><span>${formatCurrency(
 		invoiceData.grand_total
 	)}</span></div>
 				</div>
 
-				${
-					invoiceData.payments && invoiceData.payments.length > 0
-						? `
-				<div class="payments">
-					<div style="font-weight: bold; margin-bottom: 5px; font-size: 12px;">${__("Payments:")}</div>
-					${invoiceData.payments
-						.map(
-							(p) =>
-								`<div class="payment-row"><span>${
-									p.mode_of_payment
-								}:</span><span>${formatCurrency(p.amount)}</span></div>`
-						)
-						.join("")}
-					<div class="payment-row total-paid"><span>${__("Total Paid:")}</span><span>${formatCurrency(
-								paidAmount
-						  )}</span></div>
-					${
-						invoiceData.change_amount && invoiceData.change_amount > 0
-							? `<div class="payment-row" style="font-weight: bold; margin-top: 5px;"><span>${__(
-									"Change:"
-							  )}</span><span>${formatCurrency(
-									invoiceData.change_amount
-							  )}</span></div>`
-							: ""
-					}
-					${
-						invoiceData.outstanding_amount && invoiceData.outstanding_amount > 0
-							? `<div class="outstanding-row"><span>${__(
-									"BALANCE DUE:"
-							  )}</span><span>${formatCurrency(
-									invoiceData.outstanding_amount
-							  )}</span></div>`
-							: ""
-					}
-				</div>`
-						: ""
-				}
-
 				<div class="footer">
-					<div style="margin-bottom: 5px;">${invoiceData.footer || __("Thank you for your business!")}</div>
+					<div>${invoiceData.footer || __("¡Gracias por su preferencia!")}</div>
 				</div>
 			</div>`;
 }
