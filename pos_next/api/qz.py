@@ -49,10 +49,7 @@ def get_certificate():
 	"""Return the public certificate PEM text for QZ Tray signing."""
 	path = _cert_path()
 	if not os.path.exists(path):
-		frappe.throw(
-			_("QZ Tray certificate not found. Ask an administrator to run Setup QZ Certificate."),
-			title=_("QZ Certificate Missing"),
-		)
+		return None
 
 	with open(path) as f:
 		return f.read()

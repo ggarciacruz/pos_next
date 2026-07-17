@@ -396,6 +396,7 @@
 								@show-history="openHistoryDialog"
 								@show-return="openReturnDialog"
 								@close-shift="handleCloseShift"
+								@update-additional-discount="handleAdditionalDiscountUpdate"
 							/>
 						</div>
 					</keep-alive>
@@ -2514,7 +2515,7 @@ async function handleSaveQuotation(submit = false) {
 	}
 }
 
-function confirmPrintDraft() {
+async function confirmPrintDraft() {
 	showPrintDraftConfirmDialog.value = false;
 	if (!lastSavedDraft.value) return;
 
@@ -2539,7 +2540,7 @@ function confirmPrintDraft() {
 				? "Este documento es una cotización informativa y no representa una factura ni compromiso de compra. Válido por 3 días."
 				: "Este documento es una orden de venta y no representa una factura válida ni un comprobante de pago oficial.",
 		};
-		printInvoiceCustom(invoiceData);
+		await printInvoice(invoiceData);
 	} catch (error) {
 		console.error("Error printing draft:", error);
 		showError(__("Failed to print draft"));

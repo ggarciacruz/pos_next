@@ -44,6 +44,7 @@ export const DEFAULT_LOCALE = "en-US";
 
 const SYMBOLS = {
 	USD: "$",
+	BOB: "Bs.",
 	EUR: "€",
 	GBP: "£",
 	JPY: "¥",

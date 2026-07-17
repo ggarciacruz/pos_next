@@ -11,6 +11,7 @@ import { ref } from "vue";
 import { call } from "@/utils/apiWrapper";
 import { isOffline } from "@/utils/offline";
 import { usePOSShiftStore } from "./posShift";
+import { session } from "@/data/session";
 
 export const usePOSDraftsStore = defineStore("posDrafts", () => {
 	// Use custom toast
@@ -55,6 +56,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 						doctype: "Sales Order",
 						docstatus: draft.docstatus,
 						status: draft.status,
+						owner: draft.owner,
 						customer: draft.customer ? { name: draft.customer, customer_name: draft.customer_name || draft.customer } : null,
 						created_at: draft.creation,
 						items: (draft.items || []).map(item => ({
@@ -77,6 +79,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 						doctype: "Quotation",
 						docstatus: draft.docstatus,
 						status: draft.status,
+						owner: draft.owner,
 						customer: draft.party_name ? { name: draft.party_name, customer_name: draft.customer_name || draft.party_name } : null,
 						created_at: draft.creation,
 						items: (draft.items || []).map(item => ({
@@ -188,6 +191,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 				const savedDraft = {
 					draft_id: serverDoc.name,
 					doctype: serverDoc.doctype || doctype,
+					owner: serverDoc.owner || session.user,
 					customer: serverDoc.customer,
 					created_at: serverDoc.creation,
 					items: invoiceItems,
@@ -203,6 +207,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					customer: customer,
 					items: invoiceItems,
 					applied_offers: appliedOffers,
+					owner: session.user,
 				};
 
 				let savedDraft;

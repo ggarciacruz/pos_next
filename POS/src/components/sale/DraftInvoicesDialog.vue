@@ -239,11 +239,11 @@
 											? 'bg-gray-50/50 border-gray-150 opacity-70 cursor-not-allowed select-none'
 											: 'bg-white border-gray-200 hover:border-blue-500 hover:shadow-md cursor-pointer'
 									"
-									class="border rounded-xl p-4.5 transition-all duration-200 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 group"
+									class="border rounded-xl p-4.5 transition-all duration-200 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 group bg-white border-gray-200 hover:border-blue-500 hover:shadow-md cursor-pointer"
 									@click="handleDraftClick(draft)"
 								>
 									<!-- Left Section: Doc info -->
-									<div class="flex flex-col justify-center min-w-[220px] border-b lg:border-b-0 lg:border-r border-gray-100 pb-3 lg:pb-0 lg:pe-4 flex-shrink-0">
+									<div class="w-full lg:w-[220px] flex-shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-gray-100 pb-3 lg:pb-0 lg:pe-4">
 										<div class="flex items-center gap-2 mb-1.5 flex-wrap">
 											<h4 class="text-sm md:text-base font-extrabold text-gray-900 group-hover:text-blue-600 transition-colors">
 												{{ draft.draft_id }}
@@ -310,7 +310,7 @@
 									</div>
 
 									<!-- Middle Section: Customer info -->
-									<div class="flex-1 min-w-0 flex items-center gap-3">
+									<div class="w-full lg:w-[240px] flex-shrink-0 flex items-center gap-3 border-b lg:border-b-0 lg:border-r border-gray-100 pb-3 lg:pb-0 lg:pe-4">
 										<div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 border border-blue-100">
 											<svg
 												class="w-5 h-5 text-blue-600"
@@ -333,11 +333,16 @@
 											<p class="text-sm md:text-base font-extrabold text-gray-800 truncate leading-snug">
 												{{ draft.customer?.customer_name || draft.customer?.name || draft.customer }}
 											</p>
+											<!-- Vendedor -->
+											<div v-if="draft.owner" class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+												<span class="font-bold text-gray-400 uppercase text-[9px] tracking-wider">{{ __("Vendedor:") }}</span>
+												<span class="font-semibold text-gray-700">{{ userNamesMap[draft.owner] || draft.owner.split('@')[0].toUpperCase() }}</span>
+											</div>
 										</div>
 									</div>
 
 									<!-- Right Section: Items list (condensed badges) -->
-									<div class="flex-1 min-w-0 border-t lg:border-t-0 lg:border-x border-gray-100 pt-3 lg:pt-0 lg:px-4 flex flex-col justify-center">
+									<div class="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-gray-100 pb-3 lg:pb-0 lg:px-4 flex flex-col justify-center">
 										<span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">
 											{{ __("Detalle de Items") }} ({{ draft.items?.length || 0 }})
 										</span>
@@ -347,13 +352,13 @@
 												:key="idx"
 												class="text-[11px] bg-gray-50 border border-gray-200 text-gray-700 px-2 py-0.5 rounded-lg truncate max-w-full font-medium"
 											>
-												{{ item.item_name }} <span class="text-blue-600 font-bold">x{{ item.quantity || item.qty }}</span>
+												{{ item.item_code }}{{ (item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : '' }} <span class="text-blue-600 font-bold">x{{ item.quantity || item.qty }}</span>
 											</span>
 										</div>
 									</div>
 
 									<!-- Far Right Section: Total & Quick Actions -->
-									<div class="min-w-[160px] border-t lg:border-t-0 border-gray-100 pt-3 lg:pt-0 lg:ps-4 flex items-center justify-between lg:justify-end gap-4 flex-shrink-0">
+									<div class="w-full lg:w-[180px] flex-shrink-0 flex items-center justify-between lg:justify-end gap-4 lg:ps-4">
 										<div class="flex flex-col lg:items-end">
 											<span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider leading-none">
 												{{ __("Total a Cobrar") }}
@@ -512,11 +517,12 @@ import {
 	roundCurrency,
 } from "@/utils/currency";
 import { clearAllDrafts, deleteDraft, getAllDrafts } from "@/utils/draftManager";
-import { printInvoiceCustom } from "@/utils/printInvoice";
+import { printInvoice } from "@/utils/printInvoice";
 import { useToast } from "@/composables/useToast";
 import { usePOSShiftStore } from "@/stores/posShift";
 import { usePOSDraftsStore } from "@/stores/posDrafts";
-import { Button, Dialog } from "frappe-ui";
+import { Button, Dialog, call } from "frappe-ui";
+import { db } from "@/utils/offline/db";
 import { onMounted, ref, watch, computed } from "vue";
 
 const { showSuccess, showError, showWarning } = useToast();
@@ -659,17 +665,64 @@ onMounted(() => {
 	loadDrafts();
 });
 
+const userNamesMap = ref({});
+
+async function loadOwnerNames(draftList) {
+	if (!draftList || draftList.length === 0) return;
+
+	const ownersToFetch = [...new Set(draftList.map((d) => d.owner).filter(Boolean))].filter(
+		(owner) => !userNamesMap.value[owner]
+	);
+
+	if (ownersToFetch.length === 0) return;
+
+	try {
+		const users = await call("frappe.client.get_list", {
+			doctype: "User",
+			fields: ["name", "full_name"],
+			filters: [["name", "in", ownersToFetch]],
+			limit: 100,
+		});
+		if (users) {
+			users.forEach((u) => {
+				userNamesMap.value[u.name] = u.full_name;
+			});
+		}
+	} catch (err) {
+		console.warn("Failed to batch fetch user names:", err);
+	}
+}
+
 async function loadDrafts() {
 	try {
 		await draftsStore.loadDrafts();
 		drafts.value = draftsStore.drafts;
+
+		// Hydrate owner names in batch
+		await loadOwnerNames(drafts.value);
+
+		// Hydrate missing custom_medida from IndexedDB cache
+		const promises = drafts.value.map(async (draft) => {
+			if (draft.items) {
+				const itemPromises = draft.items.map(async (item) => {
+					if (!item.custom_medida && item.item_code) {
+						const cached = await db.items.get(item.item_code);
+						if (cached && cached.custom_medida) {
+							item.custom_medida = cached.custom_medida;
+						}
+					}
+				});
+				await Promise.all(itemPromises);
+			}
+		});
+		await Promise.all(promises);
 	} catch (error) {
 		console.error("Error loading drafts:", error);
 		showError(__("Failed to load draft invoices"));
 	}
 }
 
-function handlePrintDraft(draft) {
+async function handlePrintDraft(draft) {
 	if (!props.allowPrintDraftInvoices) {
 		return;
 	}
@@ -691,7 +744,7 @@ function handlePrintDraft(draft) {
 				? "Este documento es una cotización informativa y no representa una factura ni compromiso de compra. Válido por 3 días."
 				: "Este documento es una orden de venta y no representa una factura válida ni un comprobante de pago oficial.",
 		};
-		printInvoiceCustom(invoiceData);
+		await printInvoice(invoiceData);
 	} catch (error) {
 		console.error("Error printing draft:", error);
 		showError(__("Failed to print draft"));

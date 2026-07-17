@@ -679,7 +679,7 @@
 			</div>
 
 			<!-- Offers & Coupon Buttons -->
-			<div class="flex gap-2">
+			<div v-if="showPromoButtons" class="flex gap-2">
 				<!-- View All Offers Button -->
 				<button
 					type="button"
@@ -1044,7 +1044,7 @@
 									<h4
 										class="text-xs sm:text-sm font-extrabold text-gray-900 truncate leading-tight"
 									>
-										{{ item.item_name }}
+										{{ item.item_code }} <span v-if="item.custom_medida || item.medida" class="text-gray-500 font-semibold text-[11px] ml-1">({{ item.custom_medida || item.medida }})</span>
 									</h4>
 									<!-- Free Item Badge -->
 									<span
@@ -1120,12 +1120,9 @@
 								</button>
 							</div>
 
-							<!-- Item Subtitle: Code & Measure -->
-							<div class="flex flex-wrap items-center gap-1.5 text-[10px] text-gray-500 mb-1.5 leading-none select-none">
-								<span>{{ item.item_code }}</span>
-								<span v-if="item.custom_medida" class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-bold text-[9px]">
-									{{ item.custom_medida }}
-								</span>
+							<!-- Item Subtitle: Item Group -->
+							<div class="text-[10px] text-gray-400 font-semibold truncate mb-1 select-none leading-tight max-w-[280px]">
+								{{ item.item_group || '-' }}
 							</div>
 
 							<!-- Single Row: Quantity Counter, UOM, Price & Total -->
@@ -1386,29 +1383,73 @@
 		</div>
 
 		<!-- Totals Summary -->
-		<div class="p-1.5 sm:p-2 bg-white border-t border-gray-200">
+		<div class="p-2 bg-white border-t border-gray-200 space-y-1.5">
 			<!-- Summary Details -->
-			<div v-if="items.length > 0" class="mb-1.5">
-				<div class="flex items-center justify-between text-xs text-gray-600 mb-0.5">
+			<div v-if="items.length > 0" class="space-y-1">
+				<div class="flex items-center justify-between text-[11px] text-gray-600">
 					<span class="font-medium">{{ __("Total Quantity") }}</span>
-					<span class="font-bold text-gray-900 text-center min-w-[60px]">{{
+					<span class="font-bold text-gray-900 text-end min-w-[80px]">{{
 						formatQuantity(totalQuantity)
 					}}</span>
 				</div>
-				<div class="flex items-center justify-between text-xs text-gray-600">
+				<div class="flex items-center justify-between text-[11px] text-gray-600">
 					<span class="font-medium">{{ __("Subtotal") }}</span>
-					<span class="font-bold text-gray-900 text-center min-w-[60px]">{{
+					<span class="font-bold text-gray-900 text-end min-w-[80px]">{{
 						formatCurrency(displaySubtotal)
 					}}</span>
+				</div>
+				<!-- Global Additional Discount Row (Interactive) -->
+				<div
+					v-if="settingsStore.allowAdditionalDiscount"
+					@click="openCartDiscountDialog"
+					class="flex items-center justify-between text-[11px] text-gray-600 cursor-pointer hover:text-orange-600 transition-colors group select-none"
+				>
+					<span class="font-medium flex items-center gap-1">
+						{{ __("Additional Discount") }}
+						<span v-if="cartStore.additionalDiscount > 0" class="text-[9px] font-semibold text-gray-400 select-none shrink-0 min-w-fit">
+							({{ discountType === 'percentage' ? localDiscount + '%' : '~' + calculatedPercentEquivalent.toFixed(1) + '%' }})
+						</span>
+						<svg
+							class="w-2.5 h-2.5 text-gray-400 group-hover:text-orange-500 transition-colors"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2.5"
+								d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+							/>
+						</svg>
+						<!-- Trash / Remove button (one-click remove) -->
+						<button
+							v-if="cartStore.additionalDiscount > 0"
+							type="button"
+							@click.stop="resetCartDiscount"
+							class="p-0.5 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-1"
+							:title="__('Quitar descuento')"
+						>
+							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+							</svg>
+						</button>
+					</span>
+					<span
+						class="font-bold text-end min-w-[80px]"
+						:class="cartStore.additionalDiscount > 0 ? 'text-red-600' : 'text-gray-900'"
+					>
+						{{ cartStore.additionalDiscount > 0 ? '-' : '' }}{{ formatCurrency(cartStore.additionalDiscount || 0) }}
+					</span>
 				</div>
 			</div>
 
 			<!-- Summary Details (continued) -->
-			<div v-if="items.length > 0" class="mb-1.5">
+			<div v-if="items.length > 0" class="space-y-1">
 				<!-- Discount Display - Highlighted -->
 				<div
 					v-if="discountAmount > 0"
-					class="flex items-center justify-between mb-0.5 bg-red-50 rounded px-1.5 py-1 -mx-0.5"
+					class="flex items-center justify-between text-[11px] text-red-700"
 				>
 					<div class="flex items-center gap-1">
 						<svg
@@ -1422,14 +1463,14 @@
 								clip-rule="evenodd"
 							/>
 						</svg>
-						<span class="text-xs font-bold text-red-700">{{ __("Discount") }}</span>
+						<span class="font-medium">{{ __("Discount") }}</span>
 					</div>
-					<span class="text-sm font-extrabold text-red-600 text-center min-w-[60px]">{{
+					<span class="font-bold text-red-600 text-end min-w-[80px]">{{
 						formatCurrency(discountAmount)
 					}}</span>
 				</div>
 
-				<div class="flex items-center justify-between text-xs text-gray-600">
+				<div class="flex items-center justify-between text-[11px] text-gray-600">
 					<div class="flex items-center gap-1">
 						<svg
 							class="w-3.5 h-3.5 text-gray-500"
@@ -1446,40 +1487,35 @@
 						</svg>
 						<span class="font-medium">{{ __("Tax") }}</span>
 					</div>
-					<span class="font-bold text-gray-900 text-center min-w-[60px]">{{
+					<span class="font-bold text-gray-900 text-end min-w-[80px]">{{
 						formatCurrency(taxAmount)
 					}}</span>
 				</div>
 			</div>
 
 			<!-- Grand Total -->
-			<div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-2.5 mb-1.5">
-				<div class="flex items-center justify-between">
-					<span class="text-sm font-extrabold text-gray-900">{{
-						__("Grand Total")
-					}}</span>
-					<span
-						class="text-lg sm:text-xl font-extrabold text-blue-600 text-center min-w-[60px]"
-					>
-						{{ formatCurrency(displayGrandTotal) }}
-					</span>
-				</div>
+			<div class="flex items-center justify-between pt-2 border-t border-gray-200 font-extrabold">
+				<span class="text-sm text-gray-900">{{ __("Grand Total") }}</span>
+				<span class="text-base sm:text-lg text-blue-600 text-end min-w-[80px]">
+					{{ formatCurrency(displayGrandTotal) }}
+				</span>
 			</div>
 
-			<!-- Action Buttons -->			<div class="flex flex-col p-3 bg-white border-t border-gray-100 gap-1.5">
+			<!-- Action Buttons -->
+			<div class="flex flex-col p-2 bg-white border-t border-gray-100 gap-1">
 				<div class="flex">
 					<!-- Checkout Button (Primary - 100% width) -->
 					<button
 						type="button"
 						@click="handleProceedToPayment"
 						:disabled="items.length === 0"
-						class="w-full py-2.5 px-3 rounded-lg font-bold text-sm text-white transition-all touch-manipulation active:scale-[0.98] flex items-center justify-center gap-1.5"
+						class="w-full py-2 px-3 rounded-lg font-bold text-sm text-white transition-all touch-manipulation active:scale-[0.98] flex items-center justify-center gap-1.5"
 						:class="[
 							items.length === 0
 								? 'bg-gray-300 cursor-not-allowed'
 								: !canCheckout
 									? 'bg-gray-400 opacity-80 cursor-not-allowed shadow-none active:scale-100'
-									: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg hover:shadow-xl active:scale-[0.98]',
+									: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm hover:shadow active:scale-[0.98]',
 						]"
 						:aria-label="__('Proceed to payment')"
 					>
@@ -1509,7 +1545,7 @@
 					</button>
 				</div>
 
-				<div v-if="items.length > 0" class="mt-4 pt-3 border-t border-gray-100 flex flex-col gap-3">
+				<div v-if="items.length > 0" class="mt-2.5 pt-2 border-t border-gray-100 flex flex-col gap-2">
 					<!-- Title section -->
 					<div class="flex items-center gap-1.5 px-0.5">
 						<span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{{ __("Opciones de Guardado") }}</span>
@@ -1517,59 +1553,59 @@
 					</div>
 
 					<!-- Pre-venta (Sales Order) Row -->
-					<div class="bg-gray-50/50 border border-gray-100/80 rounded-xl p-2.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition-all duration-200">
+					<div class="flex items-center justify-between gap-2 py-1 px-1 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 rounded transition-all duration-150">
 						<div class="flex items-center gap-2 flex-shrink-0">
-							<span class="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-sm shadow-orange-300"></span>
+							<span class="w-2 h-2 rounded-full bg-orange-500 shadow-sm shadow-orange-300"></span>
 							<span class="text-xs font-bold text-gray-700 tracking-wide">{{ __("Pre-venta") }}</span>
 						</div>
-						<div class="flex items-center gap-1.5 flex-1 justify-end max-w-[220px]">
+						<div class="flex items-center gap-1.5 flex-1 justify-end max-w-[200px]">
 							<button
 								type="button"
 								@click="$emit('save-draft', false)"
-								class="flex-1 py-1.5 px-2.5 rounded-lg font-bold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200/80 border border-orange-200/60 transition-all flex items-center justify-center gap-1 active:scale-[0.97]"
+								class="flex-1 py-1 px-2 rounded-md font-bold text-[10px] text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200/80 border border-orange-200/50 transition-all flex items-center justify-center gap-1 active:scale-[0.97]"
 							>
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
 								<span>{{ __("Borrador") }}</span>
 							</button>
 							<button
 								type="button"
 								@click="$emit('save-draft', true)"
-								class="flex-1 py-1.5 px-2.5 rounded-lg font-bold text-xs text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 active:scale-[0.97] shadow-sm shadow-orange-200/50 hover:shadow-md transition-all flex items-center justify-center gap-1"
+								class="flex-1 py-1 px-2 rounded-md font-bold text-[10px] text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 active:scale-[0.97] transition-all flex items-center justify-center gap-1"
 							>
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
 								<span>{{ __("Validar") }}</span>
 							</button>
 						</div>
 					</div>
 
 					<!-- Cotización (Quotation) Row -->
-					<div class="bg-gray-50/50 border border-gray-100/80 rounded-xl p-2.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition-all duration-200">
+					<div class="flex items-center justify-between gap-2 py-1 px-1 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 rounded transition-all duration-150">
 						<div class="flex items-center gap-2 flex-shrink-0">
-							<span class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-300"></span>
+							<span class="w-2 h-2 rounded-full bg-blue-500 shadow-sm shadow-blue-300"></span>
 							<span class="text-xs font-bold text-gray-700 tracking-wide">{{ __("Cotización") }}</span>
 						</div>
-						<div class="flex items-center gap-1.5 flex-1 justify-end max-w-[220px]">
+						<div class="flex items-center gap-1.5 flex-1 justify-end max-w-[200px]">
 							<button
 								type="button"
 								@click="$emit('save-quotation', false)"
-								class="flex-1 py-1.5 px-2.5 rounded-lg font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200/80 border border-blue-200/60 transition-all flex items-center justify-center gap-1 active:scale-[0.97]"
+								class="flex-1 py-1 px-2 rounded-md font-bold text-[10px] text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200/80 border border-blue-200/50 transition-all flex items-center justify-center gap-1 active:scale-[0.97]"
 							>
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
 								<span>{{ __("Borrador") }}</span>
 							</button>
 							<button
 								type="button"
 								@click="$emit('save-quotation', true)"
-								class="flex-1 py-1.5 px-2.5 rounded-lg font-bold text-xs text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:scale-[0.97] shadow-sm shadow-blue-200/50 hover:shadow-md transition-all flex items-center justify-center gap-1"
+								class="flex-1 py-1 px-2 rounded-md font-bold text-[10px] text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:scale-[0.97] transition-all flex items-center justify-center gap-1"
 							>
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
 								<span>{{ __("Validar") }}</span>
 							</button>
 						</div>
 					</div>
 				</div>
 			</div>
-		</div>>
+		</div>
 
 		<!-- Edit Item Dialog -->
 		<EditItemDialog
@@ -1579,6 +1615,138 @@
 			:currency="currency"
 			@update-item="handleUpdateItem"
 		/>
+
+		<!-- Global Discount Dialog -->
+		<div
+			v-if="showDiscountDialog"
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+		>
+			<div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col border border-gray-100">
+				<!-- Header -->
+				<div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+					<div class="flex items-center gap-1.5">
+						<svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+						</svg>
+						<span class="text-sm font-bold text-gray-900">{{ __("Descuento Adicional") }}</span>
+					</div>
+					<button
+						type="button"
+						@click="showDiscountDialog = false"
+						class="text-gray-400 hover:text-gray-600 transition-colors"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+
+				<!-- Content -->
+				<div class="p-4 space-y-4">
+					<!-- Display Value -->
+					<div class="flex items-center justify-between text-xs text-gray-500">
+						<span>{{ __("Monto Descontado") }}</span>
+						<span class="font-bold text-red-600 text-sm">
+							-{{ formatCurrency(discountType === 'percentage' ? Math.round((subtotal * (localDiscount || 0)) / 100) : (localDiscount || 0)) }}
+						</span>
+					</div>
+
+					<!-- Form Controls -->
+					<div class="space-y-3.5">
+						<!-- Unit selectors (percentage vs fixed amount) -->
+						<div class="flex gap-2">
+							<button
+								type="button"
+								@click="discountType = 'percentage'; handleCartDiscountChange()"
+								class="flex-1 py-2 font-bold text-xs rounded-lg transition-all border"
+								:class="discountType === 'percentage' ? 'bg-orange-600 border-orange-600 text-white shadow-sm' : 'bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700'"
+							>
+								{{ __("Porcentaje (%)") }}
+							</button>
+							<button
+								type="button"
+								@click="discountType = 'amount'; handleCartDiscountChange()"
+								class="flex-1 py-2 font-bold text-xs rounded-lg transition-all border"
+								:class="discountType === 'amount' ? 'bg-orange-600 border-orange-600 text-white shadow-sm' : 'bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700'"
+							>
+								{{ __("Monto Fijo (Bs.)") }}
+							</button>
+						</div>
+
+						<!-- Input field with symmetric increment/decrement buttons -->
+						<div class="flex items-center border border-orange-300 rounded-lg bg-white overflow-hidden w-full">
+							<button
+								type="button"
+								@click="decrementCartDiscount"
+								class="h-10 w-12 flex items-center justify-center text-orange-600 hover:bg-orange-50 active:bg-orange-100 transition-colors flex-shrink-0 border-r border-gray-100"
+							>
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+								</svg>
+							</button>
+							<input
+								type="number"
+								v-model.number="localDiscount"
+								@input="handleCartDiscountChange"
+								@blur="finalizeCartDiscountRounding"
+								@keydown.enter="applyCartDiscount"
+								class="flex-1 h-10 px-3 text-base font-bold text-center bg-transparent border-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+								min="0"
+								step="1"
+							/>
+							<button
+								type="button"
+								@click="incrementCartDiscount"
+								class="h-10 w-12 flex items-center justify-center text-orange-600 hover:bg-orange-50 active:bg-orange-100 transition-colors flex-shrink-0 border-l border-gray-100"
+							>
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+								</svg>
+							</button>
+						</div>
+					</div>
+
+					<!-- Helper / descriptive text -->
+					<div v-if="discountType === 'percentage' && localDiscount > 0" class="text-[10px] text-gray-400 text-center select-none font-medium">
+						{{ __("Se aplicará un descuento redondeado de aproximadamente -{0}", [formatCurrency(Math.round((subtotal * (localDiscount || 0)) / 100))]) }}
+						<span v-if="subtotal > 0" class="text-[9px] font-semibold text-gray-500 block mt-0.5">
+							({{ __("Porcentaje real aproximado: {0}%", [((Math.round((subtotal * (localDiscount || 0)) / 100) / subtotal) * 100).toFixed(1)]) }})
+						</span>
+					</div>
+					<div v-if="discountType === 'amount' && localDiscount > 0" class="text-[10px] text-gray-400 text-center select-none font-medium">
+						{{ __("Equivale a aproximadamente un {0}% del subtotal", [calculatedPercentEquivalent.toFixed(1)]) }}
+					</div>
+				</div>
+
+				<!-- Actions -->
+				<div class="px-4 py-3 bg-gray-50 border-t border-gray-100 flex flex-col gap-2">
+					<div class="flex gap-2">
+						<button
+							type="button"
+							@click="showDiscountDialog = false"
+							class="flex-1 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+						>
+							{{ __("Cancelar") }}
+						</button>
+						<button
+							type="button"
+							@click="applyCartDiscount"
+							class="flex-1 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md active:scale-[0.98] transition-all"
+						>
+							{{ __("Aplicar") }}
+						</button>
+					</div>
+					<button
+						v-if="cartStore.additionalDiscount > 0"
+						type="button"
+						@click="resetCartDiscount(); showDiscountDialog = false"
+						class="w-full py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200"
+					>
+						{{ __("Quitar Descuento") }}
+					</button>
+				</div>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -1619,6 +1787,7 @@ const customerSearchStore = useCustomerSearchStore(); // Pinia store for custome
 const bootstrapStore = useBootstrapStore();
 const { showWarning } = useToast();
 const { formatQuantity } = useFormatters(); // Quantity formatting utilities
+const showPromoButtons = ref(false); // Cambiar a true si el cliente desea habilitar Ofertas y Cupones en el futuro.
 
 const canCheckout = computed(() => bootstrapStore.canCheckout());
 
@@ -1752,7 +1921,7 @@ const emit = defineEmits([
 	"show-history", // () - Show invoice history
 	"show-return", // () - Open return invoice dialog
 	"close-shift", // () - Close current shift
-	// "create-sales-order", // () - Create Sales Order // Removed as per instruction
+	"update-additional-discount", // (discountAmount) - Update global discount
 ]);
 
 // Cart sort composable (must be after defineProps)
@@ -1788,6 +1957,17 @@ const previousCustomer = ref(null); // Store previous customer for restore on bl
 // Edit item dialog state
 const showEditDialog = ref(false); // Controls edit dialog visibility
 const selectedItem = ref(null); // Item being edited
+
+// Global discount dialog state
+const showDiscountDialog = ref(false);
+const localDiscount = ref(0);
+const discountType = ref(settingsStore.usePercentageDiscount ? "percentage" : "amount");
+
+// Calculate percentage equivalent dynamically for display
+const calculatedPercentEquivalent = computed(() => {
+	if (props.subtotal <= 0) return 0;
+	return ((cartStore.additionalDiscount || 0) / props.subtotal) * 100;
+});
 
 // UOM dropdown state - tracks which item's UOM dropdown is open (by item_code)
 const openUomDropdown = ref(null);
@@ -2408,5 +2588,119 @@ onBeforeUnmount(() => {
 	if (typeof document === "undefined") return;
 	document.removeEventListener("mousedown", handleOutsideClick);
 });
+
+// Cart global discount handlers
+function openCartDiscountDialog() {
+	if (cartStore.additionalDiscount > 0) {
+		if (discountType.value === "percentage") {
+			const currentCalc = Math.round((props.subtotal * (localDiscount.value || 0)) / 100);
+			if (currentCalc !== cartStore.additionalDiscount) {
+				if (props.subtotal > 0) {
+					localDiscount.value = Math.round((cartStore.additionalDiscount / props.subtotal) * 100);
+				} else {
+					localDiscount.value = cartStore.additionalDiscount;
+					discountType.value = "amount";
+				}
+			}
+		} else {
+			localDiscount.value = cartStore.additionalDiscount;
+			discountType.value = "amount";
+		}
+	} else {
+		localDiscount.value = 0;
+		discountType.value = settingsStore.usePercentageDiscount ? "percentage" : "amount";
+	}
+	showDiscountDialog.value = true;
+}
+
+function handleCartDiscountChange() {
+	let value = localDiscount.value;
+	let calculatedAmount = 0;
+
+	if (discountType.value === "percentage") {
+		// Limit percentage to maxDiscountAllowed
+		if (settingsStore.maxDiscountAllowed > 0 && value > settingsStore.maxDiscountAllowed) {
+			localDiscount.value = settingsStore.maxDiscountAllowed;
+			value = settingsStore.maxDiscountAllowed;
+			showWarning(__("Maximum allowed discount is {0}%", [settingsStore.maxDiscountAllowed]));
+		}
+		if (value > 100) {
+			localDiscount.value = 100;
+			value = 100;
+		}
+		calculatedAmount = (props.subtotal * value) / 100;
+	} else {
+		// Amount mode - force integer
+		localDiscount.value = Math.round(value || 0);
+		calculatedAmount = localDiscount.value;
+
+		if (settingsStore.maxDiscountAllowed > 0 && props.subtotal > 0) {
+			const percentageEquivalent = (calculatedAmount / props.subtotal) * 100;
+			if (percentageEquivalent > settingsStore.maxDiscountAllowed) {
+				const maxAmount = Math.round((props.subtotal * settingsStore.maxDiscountAllowed) / 100);
+				localDiscount.value = maxAmount;
+				calculatedAmount = maxAmount;
+				showWarning(
+					__("Maximum allowed discount is {0}% ({1} {2})", [
+						settingsStore.maxDiscountAllowed,
+						props.currency,
+						maxAmount,
+					])
+				);
+			}
+		}
+	}
+
+	// Ensure discount doesn't exceed subtotal
+	calculatedAmount = Math.round(calculatedAmount);
+	if (calculatedAmount > props.subtotal) {
+		if (discountType.value === "amount") {
+			localDiscount.value = Math.round(props.subtotal);
+		}
+		calculatedAmount = Math.round(props.subtotal);
+	}
+	if (calculatedAmount < 0) {
+		localDiscount.value = 0;
+	}
+}
+
+function finalizeCartDiscountRounding() {
+	localDiscount.value = Math.round(localDiscount.value || 0);
+	handleCartDiscountChange();
+}
+
+function applyCartDiscount() {
+	finalizeCartDiscountRounding();
+
+	let finalAmount = 0;
+	if (discountType.value === "percentage") {
+		finalAmount = Math.round((props.subtotal * (localDiscount.value || 0)) / 100);
+	} else {
+		finalAmount = localDiscount.value;
+	}
+
+	emit("update-additional-discount", finalAmount);
+	showDiscountDialog.value = false;
+	showSuccess(__("Additional discount updated"));
+}
+
+function resetCartDiscount() {
+	localDiscount.value = 0;
+	emit("update-additional-discount", 0);
+	showSuccess(__("Additional discount removed"));
+}
+
+function incrementCartDiscount() {
+	const step = discountType.value === "percentage" ? 1 : 5;
+	localDiscount.value = (localDiscount.value || 0) + step;
+	handleCartDiscountChange();
+}
+
+function decrementCartDiscount() {
+	const step = discountType.value === "percentage" ? 1 : 5;
+	const newValue = (localDiscount.value || 0) - step;
+	localDiscount.value = newValue < 0 ? 0 : newValue;
+	handleCartDiscountChange();
+}
 </script>
 ```

@@ -112,6 +112,9 @@
 								<p class="text-xs text-gray-500 text-start">
 									{{ formatPaymentModes(invoice) }}
 								</p>
+								<p v-if="invoice.owner" class="text-xs text-gray-500 text-start">
+									<span class="font-semibold">{{ __("Vendedor:") }}</span> {{ userNamesMap[invoice.owner] || invoice.owner.split('@')[0].toUpperCase() }}
+								</p>
 							</div>
 
 							<!-- Amount & Actions (End Side) -->
@@ -221,7 +224,7 @@ import { useToast } from "@/composables/useToast";
 import { useFormatters } from "@/composables/useFormatters";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
 import { getInvoiceStatusColor } from "@/utils/invoice";
-import { Button, Dialog, Input, createResource } from "frappe-ui";
+import { Button, Dialog, Input, createResource, call } from "frappe-ui";
 import { computed, ref, watch } from "vue";
 import ReturnInvoiceDialog from "./ReturnInvoiceDialog.vue";
 
@@ -275,7 +278,7 @@ const invoicesResource = createResource({
 		};
 	},
 	auto: false,
-	onSuccess(data) {
+	async onSuccess(data) {
 		if (data && Array.isArray(data)) {
 			const newInvoices = data.map((inv) => ({
 				...inv,
@@ -289,6 +292,9 @@ const invoicesResource = createResource({
 				// Replace the list
 				invoices.value = newInvoices;
 			}
+
+			// Batch fetch user full names
+			await loadOwnerNames(invoices.value);
 
 			// Check if there are more results
 			hasMore.value = data.length === pageSize;
@@ -322,6 +328,34 @@ watch(showReturnDialog, (val) => {
 		selectedInvoiceForReturn.value = null;
 	}
 });
+
+const userNamesMap = ref({});
+
+async function loadOwnerNames(invoiceList) {
+	if (!invoiceList || invoiceList.length === 0) return;
+
+	const ownersToFetch = [...new Set(invoiceList.map((d) => d.owner).filter(Boolean))].filter(
+		(owner) => !userNamesMap.value[owner]
+	);
+
+	if (ownersToFetch.length === 0) return;
+
+	try {
+		const users = await call("frappe.client.get_list", {
+			doctype: "User",
+			fields: ["name", "full_name"],
+			filters: [["name", "in", ownersToFetch]],
+			limit: 100,
+		});
+		if (users) {
+			users.forEach((u) => {
+				userNamesMap.value[u.name] = u.full_name;
+			});
+		}
+	} catch (err) {
+		console.warn("Failed to batch fetch user names:", err);
+	}
+}
 
 const filteredInvoices = computed(() => {
 	if (!searchTerm.value) return invoices.value;

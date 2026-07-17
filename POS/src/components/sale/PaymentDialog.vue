@@ -535,7 +535,7 @@
 										dynamicTextSize.header,
 									]"
 								>
-									{{ __("Invoice Summary") }}
+									{{ __("Resumen de la confirmación de la Venta") }}
 								</h3>
 								<span class="text-gray-500 text-xs text-end">{{
 									items.length === 1
@@ -549,7 +549,7 @@
 						</div>
 
 						<!-- Promotional offers & coupons (same entry points as cart — usable while paying) -->
-						<div class="px-3 py-2 border-b border-gray-100 bg-gray-50/80 shrink-0">
+						<div v-if="showPromoButtons" class="px-3 py-2 border-b border-gray-100 bg-gray-50/80 shrink-0">
 							<div class="flex gap-2">
 								<button
 									type="button"
@@ -622,19 +622,21 @@
 									<div class="flex-1 min-w-0 text-start">
 										<div
 											:class="[
-												'font-medium text-sm truncate',
+												'font-extrabold text-sm truncate',
 												item.is_free_item
 													? 'text-green-700'
 													: 'text-gray-900',
 											]"
 										>
-											{{ item.item_name || item.item_code
-											}}<span
+											{{ item.item_code }}<span v-if="item.custom_medida || item.medida" class="text-gray-500 font-semibold text-xs ml-1">({{ item.custom_medida || item.medida }})</span><span
 												v-if="item.is_free_item"
 												class="text-xs font-bold"
 											>
-												({{ __("Free") }})</span
-											>
+												({{ __("Free") }})</span>
+										</div>
+										<!-- Subtitle: Item Group -->
+										<div class="text-[10px] text-gray-400 font-semibold truncate mb-1 select-none leading-tight">
+											{{ item.item_group || '-' }}
 										</div>
 										<div class="text-xs text-gray-500 mt-0.5">
 											{{ formatCurrency(item.rate || item.price_list_rate) }}
@@ -672,9 +674,14 @@
 													clip-rule="evenodd"
 												/>
 											</svg>
-											{{ item.item_name || item.item_code }} ({{
+											{{ item.item_code }}<span v-if="item.custom_medida || item.medida" class="text-green-600 font-semibold text-[10px] ml-1">({{ item.custom_medida || item.medida }})</span> ({{
 												__("Free")
 											}})
+										</div>
+										<div
+											class="text-[10px] text-green-600 font-semibold mt-0.5 opacity-80 ps-4"
+										>
+											{{ item.item_group || '-' }}
 										</div>
 										<div
 											class="text-[10px] text-green-600 mt-0.5 opacity-80 ps-4"
@@ -721,6 +728,17 @@
 										<span class="text-xs font-medium text-orange-700">{{
 											__("Additional Discount")
 										}}</span>
+										<span v-if="calculatedPercentEquivalent > 0" class="text-[10px] font-semibold text-gray-400 ml-1 select-none">
+											(~{{ calculatedPercentEquivalent.toFixed(1) }}%)
+										</span>
+										<button
+											v-if="localAdditionalDiscount > 0"
+											type="button"
+											@click="resetAdditionalDiscount"
+											class="text-[10px] font-semibold text-gray-400 hover:text-red-500 transition-colors ml-1.5 underline select-none"
+										>
+											{{ __("Quitar") }}
+										</button>
 									</div>
 									<span
 										v-if="localAdditionalDiscount > 0"
@@ -729,30 +747,53 @@
 										-{{ formatCurrency(calculatedAdditionalDiscount) }}
 									</span>
 								</div>
-								<!-- Grid: 1/2 Counter Input, 1/4 Percentage, 1/4 Amount -->
-								<div class="grid grid-cols-4 gap-1.5">
-									<!-- Counter Input (2/4 = 1/2) -->
-									<div
-										class="col-span-2 flex items-center border border-orange-300 rounded-lg bg-white overflow-hidden"
-									>
+								<!-- Form Controls -->
+								<div class="space-y-2.5">
+									<!-- Unit Selectors (percentage vs amount) -->
+									<div class="flex gap-2">
+										<button
+											type="button"
+											@click="
+												additionalDiscountType = 'percentage';
+												handleAdditionalDiscountTypeChange();
+											"
+											:class="[
+												'flex-1 py-1.5 rounded-lg text-xs font-bold transition-all border',
+												additionalDiscountType === 'percentage'
+													? 'bg-orange-600 border-orange-600 text-white shadow-sm'
+													: 'bg-white text-orange-600 border-orange-300 hover:bg-orange-50',
+											]"
+										>
+											{{ __("Porcentaje (%)") }}
+										</button>
+										<button
+											type="button"
+											@click="
+												additionalDiscountType = 'amount';
+												handleAdditionalDiscountTypeChange();
+											"
+											:class="[
+												'flex-1 py-1.5 rounded-lg text-xs font-bold transition-all border',
+												additionalDiscountType === 'amount'
+													? 'bg-orange-600 border-orange-600 text-white shadow-sm'
+													: 'bg-white text-orange-600 border-orange-300 hover:bg-orange-50',
+											]"
+										>
+											{{ __("Monto Fijo (Bs.)") }}
+										</button>
+									</div>
+
+									<!-- Input Field with symmetric buttons -->
+									<div class="flex items-center border border-orange-300 rounded-lg bg-white overflow-hidden w-full">
 										<!-- Decrement Button -->
 										<button
+											type="button"
 											@click="decrementDiscount"
 											:disabled="localAdditionalDiscount <= 0"
-											class="h-9 w-9 flex items-center justify-center text-orange-600 hover:bg-orange-50 disabled:text-gray-300 disabled:hover:bg-transparent transition-colors flex-shrink-0"
+											class="h-9 w-12 flex items-center justify-center text-orange-600 hover:bg-orange-50 disabled:text-gray-300 disabled:hover:bg-transparent transition-colors flex-shrink-0 border-r border-gray-100"
 										>
-											<svg
-												class="w-4 h-4"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M20 12H4"
-												/>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
 											</svg>
 										</button>
 										<!-- Input -->
@@ -760,70 +801,25 @@
 											type="number"
 											v-model.number="localAdditionalDiscount"
 											@input="handleAdditionalDiscountChange"
-											:placeholder="
-												additionalDiscountType === 'percentage'
-													? '0'
-													: '0.00'
-											"
+											@blur="finalizeDiscountRounding"
+											@keydown.enter="finalizeDiscountRounding"
+											:placeholder="additionalDiscountType === 'percentage' ? '0' : '0'"
 											min="0"
-											:max="
-												additionalDiscountType === 'percentage'
-													? 100
-													: subtotal
-											"
+											:max="additionalDiscountType === 'percentage' ? 100 : subtotal"
 											step="1"
-											class="flex-1 h-9 px-1 text-sm font-semibold text-center bg-transparent border-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+											class="flex-1 h-9 px-3 text-sm font-bold text-center bg-transparent border-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 										/>
 										<!-- Increment Button -->
 										<button
+											type="button"
 											@click="incrementDiscount"
-											class="h-9 w-9 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition-colors flex-shrink-0"
+											class="h-9 w-12 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition-colors flex-shrink-0 border-l border-gray-100"
 										>
-											<svg
-												class="w-4 h-4"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M12 4v16m8-8H4"
-												/>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 											</svg>
 										</button>
 									</div>
-									<!-- Percentage Button (1/4) -->
-									<button
-										@click="
-											additionalDiscountType = 'percentage';
-											handleAdditionalDiscountTypeChange();
-										"
-										:class="[
-											'h-9 rounded-lg text-sm font-bold transition-colors',
-											additionalDiscountType === 'percentage'
-												? 'bg-orange-500 text-white'
-												: 'bg-white text-orange-600 border border-orange-300 hover:bg-orange-50',
-										]"
-									>
-										%
-									</button>
-									<!-- Amount Button (1/4) -->
-									<button
-										@click="
-											additionalDiscountType = 'amount';
-											handleAdditionalDiscountTypeChange();
-										"
-										:class="[
-											'h-9 rounded-lg text-sm font-bold transition-colors',
-											additionalDiscountType === 'amount'
-												? 'bg-orange-500 text-white'
-												: 'bg-white text-orange-600 border border-orange-300 hover:bg-orange-50',
-										]"
-									>
-										{{ currencySymbol }}
-									</button>
 								</div>
 							</div>
 							<!-- Subtotal -->
@@ -848,10 +844,11 @@
 								v-if="discountAmount > 0"
 								class="flex items-center justify-between text-sm"
 							>
-								<span class="text-gray-600 text-start">{{ __("Discount") }}</span>
-								<span class="font-medium text-red-600 text-end"
-									>-{{ formatCurrency(discountAmount) }}</span
-								>
+								<span class="text-gray-600 text-start">
+									{{ __("Discount") }}
+									<span v-if="subtotal > 0" class="text-[9px] font-semibold text-gray-400 ml-1 select-none">(~{{ ((discountAmount / subtotal) * 100).toFixed(1) }}%)</span>
+								</span>
+								<span class="font-medium text-red-600 text-end">-{{ formatCurrency(discountAmount) }}</span>
 							</div>
 							<!-- Grand Total -->
 							<div
@@ -1927,7 +1924,7 @@
 								/>
 							</svg>
 							<span>{{
-								isSubmitting ? __("Processing...") : __("Pay on Account")
+								isSubmitting ? __("Processing...") : __("Pago a Cuenta")
 							}}</span>
 						</button>
 
@@ -2199,6 +2196,8 @@ const {
 	mobileButtonSize,
 	dynamicNumpadSize,
 } = useResponsivePayment();
+
+const showPromoButtons = ref(false); // Cambiar a true si el cliente desea habilitar Ofertas y Cupones en el futuro.
 
 // Calculate and sync column heights when dialog opens
 function syncColumnHeights() {
@@ -2694,9 +2693,15 @@ const remainingAvailableCredit = computed(() => {
 // Calculate the actual discount amount based on type (percentage or fixed amount)
 const calculatedAdditionalDiscount = computed(() => {
 	if (additionalDiscountType.value === "percentage") {
-		return roundCurrency((props.subtotal * localAdditionalDiscount.value) / 100);
+		return Math.round((props.subtotal * localAdditionalDiscount.value) / 100);
 	}
-	return roundCurrency(localAdditionalDiscount.value);
+	return Math.round(localAdditionalDiscount.value);
+});
+
+// Calculate percentage equivalent dynamically for display
+const calculatedPercentEquivalent = computed(() => {
+	if (props.subtotal <= 0) return 0;
+	return ((calculatedAdditionalDiscount.value || 0) / props.subtotal) * 100;
 });
 
 const remainingAmount = computed(() => {
@@ -3500,14 +3505,15 @@ function handleAdditionalDiscountChange() {
 		// Convert percentage to amount
 		discountAmount = (props.subtotal * discountValue) / 100;
 	} else {
-		// Amount mode
-		discountAmount = discountValue;
+		// Amount mode - force integer on input and amount
+		localAdditionalDiscount.value = Math.round(discountValue || 0);
+		discountAmount = localAdditionalDiscount.value;
 
 		// For amount mode, check if it exceeds percentage limit when converted
 		if (settingsStore.maxDiscountAllowed > 0 && props.subtotal > 0) {
 			const percentageEquivalent = (discountAmount / props.subtotal) * 100;
 			if (percentageEquivalent > settingsStore.maxDiscountAllowed) {
-				const maxAmount = (props.subtotal * settingsStore.maxDiscountAllowed) / 100;
+				const maxAmount = Math.round((props.subtotal * settingsStore.maxDiscountAllowed) / 100);
 				localAdditionalDiscount.value = maxAmount;
 				discountAmount = maxAmount;
 				// Show warning toast
@@ -3515,19 +3521,22 @@ function handleAdditionalDiscountChange() {
 					__("Maximum allowed discount is {0}% ({1} {2})", [
 						settingsStore.maxDiscountAllowed,
 						props.currency,
-						maxAmount.toFixed(2),
+						maxAmount,
 					])
 				);
 			}
 		}
 	}
 
+	// Round the final discount amount to the nearest integer
+	discountAmount = Math.round(discountAmount);
+
 	// Ensure discount doesn't exceed subtotal
 	if (discountAmount > props.subtotal) {
 		if (additionalDiscountType.value === "amount") {
-			localAdditionalDiscount.value = props.subtotal;
+			localAdditionalDiscount.value = Math.round(props.subtotal);
 		}
-		discountAmount = props.subtotal;
+		discountAmount = Math.round(props.subtotal);
 	}
 
 	// Ensure non-negative
@@ -3539,10 +3548,22 @@ function handleAdditionalDiscountChange() {
 	emit("update-additional-discount", discountAmount);
 }
 
+function finalizeDiscountRounding() {
+	// Round input to integer based on active type (percentage or amount)
+	localAdditionalDiscount.value = Math.round(localAdditionalDiscount.value || 0);
+	handleAdditionalDiscountChange();
+}
+
 function handleAdditionalDiscountTypeChange() {
 	// Don't reset - preserve last value when toggling type
 	// Just recalculate to ensure it's within limits
 	handleAdditionalDiscountChange();
+}
+
+function resetAdditionalDiscount() {
+	localAdditionalDiscount.value = 0;
+	handleAdditionalDiscountChange();
+	showSuccess(__("Additional discount removed"));
 }
 
 function incrementDiscount() {

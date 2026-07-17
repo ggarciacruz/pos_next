@@ -4,6 +4,10 @@ import { getOfflineReceiptPayload } from "@/utils/offline/offlineReceiptCache";
 import { getOfflineInvoiceByOfflineId } from "@/utils/offline/sync";
 import { offlineWorker } from "@/utils/offline/workerClient";
 import { printHTML as qzPrintHTML } from "@/utils/qzTray";
+import { getCurrencySymbol } from "@/utils/currency";
+import { db } from "@/utils/offline/db";
+import { session } from "@/data/session";
+import { userData } from "@/data/user";
 
 const log = logger.create("PrintInvoice");
 
@@ -189,6 +193,93 @@ export async function hydrateLocalOnlyInvoice(invoiceData) {
 	return invoiceData;
 }
 
+const userFullNameCache = {};
+const companyInfoCache = {};
+
+export async function hydrateInvoiceItemsWithMedidas(invoiceData) {
+	if (!invoiceData) return invoiceData;
+
+	// Resolve company phone and address
+	const company = invoiceData.company;
+	if (company) {
+		if (companyInfoCache[company]) {
+			const info = companyInfoCache[company];
+			invoiceData.company_phone = info.phone;
+			invoiceData.company_address = info.address;
+			invoiceData.company_city = info.city;
+		} else {
+			try {
+				const res = await call("frappe.client.get_value", {
+					doctype: "Address",
+					filters: { is_your_company_address: 1 },
+					fieldname: ["phone", "address_line1", "city"],
+				});
+				const addressData = res?.message || res;
+				if (addressData) {
+					const info = {
+						phone: addressData.phone || "",
+						address: addressData.address_line1 || "",
+						city: addressData.city || "",
+					};
+					companyInfoCache[company] = info;
+					invoiceData.company_phone = info.phone;
+					invoiceData.company_address = info.address;
+					invoiceData.company_city = info.city;
+				}
+			} catch (err) {
+				log.warn("Failed to fetch company address details:", err);
+			}
+		}
+	}
+
+	// Resolve seller full name
+	const docOwner = invoiceData.owner || session.user;
+	if (docOwner) {
+		if (docOwner === userData.userId || docOwner === session.user) {
+			invoiceData.owner_name = userData.getDisplayName();
+		} else if (userFullNameCache[docOwner]) {
+			invoiceData.owner_name = userFullNameCache[docOwner];
+		} else {
+			try {
+				const res = await call("frappe.client.get_value", {
+					doctype: "User",
+					filters: { name: docOwner },
+					fieldname: "full_name",
+				});
+				const fullName = res?.message?.full_name || res?.full_name;
+				if (fullName) {
+					userFullNameCache[docOwner] = fullName;
+					invoiceData.owner_name = fullName;
+				} else {
+					invoiceData.owner_name = docOwner.split("@")[0].toUpperCase();
+				}
+			} catch (err) {
+				log.warn("Failed to fetch full_name for owner:", err);
+				invoiceData.owner_name = docOwner.split("@")[0].toUpperCase();
+			}
+		}
+	}
+
+	// Resolve items measures from IndexedDB
+	if (Array.isArray(invoiceData.items)) {
+		try {
+			const promises = invoiceData.items.map(async (item) => {
+				if (!item.custom_medida && item.item_code) {
+					const cached = await db.items.get(item.item_code);
+					if (cached && cached.custom_medida) {
+						item.custom_medida = cached.custom_medida;
+					}
+				}
+			});
+			await Promise.all(promises);
+		} catch (err) {
+			log.warn("Failed to hydrate items with custom_medida from IndexedDB:", err);
+		}
+	}
+
+	return invoiceData;
+}
+
 const RECEIPT_STYLES = `
 	* { margin: 0; padding: 0; box-sizing: border-box; }
 	body {
@@ -226,7 +317,7 @@ const RECEIPT_STYLES = `
 	}
 	.footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 2px dashed #000; font-size: 11px; }
 	@media print {
-		@page { size: 80mm auto; margin: 0; }
+		@page { margin: 0; }
 		body { width: 80mm; padding: 5mm; margin: 0; }
 		.no-print { display: none; }
 	}
@@ -236,6 +327,23 @@ const RECEIPT_STYLES = `
  * Inner receipt HTML (no shell). Used for local/offline invoices and QZ Tray.
  */
 export function buildReceiptHTML(invoiceData) {
+	const isQuotation = invoiceData.doctype === "Quotation" || invoiceData.header === "Quotation" || (invoiceData.name && (invoiceData.name.startsWith("QTN-") || invoiceData.name.startsWith("COT-")));
+	const isSalesOrder = invoiceData.doctype === "Sales Order" || invoiceData.header === "Draft" || (invoiceData.name && (invoiceData.name.startsWith("SAL-ORD-") || invoiceData.name.startsWith("PRE-")));
+	const isInvoice = !isQuotation && !isSalesOrder;
+	const currencySymbol = getCurrencySymbol(invoiceData.currency || "BOB");
+	const owner = invoiceData.owner || session.user || "Administrator";
+	const sellerName = invoiceData.owner_name || owner.split("@")[0].toUpperCase();
+
+	function formatPrintDate(dateStr) {
+		const date = new Date(dateStr || Date.now());
+		const day = String(date.getDate()).padStart(2, '0');
+		const month = String(date.getMonth() + 1).padStart(2, '0');
+		const year = date.getFullYear();
+		const hours = String(date.getHours()).padStart(2, '0');
+		const minutes = String(date.getMinutes()).padStart(2, '0');
+		return `${day}/${month}/${year} ${hours}:${minutes}`;
+	}
+
 	const items = invoiceData.items || [];
 	const paidAmount = derivePaidAmount(invoiceData);
 	const itemsHtml = items
@@ -247,11 +355,32 @@ export function buildReceiptHTML(invoiceData) {
 			const qty = item.quantity || item.qty || 0;
 			const displayRate = item.price_list_rate || item.rate || 0;
 			const subtotal = qty * displayRate;
+
+			if (!isInvoice) {
+				// Formato de una sola línea ultra-compacta para pre-ventas y cotizaciones
+				const qtyText = qty !== 1 ? `x${qty}` : "";
+				const customMedida = item.custom_medida || item.medida || "";
+				const measureText = customMedida ? `(${customMedida})` : "";
+				const discountText = hasDiscount ? `[Desc: -${formatCurrency(item.discount_amount || 0)}]` : "";
+				
+				const leftParts = [item.item_code, measureText, qtyText, discountText].filter(Boolean).join(" ");
+
+				return `
+						<div class="item-row" style="margin-bottom: 4px; font-size: 11px; color: black; font-weight: bold;">
+							<div style="display: flex; justify-content: space-between; align-items: baseline;">
+								<span style="word-break: break-word; padding-right: 8px;">${leftParts}</span>
+								<span style="white-space: nowrap;">${formatCurrency(subtotal)}</span>
+							</div>
+						</div>`;
+			}
+
+			// Formato estándar para facturas
+			const customMedida = item.custom_medida || item.medida || "";
 			return `
 						<div class="item-row" style="margin-bottom: 8px; font-size: 11px;">
 							<div class="item-name" style="font-weight: bold;">
 								${item.item_code} - ${item.item_name} ${isFree ? __("(GRATIS)") : ""}
-								${item.custom_medida ? `<div style="font-size: 9px; color: #555; font-weight: normal; margin-top: 1px;">Medida: ${item.custom_medida}</div>` : ""}
+								${customMedida ? `<div style="font-size: 9px; color: #555; font-weight: normal; margin-top: 1px;">Medida: ${customMedida}</div>` : ""}
 							</div>
 							<div class="item-details" style="display: flex; justify-content: space-between; font-size: 10px; margin-top: 2px;">
 								<span>${qty} × ${formatCurrency(displayRate)}</span>
@@ -269,10 +398,6 @@ export function buildReceiptHTML(invoiceData) {
 		})
 		.join("");
 
-	const isQuotation = invoiceData.doctype === "Quotation" || invoiceData.header === "Quotation" || (invoiceData.name && (invoiceData.name.startsWith("QTN-") || invoiceData.name.startsWith("COT-")));
-	const isSalesOrder = invoiceData.doctype === "Sales Order" || invoiceData.header === "Draft" || (invoiceData.name && (invoiceData.name.startsWith("SAL-ORD-") || invoiceData.name.startsWith("PRE-")));
-	const isInvoice = !isQuotation && !isSalesOrder;
-
 	const docLabel = isQuotation ? __("Cotización #:") : (isSalesOrder ? __("Pre-venta #:") : __("Factura #:"));
 	const displayHeader = isQuotation ? __("COTIZACIÓN") : (isSalesOrder ? __("PRE-VENTA") : __("FACTURA"));
 
@@ -288,11 +413,11 @@ export function buildReceiptHTML(invoiceData) {
 		return `
 			<div class="receipt">
 				<div class="header" style="text-align: center; margin-bottom: 12px; padding-bottom: 8px;">
-					<div class="company-name" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${invoiceData.company || "NUEVA ERA"}</div>
+					<div class="company-name" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${invoiceData.company || ""}</div>
 					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">CASA MATRIZ</div>
-					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">Av. Banzer entre 3er y 4to Anillo</div>
-					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">Teléfono: 3345678</div>
-					<div style="font-size: 9px; font-weight: normal; margin-bottom: 2px;">Santa Cruz - Bolivia</div>
+					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">${invoiceData.company_address || "Av. Banzer entre 3er y 4to Anillo"}</div>
+					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">Teléfono: ${invoiceData.company_phone || "3345678"}</div>
+					<div style="font-size: 9px; font-weight: normal; margin-bottom: 2px;">${invoiceData.company_city || "Santa Cruz - Bolivia"}</div>
 					<div style="font-size: 8px; font-weight: normal; text-transform: uppercase; line-height: 1.2; padding: 0 4px; color: #333;">
 						Actividad: VENTA DE AUTO PARTES Y ACCESORIOS DE VEHÍCULOS
 					</div>
@@ -312,6 +437,11 @@ export function buildReceiptHTML(invoiceData) {
 					<div style="display: flex; justify-content: space-between;"><span><strong>Fecha:</strong></span><span>${new Date(invoiceData.posting_date || Date.now()).toLocaleDateString()}</span></div>
 					<div style="display: flex; justify-content: space-between;"><span><strong>Nombre/Razón Social:</strong></span><span>${customerName}</span></div>
 					<div style="display: flex; justify-content: space-between;"><span><strong>NIT/CI:</strong></span><span>${customerTaxId}</span></div>
+					${
+						sellerName
+							? `<div style="display: flex; justify-content: space-between;"><span><strong>Vendedor:</strong></span><span>${sellerName}</span></div>`
+							: ""
+					}
 				</div>
 
 				<div class="items-table">
@@ -347,7 +477,7 @@ export function buildReceiptHTML(invoiceData) {
 							: ""
 					}
 					<div class="total-row grand-total" style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; border-top: 2px solid #000; padding-top: 6px; margin-top: 6px;">
-						<span>${__("TOTAL A PAGAR BOB:")}</span><span>${formatCurrency(invoiceData.grand_total)}</span>
+						<span>${__("TOTAL A PAGAR {0}:", [currencySymbol])}</span><span>${formatCurrency(invoiceData.grand_total)}</span>
 					</div>
 					<div class="total-row" style="display: flex; justify-content: space-between; font-size: 10.5px; margin-top: 4px; font-weight: normal;">
 						<span>${__("Importe Base Crédito Fiscal:")}</span><span>${formatCurrency(invoiceData.grand_total)}</span>
@@ -402,38 +532,44 @@ export function buildReceiptHTML(invoiceData) {
 	// For Quotations and Sales Orders (Pre-ventas / Cotizaciones)
 	return `
 			<div class="receipt">
-				<div class="header">
-					<div class="company-name">${invoiceData.company || "NUEVA ERA"}</div>
-					<div style="font-size: 13px; font-weight: bold; letter-spacing: 0.5px; margin-top: 3px;">${displayHeader}</div>
+				<div class="header" style="text-align: center; margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
+					<div class="company-name" style="font-size: 15px; font-weight: bold; margin-bottom: 2px;">${invoiceData.company || ""}</div>
+					${invoiceData.company_address ? `<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">${invoiceData.company_address}</div>` : ""}
+					${invoiceData.company_phone ? `<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">Teléfono: ${invoiceData.company_phone}</div>` : ""}
+					<div style="font-size: 11px; font-weight: bold; letter-spacing: 0.5px; margin-top: 2px;">${displayHeader}</div>
 				</div>
 
-				${invoiceData.is_offline ? `<div class="offline-badge">${__("OFFLINE — PENDING SYNC")}</div>` : ""}
+				${invoiceData.is_offline ? `<div class="offline-badge" style="text-align: center; font-size: 10px; font-weight: bold; border: 1px dashed #000; padding: 3px; margin-bottom: 6px;">${__("OFFLINE — PENDING SYNC")}</div>` : ""}
 
-				<div class="invoice-info">
-					<div><span>${docLabel}</span><span><strong>${invoiceData.name}</strong></span></div>
-					<div><span>${__("Fecha:")}</span><span>${new Date(
-		invoiceData.posting_date || Date.now()
-	).toLocaleString()}</span></div>
+				<div class="invoice-info" style="font-size: 10px; margin-bottom: 6px; line-height: 1.3; border-bottom: 1px dashed #000; padding-bottom: 4px;">
+					<div style="display: flex; justify-content: space-between;"><span>${docLabel}</span><span><strong>${invoiceData.name}</strong></span></div>
+					<div style="display: flex; justify-content: space-between;"><span>${__("Fecha:")}</span><span>${formatPrintDate(invoiceData.posting_date)}</span></div>
 					${
 						invoiceData.customer_name || invoiceData.customer
-							? `<div><span>${__("Cliente:")}</span><span>${
+							? `<div style="display: flex; justify-content: space-between;"><span>${__("Cliente:")}</span><span>${(
 									invoiceData.customer_name || invoiceData.customer
-							  }</span></div>`
+							  ).toUpperCase()}</span></div>`
+							: ""
+					}
+					${
+						sellerName
+							? `<div style="display: flex; justify-content: space-between;"><span>${__("Vendedor:")}</span><span>${sellerName}</span></div>`
 							: ""
 					}
 				</div>
 
-				<div class="items-table">
+				<div class="items-table" style="margin-bottom: 6px; padding: 4px 0;">
 					${itemsHtml}
 				</div>
 
 				<div class="totals">
-					<div class="total-row grand-total"><span>${__("TOTAL:")}</span><span>${formatCurrency(
-		invoiceData.grand_total
-	)}</span></div>
+					<div class="total-row grand-total" style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; border-top: 1px solid #000; padding-top: 4px;">
+						<span>${__("TOTAL {0}:", [currencySymbol])}</span>
+						<span>${formatCurrency(invoiceData.grand_total)}</span>
+					</div>
 				</div>
 
-				<div class="footer">
+				<div class="footer" style="text-align: center; margin-top: 8px; padding-top: 4px; border-top: 1px dashed #000; font-size: 9px; font-weight: normal;">
 					<div>${invoiceData.footer || __("¡Gracias por su preferencia!")}</div>
 				</div>
 			</div>`;
@@ -507,6 +643,7 @@ export async function printInvoice(invoiceData, printFormat = null, letterhead =
 		if (!invoiceData?.name) throw new Error("Invalid invoice data");
 
 		invoiceData = await hydrateLocalOnlyInvoice(invoiceData);
+		invoiceData = await hydrateInvoiceItemsWithMedidas(invoiceData);
 
 		// Always use the unified short, simple thermal receipt layout
 		return printInvoiceCustom(invoiceData);
@@ -522,7 +659,7 @@ export async function printInvoice(invoiceData, printFormat = null, letterhead =
  */
 export async function printInvoiceByName(invoiceName, printFormat = null, letterhead = null) {
 	if (isLocalOnlyInvoiceName(invoiceName)) {
-		const localDoc = await hydrateLocalOnlyInvoice({ name: invoiceName });
+		let localDoc = await hydrateLocalOnlyInvoice({ name: invoiceName });
 		if (!localDoc.items?.length) {
 			throw new Error(
 				__(
@@ -530,14 +667,16 @@ export async function printInvoiceByName(invoiceName, printFormat = null, letter
 				)
 			);
 		}
+		localDoc = await hydrateInvoiceItemsWithMedidas(localDoc);
 		const settings = await resolvePrintSettings(localDoc.pos_profile, printFormat, letterhead);
 		return printInvoice(localDoc, settings.printFormat, settings.letterhead);
 	}
-	const invoiceDoc = await call("pos_next.api.invoices.get_invoice", {
+	let invoiceDoc = await call("pos_next.api.invoices.get_invoice", {
 		invoice_name: invoiceName,
 	});
 	if (!invoiceDoc) throw new Error("Invoice not found");
 
+	invoiceDoc = await hydrateInvoiceItemsWithMedidas(invoiceDoc);
 	const settings = await resolvePrintSettings(invoiceDoc.pos_profile, printFormat, letterhead);
 	return printInvoice(invoiceDoc, settings.printFormat, settings.letterhead);
 }
@@ -578,8 +717,11 @@ export async function silentPrintDoc(doctype, name, printFormat) {
  */
 export async function silentPrintInvoice(invoiceName, printFormat = null) {
 	if (isLocalOnlyInvoiceName(invoiceName)) {
-		const doc = await hydrateLocalOnlyInvoice({ name: invoiceName });
-		if (doc.items?.length > 0) return silentPrintInvoiceFromDoc(doc);
+		let doc = await hydrateLocalOnlyInvoice({ name: invoiceName });
+		if (doc.items?.length > 0) {
+			doc = await hydrateInvoiceItemsWithMedidas(doc);
+			return silentPrintInvoiceFromDoc(doc);
+		}
 		throw new Error(
 			__(
 				"This offline receipt is no longer in browser storage. Use browser print from the success dialog after checkout."
@@ -587,10 +729,11 @@ export async function silentPrintInvoice(invoiceName, printFormat = null) {
 		);
 	}
 
-	const doc = await call("pos_next.api.invoices.get_invoice", {
+	let doc = await call("pos_next.api.invoices.get_invoice", {
 		invoice_name: invoiceName,
 	});
 	if (doc?.items?.length > 0) {
+		doc = await hydrateInvoiceItemsWithMedidas(doc);
 		return silentPrintInvoiceFromDoc(doc);
 	}
 	throw new Error("Invoice not found");
@@ -614,6 +757,7 @@ export async function silentPrintInvoiceFromDoc(invoiceData) {
  */
 export async function printWithSilentFallback(invoiceData, printFormat = null) {
 	invoiceData = await hydrateLocalOnlyInvoice(invoiceData);
+	invoiceData = await hydrateInvoiceItemsWithMedidas(invoiceData);
 	const invoiceName = invoiceData?.name;
 	if (!invoiceName) throw new Error("Invalid invoice data — missing name");
 

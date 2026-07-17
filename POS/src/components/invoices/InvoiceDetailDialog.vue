@@ -205,9 +205,8 @@
 							<div class="flex items-center justify-between gap-3 mb-2">
 								<div class="flex-1 min-w-0 text-center">
 									<div class="text-sm font-semibold text-gray-900">
-										{{ item.item_name }}
+										{{ item.item_code }}{{ (item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : '' }}
 									</div>
-									<div class="text-xs text-gray-500">{{ item.item_code }}</div>
 								</div>
 							</div>
 							<!-- Details Grid -->
@@ -282,10 +281,7 @@
 								>
 									<td class="px-4 py-3 text-center">
 										<div class="text-sm font-medium text-gray-900">
-											{{ item.item_name }}
-										</div>
-										<div class="text-xs text-gray-500">
-											{{ item.item_code }}
+											{{ item.item_code }}{{ (item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : '' }}
 										</div>
 									</td>
 									<td class="px-4 py-3 text-center text-sm text-gray-900">
@@ -490,6 +486,7 @@ import { getInvoiceStatusColor } from "@/utils/invoice";
 import { logger } from "@/utils/logger";
 import { hydrateLocalOnlyInvoice, isLocalOnlyInvoiceName } from "@/utils/printInvoice";
 import { Button, Dialog, call } from "frappe-ui";
+import { db } from "@/utils/offline/db";
 import { ref, watch, nextTick, computed } from "vue";
 
 const log = logger.create("InvoiceDetailDialog");
@@ -580,35 +577,47 @@ async function loadInvoiceDetails() {
 
 	loading.value = true;
 	try {
+		let result = null;
 		if (isLocalOnlyInvoiceName(props.invoiceName)) {
 			// Hydrate from sessionStorage first, fall back to IndexedDB so a
 			// post-reload detail view still resolves offline receipts.
 			const cached = await hydrateLocalOnlyInvoice({ name: props.invoiceName });
 			if (cached?.items?.length > 0) {
-				const result = JSON.parse(JSON.stringify(cached));
+				result = JSON.parse(JSON.stringify(cached));
 				result.items = result.items.map((item) => ({
 					...item,
 					quantity: item.quantity ?? item.qty,
 				}));
-				invoiceData.value = result;
-				return;
 			}
-			invoiceData.value = null;
-			return;
+		} else {
+			result = await call("pos_next.api.invoices.get_invoice", {
+				invoice_name: props.invoiceName,
+			});
+
+			// Map server 'qty' to 'quantity' for internal consistency
+			if (result && result.items) {
+				result.items = result.items.map((item) => ({
+					...item,
+					quantity: item.qty,
+				}));
+			}
 		}
 
-		const result = await call("pos_next.api.invoices.get_invoice", {
-			invoice_name: props.invoiceName,
-		});
-
-		// Map server 'qty' to 'quantity' for internal consistency
 		if (result && result.items) {
-			result.items = result.items.map((item) => ({
-				...item,
-				quantity: item.qty,
-			}));
+			// Hydrate missing custom_medida from IndexedDB cache
+			const promises = result.items.map(async (item) => {
+				if (!item.custom_medida && item.item_code) {
+					const cached = await db.items.get(item.item_code);
+					if (cached && cached.custom_medida) {
+						item.custom_medida = cached.custom_medida;
+					}
+				}
+			});
+			await Promise.all(promises);
+			invoiceData.value = result;
+		} else {
+			invoiceData.value = null;
 		}
-		invoiceData.value = result;
 	} catch (error) {
 		log.error("Error loading invoice details:", error);
 		invoiceData.value = null;

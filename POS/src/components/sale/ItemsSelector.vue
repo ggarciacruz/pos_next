@@ -580,22 +580,28 @@
 
 						<!-- Item Details -->
 						<div class="min-w-0">
+							<!-- Primary: Item Code -->
 							<h3
-								class="text-[10px] sm:text-xs font-semibold text-gray-900 truncate mb-0.5 leading-tight"
+								class="text-[10px] sm:text-xs font-bold text-gray-900 truncate mb-0.5 leading-tight"
+								:title="item.item_code"
 							>
-								{{ item.item_name }}
+								{{ item.item_code }}
 							</h3>
+							<!-- Subtitle: Custom Medida -->
 							<p
 								v-if="item.custom_medida"
-								class="text-[8px] sm:text-[9px] text-gray-500 truncate leading-tight mb-0.5"
+								class="text-[9px] sm:text-[10px] font-semibold text-gray-600 truncate leading-tight mb-0.5"
+								:title="item.custom_medida"
 							>
 								{{ item.custom_medida }}
 							</p>
+							<!-- Subtitle: Item Group -->
 							<p
-								v-if="item.attributes"
-								class="text-[8px] sm:text-[9px] text-gray-400 truncate leading-tight"
+								v-if="item.item_group"
+								class="text-[8px] sm:text-[9px] text-gray-400 truncate leading-tight mb-0.5 font-medium"
+								:title="item.item_group"
 							>
-								{{ Object.values(item.attributes).join(" / ") }}
+								{{ item.item_group }}
 							</p>
 							<p class="text-[9px] sm:text-[10px] text-gray-500 leading-tight">
 								<span class="font-semibold text-blue-600">{{
@@ -796,12 +802,7 @@
 							>
 								{{ __("Medida", null, "Medida") }}
 							</th>
-							<th
-								scope="col"
-								class="px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 max-w-[180px] md:max-w-[220px]"
-							>
-								{{ __("Name") }}
-							</th>
+
 							<th
 								scope="col"
 								class="px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 w-[70px] sm:w-[100px]"
@@ -906,22 +907,7 @@
 									{{ item.custom_medida || '-' }}
 								</div>
 							</td>
-							<td
-								class="px-2 sm:px-3 py-2 max-w-[180px] md:max-w-[220px]"
-							>
-								<div
-									class="text-xs sm:text-sm text-gray-900 truncate"
-									:title="item.item_name"
-								>
-									{{ item.item_name }}
-								</div>
-								<div
-									v-if="item.attributes"
-									class="text-[8px] sm:text-[9px] text-gray-400 truncate leading-tight mt-0.5"
-								>
-									{{ Object.values(item.attributes).join(" / ") }}
-								</div>
-							</td>
+
 							<td class="px-2 sm:px-3 py-2 whitespace-nowrap w-[70px] sm:w-[100px]">
 								<div class="text-xs sm:text-sm font-semibold text-blue-600">
 									{{ formatCurrency(item.rate || item.price_list_rate || 0) }}
