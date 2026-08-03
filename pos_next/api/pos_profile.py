@@ -125,6 +125,9 @@ def get_payment_methods(pos_profile):
 				POSPaymentMethod.allow_in_returns,
 				Coalesce(ModeOfPayment.type, "Cash").as_("type"),
 				Coalesce(Account.account_type, "").as_("account_type"),
+				Coalesce(Account.name, "").as_("account"),
+				Coalesce(Account.account_name, "").as_("account_name"),
+				Coalesce(Account.account_number, "").as_("account_number"),
 			)
 			.where(POSPaymentMethod.parent == pos_profile)
 			.orderby(POSPaymentMethod.idx)

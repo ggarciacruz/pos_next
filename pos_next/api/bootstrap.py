@@ -248,18 +248,33 @@ def _get_payment_methods(pos_profile_name):
 			- type: str ("Cash", "Bank", etc.)
 	"""
 	try:
+		company = frappe.db.get_value("POS Profile", pos_profile_name, "company")
+
 		POSPaymentMethod = DocType("POS Payment Method")
 		ModeOfPayment = DocType("Mode of Payment")
+		ModeOfPaymentAccount = DocType("Mode of Payment Account")
+		Account = DocType("Account")
 
 		return (
 			frappe.qb.from_(POSPaymentMethod)
 			.left_join(ModeOfPayment)
 			.on(POSPaymentMethod.mode_of_payment == ModeOfPayment.name)
+			.left_join(ModeOfPaymentAccount)
+			.on(
+				(ModeOfPaymentAccount.parent == ModeOfPayment.name)
+				& (ModeOfPaymentAccount.company == company)
+			)
+			.left_join(Account)
+			.on(Account.name == ModeOfPaymentAccount.default_account)
 			.select(
 				POSPaymentMethod.mode_of_payment,
 				POSPaymentMethod.default,
 				POSPaymentMethod.allow_in_returns,
 				Coalesce(ModeOfPayment.type, "Cash").as_("type"),
+				Coalesce(Account.account_type, "").as_("account_type"),
+				Coalesce(Account.name, "").as_("account"),
+				Coalesce(Account.account_name, "").as_("account_name"),
+				Coalesce(Account.account_number, "").as_("account_number"),
 			)
 			.where(POSPaymentMethod.parent == pos_profile_name)
 			.orderby(POSPaymentMethod.idx)

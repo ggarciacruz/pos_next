@@ -1370,6 +1370,16 @@
 						class="hidden lg:block"
 						:class="isCompactMode ? 'mb-2' : 'mb-3'"
 					>
+						<div
+							v-if="getSelectedMethodAccountName(lastSelectedMethod)"
+							class="mb-2 px-2.5 py-1 bg-blue-50/90 border border-blue-200/80 rounded-lg flex items-center gap-1.5 text-xs text-blue-800"
+						>
+							<svg class="w-3.5 h-3.5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+							</svg>
+							<span class="font-medium">{{ __("Cuenta:") }}</span>
+							<span class="font-semibold">{{ getSelectedMethodAccountName(lastSelectedMethod) }}</span>
+						</div>
 						<div class="text-start text-xs font-medium text-gray-600 mb-1.5">
 							{{
 								isExactAmountModeActive && !isCashPaymentMethod(lastSelectedMethod)
@@ -2432,6 +2442,36 @@ function isCashPaymentMethod(method) {
 	// Check by mode_of_payment name as fallback
 	const name = (method.mode_of_payment || "").toLowerCase();
 	return name.includes("cash") || name.includes("نقد") || name.includes("نقدي");
+}
+
+function getSelectedMethodAccountName(method) {
+	if (!method) return "";
+	let found = method;
+	if (!found.account && !found.account_name && method.mode_of_payment) {
+		found = paymentMethods.value?.find((m) => m.mode_of_payment === method.mode_of_payment) || method;
+	}
+
+	let num = found.account_number || "";
+	let name = found.account_name || found.account || "";
+
+	if (!num && name.includes(" - ")) {
+		const parts = name.split(" - ");
+		if (/^\d[\d\.]+\d$/.test(parts[0])) {
+			num = parts[0];
+			name = parts.slice(1).join(" - ");
+		}
+	}
+
+	name = name.replace(/ - NE$/, "").trim();
+
+	if (num && name) {
+		return `${num} - ${name}`;
+	} else if (name) {
+		return name;
+	} else if (num) {
+		return num;
+	}
+	return "";
 }
 
 // Get available wallet balance for payment (considering already added wallet payments)

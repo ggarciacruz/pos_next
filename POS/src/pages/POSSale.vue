@@ -2449,7 +2449,7 @@ function switchToDesk() {
 		return;
 	}
 
-	window.location.assign("/app");
+	window.open("/app", "_blank");
 }
 
 function formatCurrency(amount) {

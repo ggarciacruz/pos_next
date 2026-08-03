@@ -739,6 +739,10 @@ def update_invoice(data):
 				invoice_doc.pos_profile = pos_profile
 
 			if pos_profile_doc:
+				if pos_profile_doc.warehouse:
+					for item in invoice_doc.get("items", []):
+						item.warehouse = pos_profile_doc.warehouse
+
 				if pos_profile_doc.company and not invoice_doc.get("company"):
 					invoice_doc.company = pos_profile_doc.company
 				if pos_profile_doc.currency and not invoice_doc.get("currency"):
