@@ -846,15 +846,15 @@ function calculateDiscount() {
 		if (discountValue.value > 100) {
 			discountValue.value = 100;
 		}
-		calculatedDiscount.value = roundCurrency(
+		calculatedDiscount.value = Math.floor(
 			(calculatedSubtotal.value * discountValue.value) / 100
 		);
 	} else {
 		// Ensure amount doesn't exceed subtotal
 		if (discountValue.value > calculatedSubtotal.value) {
-			discountValue.value = roundCurrency(calculatedSubtotal.value);
+			discountValue.value = Math.floor(calculatedSubtotal.value);
 		}
-		calculatedDiscount.value = roundCurrency(discountValue.value);
+		calculatedDiscount.value = Math.floor(discountValue.value);
 	}
 	calculatedTotal.value = roundCurrency(calculatedSubtotal.value - calculatedDiscount.value);
 }

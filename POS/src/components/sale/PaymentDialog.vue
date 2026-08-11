@@ -801,6 +801,7 @@
 											type="number"
 											v-model.number="localAdditionalDiscount"
 											@input="handleAdditionalDiscountChange"
+											@keypress="preventDecimalInput"
 											@blur="finalizeDiscountRounding"
 											@keydown.enter="finalizeDiscountRounding"
 											:placeholder="additionalDiscountType === 'percentage' ? '0' : '0'"
@@ -2733,9 +2734,9 @@ const remainingAvailableCredit = computed(() => {
 // Calculate the actual discount amount based on type (percentage or fixed amount)
 const calculatedAdditionalDiscount = computed(() => {
 	if (additionalDiscountType.value === "percentage") {
-		return Math.round((props.subtotal * localAdditionalDiscount.value) / 100);
+		return Math.floor((props.subtotal * localAdditionalDiscount.value) / 100);
 	}
-	return Math.round(localAdditionalDiscount.value);
+	return Math.floor(localAdditionalDiscount.value);
 });
 
 // Calculate percentage equivalent dynamically for display
@@ -3546,14 +3547,14 @@ function handleAdditionalDiscountChange() {
 		discountAmount = (props.subtotal * discountValue) / 100;
 	} else {
 		// Amount mode - force integer on input and amount
-		localAdditionalDiscount.value = Math.round(discountValue || 0);
+		localAdditionalDiscount.value = Math.floor(discountValue || 0);
 		discountAmount = localAdditionalDiscount.value;
 
 		// For amount mode, check if it exceeds percentage limit when converted
 		if (settingsStore.maxDiscountAllowed > 0 && props.subtotal > 0) {
 			const percentageEquivalent = (discountAmount / props.subtotal) * 100;
 			if (percentageEquivalent > settingsStore.maxDiscountAllowed) {
-				const maxAmount = Math.round((props.subtotal * settingsStore.maxDiscountAllowed) / 100);
+				const maxAmount = Math.floor((props.subtotal * settingsStore.maxDiscountAllowed) / 100);
 				localAdditionalDiscount.value = maxAmount;
 				discountAmount = maxAmount;
 				// Show warning toast
@@ -3568,15 +3569,15 @@ function handleAdditionalDiscountChange() {
 		}
 	}
 
-	// Round the final discount amount to the nearest integer
-	discountAmount = Math.round(discountAmount);
+	// Round the final discount amount to the lower integer (Math.floor)
+	discountAmount = Math.floor(discountAmount);
 
 	// Ensure discount doesn't exceed subtotal
 	if (discountAmount > props.subtotal) {
 		if (additionalDiscountType.value === "amount") {
-			localAdditionalDiscount.value = Math.round(props.subtotal);
+			localAdditionalDiscount.value = Math.floor(props.subtotal);
 		}
-		discountAmount = Math.round(props.subtotal);
+		discountAmount = Math.floor(props.subtotal);
 	}
 
 	// Ensure non-negative
@@ -3589,9 +3590,15 @@ function handleAdditionalDiscountChange() {
 }
 
 function finalizeDiscountRounding() {
-	// Round input to integer based on active type (percentage or amount)
-	localAdditionalDiscount.value = Math.round(localAdditionalDiscount.value || 0);
+	// Round input to lower integer based on active type (percentage or amount)
+	localAdditionalDiscount.value = Math.floor(localAdditionalDiscount.value || 0);
 	handleAdditionalDiscountChange();
+}
+
+function preventDecimalInput(event) {
+	if (event.key === "." || event.key === "," || event.key === "e" || event.key === "E") {
+		event.preventDefault();
+	}
 }
 
 function handleAdditionalDiscountTypeChange() {
