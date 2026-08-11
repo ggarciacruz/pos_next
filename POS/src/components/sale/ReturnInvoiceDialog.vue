@@ -1198,7 +1198,7 @@ const { isOffline } = useOfflineStatus();
 // ============================================
 // Constants (hoisted for performance)
 // ============================================
-const INVOICE_PATTERN = /^(ACC-SINV|SINV|SI|INV|ACC)/i;
+const INVOICE_PATTERN = /^(ACC-SINV|SINV|SI|INV|ACC|SF|CF|NV)/i;
 const INVOICE_FORMAT_PATTERN = /^\d{4,}$/;
 const DATE_FORMAT_OPTIONS = { year: "numeric", month: "short", day: "numeric" };
 const MAX_SUGGESTIONS = 8;

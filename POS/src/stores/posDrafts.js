@@ -38,77 +38,79 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 	async function loadDrafts() {
 		try {
 			if (!isOffline()) {
-				const shiftName = shiftStore.currentShift?.name;
-				if (shiftName) {
-					const [serverDrafts, serverQuotations] = await Promise.all([
-						call("pos_next.api.invoices.get_draft_invoices", {
-							pos_opening_shift: shiftName,
-							doctype: "Sales Order"
-						}),
-						call("pos_next.api.invoices.get_draft_invoices", {
-							pos_opening_shift: shiftName,
-							doctype: "Quotation"
-						})
-					]);
-
-					const mappedDrafts = (serverDrafts || []).map(draft => ({
-						draft_id: draft.name,
+				const shiftName = shiftStore.currentShift?.name || "";
+				const [serverDrafts, serverQuotations] = await Promise.all([
+					call("pos_next.api.invoices.get_draft_invoices", {
+						pos_opening_shift: shiftName,
 						doctype: "Sales Order",
-						docstatus: draft.docstatus,
-						status: draft.status,
-						owner: draft.owner,
-						customer: draft.customer ? { name: draft.customer, customer_name: draft.customer_name || draft.customer } : null,
-						created_at: draft.creation,
-						items: (draft.items || []).map(item => ({
-							item_code: item.item_code,
-							item_name: item.item_name,
-							rate: item.rate,
-							price_list_rate: item.price_list_rate,
-							quantity: item.qty || item.quantity,
-							uom: item.uom,
-							stock_uom: item.stock_uom || item.uom,
-							custom_medida: item.custom_medida || "",
-							image: item.image,
-							so_detail: item.name, // Link to Sales Order Item child row ID
-						})),
-						applied_offers: draft.applied_offers || [],
-					}));
-
-					const mappedQuotations = (serverQuotations || []).map(draft => ({
-						draft_id: draft.name,
+					}),
+					call("pos_next.api.invoices.get_draft_invoices", {
+						pos_opening_shift: shiftName,
 						doctype: "Quotation",
-						docstatus: draft.docstatus,
-						status: draft.status,
-						owner: draft.owner,
-						customer: draft.party_name ? { name: draft.party_name, customer_name: draft.customer_name || draft.party_name } : null,
-						created_at: draft.creation,
-						items: (draft.items || []).map(item => ({
-							item_code: item.item_code,
-							item_name: item.item_name,
-							rate: item.rate,
-							price_list_rate: item.price_list_rate,
-							quantity: item.qty || item.quantity,
-							uom: item.uom,
-							stock_uom: item.stock_uom || item.uom,
-							custom_medida: item.custom_medida || "",
-							image: item.image,
-							so_detail: item.name, // Will be mapped to quotation_item during checkout
-						})),
-						applied_offers: draft.applied_offers || [],
-					}));
+					}),
+				]);
 
-					const allDrafts = [...mappedDrafts, ...mappedQuotations];
-					allDrafts.sort((a, b) => {
-						const dateA = a.created_at ? new Date(a.created_at) : 0;
-						const dateB = b.created_at ? new Date(b.created_at) : 0;
-						return dateB - dateA;
-					});
-					drafts.value = allDrafts;
-					draftsCount.value = drafts.value.length;
-					return;
-				}
+				const mappedDrafts = (serverDrafts || []).map((draft) => ({
+					draft_id: draft.name,
+					doctype: "Sales Order",
+					docstatus: draft.docstatus,
+					status: draft.status,
+					owner: draft.owner,
+					customer: draft.customer
+						? { name: draft.customer, customer_name: draft.customer_name || draft.customer }
+						: null,
+					created_at: draft.creation,
+					items: (draft.items || []).map((item) => ({
+						item_code: item.item_code,
+						item_name: item.item_name,
+						rate: item.rate,
+						price_list_rate: item.price_list_rate,
+						quantity: item.qty || item.quantity,
+						uom: item.uom,
+						stock_uom: item.stock_uom || item.uom,
+						custom_medida: item.custom_medida || "",
+						image: item.image,
+						so_detail: item.name, // Link to Sales Order Item child row ID
+					})),
+					applied_offers: draft.applied_offers || [],
+				}));
+
+				const mappedQuotations = (serverQuotations || []).map((draft) => ({
+					draft_id: draft.name,
+					doctype: "Quotation",
+					docstatus: draft.docstatus,
+					status: draft.status,
+					owner: draft.owner,
+					customer: draft.party_name
+						? { name: draft.party_name, customer_name: draft.customer_name || draft.party_name }
+						: null,
+					created_at: draft.creation,
+					items: (draft.items || []).map((item) => ({
+						item_code: item.item_code,
+						item_name: item.item_name,
+						rate: item.rate,
+						price_list_rate: item.price_list_rate,
+						quantity: item.qty || item.quantity,
+						uom: item.uom,
+						stock_uom: item.stock_uom || item.uom,
+						custom_medida: item.custom_medida || "",
+						image: item.image,
+						so_detail: item.name, // Will be mapped to quotation_item during checkout
+					})),
+					applied_offers: draft.applied_offers || [],
+				}));
+
+				const allDrafts = [...mappedDrafts, ...mappedQuotations];
+				allDrafts.sort((a, b) => {
+					const dateA = a.created_at ? new Date(a.created_at) : 0;
+					const dateB = b.created_at ? new Date(b.created_at) : 0;
+					return dateB - dateA;
+				});
+				drafts.value = allDrafts;
+				draftsCount.value = drafts.value.length;
+				return;
 			}
-			
+
 			// Fallback to local
 			drafts.value = await getAllDrafts();
 			draftsCount.value = drafts.value.length;

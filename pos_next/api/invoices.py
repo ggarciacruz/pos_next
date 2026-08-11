@@ -1844,6 +1844,7 @@ def get_draft_invoices(pos_opening_shift, doctype="Sales Order"):
 		fields=["name"],
 		limit_page_length=0,
 		order_by="modified desc",
+		ignore_permissions=True,
 	)
 
 	# Performance: Batch load all documents at once using get_cached_doc

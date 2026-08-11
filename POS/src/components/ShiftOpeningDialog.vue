@@ -78,7 +78,19 @@
 					</div>
 
 					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-3 text-start">
+						<div v-if="!canCheckout" class="mb-4 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-start">
+							<div class="flex items-center gap-2 text-blue-800 font-bold text-xs mb-1">
+								<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+								<span>{{ __("Modo Vendedor (Preventa & Cotizaciones)") }}</span>
+							</div>
+							<p class="text-xs text-blue-700">
+								{{ __("Operación comercial sin arqueo de efectivo. Las ventas se cobran en la caja principal por un cajero autorizaciones.") }}
+							</p>
+						</div>
+
+						<label v-else class="block text-sm font-medium text-gray-700 mb-3 text-start">
 							{{ __("Opening Balance (Optional)") }}
 						</label>
 
@@ -254,6 +266,10 @@ import { useShift } from "../composables/useShift";
 import { useFormatters } from "../composables/useFormatters";
 import ShiftClosingDialog from "./ShiftClosingDialog.vue";
 import TranslatedHTML from "./common/TranslatedHTML.vue";
+import { useBootstrapStore } from "../stores/bootstrap";
+
+const bootstrapStore = useBootstrapStore();
+const canCheckout = computed(() => bootstrapStore.canCheckout());
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -363,7 +379,12 @@ function selectPosProfile(profile) {
 async function nextStep() {
 	if (step.value === 1 && selectedProfile.value) {
 		await dialogDataResource.fetch();
-		step.value = 2;
+		if (!canCheckout.value) {
+			// Vendor role: bypass cash balances step and open shift immediately
+			await openShift();
+		} else {
+			step.value = 2;
+		}
 	}
 }
 

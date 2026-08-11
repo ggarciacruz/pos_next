@@ -1023,10 +1023,10 @@ export function useInvoice() {
 
 				if (targetDoctype === "Sales Invoice") {
 					if (emitOfficialInvoice) {
-						invoiceData.naming_series = "ACC-SINV-.YYYY.-";
+						invoiceData.naming_series = "CF-.YYYY.-";
 						invoiceData.taxes_and_charges = "IVA Débito Fiscal - NE";
 					} else {
-						invoiceData.naming_series = "NV-.YYYY.-";
+						invoiceData.naming_series = "SF-.YYYY.-";
 						invoiceData.taxes_and_charges = "";
 					}
 					

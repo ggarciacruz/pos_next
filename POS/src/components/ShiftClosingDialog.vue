@@ -452,6 +452,43 @@
 						<div class="p-3 md:p-6">
 							<!-- ENTRY MODE: Simple blind input list (when hideExpectedAmount is enabled and not showing report) -->
 							<div v-if="isInEntryMode" class="flex flex-col gap-3 md:gap-4">
+								<!-- VENDOR NOTICE (when !canCheckout) -->
+								<div v-if="!canCheckout" class="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-start flex flex-col gap-3">
+									<div class="flex items-center gap-2.5 text-slate-800 font-bold text-sm">
+										<div class="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
+											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+											</svg>
+										</div>
+										<div>
+											<h4>{{ __("Resumen de Cierre Comercial (Perfil Vendedor)") }}</h4>
+											<p class="text-xs text-slate-500 font-normal mt-0.5">
+												{{ __("Finalización de jornada comercial sin manejo de dinero ni arqueo de caja físico.") }}
+											</p>
+										</div>
+									</div>
+									<div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+										<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+											<span class="text-[11px] text-slate-500 font-medium uppercase tracking-wider block mb-1">
+												{{ __("Total Operaciones") }}
+											</span>
+											<span class="text-base font-bold text-slate-900">
+												{{ closingData.sales_count || salesInvoiceCount }}
+											</span>
+										</div>
+										<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+											<span class="text-[11px] text-slate-500 font-medium uppercase tracking-wider block mb-1">
+												{{ __("Monto Total Preventas") }}
+											</span>
+											<span class="text-base font-bold text-blue-600">
+												{{ formatCurrency(closingData.grand_total) }}
+											</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- CASHIER ENTRY INPUTS (when canCheckout) -->
+								<template v-else>
 								<div
 									v-for="(payment, idx) in closingData.payment_reconciliation"
 									:key="idx"
@@ -501,6 +538,7 @@
 										</div>
 									</div>
 								</div>
+								</template>
 							</div>
 
 							<!-- REVIEW MODE: Full payment method cards (when not in entry mode) -->
@@ -952,7 +990,13 @@
 						:loading="submitResource.loading"
 						:disabled="!canSubmit"
 					>
-						{{ submitResource.loading ? __("Closing Shift...") : __("Close Shift") }}
+						{{
+							submitResource.loading
+								? __("Closing Shift...")
+								: !canCheckout
+									? __("Finalizar Jornada de Ventas")
+									: __("Close Shift")
+						}}
 					</Button>
 
 					<Button
@@ -981,6 +1025,10 @@ import { usePOSSettingsStore } from "../stores/posSettings";
 import { usePOSShiftStore } from "../stores/posShift";
 import { printEODReport } from "../utils/printEod";
 import TranslatedHTML from "./common/TranslatedHTML.vue";
+import { useBootstrapStore } from "../stores/bootstrap";
+
+const bootstrapStore = useBootstrapStore();
+const canCheckout = computed(() => bootstrapStore.canCheckout());
 
 const props = defineProps({
 	modelValue: {
@@ -1108,6 +1156,7 @@ function updateClosingAmount(payment, value) {
 
 const canSubmit = computed(() => {
 	if (!closingData.value || !closingData.value.payment_reconciliation) return false;
+	if (!canCheckout.value) return true; // Vendor role: shift closing is always ready to submit
 
 	// Check if all closing amounts have been manually entered
 	return closingData.value.payment_reconciliation.every(

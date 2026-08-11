@@ -917,28 +917,17 @@
 						}}</span>
 					</button>
 
-					<!-- Close Shift -->
+					<!-- Close Shift (Enabled for all roles: Cashier physical reconciliation & Vendor commercial summary) -->
 					<button
 						type="button"
 						@click="handleCloseShift"
-						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
-						:class="!canCheckout ? 'opacity-80 cursor-not-allowed' : 'hover:border-orange-300 hover:bg-orange-50'"
+						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group hover:border-orange-300 hover:bg-orange-50 cursor-pointer"
 						:title="__('Close current shift')"
 					>
 						<div
-							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors"
-							:class="!canCheckout ? 'bg-gray-100' : 'bg-orange-50 group-hover:bg-orange-100'"
+							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors bg-orange-50 group-hover:bg-orange-100"
 						>
 							<svg
-								v-if="!canCheckout"
-								class="w-5 h-5 text-gray-400"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-							>
-								<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-							</svg>
-							<svg
-								v-else
 								class="w-5 h-5 text-orange-600"
 								fill="none"
 								stroke="currentColor"
@@ -948,12 +937,12 @@
 									stroke-linecap="round"
 									stroke-linejoin="round"
 									stroke-width="2"
-									d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+									d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
 								/>
 							</svg>
 						</div>
 						<span class="text-[11px] sm:text-xs font-semibold text-gray-700">{{
-							__("Close Shift")
+							__("Cerrar Turno")
 						}}</span>
 					</button>
 
@@ -1541,7 +1530,8 @@
 								d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
 							/>
 						</svg>
-						<span>{{ __("Checkout") }}</span>
+						<span v-if="!canCheckout">{{ __("Solo Cajero (Cobrar Deshabilitado)") }}</span>
+						<span v-else>{{ __("Checkout") }}</span>
 					</button>
 				</div>
 
@@ -1558,21 +1548,13 @@
 							<span class="w-2 h-2 rounded-full bg-orange-500 shadow-sm shadow-orange-300"></span>
 							<span class="text-xs font-bold text-gray-700 tracking-wide">{{ __("Pre-venta") }}</span>
 						</div>
-						<div class="flex items-center gap-1.5 flex-1 justify-end max-w-[200px]">
-							<button
-								type="button"
-								@click="$emit('save-draft', false)"
-								class="flex-1 py-1 px-2 rounded-md font-bold text-[10px] text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200/80 border border-orange-200/50 transition-all flex items-center justify-center gap-1 active:scale-[0.97]"
-							>
-								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-								<span>{{ __("Borrador") }}</span>
-							</button>
+						<div class="flex items-center gap-1.5 flex-1 justify-end max-w-[140px]">
 							<button
 								type="button"
 								@click="$emit('save-draft', true)"
-								class="flex-1 py-1 px-2 rounded-md font-bold text-[10px] text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 active:scale-[0.97] transition-all flex items-center justify-center gap-1"
+								class="w-full py-1.5 px-3 rounded-md font-bold text-xs text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 active:scale-[0.97] transition-all flex items-center justify-center gap-1.5 shadow-sm"
 							>
-								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
 								<span>{{ __("Validar") }}</span>
 							</button>
 						</div>
@@ -1584,21 +1566,13 @@
 							<span class="w-2 h-2 rounded-full bg-blue-500 shadow-sm shadow-blue-300"></span>
 							<span class="text-xs font-bold text-gray-700 tracking-wide">{{ __("Cotización") }}</span>
 						</div>
-						<div class="flex items-center gap-1.5 flex-1 justify-end max-w-[200px]">
-							<button
-								type="button"
-								@click="$emit('save-quotation', false)"
-								class="flex-1 py-1 px-2 rounded-md font-bold text-[10px] text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200/80 border border-blue-200/50 transition-all flex items-center justify-center gap-1 active:scale-[0.97]"
-							>
-								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-								<span>{{ __("Borrador") }}</span>
-							</button>
+						<div class="flex items-center gap-1.5 flex-1 justify-end max-w-[140px]">
 							<button
 								type="button"
 								@click="$emit('save-quotation', true)"
-								class="flex-1 py-1 px-2 rounded-md font-bold text-[10px] text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:scale-[0.97] transition-all flex items-center justify-center gap-1"
+								class="w-full py-1.5 px-3 rounded-md font-bold text-xs text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:scale-[0.97] transition-all flex items-center justify-center gap-1.5 shadow-sm"
 							>
-								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
 								<span>{{ __("Validar") }}</span>
 							</button>
 						</div>
@@ -1812,17 +1786,15 @@ function clearActiveDraft() {
 
 function handleProceedToPayment() {
 	if (!canCheckout.value) {
-		showWarning(__("This function is reserved for cashiers."));
+		showWarning(
+			__("Tu perfil de usuario es Vendedor. Solo estás autorizado a generar Pre-ventas y Cotizaciones. El cobro debe ser procesado en la caja por un Cajero.")
+		);
 		return;
 	}
 	emit("proceed-to-payment");
 }
 
 function handleCloseShift() {
-	if (!canCheckout.value) {
-		showWarning(__("This function is reserved for cashiers."));
-		return;
-	}
 	emit("close-shift");
 }
 
