@@ -30,6 +30,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		// Display Settings
 		default_card_view: 0,
 		display_item_code: 0,
+		item_title_display: "Item Name",
 		show_customer_balance: 0,
 		hide_expected_amount: 0,
 		display_discount_percentage: 0,
@@ -49,6 +50,8 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allow_duplicate_customer_names: 0,
 		fetch_coupon: 0,
 		// Printing
+		receipt_header_title: "Recibo de Venta",
+		enable_siat_fiscal_format: 0,
 		allow_print_last_invoice: 0,
 		silent_print: 0,
 		// Delivery
@@ -106,6 +109,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	// Computed - Display Settings
 	const defaultCardView = computed(() => Boolean(settings.value.default_card_view));
 	const displayItemCode = computed(() => Boolean(settings.value.display_item_code));
+	const itemTitleDisplay = computed(
+		() => settings.value.item_title_display || (settings.value.display_item_code ? "Item Code" : "Item Name")
+	);
 	const showCustomerBalance = computed(() => Boolean(settings.value.show_customer_balance));
 	const hideExpectedAmount = computed(() => Boolean(settings.value.hide_expected_amount));
 	const displayDiscountPercentage = computed(() =>
@@ -141,6 +147,12 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	const fetchCoupon = computed(() => Boolean(settings.value.fetch_coupon));
 
 	// Computed - Printing
+	const receiptHeaderTitle = computed(
+		() => settings.value.receipt_header_title || "Recibo de Venta"
+	);
+	const enableSiatFiscalFormat = computed(() =>
+		Boolean(settings.value.enable_siat_fiscal_format)
+	);
 	const allowPrintLastInvoice = computed(() => Boolean(settings.value.allow_print_last_invoice));
 	const silentPrint = computed(() => Boolean(settings.value.silent_print));
 
@@ -253,6 +265,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			use_exact_amount: 0,
 			default_card_view: 0,
 			display_item_code: 0,
+			item_title_display: "Item Name",
 			show_customer_balance: 0,
 			hide_expected_amount: 0,
 			display_discount_percentage: 0,
@@ -268,6 +281,8 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			allow_customer_purchase_order: 0,
 			allow_duplicate_customer_names: 0,
 			fetch_coupon: 0,
+			receipt_header_title: "Recibo de Venta",
+			enable_siat_fiscal_format: 0,
 			allow_print_last_invoice: 0,
 			silent_print: 0,
 			use_delivery_charges: 0,
@@ -368,6 +383,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		// Computed - Display Settings
 		defaultCardView,
 		displayItemCode,
+		itemTitleDisplay,
 		showCustomerBalance,
 		hideExpectedAmount,
 		displayDiscountPercentage,
@@ -391,6 +407,8 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		fetchCoupon,
 
 		// Computed - Printing
+		receiptHeaderTitle,
+		enableSiatFiscalFormat,
 		allowPrintLastInvoice,
 		silentPrint,
 

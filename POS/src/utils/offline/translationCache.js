@@ -19,8 +19,9 @@ const log = logger.create("TranslationCache");
  * @module translationCache
  */
 
-/** @constant {number} Cache time-to-live in milliseconds (24 hours) */
-const CACHE_TTL = 24 * 60 * 60 * 1000;
+/** @constant {number} Cache time-to-live in milliseconds (1 hour) */
+const CACHE_TTL = 1 * 60 * 60 * 1000;
+const CACHE_VERSION = "v4";
 
 /** @type {Map<string, TranslationEntry>} In-memory cache for fast lookups */
 const memoryCache = new Map();
@@ -37,10 +38,11 @@ const pendingRefreshes = new Map();
 
 /**
  * Normalizes locale codes to lowercase, defaulting to "en".
+ * Uses version prefix to automatically invalidate obsolete client caches.
  * @param {string|null|undefined} locale - Raw locale code
- * @returns {string} Normalized lowercase locale
+ * @returns {string} Normalized versioned locale
  */
-const normalizeLocale = (locale) => (locale || "en").toLowerCase();
+const normalizeLocale = (locale) => `${CACHE_VERSION}_${(locale || "en").toLowerCase()}`;
 
 /**
  * Persists translation entry to both memory and IndexedDB.

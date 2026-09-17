@@ -1,5 +1,5 @@
 <template>
-	<Dialog v-model="show" :options="{ title: __('Invoice History'), size: '5xl' }">
+	<Dialog v-model="show" :options="{ title: __('Sales History'), size: '5xl' }">
 		<template #body-content>
 			<div class="flex flex-col gap-4">
 				<!-- Filters -->

@@ -32,6 +32,8 @@ POS_SETTINGS_FIELDS = [
 	"allow_negative_stock",
 	"enable_sales_persons",
 	"silent_print",
+	"receipt_header_title",
+	"enable_siat_fiscal_format",
 	"allow_print_draft_invoices",
 	"allow_sales_order",
 	"allow_select_sales_order",
@@ -39,6 +41,8 @@ POS_SETTINGS_FIELDS = [
 	"enable_session_lock",
 	"session_lock_timeout",
 	"show_variants_as_items",
+	"display_item_code",
+	"item_title_display",
 ]
 
 # Default POS Settings values
@@ -62,6 +66,8 @@ DEFAULT_POS_SETTINGS = {
 	"allow_negative_stock": 0,
 	"enable_sales_persons": "Disabled",
 	"silent_print": 0,
+	"receipt_header_title": "Recibo de Venta",
+	"enable_siat_fiscal_format": 0,
 	"allow_print_draft_invoices": 0,
 	"allow_sales_order": 0,
 	"allow_select_sales_order": 0,
@@ -69,4 +75,6 @@ DEFAULT_POS_SETTINGS = {
 	"enable_session_lock": 0,
 	"session_lock_timeout": 5,
 	"show_variants_as_items": 0,
+	"display_item_code": 0,
+	"item_title_display": "Item Name",
 }

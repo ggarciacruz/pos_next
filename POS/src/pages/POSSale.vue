@@ -97,7 +97,7 @@
 								d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 							/>
 						</svg>
-						<span>{{ __("Invoice History") }}</span>
+						<span>{{ __("Sales History") }}</span>
 					</button>
 					<button
 						v-if="offlineStore.pendingInvoicesCount > 0"
@@ -145,7 +145,7 @@
 								d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
 							/>
 						</svg>
-						<span>{{ __("Return Invoice") }}</span>
+						<span>{{ __("Return Sale") }}</span>
 					</button>
 					<button
 						v-if="canAccessShiftActions && canSwitchToDesk"

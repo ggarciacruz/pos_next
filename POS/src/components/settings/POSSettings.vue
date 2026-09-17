@@ -716,6 +716,25 @@
 													__('Enable partial payment for invoices')
 												"
 											/>
+											<SelectField
+												v-model="settings.receipt_header_title"
+												:label="__('Receipt Header Title')"
+												:options="receiptTitleOptions"
+												:description="
+													__(
+														'Title printed at the top of receipts and sales vouchers'
+													)
+												"
+											/>
+											<CheckboxField
+												v-model="settings.enable_siat_fiscal_format"
+												:label="__('Enable SIAT Fiscal Receipt Format')"
+												:description="
+													__(
+														'Print tributary details including CUF, fiscal QR code and SIN tax notices'
+													)
+												"
+											/>
 											<CheckboxField
 												v-model="settings.silent_print"
 												:label="__('Silent Print')"
@@ -1195,9 +1214,19 @@ const settings = ref({
 	allow_write_off_change: 0,
 	allow_partial_payment: 0,
 	silent_print: 0,
+	receipt_header_title: "Recibo de Venta",
+	enable_siat_fiscal_format: 0,
 	allow_negative_stock: 0,
 	tax_inclusive: 0,
 });
+
+const receiptTitleOptions = [
+	{ label: "Recibo de Venta", value: "Recibo de Venta" },
+	{ label: "Nota de Venta", value: "Nota de Venta" },
+	{ label: "Comprobante de Venta", value: "Comprobante de Venta" },
+	{ label: "Ticket de Venta", value: "Ticket de Venta" },
+	{ label: "Factura", value: "Factura" },
+];
 
 // Stock Sync Settings (localStorage persisted)
 const stockSyncEnabled = ref(false);

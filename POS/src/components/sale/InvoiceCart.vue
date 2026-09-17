@@ -837,13 +837,13 @@
 						}}</span>
 					</button>
 
-					<!-- Invoice History -->
+					<!-- Sales History -->
 					<button
 						type="button"
 						@click="handleInvoiceHistory"
 						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
 						:class="!canCheckout ? 'opacity-80 cursor-not-allowed' : 'hover:border-gray-300 hover:bg-gray-50'"
-						:title="__('View invoice history')"
+						:title="__('View sales history')"
 					>
 						<div
 							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors"
@@ -873,17 +873,17 @@
 							</svg>
 						</div>
 						<span class="text-[11px] sm:text-xs font-semibold text-gray-700">{{
-							__("Invoice History")
+							__("Sales History")
 						}}</span>
 					</button>
 
-					<!-- Return Invoice -->
+					<!-- Return Sale -->
 					<button
 						type="button"
 						@click="handleReturnInvoice"
 						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
 						:class="!canCheckout ? 'opacity-80 cursor-not-allowed' : 'hover:border-red-300 hover:bg-red-50'"
-						:title="__('Process return invoice')"
+						:title="__('Process return sale')"
 					>
 						<div
 							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors"
@@ -913,7 +913,7 @@
 							</svg>
 						</div>
 						<span class="text-[11px] sm:text-xs font-semibold text-gray-700">{{
-							__("Return Invoice")
+							__("Return Sale")
 						}}</span>
 					</button>
 
@@ -1032,8 +1032,9 @@
 								<div class="flex items-center gap-1.5 flex-1 min-w-0">
 									<h4
 										class="text-xs sm:text-sm font-extrabold text-gray-900 truncate leading-tight"
+										:title="getItemTitle(item)"
 									>
-										{{ item.item_code }} <span v-if="item.custom_medida || item.medida" class="text-gray-500 font-semibold text-[11px] ml-1">({{ item.custom_medida || item.medida }})</span>
+										{{ getItemTitle(item) }} <span v-if="item.custom_medida || item.medida" class="text-gray-500 font-semibold text-[11px] ml-1">({{ item.custom_medida || item.medida }})</span>
 									</h4>
 									<!-- Free Item Badge -->
 									<span
@@ -1762,6 +1763,18 @@ const bootstrapStore = useBootstrapStore();
 const { showWarning } = useToast();
 const { formatQuantity } = useFormatters(); // Quantity formatting utilities
 const showPromoButtons = ref(false); // Cambiar a true si el cliente desea habilitar Ofertas y Cupones en el futuro.
+
+function getItemTitle(item) {
+	if (!item) return "";
+	const mode = settingsStore.itemTitleDisplay;
+	if (mode === "Item Code") {
+		return item.item_code;
+	}
+	if (mode === "Item Name & Code" && item.item_code && item.item_name && item.item_code !== item.item_name) {
+		return `${item.item_name} (${item.item_code})`;
+	}
+	return item.item_name || item.item_code;
+}
 
 const canCheckout = computed(() => bootstrapStore.canCheckout());
 

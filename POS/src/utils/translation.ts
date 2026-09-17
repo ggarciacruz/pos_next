@@ -106,6 +106,15 @@ export function translate(msg: string, replace?: Record<string, string>, ctx?: s
   const key = ctx ? `${msg}:${ctx}` : msg
   let translated = messages[key] || messages[msg] || msg
 
+  // Override legacy invoice terminology with sales terminology in Spanish
+  if (translated === "Historial de Facturas") {
+    translated = "Historial de Ventas"
+  } else if (translated === "Devolver Factura") {
+    translated = "Devolver Venta"
+  } else if (translated === "Facturas Fuera de Línea" || translated === "Facturas fuera de línea") {
+    translated = "Ventas fuera de línea"
+  }
+
   if (replace) {
     translated = translated.replace(/{(\d+)}/g, (_, n) => replace[n] ?? _)
   }
@@ -189,6 +198,13 @@ async function loadLocale(locale: string, options: LoadOptions = {}) {
       appliedFromCache = true
 
       if (!translationCache.isStale(cached.timestamp) && !forceNetwork) {
+        // Stale-While-Revalidate: revalidate in background to capture server updates
+        translationCache
+          .getFresh(target, () => requestTranslations(), { force: true })
+          .then((entry) => {
+            if (entry?.messages) applyMessages(entry.messages)
+          })
+          .catch((err) => log.warn("Background translation revalidation failed", err))
         return true
       }
     }

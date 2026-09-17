@@ -580,13 +580,21 @@
 
 						<!-- Item Details -->
 						<div class="min-w-0">
-							<!-- Primary: Item Code -->
+							<!-- Primary Title (Configurable: Item Name vs Item Code) -->
 							<h3
 								class="text-[10px] sm:text-xs font-bold text-gray-900 truncate mb-0.5 leading-tight"
-								:title="item.item_code"
+								:title="getItemPrimaryTitle(item)"
 							>
-								{{ item.item_code }}
+								{{ getItemPrimaryTitle(item) }}
 							</h3>
+							<!-- Secondary Code if Item Name & Code mode -->
+							<p
+								v-if="getItemSecondaryTitle(item)"
+								class="text-[8px] sm:text-[9px] font-mono text-gray-400 truncate leading-tight mb-0.5"
+								:title="getItemSecondaryTitle(item)"
+							>
+								{{ getItemSecondaryTitle(item) }}
+							</p>
 							<!-- Subtitle: Custom Medida -->
 							<p
 								v-if="item.custom_medida"
@@ -792,9 +800,9 @@
 							</th>
 							<th
 								scope="col"
-								class="px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 sm:max-w-[120px]"
+								class="px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 sm:max-w-[200px]"
 							>
-								{{ __("Code") }}
+								{{ settingsStore.itemTitleDisplay === 'Item Code' ? __('Code') : __('Product') }}
 							</th>
 							<th
 								scope="col"
@@ -888,13 +896,20 @@
 								</div>
 							</td>
 							<td
-								class="px-2 sm:px-3 py-2 sm:max-w-[120px]"
+								class="px-2 sm:px-3 py-2 sm:max-w-[200px]"
 							>
 								<div
 									class="text-xs sm:text-sm text-gray-900 font-medium truncate"
-									:title="item.item_code"
+									:title="getItemPrimaryTitle(item)"
 								>
-									{{ item.item_code }}
+									{{ getItemPrimaryTitle(item) }}
+								</div>
+								<div
+									v-if="getItemSecondaryTitle(item)"
+									class="text-[10px] sm:text-xs text-gray-400 font-mono truncate"
+									:title="getItemSecondaryTitle(item)"
+								>
+									{{ getItemSecondaryTitle(item) }}
 								</div>
 							</td>
 							<td
@@ -1149,6 +1164,26 @@ const currentWarehouseName = computed(() => {
 	// Replace hyphen with a space to make it look premium (e.g. "Sucursal - NE" -> "Sucursal NE")
 	return wh.replace(/\s*-\s*/g, ' ');
 });
+
+function getItemPrimaryTitle(item) {
+	if (!item) return "";
+	const mode = settingsStore.itemTitleDisplay;
+	if (mode === "Item Code") {
+		return item.item_code;
+	}
+	return item.item_name || item.item_code;
+}
+
+function getItemSecondaryTitle(item) {
+	if (!item) return null;
+	const mode = settingsStore.itemTitleDisplay;
+	if (mode === "Item Name & Code") {
+		if (item.item_code && item.item_name && item.item_code !== item.item_name) {
+			return item.item_code;
+		}
+	}
+	return null;
+}
 
 const itemStore = useItemSearchStore();
 const {

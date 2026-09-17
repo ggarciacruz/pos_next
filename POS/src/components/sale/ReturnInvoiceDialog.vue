@@ -1,5 +1,5 @@
 <template>
-	<Dialog v-model="showDialog" :options="{ title: __('Create Return Invoice'), size: '5xl' }">
+	<Dialog v-model="showDialog" :options="{ title: __('Create Return Sale'), size: '5xl' }">
 		<template #body-content>
 			<div class="flex flex-col gap-4">
 				<!-- Offline Mode Warning -->

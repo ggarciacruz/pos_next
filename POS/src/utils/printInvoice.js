@@ -8,6 +8,7 @@ import { getCurrencySymbol } from "@/utils/currency";
 import { db } from "@/utils/offline/db";
 import { session } from "@/data/session";
 import { userData } from "@/data/user";
+import { usePOSSettingsStore } from "@/stores/posSettings";
 
 const log = logger.create("PrintInvoice");
 
@@ -16,6 +17,31 @@ const DEFAULT_PRINT_FORMAT = "MDX POS Receipt";
 // ============================================================================
 // Shared helpers
 // ============================================================================
+
+function getPOSPrintSettings(invoiceData = {}) {
+	let storeSettings = null;
+	try {
+		const store = usePOSSettingsStore();
+		if (store) {
+			storeSettings = store;
+		}
+	} catch (e) {
+		// Store unmounted or called outside component tree
+	}
+
+	const headerTitle =
+		invoiceData.receipt_header_title ||
+		storeSettings?.receiptHeaderTitle ||
+		"Recibo de Venta";
+
+	const isFiscal = Boolean(
+		invoiceData.enable_siat_fiscal_format ??
+		storeSettings?.enableSiatFiscalFormat ??
+		0
+	);
+
+	return { headerTitle, isFiscal };
+}
 
 function formatCurrency(amount) {
 	return Number.parseFloat(amount || 0).toFixed(2);
@@ -398,36 +424,126 @@ export function buildReceiptHTML(invoiceData) {
 		})
 		.join("");
 
-	const docLabel = isQuotation ? __("Cotización #:") : (isSalesOrder ? __("Pre-venta #:") : __("Factura #:"));
-	const displayHeader = isQuotation ? __("COTIZACIÓN") : (isSalesOrder ? __("PRE-VENTA") : __("FACTURA"));
+	const { headerTitle, isFiscal } = getPOSPrintSettings(invoiceData);
+	const docLabel = isQuotation ? __("Cotización #:") : (isSalesOrder ? __("Pre-venta #:") : `${headerTitle} #:`);
+	const displayHeader = isQuotation ? __("COTIZACIÓN") : (isSalesOrder ? __("PRE-VENTA") : headerTitle.toUpperCase());
 
 	if (isInvoice) {
 		const invoiceNumber = getInvoiceNumber(invoiceData.name);
-		const cuf = getCUF(invoiceData);
-		const customerName = (invoiceData.customer_name || invoiceData.customer || "SIN NOMBRE").toUpperCase();
-		const customerTaxId = invoiceData.tax_id || invoiceData.customer_tax_id || "0";
-		const qrData = `https://siat.impuestos.gob.bo/consulta/QR?nit=102384729023&cuf=${cuf}&numero=${invoiceNumber}&fecha=${invoiceData.posting_date || new Date().toISOString().slice(0,10)}&monto=${formatCurrency(invoiceData.grand_total)}`;
-		const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrData)}`;
+		const customerName = (invoiceData.customer_name || invoiceData.customer || "CLIENTE GENERAL").toUpperCase();
+		const customerTaxId = invoiceData.tax_id || invoiceData.customer_tax_id || "";
 		const amountInWords = numberToSpanishWords(invoiceData.grand_total);
+		const companyName = invoiceData.company || "";
+		const companyAddress = invoiceData.company_address || "";
+		const companyPhone = invoiceData.company_phone || "";
+		const companyCity = invoiceData.company_city || "";
+
+		if (!isFiscal) {
+			// ================================================================
+			// FORMATO COMERCIAL LIMPIO: RECIBO / NOTA DE VENTA (POR DEFECTO)
+			// ================================================================
+			return `
+			<div class="receipt" style="font-family: monospace, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #000;">
+				<div class="header" style="text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed #000;">
+					<div class="company-name" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${companyName}</div>
+					${companyAddress ? `<div style="font-size: 9.5px; font-weight: normal; margin-bottom: 1px;">${companyAddress}</div>` : ""}
+					${companyPhone ? `<div style="font-size: 9.5px; font-weight: normal; margin-bottom: 1px;">Tel: ${companyPhone}</div>` : ""}
+					${companyCity ? `<div style="font-size: 9.5px; font-weight: normal; margin-bottom: 2px;">${companyCity}</div>` : ""}
+					<div style="font-size: 13px; font-weight: bold; letter-spacing: 0.5px; margin-top: 6px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0;">
+						${displayHeader}
+					</div>
+				</div>
+
+				<div class="invoice-info" style="font-size: 10.5px; margin-bottom: 8px; line-height: 1.4; border-bottom: 1px dashed #000; padding-bottom: 6px;">
+					<div style="display: flex; justify-content: space-between;"><span><strong>N° Venta:</strong></span><span>${invoiceNumber}</span></div>
+					<div style="display: flex; justify-content: space-between;"><span><strong>Fecha:</strong></span><span>${formatPrintDate(invoiceData.posting_date || invoiceData.creation)}</span></div>
+					<div style="display: flex; justify-content: space-between;"><span><strong>Cliente:</strong></span><span>${customerName}</span></div>
+					${customerTaxId && customerTaxId !== "0" ? `<div style="display: flex; justify-content: space-between;"><span><strong>NIT / CI:</strong></span><span>${customerTaxId}</span></div>` : ""}
+					${sellerName ? `<div style="display: flex; justify-content: space-between;"><span><strong>Vendedor:</strong></span><span>${sellerName}</span></div>` : ""}
+				</div>
+
+				<div class="items-table">
+					${itemsHtml}
+				</div>
+
+				<div class="totals" style="margin-top: 8px; border-top: 1px dashed #000; padding-top: 6px;">
+					${
+						invoiceData.discount_amount
+							? `
+					<div class="total-row" style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; color: #28a745;"><span>${__("Descuento Adicional")}${
+						invoiceData.additional_discount_percentage
+							? ` (${Number(invoiceData.additional_discount_percentage).toFixed(1)}%)`
+							: ""
+					}:</span><span>-${formatCurrency(Math.abs(invoiceData.discount_amount))}</span></div>`
+							: ""
+					}
+					<div class="total-row grand-total" style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; border-top: 2px solid #000; padding-top: 6px; margin-top: 4px;">
+						<span>${__("TOTAL A PAGAR {0}:", [currencySymbol])}</span><span>${formatCurrency(invoiceData.grand_total)}</span>
+					</div>
+				</div>
+
+				<div style="font-size: 9.5px; font-style: italic; margin-top: 6px; line-height: 1.3; font-weight: normal; text-align: center; border-bottom: 1px dashed #000; padding-bottom: 6px;">
+					${amountInWords}
+				</div>
+
+				${
+					invoiceData.payments && invoiceData.payments.length > 0
+						? `
+				<div class="payments" style="margin-top: 8px; padding-bottom: 6px; border-bottom: 1px dashed #000;">
+					<div style="font-weight: bold; margin-bottom: 4px; font-size: 11px;">${__("Detalle Pagos:")}</div>
+					${invoiceData.payments
+						.map(
+							(p) =>
+								`<div class="payment-row" style="display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 10px;"><span>${
+									p.mode_of_payment
+								}:</span><span>${formatCurrency(p.amount)}</span></div>`
+						)
+						.join("")}
+					<div class="payment-row total-paid" style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; font-size: 10.5px;"><span>${__("Total Pagado:")}</span><span>${formatCurrency(
+								paidAmount
+						  )}</span></div>
+					${
+						invoiceData.change_amount && invoiceData.change_amount > 0
+							? `<div class="payment-row" style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 2px; font-size: 10.5px;"><span>${__(
+									"Cambio:"
+							  )}</span><span>${formatCurrency(
+									invoiceData.change_amount
+							  )}</span></div>`
+							: ""
+					}
+				</div>`
+						: ""
+				}
+
+				<div class="footer" style="text-align: center; font-size: 10.5px; font-weight: bold; line-height: 1.4; margin-top: 14px; padding-top: 4px; color: #111;">
+					<div>${invoiceData.footer || __("¡GRACIAS POR SU COMPRA!")}</div>
+				</div>
+			</div>`;
+		}
+
+		// ================================================================
+		// FORMATO FISCAL TRIBUTARIO SIAT (CUANDO ENABLE_SIAT_FISCAL_FORMAT = 1)
+		// ================================================================
+		const cuf = getCUF(invoiceData);
+		const companyTaxId = invoiceData.company_tax_id || invoiceData.company_nit || "102384729023";
+		const qrData = `https://siat.impuestos.gob.bo/consulta/QR?nit=${companyTaxId}&cuf=${cuf}&numero=${invoiceNumber}&fecha=${invoiceData.posting_date || new Date().toISOString().slice(0,10)}&monto=${formatCurrency(invoiceData.grand_total)}`;
+		const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrData)}`;
 
 		return `
 			<div class="receipt">
 				<div class="header" style="text-align: center; margin-bottom: 12px; padding-bottom: 8px;">
-					<div class="company-name" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${invoiceData.company || ""}</div>
+					<div class="company-name" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${companyName}</div>
 					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">CASA MATRIZ</div>
-					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">${invoiceData.company_address || "Av. Banzer entre 3er y 4to Anillo"}</div>
-					<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">Teléfono: ${invoiceData.company_phone || "3345678"}</div>
-					<div style="font-size: 9px; font-weight: normal; margin-bottom: 2px;">${invoiceData.company_city || "Santa Cruz - Bolivia"}</div>
-					<div style="font-size: 8px; font-weight: normal; text-transform: uppercase; line-height: 1.2; padding: 0 4px; color: #333;">
-						Actividad: VENTA DE AUTO PARTES Y ACCESORIOS DE VEHÍCULOS
-					</div>
+					${companyAddress ? `<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">${companyAddress}</div>` : ""}
+					${companyPhone ? `<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">Teléfono: ${companyPhone}</div>` : ""}
+					${companyCity ? `<div style="font-size: 9px; font-weight: normal; margin-bottom: 2px;">${companyCity}</div>` : ""}
 					<div style="font-size: 13px; font-weight: bold; letter-spacing: 0.5px; margin-top: 8px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0;">
 						${displayHeader}
 					</div>
 				</div>
 
 				<div class="tributary-panel" style="font-size: 10px; margin: 10px 0; border: 1px solid #000; padding: 6px; border-radius: 4px; line-height: 1.4; font-family: monospace;">
-					<div><strong>NIT EMISOR:</strong> 102384729023</div>
+					<div><strong>NIT EMISOR:</strong> ${companyTaxId}</div>
 					<div><strong>NRO. FACTURA:</strong> ${invoiceNumber}</div>
 					<div><strong>NRO. AUTORIZACIÓN (CUF):</strong></div>
 					<div style="font-size: 7.5px; word-break: break-all; margin-top: 2px; line-height: 1.1; font-weight: normal;">${cuf}</div>
@@ -436,7 +552,7 @@ export function buildReceiptHTML(invoiceData) {
 				<div class="invoice-info" style="font-size: 10.5px; margin-bottom: 10px; line-height: 1.4; border-bottom: 1px dashed #000; padding-bottom: 8px;">
 					<div style="display: flex; justify-content: space-between;"><span><strong>Fecha:</strong></span><span>${new Date(invoiceData.posting_date || Date.now()).toLocaleDateString()}</span></div>
 					<div style="display: flex; justify-content: space-between;"><span><strong>Nombre/Razón Social:</strong></span><span>${customerName}</span></div>
-					<div style="display: flex; justify-content: space-between;"><span><strong>NIT/CI:</strong></span><span>${customerTaxId}</span></div>
+					<div style="display: flex; justify-content: space-between;"><span><strong>NIT/CI:</strong></span><span>${customerTaxId || "0"}</span></div>
 					${
 						sellerName
 							? `<div style="display: flex; justify-content: space-between;"><span><strong>Vendedor:</strong></span><span>${sellerName}</span></div>`
@@ -592,7 +708,7 @@ function buildReceiptDocumentHTML(invoiceData, { includeControls = false } = {})
 		<html>
 		<head>
 			<meta charset="UTF-8">
-			<title>${__("Invoice - {0}", [invoiceData.name])}</title>
+			<title>${getPOSPrintSettings(invoiceData).headerTitle} - ${invoiceData.name}</title>
 			<style>${RECEIPT_STYLES}</style>
 		</head>
 		<body>

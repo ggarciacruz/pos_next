@@ -31,6 +31,7 @@
   "section_break_display",
   "default_card_view",
   "display_item_code",
+  "item_title_display",
   "show_customer_balance",
   "column_break_display",
   "hide_expected_amount",
@@ -54,6 +55,8 @@
   "allow_duplicate_customer_names",
   "fetch_coupon",
   "section_break_printing",
+  "receipt_header_title",
+  "enable_siat_fiscal_format",
   "allow_print_last_invoice",
   "silent_print",
   "section_break_delivery",
@@ -265,6 +268,14 @@
    "label": "Display Item Code"
   },
   {
+   "default": "Item Name",
+   "description": "Configure whether products show Item Name, Item Code, or both as primary title in POS cards and tables",
+   "fieldname": "item_title_display",
+   "fieldtype": "Select",
+   "label": "Item Title Display",
+   "options": "Item Name\nItem Code\nItem Name & Code"
+  },
+  {
    "default": "0",
    "description": "Display customer balance on screen",
    "fieldname": "show_customer_balance",
@@ -415,6 +426,21 @@
    "fieldname": "section_break_printing",
    "fieldtype": "Section Break",
    "label": "Printing"
+  },
+  {
+   "default": "Recibo de Venta",
+   "description": "Título o encabezado principal del comprobante de impresión",
+   "fieldname": "receipt_header_title",
+   "fieldtype": "Select",
+   "label": "Título del Comprobante",
+   "options": "Recibo de Venta\nNota de Venta\nComprobante de Venta\nTicket de Venta\nFactura"
+  },
+  {
+   "default": "0",
+   "description": "Habilitar formato tributario SIAT (con CUF, QR de fiscalización y leyendas SIN)",
+   "fieldname": "enable_siat_fiscal_format",
+   "fieldtype": "Check",
+   "label": "Habilitar Formato Fiscal SIAT"
   },
   {
    "default": "0",

@@ -26,8 +26,21 @@ ITEM_RESULT_FIELDS = [
 	"has_variants",
 	"variant_of",
 	"disabled",
-	"custom_medida",
 ]
+
+def get_item_result_columns():
+	fields = [f"i.{col}" for col in ITEM_RESULT_FIELDS]
+	if frappe.db and frappe.db.has_column("Item", "custom_medida"):
+		fields.append("i.custom_medida")
+	else:
+		fields.append("'' as custom_medida")
+	return ",\n\t".join(fields)
+
+def get_item_group_by_columns():
+	fields = [f"i.{col.split(' as ')[0]}" for col in ITEM_RESULT_FIELDS]
+	if frappe.db and frappe.db.has_column("Item", "custom_medida"):
+		fields.append("i.custom_medida")
+	return ", ".join(fields)
 
 ITEM_RESULT_COLUMNS = ",\n\t".join(ITEM_RESULT_FIELDS)
 
@@ -1200,9 +1213,12 @@ def get_items(
 		)
 
 		# Build column list with table alias
-		item_columns = ",\n\t".join([f"i.{col}" for col in ITEM_RESULT_FIELDS])
+		has_custom_medida = bool(frappe.db and frappe.db.has_column("Item", "custom_medida"))
+		item_columns = get_item_result_columns()
 		# For GROUP BY, extract just the column name (before " as " if present)
-		group_by_columns = ", ".join([f"i.{col.split(' as ')[0]}" for col in ITEM_RESULT_FIELDS])
+		group_by_columns = get_item_group_by_columns()
+		medida_order = ", i.custom_medida ASC" if has_custom_medida else ""
+		medida_search = ", ' ', COALESCE(i.custom_medida, '')" if has_custom_medida else ""
 
 		# Add search conditions if search term provided
 		if effective_search_term and effective_search_term.strip():
@@ -1210,7 +1226,7 @@ def get_items(
 			search_words = [word.strip() for word in effective_search_term.split() if word.strip()]
 
 			# Word-order independent: all words must appear somewhere in item fields
-			search_text = "CONCAT(COALESCE(i.name, ''), ' ', COALESCE(i.item_name, ''), ' ', COALESCE(i.item_group, ''), ' ', COALESCE(i.description, ''), ' ', COALESCE(i.custom_medida, ''))"
+			search_text = f"CONCAT(COALESCE(i.name, ''), ' ', COALESCE(i.item_name, ''), ' ', COALESCE(i.item_group, ''), ' ', COALESCE(i.description, ''){medida_search})"
 			word_conditions = " AND ".join([f"{search_text} LIKE %s"] * len(search_words))
 
 			# Also match if barcode contains the search term
@@ -1243,11 +1259,11 @@ def get_items(
 				prefix_pattern,
 				prefix_pattern,
 			]
-			order_by = f"{relevance} DESC, i.item_group ASC, i.name ASC, i.custom_medida ASC"
+			order_by = f"{relevance} DESC, i.item_group ASC, i.name ASC{medida_order}"
 		else:
 			# No search term - simple ordering
 			score_params = []
-			order_by = "i.item_group ASC, i.name ASC, i.custom_medida ASC"
+			order_by = f"i.item_group ASC, i.name ASC{medida_order}"
 
 		where_clause = " AND ".join(conditions)
 
@@ -1598,8 +1614,10 @@ def get_items_bulk(
 			conditions.append(f"i.item_group IN ({placeholders})")
 			params.extend(all_groups)
 
-		item_columns = ",\n\t".join([f"i.{col}" for col in ITEM_RESULT_FIELDS])
-		group_by_columns = ", ".join([f"i.{col.split(' as ')[0]}" for col in ITEM_RESULT_FIELDS])
+		has_custom_medida = bool(frappe.db and frappe.db.has_column("Item", "custom_medida"))
+		item_columns = get_item_result_columns()
+		group_by_columns = get_item_group_by_columns()
+		medida_order = ", i.custom_medida ASC" if has_custom_medida else ""
 
 		where_clause = " AND ".join(conditions)
 		query = f"""
@@ -1611,7 +1629,7 @@ def get_items_bulk(
 			{extra_joins}
 			WHERE {where_clause}
 			GROUP BY {group_by_columns}
-			ORDER BY i.item_group ASC, i.name ASC, i.custom_medida ASC
+			ORDER BY i.item_group ASC, i.name ASC{medida_order}
 			LIMIT %s OFFSET %s
 		"""
 		all_params = [*params, int(limit), int(start)]
