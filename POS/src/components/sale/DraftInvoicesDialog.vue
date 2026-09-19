@@ -372,8 +372,8 @@
 											<button
 												v-if="props.allowPrintDraftInvoices"
 												@click.stop="handlePrintDraft(draft)"
-												class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 rounded-xl transition-all touch-manipulation"
-												:title="__('Print draft')"
+												class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-yellow-100 text-gray-600 hover:text-yellow-800 rounded-xl transition-all touch-manipulation"
+												:title="__('Imprimir Ticket Térmico')"
 											>
 												<svg
 													class="w-4.5 h-4.5"
@@ -386,6 +386,25 @@
 														stroke-linejoin="round"
 														stroke-width="2.5"
 														d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+													/>
+												</svg>
+											</button>
+											<button
+												@click.stop="handlePrintDraftPDF(draft)"
+												class="w-9 h-9 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-xl transition-all touch-manipulation"
+												:title="__('Imprimir PDF Tamaño Carta')"
+											>
+												<svg
+													class="w-4.5 h-4.5"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+													stroke-width="2.5"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
 													/>
 												</svg>
 											</button>
@@ -749,6 +768,19 @@ async function handlePrintDraft(draft) {
 		console.error("Error printing draft:", error);
 		showError(__("Failed to print draft"));
 	}
+}
+
+function handlePrintDraftPDF(draft) {
+	if (!draft || !draft.draft_id) return;
+	const isQuotation = isDraftQuotation(draft);
+	const doctype = draft.doctype || (isQuotation ? "Quotation" : "Sales Order");
+	const name = draft.draft_id;
+	const format = isQuotation ? "Cotización de Venta de Muebles" : null;
+	let url = `/printview?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}`;
+	if (format) {
+		url += `&format=${encodeURIComponent(format)}`;
+	}
+	window.open(url, "_blank");
 }
 
 function handleDeleteDraft(draftId) {

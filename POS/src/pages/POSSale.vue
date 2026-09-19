@@ -397,6 +397,8 @@
 								@show-return="openReturnDialog"
 								@close-shift="handleCloseShift"
 								@update-additional-discount="handleAdditionalDiscountUpdate"
+								@print-active-ticket="handlePrintActiveDraftTicket"
+								@print-active-pdf="handlePrintActiveDraftPDF"
 							/>
 						</div>
 					</keep-alive>
@@ -870,10 +872,13 @@
 				</template>
 			</Dialog>
 
-			<!-- Print Pre-ticket Confirmation Dialog -->
+			<!-- Print Pre-ticket / Quotation Confirmation Dialog -->
 			<Dialog
 				v-model="showPrintDraftConfirmDialog"
-				:options="{ title: __('Print Pre-ticket'), size: 'sm' }"
+				:options="{
+					title: lastSavedDraft?.doctype === 'Quotation' ? __('Print Quotation') : __('Print Pre-ticket'),
+					size: 'md'
+				}"
 			>
 				<template #body-content>
 					<p class="text-sm text-gray-600 py-3 text-start">
@@ -881,12 +886,15 @@
 					</p>
 				</template>
 				<template #actions>
-					<div class="flex gap-2">
-						<Button variant="solid" @click="confirmPrintDraft">
-							{{ __("Yes") }}
-						</Button>
+					<div class="flex flex-wrap gap-2 justify-end">
 						<Button variant="subtle" @click="showPrintDraftConfirmDialog = false">
-							{{ __("No") }}
+							{{ __("Close") }}
+						</Button>
+						<Button variant="outline" @click="confirmPrintDraft">
+							{{ __("Print Ticket (Thermal)") }}
+						</Button>
+						<Button variant="solid" theme="blue" @click="confirmPrintDraftPDF">
+							{{ __("Print PDF (Letter Size)") }}
 						</Button>
 					</div>
 				</template>
@@ -927,13 +935,12 @@
 					</div>
 				</template>
 				<template #actions>
-					<div class="flex gap-2">
+					<div class="flex flex-wrap gap-2 justify-end">
 						<Button variant="subtle" @click="uiStore.showSuccessDialog = false">
 							{{ __("Close") }}
 						</Button>
 						<Button
-							variant="solid"
-							theme="blue"
+							variant="outline"
 							@click="
 								() => {
 									handlePrintInvoice({ name: uiStore.lastInvoiceName });
@@ -941,7 +948,19 @@
 								}
 							"
 						>
-							{{ __("Print Invoice") }}
+							{{ __("Print Ticket (Thermal)") }}
+						</Button>
+						<Button
+							variant="solid"
+							theme="blue"
+							@click="
+								() => {
+									handlePrintInvoicePDF(uiStore.lastInvoiceName);
+									uiStore.showSuccessDialog = false;
+								}
+							"
+						>
+							{{ __("Print PDF (Letter Size)") }}
 						</Button>
 					</div>
 				</template>
@@ -2545,6 +2564,65 @@ async function confirmPrintDraft() {
 		console.error("Error printing draft:", error);
 		showError(__("Failed to print draft"));
 	}
+}
+
+function printDocumentLetterPDF(doctype, name, printFormat = null) {
+	if (!doctype || !name) return;
+	let url = `/printview?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}`;
+	if (printFormat) {
+		url += `&format=${encodeURIComponent(printFormat)}`;
+	}
+	window.open(url, "_blank");
+}
+
+function confirmPrintDraftPDF() {
+	showPrintDraftConfirmDialog.value = false;
+	if (!lastSavedDraft.value) return;
+	const draft = lastSavedDraft.value;
+	const doctype = draft.doctype || "Quotation";
+	const name = draft.draft_id;
+	const format = doctype === "Quotation" ? "Cotización de Venta de Muebles" : null;
+	printDocumentLetterPDF(doctype, name, format);
+}
+
+function handlePrintInvoicePDF(invoiceName) {
+	if (!invoiceName) return;
+	printDocumentLetterPDF("Sales Invoice", invoiceName, "Nota de Venta Muebles Ruffino");
+}
+
+async function handlePrintActiveDraftTicket() {
+	if (!cartStore.currentDraftId) return;
+	try {
+		const draftId = cartStore.currentDraftId;
+		const isQuotation = draftId.includes("-QTN-") || draftId.includes("-COT-") || draftId.startsWith("QTN-") || draftId.startsWith("COT-") || draftId.startsWith("SAL-QTN-");
+		const invoiceData = {
+			name: draftId,
+			company: shiftStore.profileCompany,
+			items: cartStore.invoiceItems,
+			payments: [],
+			grand_total: cartStore.grandTotal,
+			posting_date: new Date().toISOString().split("T")[0],
+			customer_name: cartStore.customer?.customer_name || cartStore.customer?.name || cartStore.customer || "S/N",
+			status: isQuotation ? "Quotation" : "Draft",
+			header: isQuotation ? "Quotation" : "Draft",
+			footer: isQuotation
+				? "Este documento es una cotización informativa y no representa una factura ni compromiso de compra. Válido por 3 días."
+				: "Este documento es una orden de venta y no representa una factura válida ni un comprobante de pago oficial.",
+		};
+		await printInvoice(invoiceData);
+	} catch (error) {
+		console.error("Error printing active draft ticket:", error);
+		showError(__("Failed to print draft"));
+	}
+}
+
+function handlePrintActiveDraftPDF() {
+	if (!cartStore.currentDraftId) return;
+	const draftId = cartStore.currentDraftId;
+	const isQuotation = draftId.includes("-QTN-") || draftId.includes("-COT-") || draftId.startsWith("QTN-") || draftId.startsWith("COT-") || draftId.startsWith("SAL-QTN-");
+	const doctype = isQuotation ? "Quotation" : "Sales Order";
+	const format = isQuotation ? "Cotización de Venta de Muebles" : null;
+	printDocumentLetterPDF(doctype, draftId, format);
 }
 
 

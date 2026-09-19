@@ -461,19 +461,24 @@
 				<Button variant="subtle" @click="show = false">
 					{{ __("Close") }}
 				</Button>
-				<Button @click="handlePrint">
-					<template #prefix>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-							/>
-						</svg>
-					</template>
-					{{ __("Print") }}
-				</Button>
+				<div class="flex gap-2">
+					<Button variant="outline" @click="handlePrint">
+						<template #prefix>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+								/>
+							</svg>
+						</template>
+						{{ __("Print Ticket (Thermal)") }}
+					</Button>
+					<Button variant="solid" theme="blue" @click="handlePrintPDF">
+						{{ __("Print PDF (Letter Size)") }}
+					</Button>
+				</div>
 			</div>
 		</template>
 	</Dialog>
@@ -629,5 +634,11 @@ async function loadInvoiceDetails() {
 function handlePrint() {
 	if (!invoiceData.value) return;
 	emit("print-invoice", invoiceData.value);
+}
+
+function handlePrintPDF() {
+	if (!invoiceData.value?.name) return;
+	const url = `/printview?doctype=Sales%20Invoice&name=${encodeURIComponent(invoiceData.value.name)}&format=Nota%20de%20Venta%20Muebles%20Ruffino`;
+	window.open(url, "_blank");
 }
 </script>

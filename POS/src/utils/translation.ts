@@ -113,6 +113,16 @@ export function translate(msg: string, replace?: Record<string, string>, ctx?: s
     translated = "Devolver Venta"
   } else if (translated === "Facturas Fuera de Línea" || translated === "Facturas fuera de línea") {
     translated = "Ventas fuera de línea"
+  } else if (translated === "Quotation saved successfully. Do you want to print the quotation?") {
+    translated = "Cotización guardada exitosamente. ¿Desea imprimir la cotización?"
+  } else if (translated === "Pre-sale saved successfully. Do you want to print the pre-ticket?") {
+    translated = "Pre-venta guardada exitosamente. ¿Desea imprimir el pre-ticket?"
+  } else if (translated === "Print Quotation") {
+    translated = "Imprimir Cotización"
+  } else if (translated === "Print Ticket (Thermal)") {
+    translated = "Imprimir Ticket (Térmico)"
+  } else if (translated === "Print PDF (Letter Size)") {
+    translated = "Imprimir PDF (Hoja Carta)"
   }
 
   if (replace) {

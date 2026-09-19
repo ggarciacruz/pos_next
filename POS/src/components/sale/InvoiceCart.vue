@@ -468,9 +468,9 @@
 		<!-- Active Pre-sale / Quotation Banner -->
 		<div
 			v-if="cartStore.currentDraftId"
-			class="px-2.5 py-1.5 bg-yellow-50 border-b border-yellow-200 flex items-center justify-between flex-shrink-0"
+			class="px-2.5 py-1.5 bg-yellow-50 border-b border-yellow-200 flex items-center justify-between flex-shrink-0 gap-2"
 		>
-			<div class="flex items-center gap-1.5 min-w-0">
+			<div class="flex items-center gap-1.5 min-w-0 flex-1">
 				<svg
 					class="w-4 h-4 text-yellow-600 flex-shrink-0"
 					fill="none"
@@ -488,27 +488,51 @@
 					{{ isQuotationDraft ? __("Cotización activa") : __("Pre-venta activa") }}: {{ cartStore.currentDraftId }}
 				</span>
 			</div>
-			<!-- Button to unlink draft -->
-			<button
-				type="button"
-				@click="clearActiveDraft"
-				class="text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 rounded-md p-1 transition-colors"
-				:title="__('Desvincular documento')"
-			>
-				<svg
-					class="w-3.5 h-3.5"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
+			<!-- Action buttons: Re-print Ticket, Re-print PDF, Unlink -->
+			<div class="flex items-center gap-1 flex-shrink-0">
+				<button
+					type="button"
+					@click="emit('print-active-ticket')"
+					class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-yellow-800 bg-yellow-100 hover:bg-yellow-200 rounded-md border border-yellow-300 transition-colors shadow-2xs"
+					:title="__('Imprimir Ticket Térmico')"
 				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M6 18L18 6M6 6l12 12"
-					/>
-				</svg>
-			</button>
+					<svg class="w-3.5 h-3.5 text-yellow-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+					</svg>
+					<span>{{ __("Ticket") }}</span>
+				</button>
+				<button
+					type="button"
+					@click="emit('print-active-pdf')"
+					class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-2xs transition-colors"
+					:title="__('Imprimir PDF Tamaño Carta')"
+				>
+					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+					</svg>
+					<span>{{ __("PDF Carta") }}</span>
+				</button>
+				<button
+					type="button"
+					@click="clearActiveDraft"
+					class="text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 rounded-md p-1 transition-colors ms-0.5"
+					:title="__('Desvincular documento')"
+				>
+					<svg
+						class="w-3.5 h-3.5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/>
+					</svg>
+				</button>
+			</div>
 		</div>
 
 		<!-- Action Buttons Section -->
@@ -1907,6 +1931,8 @@ const emit = defineEmits([
 	"show-return", // () - Open return invoice dialog
 	"close-shift", // () - Close current shift
 	"update-additional-discount", // (discountAmount) - Update global discount
+	"print-active-ticket", // () - Print thermal ticket for active quotation/pre-sale
+	"print-active-pdf", // () - Print letter size PDF for active quotation/pre-sale
 ]);
 
 // Cart sort composable (must be after defineProps)
