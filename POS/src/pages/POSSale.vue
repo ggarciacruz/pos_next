@@ -352,10 +352,9 @@
 						<div
 							v-if="uiStore.isDesktop || uiStore.mobileActiveTab === 'cart'"
 							:class="[
-								'flex flex-col bg-gray-50 overflow-hidden',
-								uiStore.isDesktop ? 'flex-1' : 'flex-1',
+								'flex flex-col bg-gray-50 overflow-hidden min-w-0 flex-1',
 							]"
-							style="min-width: 300px; contain: layout style paint"
+							style="contain: layout style paint"
 						>
 							<InvoiceCart
 								:items="cartStore.invoiceItems"
@@ -2581,7 +2580,7 @@ function confirmPrintDraftPDF() {
 	const draft = lastSavedDraft.value;
 	const doctype = draft.doctype || "Quotation";
 	const name = draft.draft_id;
-	const format = doctype === "Quotation" ? "Cotización de Venta de Muebles" : null;
+	const format = doctype === "Quotation" ? "Cotización de Venta de Muebles" : (doctype === "Sales Order" ? "Nota de Pre-venta de Muebles" : null);
 	printDocumentLetterPDF(doctype, name, format);
 }
 
@@ -2621,7 +2620,7 @@ function handlePrintActiveDraftPDF() {
 	const draftId = cartStore.currentDraftId;
 	const isQuotation = draftId.includes("-QTN-") || draftId.includes("-COT-") || draftId.startsWith("QTN-") || draftId.startsWith("COT-") || draftId.startsWith("SAL-QTN-");
 	const doctype = isQuotation ? "Quotation" : "Sales Order";
-	const format = isQuotation ? "Cotización de Venta de Muebles" : null;
+	const format = isQuotation ? "Cotización de Venta de Muebles" : "Nota de Pre-venta de Muebles";
 	printDocumentLetterPDF(doctype, draftId, format);
 }
 

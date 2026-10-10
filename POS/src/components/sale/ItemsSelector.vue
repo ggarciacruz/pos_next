@@ -465,7 +465,8 @@
 				style="min-height: 0"
 			>
 				<div
-					class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5 sm:gap-2.5"
+					class="grid gap-1.5 sm:gap-2.5"
+					style="grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));"
 				>
 					<div
 						v-for="item in displayedItems"

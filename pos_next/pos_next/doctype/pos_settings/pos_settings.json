@@ -83,57 +83,57 @@
    "fieldname": "pos_profile",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "POS Profile",
+   "label": "Perfil de POS",
    "options": "POS Profile",
    "reqd": 1,
    "unique": 1
   },
   {
    "default": "1",
-   "description": "Enable custom POS settings for this profile",
+   "description": "Habilitar configuraciones personalizadas para este perfil",
    "fieldname": "enabled",
    "fieldtype": "Check",
-   "label": "Enabled"
+   "label": "Habilitado"
   },
   {
    "fieldname": "section_break_localization",
    "fieldtype": "Section Break",
-   "label": "Localization"
+   "label": "Localización e Idiomas"
   },
   {
-   "description": "Select languages available in the POS language switcher. If empty, defaults to English and Arabic.",
+   "description": "Idiomas disponibles en el selector del POS. Por defecto incluye Español e Inglés.",
    "fieldname": "allowed_locales",
    "fieldtype": "Table MultiSelect",
-   "label": "Allowed Languages",
+   "label": "Idiomas Permitidos",
    "options": "POS Allowed Locale"
   },
   {
    "fieldname": "section_break_wallet",
    "fieldtype": "Section Break",
-   "label": "Wallet & Loyalty"
+   "label": "Billetera y Fidelización"
   },
   {
    "default": "0",
-   "description": "Enable loyalty program features for this POS profile",
+   "description": "Habilitar programa de puntos o fidelización en este perfil",
    "fieldname": "enable_loyalty_program",
    "fieldtype": "Check",
-   "label": "Enable Loyalty Program"
+   "label": "Habilitar Programa de Fidelización"
   },
   {
    "depends_on": "enable_loyalty_program",
-   "description": "Loyalty program for this POS profile",
+   "description": "Programa de fidelización asignado a este perfil",
    "fieldname": "default_loyalty_program",
    "fieldtype": "Link",
-   "label": "Loyalty Program",
+   "label": "Programa de Fidelización",
    "mandatory_depends_on": "enable_loyalty_program",
    "options": "Loyalty Program"
   },
   {
    "depends_on": "enable_loyalty_program",
-   "description": "Receivable account for customer wallets",
+   "description": "Cuenta contable para las billeteras de clientes",
    "fieldname": "wallet_account",
    "fieldtype": "Link",
-   "label": "Wallet Account",
+   "label": "Cuenta de Billetera",
    "mandatory_depends_on": "enable_loyalty_program",
    "options": "Account"
   },
@@ -144,60 +144,60 @@
   {
    "default": "1",
    "depends_on": "enable_loyalty_program",
-   "description": "Automatically create wallet for new customers (always enabled when loyalty program is active)",
+   "description": "Crear billetera automáticamente para clientes nuevos",
    "fieldname": "auto_create_wallet",
    "fieldtype": "Check",
-   "label": "Auto Create Wallet",
+   "label": "Crear Billetera Automáticamente",
    "read_only_depends_on": "enable_loyalty_program"
   },
   {
    "default": "1",
    "depends_on": "enable_loyalty_program",
-   "description": "Automatically convert earned loyalty points to wallet balance. Uses Conversion Factor from Loyalty Program (always enabled when loyalty program is active)",
+   "description": "Convertir puntos ganados a saldo de billetera automáticamente",
    "fieldname": "loyalty_to_wallet",
    "fieldtype": "Check",
-   "label": "Convert Loyalty Points to Wallet",
+   "label": "Convertir Puntos a Billetera",
    "read_only_depends_on": "enable_loyalty_program"
   },
   {
    "fieldname": "section_break_general",
    "fieldtype": "Section Break",
-   "label": "General Settings"
+   "label": "Configuración General y Descuentos"
   },
   {
    "default": "0",
-   "description": "Enable cart-wide discount",
+   "description": "Permitir aplicar un descuento global sobre el total del carrito",
    "fieldname": "allow_user_to_edit_additional_discount",
    "fieldtype": "Check",
-   "label": "Allow Additional Discount"
+   "label": "Permitir Descuento Adicional al Carrito"
   },
   {
    "default": "1",
-   "description": "Enable item-level discount in edit dialog",
+   "description": "Permitir aplicar descuentos a nivel de cada producto en el diálogo de edición",
    "fieldname": "allow_user_to_edit_item_discount",
    "fieldtype": "Check",
-   "label": "Allow Item Discount"
+   "label": "Permitir Descuento por Producto"
   },
   {
    "default": "0",
-   "description": "Allow user to edit item rate in cart. Rate editing is automatically disabled when promotional offers are applied to an item.",
+   "description": "Permitir al usuario cambiar el precio unitario del producto en el carrito (se deshabilita si hay ofertas automáticas)",
    "fieldname": "allow_user_to_edit_rate",
    "fieldtype": "Check",
-   "label": "Allow User To Edit Rate"
+   "label": "Permitir Modificar Precio Unitario"
   },
   {
    "default": "0",
-   "description": "Show discounts as percentages",
+   "description": "Mostrar y calcular descuentos como porcentajes en lugar de montos fijos",
    "fieldname": "use_percentage_discount",
    "fieldtype": "Check",
-   "label": "Use Percentage Discount"
+   "label": "Usar Descuentos en Porcentaje"
   },
   {
    "default": "0",
-   "description": "Maximum discount percentage (enforced in UI)",
+   "description": "Porcentaje máximo de descuento que el cajero tiene permitido otorgar",
    "fieldname": "max_discount_allowed",
    "fieldtype": "Float",
-   "label": "Max Discount Percentage Allowed",
+   "label": "Porcentaje Máximo de Descuento Permitido",
    "precision": "2"
   },
   {
@@ -206,81 +206,81 @@
   },
   {
    "default": "0",
-   "description": "Allow customers to buy on credit (negative balance/debt)",
+   "description": "Permitir compras a crédito para clientes autorizados (saldo pendiente por cobrar)",
    "fieldname": "allow_credit_sale",
    "fieldtype": "Check",
-   "label": "Allow Credit Sale"
+   "label": "Permitir Venta a Crédito"
   },
   {
    "default": "0",
-   "description": "Allow customers to use their positive credit balance (from returns/overpayments) as payment",
+   "description": "Permitir al cliente utilizar su saldo a favor (devoluciones o pagos excedentes) como método de pago",
    "fieldname": "allow_customer_credit_payment",
    "fieldtype": "Check",
-   "label": "Allow Customer Credit Payment"
+   "label": "Permitir Pago con Saldo a Favor del Cliente"
   },
   {
    "default": "0",
-   "description": "Enable product returns",
+   "description": "Habilitar la opción de procesar devoluciones de ventas",
    "fieldname": "allow_return",
    "fieldtype": "Check",
-   "label": "Allow Return"
+   "label": "Permitir Devoluciones"
   },
   {
    "default": "0",
-   "description": "Enable partial payment for invoices",
+   "description": "Habilitar pagos parciales y anticipos en el punto de venta",
    "fieldname": "allow_partial_payment",
    "fieldtype": "Check",
-   "label": "Allow Partial Payment"
+   "label": "Permitir Pago Parcial / Anticipos"
   },
   {
    "default": "0",
-   "description": "When enabled, non-cash payments (card, bank transfer) require exact amount. Cash payments can still have change. Cannot be used with Credit Sale or Partial Payment.",
+   "description": "Exigir monto exacto para pagos que no sean efectivo (QR, tarjeta, transferencia)",
    "fieldname": "use_exact_amount",
    "fieldtype": "Check",
-   "label": "Use Exact Amount for Non-Cash"
+   "label": "Exigir Monto Exacto en Pagos Digitales"
   },
   {
    "default": "Disabled",
-   "description": "Disabled: No sales person selection. Single: Select one sales person (100%). Multiple: Select multiple with allocation percentages.",
+   "description": "Deshabilitado: Sin selección de vendedor. Individual: Un vendedor por venta (100%). Múltiple: Varios vendedores con porcentaje de asignación.",
    "fieldname": "enable_sales_persons",
    "fieldtype": "Select",
-   "label": "Sales Persons Selection",
+   "label": "Asignación de Vendedores",
    "options": "Disabled\nSingle\nMultiple"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_display",
    "fieldtype": "Section Break",
-   "label": "Display Settings"
+   "label": "Visualización de Productos (Nombre y Código)"
   },
   {
    "default": "0",
-   "description": "Show items in card view by default",
+   "description": "Mostrar productos en vista de tarjetas por defecto",
    "fieldname": "default_card_view",
    "fieldtype": "Check",
-   "label": "Default Card View"
+   "label": "Vista de Tarjetas por Defecto"
   },
   {
    "default": "0",
-   "description": "Show item codes in the UI",
+   "description": "Mostrar los códigos SKU de los productos en la interfaz",
    "fieldname": "display_item_code",
    "fieldtype": "Check",
-   "label": "Display Item Code"
+   "label": "Mostrar Código del Producto"
   },
   {
    "default": "Item Name",
-   "description": "Configure whether products show Item Name, Item Code, or both as primary title in POS cards and tables",
+   "description": "Configura si los productos muestran el Nombre, el Código SKU o ambos en las tarjetas y tablas del POS",
    "fieldname": "item_title_display",
    "fieldtype": "Select",
-   "label": "Item Title Display",
+   "label": "Título Principal del Producto",
    "options": "Item Name\nItem Code\nItem Name & Code"
   },
   {
    "default": "0",
-   "description": "Display customer balance on screen",
+   "description": "Mostrar el saldo de deuda o crédito del cliente en la cabecera",
    "fieldname": "show_customer_balance",
    "fieldtype": "Check",
-   "label": "Show Customer Balance"
+   "label": "Mostrar Saldo del Cliente en Pantalla"
   },
   {
    "fieldname": "column_break_display",
@@ -288,58 +288,58 @@
   },
   {
    "default": "0",
-   "description": "Hide expected cash amount in closing",
+   "description": "Ocultar el monto esperado de efectivo en el cierre y arqueo de caja",
    "fieldname": "hide_expected_amount",
    "fieldtype": "Check",
-   "label": "Hide Expected Amount"
+   "label": "Ocultar Efectivo Esperado en Arqueo"
   },
   {
    "default": "0",
-   "description": "Show discount as percentage",
+   "description": "Mostrar los descuentos como porcentaje (%)",
    "fieldname": "display_discount_percentage",
    "fieldtype": "Check",
-   "label": "Display Discount %"
+   "label": "Mostrar Descuento en Porcentaje (%)"
   },
   {
    "default": "0",
-   "description": "Show discount value",
+   "description": "Mostrar el monto nominal del descuento",
    "fieldname": "display_discount_amount",
    "fieldtype": "Check",
-   "label": "Display Discount Amount"
+   "label": "Mostrar Monto de Descuento"
   },
   {
    "default": "0",
-   "description": "Show item variants directly in the item grid instead of their template items. When disabled, template items are shown and variants are selected via a variant selector.",
+   "description": "Mostrar variantes directamente en la grilla en lugar de agruparlas bajo la plantilla base",
    "fieldname": "show_variants_as_items",
    "fieldtype": "Check",
-   "label": "Show Variants as Items"
+   "label": "Mostrar Variantes como Productos Directos"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_operations",
    "fieldtype": "Section Break",
-   "label": "Operations"
+   "label": "Operaciones y Pre-ventas"
   },
   {
    "default": "0",
-   "description": "Enable sales order creation",
+   "description": "Habilitar la creación de pedidos y preventas en el POS",
    "fieldname": "allow_sales_order",
    "fieldtype": "Check",
-   "label": "Allow Create Sales Order"
+   "label": "Permitir Crear Pre-ventas (Pedidos)"
   },
   {
    "default": "0",
-   "description": "Select from existing sales orders",
+   "description": "Seleccionar y facturar pedidos o preventas guardadas previamente",
    "fieldname": "allow_select_sales_order",
    "fieldtype": "Check",
-   "label": "Allow Select Sales Order"
+   "label": "Cargar Pre-ventas Existentes"
   },
   {
    "default": "0",
-   "description": "Don't create invoices, only orders",
+   "description": "No crear facturas directas, registrar únicamente pedidos de preventa",
    "fieldname": "create_only_sales_order",
    "fieldtype": "Check",
-   "label": "Create Only Sales Order"
+   "label": "Modo Solo Pre-ventas"
   },
   {
    "fieldname": "column_break_operations",
@@ -347,85 +347,85 @@
   },
   {
    "default": "0",
-   "description": "Process returns without invoice reference",
+   "description": "Procesar devoluciones sin comprobante de venta previo",
    "fieldname": "allow_return_without_invoice",
    "fieldtype": "Check",
-   "label": "Allow Return Without Invoice"
+   "label": "Permitir Devolución sin Factura"
   },
   {
    "default": "0",
    "depends_on": "allow_return",
-   "description": "Number of days allowed for invoice returns. Set to 0 for unlimited returns.",
+   "description": "Días máximos permitidos para aceptar devoluciones (0 = ilimitado)",
    "fieldname": "return_validity_days",
    "fieldtype": "Int",
-   "label": "Return Validity Days"
+   "label": "Días de Validez para Devolución"
   },
   {
    "default": "0",
    "fieldname": "allow_free_batch_return",
    "fieldtype": "Check",
-   "label": "Allow Free Batch Return"
+   "label": "Permitir Devolución Libre de Lotes"
   },
   {
    "default": "0",
-   "description": "Print invoices before submission",
+   "description": "Imprimir comprobante borrador o pre-ticket antes de completar la venta",
    "fieldname": "allow_print_draft_invoices",
    "fieldtype": "Check",
-   "label": "Allow Print Draft Invoices"
+   "label": "Permitir Imprimir Pre-tickets"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_pricing",
    "fieldtype": "Section Break",
-   "label": "Pricing & Display"
+   "label": "Precios y Redondeo"
   },
   {
    "default": "2",
-   "description": "Number of decimal places for amounts",
+   "description": "Cantidad de decimales para importes y precios",
    "fieldname": "decimal_precision",
    "fieldtype": "Select",
-   "label": "Decimal Precision",
+   "label": "Precisión Decimal",
    "options": "2\n3\n4\n5\n6"
   },
   {
    "default": "0",
-   "description": "Automatically set taxes as included in item prices. When enabled, displayed prices include tax amounts.",
+   "description": "Configurar precios de catálogo con impuestos ya incluidos. Los precios en pantalla incluirán impuestos.",
    "fieldname": "tax_inclusive",
    "fieldtype": "Check",
-   "label": "Tax Inclusive"
+   "label": "Impuestos Incluidos en el Precio"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_customer",
    "fieldtype": "Section Break",
-   "label": "Customer Settings"
+   "label": "Configuración del Cliente"
   },
   {
    "default": "0",
-   "description": "Accept customer purchase orders",
+   "description": "Permitir registrar el número de orden de compra del cliente",
    "fieldname": "allow_customer_purchase_order",
    "fieldtype": "Check",
-   "label": "Allow Customer Purchase Order"
+   "label": "Permitir Orden de Compra del Cliente"
   },
   {
    "default": "0",
-   "description": "Permit duplicate customer names",
+   "description": "Permitir registrar clientes con nombres duplicados o repetidos",
    "fieldname": "allow_duplicate_customer_names",
    "fieldtype": "Check",
-   "label": "Allow Duplicate Customer Names"
+   "label": "Permitir Nombres de Clientes Duplicados"
   },
   {
    "default": "0",
-   "description": "Automatically apply eligible coupons",
+   "description": "Buscar y aplicar automáticamente cupones y promociones elegibles",
    "fieldname": "fetch_coupon",
    "fieldtype": "Check",
-   "label": "Auto Fetch Coupon Gifts"
+   "label": "Aplicar Cupones Automáticos"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_printing",
    "fieldtype": "Section Break",
-   "label": "Printing"
+   "label": "Impresión de Comprobantes"
   },
   {
    "default": "Recibo de Venta",
@@ -444,57 +444,57 @@
   },
   {
    "default": "0",
-   "description": "Reprint the last invoice",
+   "description": "Habilitar botón para reimprimir el último comprobante emitido",
    "fieldname": "allow_print_last_invoice",
    "fieldtype": "Check",
-   "label": "Allow Print Last Invoice"
+   "label": "Permitir Reimprimir Última Venta"
   },
   {
    "default": "0",
-   "description": "Print without dialog",
+   "description": "Imprimir directamente en la impresora térmica sin abrir el diálogo del navegador",
    "fieldname": "silent_print",
    "fieldtype": "Check",
-   "label": "Enable Silent Print"
+   "label": "Impresión Silenciosa (Directa)"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_delivery",
    "fieldtype": "Section Break",
-   "label": "Delivery"
+   "label": "Despacho y Envío"
   },
   {
    "default": "0",
-   "description": "Enable delivery fee calculation",
+   "description": "Permitir agregar recargo por costo de flete o despacho",
    "fieldname": "use_delivery_charges",
    "fieldtype": "Check",
-   "label": "Use Delivery Charges"
+   "label": "Habilitar Costo de Despacho"
   },
   {
    "default": "0",
-   "description": "Automatically calculate delivery fee",
+   "description": "Calcular el costo de flete o despacho automáticamente",
    "fieldname": "auto_set_delivery_charges",
    "fieldtype": "Check",
-   "label": "Auto Set Delivery Charges"
+   "label": "Cálculo Automático de Despacho"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_advanced",
    "fieldtype": "Section Break",
-   "label": "Advanced Settings"
+   "label": "Rendimiento y Avanzado"
   },
   {
    "default": "0",
-   "description": "Limit search results for performance",
+   "description": "Limitar cantidad de productos devueltos en la búsqueda para optimizar rendimiento",
    "fieldname": "use_limit_search",
    "fieldtype": "Check",
-   "label": "Use Limit Search"
+   "label": "Limitar Resultados de Búsqueda"
   },
   {
    "default": "1000",
-   "description": "Maximum number of search results",
+   "description": "Cantidad máxima de productos mostrados por búsqueda",
    "fieldname": "search_limit",
    "fieldtype": "Int",
-   "label": "Search Limit Number"
+   "label": "Límite de Resultados"
   },
   {
    "fieldname": "column_break_advanced",
@@ -502,75 +502,75 @@
   },
   {
    "default": "0",
-   "description": "Submit invoices in background",
+   "description": "Enviar y asentar facturas mediante colas en segundo plano",
    "fieldname": "allow_submissions_in_background_job",
    "fieldtype": "Check",
-   "label": "Allow Submissions in Background Job"
+   "label": "Procesar Facturas en Segundo Plano"
   },
   {
    "default": "0",
-   "description": "Delete offline saved invoices",
+   "description": "Permitir al cajero eliminar ventas locales guardadas fuera de línea",
    "fieldname": "allow_delete_offline_invoice",
    "fieldtype": "Check",
-   "label": "Allow Delete Offline Invoice"
+   "label": "Permitir Eliminar Ventas Fuera de Línea"
   },
   {
    "default": "0",
-   "description": "Modify invoice posting date",
+   "description": "Permitir modificar manualmente la fecha y hora contable de la venta",
    "fieldname": "allow_change_posting_date",
    "fieldtype": "Check",
-   "label": "Allow Change Posting Date"
+   "label": "Permitir Modificar Fecha de Venta"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_misc",
    "fieldtype": "Section Break",
-   "label": "Miscellaneous"
+   "label": "Opciones Varias"
   },
   {
    "default": "0",
-   "description": "Show quantity input field",
+   "description": "Mostrar campo directo para digitar cantidad antes de añadir al carrito",
    "fieldname": "input_qty",
    "fieldtype": "Check",
-   "label": "Use QTY Input"
+   "label": "Digitar Cantidad Directa"
   },
   {
    "default": "0",
-   "description": "Enable selling items even when stock reaches zero or below. Integrates with ERPNext negative stock settings.",
+   "description": "Permitir vender artículos incluso cuando el stock llegue a cero o saldo negativo en almacén",
    "fieldname": "allow_negative_stock",
    "fieldtype": "Check",
-   "label": "Allow Negative Stock"
+   "label": "Permitir Venta con Stock Agotado (Negativo)"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_security",
    "fieldtype": "Section Break",
-   "label": "Security"
+   "label": "Seguridad de Turno"
   },
   {
    "default": "0",
-   "description": "Lock the POS screen after a period of inactivity or when the browser tab loses focus",
+   "description": "Bloquear la pantalla del POS tras un período de inactividad o al cambiar de pestaña",
    "fieldname": "enable_session_lock",
    "fieldtype": "Check",
-   "label": "Enable Session Lock"
+   "label": "Bloqueo Automático de Pantalla"
   },
   {
    "default": "5",
    "depends_on": "enable_session_lock",
-   "description": "Minutes of inactivity before the session is locked",
+   "description": "Minutos de inactividad antes de bloquear la sesión del cajero",
    "fieldname": "session_lock_timeout",
    "fieldtype": "Int",
-   "label": "Session Lock Timeout (minutes)"
+   "label": "Tiempo de Inactividad para Bloqueo (minutos)"
   },
   {
    "fieldname": "barcode_tab",
    "fieldtype": "Tab Break",
-   "label": "Barcode"
+   "label": "Código de Barras"
   },
   {
    "fieldname": "barcode_rules",
    "fieldtype": "Table",
-   "label": "Barcode Rules",
+   "label": "Reglas de Código de Barras",
    "options": "POS Barcode Rules"
   }
  ],

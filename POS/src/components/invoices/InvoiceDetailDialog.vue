@@ -205,7 +205,7 @@
 							<div class="flex items-center justify-between gap-3 mb-2">
 								<div class="flex-1 min-w-0 text-center">
 									<div class="text-sm font-semibold text-gray-900">
-										{{ item.item_code }}{{ (item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : '' }}
+										{{ item.item_name || item.item_code }}{{ (item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : '' }}
 									</div>
 								</div>
 							</div>
@@ -281,7 +281,7 @@
 								>
 									<td class="px-4 py-3 text-center">
 										<div class="text-sm font-medium text-gray-900">
-											{{ item.item_code }}{{ (item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : '' }}
+											{{ item.item_name || item.item_code }}{{ (item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : '' }}
 										</div>
 									</td>
 									<td class="px-4 py-3 text-center text-sm text-gray-900">

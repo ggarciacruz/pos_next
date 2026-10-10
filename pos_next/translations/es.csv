@@ -794,5 +794,6 @@ Process return sale,Procesar devolución de venta,
 Offline Invoices,Ventas fuera de línea,
 Create Return Sale,Crear Devolución de Venta,
 Create Return Invoice,Crear Devolución de Venta,
-
-
+Quick amounts for {0},Cobro rápido para {0},
+Exact amount only,Solo monto exacto,
+Cobrar Monto Exacto,Cobrar Monto Exacto,

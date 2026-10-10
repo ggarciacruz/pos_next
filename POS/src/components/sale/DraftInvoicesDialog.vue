@@ -352,7 +352,7 @@
 												:key="idx"
 												class="text-[11px] bg-gray-50 border border-gray-200 text-gray-700 px-2 py-0.5 rounded-lg truncate max-w-full font-medium"
 											>
-												{{ item.item_code }}{{ (item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : '' }} <span class="text-blue-600 font-bold">x{{ item.quantity || item.qty }}</span>
+												{{ item.item_name || item.item_code }}{{ (item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : '' }} <span class="text-blue-600 font-bold">x{{ item.quantity || item.qty }}</span>
 											</span>
 										</div>
 									</div>

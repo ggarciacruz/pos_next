@@ -627,8 +627,9 @@
 													? 'text-green-700'
 													: 'text-gray-900',
 											]"
+											:title="getItemTitle(item)"
 										>
-											{{ item.item_code }}<span v-if="item.custom_medida || item.medida" class="text-gray-500 font-semibold text-xs ml-1">({{ item.custom_medida || item.medida }})</span><span
+											{{ getItemTitle(item) }}<span v-if="item.custom_medida || item.medida" class="text-gray-500 font-semibold text-xs ml-1">({{ item.custom_medida || item.medida }})</span><span
 												v-if="item.is_free_item"
 												class="text-xs font-bold"
 											>
@@ -662,6 +663,7 @@
 									<div class="flex-1 min-w-0 text-start">
 										<div
 											class="font-medium text-xs text-green-700 truncate flex items-center gap-1"
+											:title="getItemTitle(item)"
 										>
 											<svg
 												class="w-3 h-3 flex-shrink-0"
@@ -674,7 +676,7 @@
 													clip-rule="evenodd"
 												/>
 											</svg>
-											{{ item.item_code }}<span v-if="item.custom_medida || item.medida" class="text-green-600 font-semibold text-[10px] ml-1">({{ item.custom_medida || item.medida }})</span> ({{
+											{{ getItemTitle(item) }}<span v-if="item.custom_medida || item.medida" class="text-green-600 font-semibold text-[10px] ml-1">({{ item.custom_medida || item.medida }})</span> ({{
 												__("Free")
 											}})
 										</div>
@@ -1261,47 +1263,6 @@
 									{{ formatCurrency(getMethodTotal("Customer Credit")) }}
 								</span>
 							</button>
-
-							<!-- Receivable Accounts: pick the account that holds the unpaid balance
-							     (the invoice's debit_to). Tender cash for the paid part; the rest
-							     stays outstanding on this account. -->
-							<template v-if="receivableAccounts.length > 0">
-								<!-- Divider: a full-width line forces a wrap, then the AR accounts -->
-								<div class="w-full border-t border-gray-200 my-0.5"></div>
-								<button
-									v-for="acc in receivableAccounts"
-									:key="acc.name"
-									@click="toggleReceivableAccount(acc)"
-									:class="[
-										'inline-flex items-center rounded-lg border-2 transition-all font-medium select-none',
-										isSmallMobile
-											? 'gap-0.5 px-1.5 h-7 text-[10px]'
-											: 'gap-1 lg:gap-2 px-2.5 lg:px-4 h-8 text-xs lg:h-11 lg:text-sm',
-										selectedReceivableAccount === acc.name
-											? 'border-blue-500 bg-blue-50 text-blue-700'
-											: 'border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50 text-gray-700',
-									]"
-								>
-									<span :class="isSmallMobile ? 'text-xs' : 'text-sm lg:text-lg'"
-										>🧾</span
-									>
-									<span class="truncate max-w-[80px] lg:max-w-none">{{
-										__(acc.account_name || acc.name)
-									}}</span>
-									<!-- Amount that will stay outstanding on this account -->
-									<span
-										v-if="selectedReceivableAccount === acc.name"
-										:class="[
-											'font-bold text-blue-600 bg-blue-100 rounded',
-											isSmallMobile
-												? 'text-[8px] px-0.5 py-0.5'
-												: 'text-xs px-1 py-0.5',
-										]"
-									>
-										{{ formatCurrency(remainingAmount) }}
-									</span>
-								</button>
-							</template>
 						</div>
 						<div
 							v-else
@@ -1384,27 +1345,35 @@
 						<div class="text-start text-xs font-medium text-gray-600 mb-1.5">
 							{{
 								isExactAmountModeActive && !isCashPaymentMethod(lastSelectedMethod)
-									? __("Exact amount only")
-									: __("Quick amounts for {0}", [
+									? __("Solo monto exacto")
+									: __("Cobro rápido para {0}", [
 											__(lastSelectedMethod.mode_of_payment),
 									  ])
 							}}
 						</div>
-						<div class="grid grid-cols-4 gap-1.5">
+						<div class="w-full">
 							<button
 								v-for="amount in quickAmounts"
 								:key="amount"
 								@click="addCustomPayment(lastSelectedMethod, amount)"
 								:disabled="isQuickAmountDisabled(amount)"
 								:class="[
-									'font-semibold rounded-lg border-2 transition-all',
-									isCompactMode ? 'px-2 py-2 text-sm' : 'px-2 py-2 text-sm',
+									'w-full font-bold rounded-lg border-2 transition-all flex items-center justify-between shadow-sm',
+									isCompactMode ? 'px-3 py-2 text-sm' : 'px-4 py-2.5 text-sm',
 									isQuickAmountDisabled(amount)
 										? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-										: 'bg-white border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-700 hover:text-blue-600',
+										: 'bg-blue-50/90 border-blue-400 hover:border-blue-600 hover:bg-blue-100 text-blue-900',
 								]"
 							>
-								{{ formatCurrency(amount) }}
+								<span class="flex items-center gap-2 text-xs font-bold text-blue-700">
+									<svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+									</svg>
+									<span>{{ __("Cobrar Monto Exacto") }}</span>
+								</span>
+								<span class="text-base font-extrabold text-blue-900 tracking-tight">
+									{{ formatCurrency(amount) }}
+								</span>
 							</button>
 						</div>
 					</div>
@@ -1435,25 +1404,30 @@
 							v-if="lastSelectedMethod && remainingAmount > 0"
 							:class="['space-y-1 flex-shrink-0', isSmallMobile ? 'mb-1' : 'mb-1.5']"
 						>
-							<!-- Quick Amounts Row (4 columns, responsive sizing) -->
-							<div
-								class="grid grid-cols-4"
-								:class="isSmallMobile ? 'gap-0.5' : 'gap-1'"
-							>
+							<!-- Quick Amounts Row (Monto Exacto) -->
+							<div class="w-full">
 								<button
 									v-for="amount in quickAmounts"
 									:key="amount"
 									@click="addCustomPayment(lastSelectedMethod, amount)"
 									:disabled="isQuickAmountDisabled(amount)"
 									:class="[
-										'font-semibold rounded border transition-colors',
-										isSmallMobile ? 'py-1 text-[10px]' : 'py-1.5 text-xs',
+										'w-full font-bold rounded border-2 transition-colors flex items-center justify-between shadow-sm',
+										isSmallMobile ? 'py-1 px-2 text-[11px]' : 'py-1.5 px-3 text-xs',
 										isQuickAmountDisabled(amount)
 											? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-											: 'bg-white border-gray-200 text-gray-700 active:bg-blue-50 active:border-blue-400',
+											: 'bg-blue-50/90 border-blue-400 active:bg-blue-100 text-blue-900',
 									]"
 								>
-									{{ formatCurrency(amount) }}
+									<span class="flex items-center gap-1.5 font-bold text-blue-700">
+										<svg class="w-3.5 h-3.5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+										</svg>
+										<span>{{ __("Cobrar Monto Exacto") }}</span>
+									</span>
+									<span class="font-extrabold text-blue-900">
+										{{ formatCurrency(amount) }}
+									</span>
 								</button>
 							</div>
 
@@ -2154,6 +2128,18 @@ const show = computed({
 	get: () => props.modelValue,
 	set: (val) => emit("update:modelValue", val),
 });
+
+function getItemTitle(item) {
+	if (!item) return "";
+	const mode = settingsStore.itemTitleDisplay;
+	if (mode === "Item Code") {
+		return item.item_code;
+	}
+	if (mode === "Item Name & Code" && item.item_code && item.item_name && item.item_code !== item.item_name) {
+		return `${item.item_name} (${item.item_code})`;
+	}
+	return item.item_name || item.item_code;
+}
 
 const paymentMethods = ref([]);
 const loadingPaymentMethods = ref(false);

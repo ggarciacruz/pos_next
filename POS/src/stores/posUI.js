@@ -2,8 +2,14 @@ import { useDialog, useDialogState } from "@/composables/useDialogState";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-const LEFT_PANEL_MIN = 320;
-const RIGHT_PANEL_MIN = 360;
+const LEFT_PANEL_MIN = 360;
+const RIGHT_PANEL_MIN = 380;
+
+function computeDefaultLeftPanelWidth(totalWidth) {
+	if (!totalWidth || totalWidth < 1024) return 600;
+	const targetCartWidth = Math.max(380, Math.min(460, Math.round(totalWidth * 0.34)));
+	return Math.max(LEFT_PANEL_MIN, totalWidth - targetCartWidth);
+}
 
 export const usePOSUIStore = defineStore("posUI", () => {
 	// Loading state
@@ -54,7 +60,11 @@ export const usePOSUIStore = defineStore("posUI", () => {
 	const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
 
 	// Layout state
-	const leftPanelWidth = ref(1150);
+	const leftPanelWidth = ref(
+		typeof window !== "undefined"
+			? computeDefaultLeftPanelWidth(window.innerWidth)
+			: 850
+	);
 	const isResizing = ref(false);
 
 

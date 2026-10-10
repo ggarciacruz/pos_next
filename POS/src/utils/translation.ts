@@ -123,6 +123,12 @@ export function translate(msg: string, replace?: Record<string, string>, ctx?: s
     translated = "Imprimir Ticket (Térmico)"
   } else if (translated === "Print PDF (Letter Size)") {
     translated = "Imprimir PDF (Hoja Carta)"
+  } else if (translated.startsWith("Quick amounts for")) {
+    translated = translated.replace("Quick amounts for", "Cobro rápido para")
+  } else if (translated === "Exact amount only") {
+    translated = "Solo monto exacto"
+  } else if (translated === "Cobrar Monto Exacto") {
+    translated = "Cobrar Monto Exacto"
   }
 
   if (replace) {
