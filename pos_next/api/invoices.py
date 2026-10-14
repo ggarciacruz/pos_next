@@ -1734,7 +1734,12 @@ def get_invoices(pos_profile: str, limit: int = 100, start: int = 0) -> list:
 			status,
 			docstatus,
 			is_return,
-			return_against
+			return_against,
+			custom_fecha_entrega,
+			custom_direccion_entrega,
+			custom_telefono_contacto,
+			custom_modalidad_cobro_chofer,
+			custom_estado_entrega
 		FROM
 			`tabSales Invoice`
 		WHERE
@@ -3375,3 +3380,47 @@ def apply_offers(invoice_data, selected_offers=None):
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "Apply Offers Error")
 		frappe.throw(_("Error applying offers: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def mark_invoice_delivered(invoice_name: str, estado: str = "Entregado", doctype: str = None) -> dict:
+	"""
+	Update delivery status for an invoice or sales order (e.g. 'Entregado', 'En Ruta', 'Pendiente de Carga').
+	"""
+	if not invoice_name:
+		frappe.throw(_("Invoice name is required"))
+
+	dt = doctype
+	if not dt:
+		if frappe.db.exists("Sales Invoice", invoice_name):
+			dt = "Sales Invoice"
+		elif frappe.db.exists("Sales Order", invoice_name):
+			dt = "Sales Order"
+		else:
+			dt = "Sales Invoice"
+
+	frappe.db.set_value(dt, invoice_name, "custom_estado_entrega", estado)
+	frappe.db.commit()
+	return {"status": "success", "invoice_name": invoice_name, "estado": estado}
+
+
+@frappe.whitelist()
+def update_customer_delivery_info(customer_name: str, direccion: str = None, telefono: str = None) -> dict:
+	"""
+	Update customer's primary address or mobile if provided.
+	"""
+	if not customer_name:
+		return {"status": "ignored"}
+
+	updates = {}
+	if telefono:
+		updates["mobile_no"] = telefono
+	if direccion:
+		updates["primary_address"] = direccion
+
+	if updates and frappe.db.exists("Customer", customer_name):
+		frappe.db.set_value("Customer", customer_name, updates)
+		frappe.db.commit()
+
+	return {"status": "success"}
+

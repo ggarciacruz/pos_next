@@ -25,34 +25,74 @@
 					]"
 					:style="{ maxHeight: isMobileView ? 'none' : dynamicLeftColumnHeight }"
 				>
-					<!-- Delivery Date for Sales Orders -->
-					<div
-						v-if="isSalesOrder"
-						class="bg-orange-50 border border-orange-200 rounded-lg p-2"
-					>
-						<div class="flex items-center gap-2">
-							<svg
-								class="w-4 h-4 text-orange-600 flex-shrink-0"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+					<!-- Despacho / Entrega en Camión -->
+					<div class="bg-amber-50/80 border border-amber-200 rounded-lg p-2 flex flex-col gap-1.5">
+						<div class="flex items-center justify-between">
+							<label class="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-amber-900">
+								<input
+									type="checkbox"
+									v-model="requiresDelivery"
+									class="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-amber-300"
 								/>
-							</svg>
-							<label class="text-xs font-medium text-orange-700 flex-shrink-0">{{
-								__("Delivery Date")
-							}}</label>
-							<input
-								type="date"
-								v-model="deliveryDate"
-								:min="today"
-								class="flex-1 h-8 border border-orange-300 rounded-lg px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
-							/>
+								<span class="flex items-center gap-1.5">
+									<svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+									</svg>
+									{{ __("Despacho en Camión") }}
+								</span>
+							</label>
+							<span v-if="requiresDelivery" class="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full font-medium">
+								{{ isSalesOrder ? __('Pedido') : __('Venta con Envío') }}
+							</span>
+						</div>
+
+						<!-- Campos de Despacho (visibles cuando requiresDelivery está activo) -->
+						<div v-if="requiresDelivery" class="flex flex-col gap-1.5 pt-1.5 border-t border-amber-200/70 text-xs">
+							<!-- Fecha de Entrega -->
+							<div class="flex items-center gap-2">
+								<label class="text-[11px] text-gray-600 w-20 flex-shrink-0">{{ __("Fecha:") }}</label>
+								<input
+									type="date"
+									v-model="deliveryDate"
+									:min="today"
+									class="flex-1 h-7 border border-amber-300 rounded px-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+								/>
+							</div>
+
+							<!-- Dirección o Puesto de Entrega -->
+							<div class="flex items-center gap-2">
+								<label class="text-[11px] text-gray-600 w-20 flex-shrink-0">{{ __("Puesto / Dir:") }}</label>
+								<input
+									type="text"
+									v-model="deliveryAddress"
+									:placeholder="__('Ej: La Ramada, Pasillo 4, Puesto 18')"
+									class="flex-1 h-7 border border-amber-300 rounded px-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+								/>
+							</div>
+
+							<!-- Teléfono de Contacto -->
+							<div class="flex items-center gap-2">
+								<label class="text-[11px] text-gray-600 w-20 flex-shrink-0">{{ __("Teléfono:") }}</label>
+								<input
+									type="text"
+									v-model="deliveryPhone"
+									:placeholder="__('Ej: 77012345')"
+									class="flex-1 h-7 border border-amber-300 rounded px-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+								/>
+							</div>
+
+							<!-- Modalidad de Cobro al Chofer -->
+							<div class="flex items-center gap-2">
+								<label class="text-[11px] text-gray-600 w-20 flex-shrink-0">{{ __("Cobro Chofer:") }}</label>
+								<select
+									v-model="driverCollectionMode"
+									class="flex-1 h-7 border border-amber-300 rounded px-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+								>
+									<option value="Cobrar al Chofer Contra Entrega">{{ __("Cobrar Saldo al Entregar") }}</option>
+									<option value="Ya Pagado en Fábrica / Transferencia">{{ __("Ya Pagado (Solo Entregar)") }}</option>
+									<option value="A Crédito / Con Saldo">{{ __("A Crédito / Con Saldo (Recabar Firma)") }}</option>
+								</select>
+							</div>
 						</div>
 					</div>
 
@@ -2017,6 +2057,7 @@
 
 <script setup>
 import { usePOSSettingsStore } from "@/stores/posSettings";
+import { useCustomerSearchStore } from "@/stores/customerSearch";
 import {
 	DEFAULT_CURRENCY,
 	formatCurrency as formatCurrencyUtil,
@@ -2169,11 +2210,16 @@ const walletInfo = ref({
 const loadingWallet = ref(false);
 const walletPaymentMethods = ref(new Set()); // Set of mode_of_payment names that are wallet payments
 
-// Delivery date for Sales Orders
+// Delivery state for truck dispatch
+const requiresDelivery = ref(false);
 const deliveryDate = ref("");
+const deliveryAddress = ref("");
+const deliveryPhone = ref("");
+const driverCollectionMode = ref("Cobrar al Chofer (Contra Entrega)");
 const today = new Date().toISOString().split("T")[0];
 const isSalesOrder = computed(() => props.targetDoctype === "Sales Order");
 const emitOfficialInvoice = ref(false);
+const customerSearchStore = useCustomerSearchStore();
 
 // Column refs for height matching
 const rightColumnRef = ref(null);
@@ -3039,8 +3085,18 @@ watch(show, (newVal) => {
 		selectedSalesPersons.value = [];
 		salesPersonSearch.value = "";
 		applyWriteOff.value = false; // Reset write-off state
-		// Set default delivery date to today for Sales Orders
-		deliveryDate.value = isSalesOrder.value ? today : "";
+
+		// Setup Delivery information for truck dispatch
+		deliveryDate.value = today;
+		const custKey = typeof props.customer === "object" ? props.customer?.name : props.customer;
+		const matchedCustomer = customerSearchStore.allCustomers.find((c) => c.name === custKey);
+		const defaultAddr = matchedCustomer?.primary_address || (typeof props.customer === "object" ? props.customer?.primary_address : "") || "";
+		const defaultPhone = matchedCustomer?.mobile_no || (typeof props.customer === "object" ? props.customer?.mobile_no : "") || "";
+
+		deliveryAddress.value = defaultAddr;
+		deliveryPhone.value = defaultPhone;
+		requiresDelivery.value = isSalesOrder.value || Boolean(defaultAddr);
+		driverCollectionMode.value = "Cobrar al Chofer (Contra Entrega)";
 
 		// Debug logging
 		log.debug("[PaymentDialog] Dialog opened with props:", {
@@ -3415,6 +3471,8 @@ function addCreditAccountPayment() {
 		remainingAmount: remainingAmount.value,
 	});
 
+	const receivableAccount = selectedReceivableAccount.value || null;
+
 	// Close dialog and complete as credit sale (0 payment)
 	// The backend will create an invoice with outstanding amount
 	const paymentData = {
@@ -3424,7 +3482,35 @@ function addCreditAccountPayment() {
 		is_credit_sale: true, // Mark as credit sale
 		paid_amount: 0,
 		outstanding_amount: props.grandTotal,
+		sales_team: selectedSalesPersons.value.length > 0 ? selectedSalesPersons.value : null,
+		delivery_date: isSalesOrder.value ? deliveryDate.value : null,
+		// Despacho / Delivery fields
+		requires_delivery: requiresDelivery.value,
+		custom_fecha_entrega: requiresDelivery.value ? deliveryDate.value : null,
+		custom_direccion_entrega: requiresDelivery.value ? deliveryAddress.value : null,
+		custom_telefono_contacto: requiresDelivery.value ? deliveryPhone.value : null,
+		custom_modalidad_cobro_chofer: requiresDelivery.value
+			? (driverCollectionMode.value === "Ya Pagado en Fábrica / Transferencia" ? "A Crédito / Con Saldo" : (driverCollectionMode.value || "A Crédito / Con Saldo"))
+			: null,
+		custom_estado_entrega: requiresDelivery.value ? "Pendiente de Entrega" : null,
+		// Write-off data
+		write_off_amount: 0,
+		is_write_off: false,
+		receivable_account: receivableAccount,
+		emit_official_invoice: emitOfficialInvoice.value,
 	};
+
+	// Auto-update customer address/phone in background if customer is fixed
+	if (requiresDelivery.value && (deliveryAddress.value || deliveryPhone.value)) {
+		const custKey = typeof props.customer === "object" ? props.customer?.name : props.customer;
+		if (custKey) {
+			call("pos_next.api.invoices.update_customer_delivery_info", {
+				customer_name: custKey,
+				direccion: deliveryAddress.value,
+				telefono: deliveryPhone.value,
+			}).catch((err) => log.warn("Could not auto-save customer delivery info:", err));
+		}
+	}
 
 	log.debug("[PaymentDialog] Emitting credit sale payment-completed:", paymentData);
 	emit("payment-completed", paymentData);
@@ -3474,6 +3560,13 @@ function completePayment() {
 		outstanding_amount: outstanding,
 		sales_team: selectedSalesPersons.value.length > 0 ? selectedSalesPersons.value : null,
 		delivery_date: isSalesOrder.value ? deliveryDate.value : null,
+		// Despacho / Delivery fields
+		requires_delivery: requiresDelivery.value,
+		custom_fecha_entrega: requiresDelivery.value ? deliveryDate.value : null,
+		custom_direccion_entrega: requiresDelivery.value ? deliveryAddress.value : null,
+		custom_telefono_contacto: requiresDelivery.value ? deliveryPhone.value : null,
+		custom_modalidad_cobro_chofer: requiresDelivery.value ? driverCollectionMode.value : null,
+		custom_estado_entrega: requiresDelivery.value ? "Pendiente de Entrega" : null,
 		// Write-off data
 		write_off_amount: writeOffAmount.value,
 		is_write_off: writeOffAmount.value > 0,
@@ -3484,6 +3577,18 @@ function completePayment() {
 		is_credit_sale: !!receivableAccount && paymentEntries.value.length === 0,
 		emit_official_invoice: emitOfficialInvoice.value,
 	};
+
+	// Auto-update customer address/phone in background if customer is fixed
+	if (requiresDelivery.value && (deliveryAddress.value || deliveryPhone.value)) {
+		const custKey = typeof props.customer === "object" ? props.customer?.name : props.customer;
+		if (custKey) {
+			call("pos_next.api.invoices.update_customer_delivery_info", {
+				customer_name: custKey,
+				direccion: deliveryAddress.value,
+				telefono: deliveryPhone.value,
+			}).catch((err) => log.warn("Could not auto-save customer delivery info:", err));
+		}
+	}
 
 	log.debug("[PaymentDialog] Emitting payment-completed:", paymentData);
 

@@ -429,7 +429,7 @@
 													class="text-center p-3 bg-orange-50 rounded-lg border border-orange-100"
 												>
 													<div class="text-xs text-gray-600 mb-1">
-														{{ __("Outstanding") }}
+														{{ __("Saldo Pendiente") }}
 													</div>
 													<div class="text-lg font-bold text-orange-600">
 														{{
@@ -684,7 +684,7 @@
 												</div>
 												<div>
 													<div class="text-xs text-gray-500 mb-1">
-														{{ __("Outstanding") }}
+														{{ __("Saldo Pendiente") }}
 													</div>
 													<div
 														class="text-sm font-semibold text-orange-600"
@@ -1001,6 +1001,262 @@
 									</div>
 								</div>
 							</div>
+
+							<!-- Despachos en Camión Tab -->
+							<div v-if="activeTab === 'despachos'" class="flex flex-col gap-4">
+								<!-- Dispatch Toolbar & Filters -->
+								<div class="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-gray-200">
+									<div class="flex items-center gap-2 flex-wrap">
+										<button
+											@click="dispatchesFilter = 'pending'"
+											:class="[
+												'px-3.5 py-1.5 rounded-lg font-medium text-xs transition-all flex items-center gap-1.5',
+												dispatchesFilter === 'pending'
+													? 'bg-amber-600 text-white shadow-sm'
+													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
+											]"
+										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+											</svg>
+											{{ __("Por Despachar ({0})", [pendingDispatches.length]) }}
+										</button>
+										<button
+											@click="dispatchesFilter = 'delivered'"
+											:class="[
+												'px-3.5 py-1.5 rounded-lg font-medium text-xs transition-all flex items-center gap-1.5',
+												dispatchesFilter === 'delivered'
+													? 'bg-green-600 text-white shadow-sm'
+													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
+											]"
+										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+											</svg>
+											{{ __("Entregados ({0})", [deliveredDispatches.length]) }}
+										</button>
+										<button
+											@click="dispatchesFilter = 'all'"
+											:class="[
+												'px-3.5 py-1.5 rounded-lg font-medium text-xs transition-all',
+												dispatchesFilter === 'all'
+													? 'bg-gray-800 text-white shadow-sm'
+													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
+											]"
+										>
+											{{ __("Todos ({0})", [allDispatches.length]) }}
+										</button>
+									</div>
+
+									<div class="flex items-center gap-2">
+										<!-- Filter by date -->
+										<div class="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs">
+											<span class="text-gray-500 font-medium">{{ __("Fecha:") }}</span>
+											<input
+												type="date"
+												v-model="dispatchDateFilter"
+												class="text-xs bg-transparent border-none p-0 focus:ring-0 text-gray-800"
+											/>
+											<button
+												v-if="dispatchDateFilter"
+												@click="dispatchDateFilter = ''"
+												class="text-gray-400 hover:text-gray-600 ml-1 text-xs"
+												:title="__('Limpiar fecha')"
+											>
+												✕
+											</button>
+										</div>
+
+										<!-- Driver Portal Direct Link -->
+										<a
+											href="/despacho"
+											target="_blank"
+											class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium text-xs px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors no-underline"
+											:title="__('Abrir Portal Móvil de Choferes en nueva pestaña')"
+										>
+											<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+											</svg>
+											<span>{{ __("Portal Chofer") }}</span>
+										</a>
+
+										<!-- Print Dispatch Sheet button -->
+										<button
+											@click="openDispatchPlanSheet"
+											class="bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors"
+											:title="__('Imprimir Planilla de Carga y Ruta para el Chofer')"
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+											</svg>
+											<span>{{ __("Planilla Diaria de Despacho") }}</span>
+										</button>
+									</div>
+								</div>
+
+								<!-- Empty state -->
+								<div
+									v-if="filteredDispatches.length === 0"
+									class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-dashed border-gray-300 p-8"
+								>
+									<div class="p-3 bg-amber-50 rounded-full mb-3 text-amber-600">
+										<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+										</svg>
+									</div>
+									<h3 class="text-sm font-semibold text-gray-900 mb-1">
+										{{ __("No hay despachos registrados") }}
+									</h3>
+									<p class="text-xs text-gray-500 max-w-sm">
+										{{ __("Las ventas marcadas con 'Despacho en Camión' aparecerán aquí organizadas para la carga del camión y cobro.") }}
+									</p>
+								</div>
+
+								<!-- Dispatch Cards Grid -->
+								<div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+									<div
+										v-for="dispatch in filteredDispatches"
+										:key="dispatch.name"
+										class="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-3 relative"
+										:class="[
+											isDispatchDelivered(dispatch)
+												? 'border-green-200 bg-green-50/20'
+												: 'border-amber-200 bg-amber-50/10'
+										]"
+									>
+										<!-- Card Header -->
+										<div class="flex items-start justify-between gap-2">
+											<div>
+												<span class="text-xs font-mono font-bold text-gray-800">
+													{{ dispatch.name }}
+												</span>
+												<h4 class="text-sm font-bold text-gray-900 leading-tight mt-0.5">
+													{{ dispatch.customer_name || dispatch.customer }}
+												</h4>
+											</div>
+											<!-- Status Badge -->
+											<span
+												:class="[
+													'px-2.5 py-1 text-[11px] font-bold rounded-full flex items-center gap-1',
+													isDispatchDelivered(dispatch)
+														? 'bg-green-100 text-green-800 border border-green-300'
+														: 'bg-amber-100 text-amber-800 border border-amber-300'
+												]"
+											>
+												<span class="w-1.5 h-1.5 rounded-full" :class="isDispatchDelivered(dispatch) ? 'bg-green-600' : 'bg-amber-600'"></span>
+												{{ dispatch.custom_estado_entrega || __('Pendiente de Carga') }}
+											</span>
+										</div>
+
+										<!-- Delivery Details -->
+										<div class="bg-gray-50 rounded-lg p-2.5 flex flex-col gap-1.5 text-xs border border-gray-100">
+											<!-- Date -->
+											<div class="flex items-center gap-1.5 text-gray-700">
+												<svg class="w-3.5 h-3.5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+												</svg>
+												<span class="font-semibold text-gray-600">{{ __('Entrega:') }}</span>
+												<span class="font-medium text-gray-900">{{ formatDate(dispatch.custom_fecha_entrega) || __('Hoy') }}</span>
+											</div>
+
+											<!-- Stall / Address -->
+											<div v-if="dispatch.custom_direccion_entrega" class="flex items-start gap-1.5 text-gray-700">
+												<svg class="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+												</svg>
+												<span class="font-semibold text-gray-600">{{ __('Puesto/Dir:') }}</span>
+												<span class="font-medium text-gray-900 leading-tight">{{ dispatch.custom_direccion_entrega }}</span>
+											</div>
+
+											<!-- Phone -->
+											<div v-if="dispatch.custom_telefono_contacto" class="flex items-center gap-1.5 text-gray-700">
+												<svg class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+												</svg>
+												<span class="font-semibold text-gray-600">{{ __('Tel:') }}</span>
+												<a :href="'tel:' + dispatch.custom_telefono_contacto" class="font-semibold text-blue-600 hover:underline">
+													{{ dispatch.custom_telefono_contacto }}
+												</a>
+											</div>
+
+											<!-- Collection Mode -->
+											<div class="flex items-center gap-1.5 pt-1 border-t border-gray-200/60">
+												<span class="font-semibold text-gray-600">{{ __('Modalidad:') }}</span>
+												<span class="font-medium text-gray-800">
+													{{ dispatch.custom_modalidad_cobro_chofer || __('Contra Entrega') }}
+												</span>
+											</div>
+										</div>
+
+										<!-- Financial Summary & Balance to Collect -->
+										<div class="flex items-center justify-between pt-1">
+											<div>
+												<span class="text-[10px] text-gray-500 block uppercase font-bold">{{ __('Total') }}</span>
+												<span class="text-sm font-bold text-gray-900">{{ formatCurrency(dispatch.grand_total) }}</span>
+											</div>
+											<div class="text-right">
+												<span class="text-[10px] text-gray-500 block uppercase font-bold">{{ __('Saldo a Cobrar') }}</span>
+												<span
+													:class="[
+														'text-sm font-bold',
+														(dispatch.outstanding_amount || 0) > 0.01
+															? 'text-red-600'
+															: 'text-green-600'
+													]"
+												>
+													{{ (dispatch.outstanding_amount || 0) > 0.01 ? formatCurrency(dispatch.outstanding_amount) : __('Pagado') }}
+												</span>
+											</div>
+										</div>
+
+										<!-- Card Actions -->
+										<div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+											<div class="flex items-center gap-1">
+												<button
+													@click="$emit('view-invoice', dispatch.name)"
+													class="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+													:title="__('Ver Detalle')"
+												>
+													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+													</svg>
+												</button>
+												<button
+													@click="$emit('print-invoice', dispatch)"
+													class="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
+													:title="__('Imprimir Nota de Venta')"
+												>
+													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+													</svg>
+												</button>
+											</div>
+
+											<!-- Mark Delivered Button -->
+											<button
+												v-if="!isDispatchDelivered(dispatch)"
+												@click="markAsDelivered(dispatch)"
+												:disabled="loadingDelivery[dispatch.name]"
+												class="bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-50 text-white font-semibold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+												style="background-color: #16a34a; color: #ffffff;"
+											>
+												<svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+												</svg>
+												<span class="text-white">{{ loadingDelivery[dispatch.name] ? __('Guardando...') : __('Marcar Entregado') }}</span>
+											</button>
+											<span v-else class="text-xs text-green-700 font-semibold flex items-center gap-1">
+												<svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+												</svg>
+												{{ dispatch.custom_estado_entrega || __('Entregado') }}
+											</span>
+										</div>
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -1143,6 +1399,74 @@ const filteredHistoryInvoices = computed(() => {
 	return tempFilters.filteredInvoices.value;
 });
 
+// Dispatches state & computeds
+const dispatchesFilter = ref("pending"); // "pending", "delivered", "all"
+const dispatchDateFilter = ref("");
+const loadingDelivery = ref({});
+
+const allDispatches = computed(() => {
+	const allInvoices = Array.isArray(props.historyInvoices) ? props.historyInvoices : [];
+	return allInvoices.filter(
+		(inv) => Boolean(
+			inv.custom_direccion_entrega ||
+			(inv.custom_fecha_entrega && inv.custom_estado_entrega && inv.custom_estado_entrega !== "Entregado en Tienda") ||
+			(inv.custom_estado_entrega && ["Pendiente de Entrega", "En Ruta de Despacho", "Pendiente de Carga", "En Camino"].includes(inv.custom_estado_entrega))
+		)
+	);
+});
+
+const pendingDispatches = computed(() => {
+	return allDispatches.value.filter(
+		(inv) => !isDispatchDelivered(inv)
+	);
+});
+
+const deliveredDispatches = computed(() => {
+	return allDispatches.value.filter(
+		(inv) => isDispatchDelivered(inv)
+	);
+});
+
+const filteredDispatches = computed(() => {
+	let list = allDispatches.value;
+	if (dispatchesFilter.value === "pending") {
+		list = pendingDispatches.value;
+	} else if (dispatchesFilter.value === "delivered") {
+		list = deliveredDispatches.value;
+	}
+	if (dispatchDateFilter.value) {
+		list = list.filter((inv) => inv.custom_fecha_entrega === dispatchDateFilter.value);
+	}
+	return list;
+});
+
+function isDispatchDelivered(dispatch) {
+	return dispatch.custom_estado_entrega === "Entregado" || dispatch.custom_estado_entrega === "Entregado al Cliente";
+}
+
+async function markAsDelivered(dispatch) {
+	if (!dispatch || !dispatch.name) return;
+	loadingDelivery.value[dispatch.name] = true;
+	try {
+		await call("pos_next.api.invoices.mark_invoice_delivered", {
+			invoice_name: dispatch.name,
+			estado: "Entregado",
+		});
+		dispatch.custom_estado_entrega = "Entregado";
+		showSuccess(__("Despacho marcado como entregado"));
+		emit("refresh-history");
+	} catch (error) {
+		log.error("Error marking dispatch as delivered:", error);
+		showError(__("No se pudo actualizar el estado de entrega"));
+	} finally {
+		loadingDelivery.value[dispatch.name] = false;
+	}
+}
+
+function openDispatchPlanSheet() {
+	window.open("/app/query-report/Planilla%20Diaria%20de%20Despacho", "_blank");
+}
+
 // Tabs configuration
 const tabs = computed(() => [
 	{
@@ -1152,6 +1476,14 @@ const tabs = computed(() => [
 		color: "orange",
 		activeClass: "text-orange-600",
 		badge: () => unpaidInvoices.value.length,
+	},
+	{
+		id: "despachos",
+		label: __("Despachos"),
+		icon: "M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0",
+		color: "amber",
+		activeClass: "text-amber-600",
+		badge: () => pendingDispatches.value.length,
 	},
 	{
 		id: "history",
@@ -1188,6 +1520,8 @@ function getTabActiveClass(tabId) {
 	switch (tabId) {
 		case "partial":
 			return "text-orange-600 border-orange-500";
+		case "despachos":
+			return "text-amber-600 border-amber-500";
 		case "history":
 			return "text-indigo-600 border-indigo-500";
 		case "drafts":
@@ -1204,6 +1538,8 @@ function getBadgeActiveClass(tabId) {
 	switch (tabId) {
 		case "partial":
 			return "bg-orange-100 text-orange-700";
+		case "despachos":
+			return "bg-amber-100 text-amber-700";
 		case "history":
 			return "bg-indigo-100 text-indigo-700";
 		case "drafts":
@@ -1218,6 +1554,8 @@ function getBadgeActiveClass(tabId) {
 function getBadgeInactiveClass(tabId) {
 	switch (tabId) {
 		case "partial":
+			return "bg-gray-200 text-gray-600";
+		case "despachos":
 			return "bg-gray-200 text-gray-600";
 		case "history":
 			return "bg-gray-200 text-gray-600";

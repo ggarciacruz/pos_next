@@ -100,6 +100,44 @@
 						<span>{{ __("Sales History") }}</span>
 					</button>
 					<button
+						@click="handleManagementMenuClick('products')"
+						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 flex items-center gap-3 transition-colors"
+					>
+						<svg
+							class="w-5 h-5 text-purple-600"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+							/>
+						</svg>
+						<span>{{ __("Stock / Productos") }}</span>
+					</button>
+					<button
+						@click="handleManagementMenuClick('invoices')"
+						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-3 transition-colors"
+					>
+						<svg
+							class="w-5 h-5 text-indigo-600"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+							/>
+						</svg>
+						<span>{{ __("Facturas y Despachos") }}</span>
+					</button>
+					<button
 						v-if="offlineStore.pendingInvoicesCount > 0"
 						@click="
 							uiStore.showOfflineInvoicesDialog = true;
@@ -294,6 +332,33 @@
 								</span>
 							</div>
 						</button>
+
+						<!-- Mobile Sidebar Quick Actions: Products & Invoices (Visible only on mobile) -->
+						<div class="flex items-center px-2 py-1.5 border-s border-gray-200 gap-1.5 bg-gray-50/70">
+							<!-- Stock Lookup (Products - Box icon) -->
+							<button
+								@click="handleManagementMenuClick('products')"
+								class="p-2 text-purple-600 bg-white hover:bg-purple-50 active:bg-purple-100 border border-gray-200 rounded-lg shadow-2xs transition-all flex items-center justify-center touch-manipulation"
+								:title="__('Consulta de Stock / Productos')"
+								:aria-label="__('Products')"
+							>
+								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+								</svg>
+							</button>
+
+							<!-- Invoices / Despachos (Invoice Management - File text icon) -->
+							<button
+								@click="handleManagementMenuClick('invoices')"
+								class="p-2 text-indigo-600 bg-white hover:bg-indigo-50 active:bg-indigo-100 border border-gray-200 rounded-lg shadow-2xs transition-all flex items-center justify-center relative touch-manipulation"
+								:title="__('Historial de Ventas y Despachos')"
+								:aria-label="__('Invoice Management')"
+							>
+								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+								</svg>
+							</button>
+						</div>
 					</div>
 
 					<!-- Left: Items Selector (Desktop) / Tab Content (Mobile) -->
@@ -2123,6 +2188,11 @@ async function handlePaymentCompleted(paymentData) {
 				is_credit_sale: paymentData.is_credit_sale ? 1 : 0,
 				receivable_account: paymentData.receivable_account || null,
 				edited_from: editingOfflineContext?.originalOfflineId || null,
+				custom_fecha_entrega: paymentData.custom_fecha_entrega || null,
+				custom_direccion_entrega: paymentData.custom_direccion_entrega || null,
+				custom_telefono_contacto: paymentData.custom_telefono_contacto || null,
+				custom_modalidad_cobro_chofer: paymentData.custom_modalidad_cobro_chofer || null,
+				custom_estado_entrega: paymentData.custom_estado_entrega || null,
 			};
 
 			if (paymentData.emit_official_invoice) {
@@ -2226,6 +2296,14 @@ async function handlePaymentCompleted(paymentData) {
 				isCreditSale: Boolean(paymentData.is_credit_sale),
 				receivableAccount: paymentData.receivable_account || null,
 				emitOfficialInvoice: Boolean(paymentData.emit_official_invoice),
+				deliveryData: {
+					requiresDelivery: paymentData.requires_delivery,
+					custom_fecha_entrega: paymentData.custom_fecha_entrega,
+					custom_direccion_entrega: paymentData.custom_direccion_entrega,
+					custom_telefono_contacto: paymentData.custom_telefono_contacto,
+					custom_modalidad_cobro_chofer: paymentData.custom_modalidad_cobro_chofer,
+					custom_estado_entrega: paymentData.custom_estado_entrega,
+				},
 			});
 
 			if (result) {

@@ -19,14 +19,25 @@ body {
 	font-family: inherit;
 }
 
-/* Ensure frappe-ui dialogs render above sticky mobile navigation */
+/* Ensure frappe-ui dialogs render above sticky mobile navigation and maintain viewport margins */
 .dialog-overlay {
 	z-index: 400 !important;
+}
+
+.dialog-overlay > div {
+	padding: 1.5rem 1rem !important;
+	box-sizing: border-box;
 }
 
 .dialog-overlay .dialog-content,
 .dialog-content {
 	z-index: 500 !important;
+	max-height: calc(100vh - 3rem) !important;
+	max-height: calc(100dvh - 3rem) !important;
+	margin-top: auto !important;
+	margin-bottom: auto !important;
+	display: flex !important;
+	flex-direction: column !important;
 }
 
 /* Mobile touch optimizations - removes 300ms tap delay and improves scrolling */

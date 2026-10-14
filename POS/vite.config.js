@@ -71,6 +71,7 @@ export default defineConfig({
 			registerType: "autoUpdate",
 			includeAssets: ["favicon.png", "icon.svg", "icon-maskable.svg"],
 			manifest: {
+				id: "/pos",
 				name: "POSNext",
 				short_name: "POSNext",
 				description:
@@ -78,7 +79,7 @@ export default defineConfig({
 				theme_color: "#4F46E5",
 				background_color: "#ffffff",
 				display: "standalone",
-				scope: "/assets/pos_next/pos/",
+				scope: "/pos",
 				start_url: "/pos",
 				icons: [
 					{

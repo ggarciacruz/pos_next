@@ -122,13 +122,65 @@ export function translate(msg: string, replace?: Record<string, string>, ctx?: s
   } else if (translated === "Print Ticket (Thermal)") {
     translated = "Imprimir Ticket (Térmico)"
   } else if (translated === "Print PDF (Letter Size)") {
-    translated = "Imprimir PDF (Hoja Carta)"
+    translated = "Imprimir Nota de Venta (Media Carta)"
   } else if (translated.startsWith("Quick amounts for")) {
     translated = translated.replace("Quick amounts for", "Cobro rápido para")
   } else if (translated === "Exact amount only") {
     translated = "Solo monto exacto"
   } else if (translated === "Cobrar Monto Exacto") {
     translated = "Cobrar Monto Exacto"
+  } else if (msg === "Checkout" || translated === "Cobrar") {
+    translated = "Vender / Cobrar"
+  } else if (msg === "Discount:" || translated === "Discount:") {
+    translated = "Descuento:"
+  } else if (msg === "Paid Amount:" || translated === "Paid Amount:") {
+    translated = "Monto Pagado:"
+  } else if (msg === "Customer:" || translated === "Customer:") {
+    translated = "Cliente:"
+  } else if (msg === "Date:" || translated === "Date:") {
+    translated = "Fecha:"
+  } else if (msg === "Net Total:" || translated === "Net Total:") {
+    translated = "Total Neto:"
+  } else if (msg === "Grand Total:" || translated === "Grand Total:" || translated === "Gran total:") {
+    translated = "Total General:"
+  } else if (msg === "Grand Total" || translated === "Grand Total" || translated === "Gran total") {
+    translated = "Total General"
+  } else if (msg === "Customer Credit:" || translated === "Customer Credit:") {
+    translated = "Crédito del Cliente:"
+  } else if (msg === "Outstanding:" || translated === "Outstanding:") {
+    translated = "Saldo Pendiente:"
+  } else if (msg === "Return Against:" || translated === "Return Against:") {
+    translated = "Devolución contra:"
+  } else if (msg === "Taxes:" || translated === "Taxes:") {
+    translated = "Impuestos:"
+  } else if (msg === "All ({0})" || translated === "All ({0})") {
+    translated = "Todos ({0})"
+  } else if (msg === "Partially Paid ({0})" || translated === "Partially Paid ({0})") {
+    translated = "Pago Parcial ({0})"
+  } else if (msg === "Unpaid ({0})" || translated === "Unpaid ({0})") {
+    translated = "Sin Pagar ({0})"
+  } else if (msg === "Overdue ({0})" || translated === "Overdue ({0})") {
+    translated = "Vencidas ({0})"
+  } else if (msg === "Add Payment" || translated === "Add Payment") {
+    translated = "Registrar Pago"
+  } else if (msg === "+ Add Payment" || translated === "+ Add Payment") {
+    translated = "+ Registrar Pago"
+  } else if (msg === "{0} paid" || translated === "{0} paid") {
+    translated = "{0} pagado"
+  } else if (msg === "{0} invoices" || translated === "{0} invoices") {
+    translated = "{0} ventas"
+  } else if (msg === "Outstanding" || translated === "Excepcional" || translated === "Outstanding") {
+    translated = "Saldo Pendiente"
+  } else if (msg === "Total Outstanding" || translated === "Total Excepcional") {
+    translated = "Total Saldo Pendiente"
+  }
+
+  // Handle any label ending with colon whose base word is translated
+  if (translated === msg && msg.endsWith(":")) {
+    const base = msg.slice(0, -1)
+    if (messages[base]) {
+      translated = messages[base] + ":"
+    }
   }
 
   if (replace) {

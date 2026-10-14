@@ -266,7 +266,10 @@
 	<!-- Details Dialog -->
 	<Dialog v-model="showDetails" :options="{ title: __('Invoice Details'), size: 'lg' }">
 		<template #body-content>
-			<div v-if="selectedInvoice" class="flex flex-col gap-3 sm:flex flex-col gap-4">
+			<div
+				v-if="selectedInvoice"
+				class="flex flex-col gap-3 sm:gap-4 max-h-[calc(100vh-16rem)] overflow-y-auto px-1 pe-2 -me-2"
+			>
 				<div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
 					<h4 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">
 						{{ __("Customer") }}

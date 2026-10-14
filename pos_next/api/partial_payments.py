@@ -464,6 +464,22 @@ def create_payment_entry(
 		pe.insert()
 		pe.submit()
 
+		# Synchronize Sales Invoice paid_amount and custom_saldo_pendiente
+		# so dashboards, reports, and number cards always match real financial reality
+		actual_outstanding = flt(frappe.db.get_value("Sales Invoice", invoice_name, "outstanding_amount") or 0)
+		grand_total = flt(frappe.db.get_value("Sales Invoice", invoice_name, "grand_total") or 0)
+		actual_paid = max(0.0, grand_total - actual_outstanding)
+		frappe.db.set_value(
+			"Sales Invoice",
+			invoice_name,
+			{
+				"paid_amount": actual_paid,
+				"base_paid_amount": actual_paid,
+				"custom_saldo_pendiente": actual_outstanding,
+			},
+			update_modified=False,
+		)
+
 		return pe.name
 
 	except frappe.ValidationError as e:
@@ -621,6 +637,11 @@ def get_unpaid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT) ->
 			"status",
 			"creation",
 			"currency",
+			"custom_fecha_entrega",
+			"custom_direccion_entrega",
+			"custom_telefono_contacto",
+			"custom_modalidad_cobro_chofer",
+			"custom_estado_entrega",
 		],
 		order_by="posting_date desc, posting_time desc",
 		limit=limit,
@@ -973,3 +994,29 @@ def _has_pos_profile_access(pos_profile: str) -> bool:
 	has_general_access = frappe.has_permission("Sales Invoice", "read")
 
 	return bool(has_direct_access or has_general_access)
+
+
+def sync_payment_entry_references(doc, method=None):
+	"""Keep Sales Invoice.paid_amount and custom_saldo_pendiente aligned with Payment Entry allocations."""
+	for ref in doc.get("references", []):
+		if ref.reference_doctype == "Sales Invoice" and ref.reference_name:
+			inv = frappe.db.get_value(
+				"Sales Invoice",
+				ref.reference_name,
+				["grand_total", "outstanding_amount"],
+				as_dict=True,
+			)
+			if inv:
+				actual_outstanding = flt(inv.outstanding_amount or 0)
+				grand_total = flt(inv.grand_total or 0)
+				actual_paid = max(0.0, grand_total - actual_outstanding)
+				frappe.db.set_value(
+					"Sales Invoice",
+					ref.reference_name,
+					{
+						"paid_amount": actual_paid,
+						"base_paid_amount": actual_paid,
+						"custom_saldo_pendiente": actual_outstanding,
+					},
+					update_modified=False,
+				)

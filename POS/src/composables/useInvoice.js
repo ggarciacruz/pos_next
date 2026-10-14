@@ -974,7 +974,8 @@ export function useInvoice() {
 		isCreditSale = false,
 		receivableAccount = null,
 		draftId = null,
-		emitOfficialInvoice = false
+		emitOfficialInvoice = false,
+		deliveryData = null
 	) {
 		/**
 		 * Two-step submission process with mutex protection:
@@ -1048,6 +1049,15 @@ export function useInvoice() {
 
 				if (targetDoctype === "Sales Order" && deliveryDate) {
 					invoiceData.delivery_date = deliveryDate;
+				}
+
+				// Truck dispatch & delivery fields
+				if (deliveryData && deliveryData.requiresDelivery) {
+					invoiceData.custom_fecha_entrega = deliveryData.custom_fecha_entrega || deliveryDate;
+					invoiceData.custom_direccion_entrega = deliveryData.custom_direccion_entrega || "";
+					invoiceData.custom_telefono_contacto = deliveryData.custom_telefono_contacto || "";
+					invoiceData.custom_modalidad_cobro_chofer = deliveryData.custom_modalidad_cobro_chofer || "";
+					invoiceData.custom_estado_entrega = deliveryData.custom_estado_entrega || "Pendiente de Carga";
 				}
 
 				// Add sales_team if provided

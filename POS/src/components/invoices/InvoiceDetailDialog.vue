@@ -8,10 +8,13 @@
 				<p class="mt-3 text-sm text-gray-500">{{ __("Loading invoice details...") }}</p>
 			</div>
 
-			<div v-else-if="invoiceData" class="flex flex-col gap-6">
+			<div
+				v-else-if="invoiceData"
+				class="flex flex-col gap-4 max-h-[calc(100vh-17rem)] sm:max-h-[calc(100vh-15rem)] overflow-y-auto px-1 pe-2 -me-2"
+			>
 				<!-- Invoice Header -->
 				<div
-					class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-4 md:p-5 border border-indigo-100"
+					class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-3.5 sm:p-4 border border-indigo-100"
 				>
 					<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
 						<div class="flex-1">
@@ -457,11 +460,13 @@
 			</div>
 		</template>
 		<template #actions>
-			<div class="flex justify-between items-center w-full">
+			<div
+				class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-4 w-full"
+			>
 				<Button variant="subtle" @click="show = false">
 					{{ __("Close") }}
 				</Button>
-				<div class="flex gap-2">
+				<div class="flex flex-wrap sm:flex-nowrap gap-2 justify-end">
 					<Button variant="outline" @click="handlePrint">
 						<template #prefix>
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -642,3 +647,25 @@ function handlePrintPDF() {
 	window.open(url, "_blank");
 }
 </script>
+
+<style scoped>
+/* Custom scrollbar for invoice details body */
+.overflow-y-auto::-webkit-scrollbar {
+	width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+	background: #f8fafc;
+	border-radius: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+	background: #cbd5e1;
+	border-radius: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+	background: #94a3b8;
+}
+</style>
+
