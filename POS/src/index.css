@@ -40,6 +40,42 @@ body {
 	flex-direction: column !important;
 }
 
+.dialog-content > div:first-child {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
+}
+
+.dialog-content > div:nth-child(2) {
+	flex-shrink: 0;
+	border-top: 1px solid #f3f4f6;
+	background: #ffffff;
+}
+
+@media (max-width: 640px) {
+	.dialog-overlay > div {
+		padding: 0.5rem !important;
+	}
+
+	.dialog-overlay .dialog-content,
+	.dialog-content {
+		max-height: calc(100vh - 1rem) !important;
+		max-height: calc(100dvh - 1rem) !important;
+		margin-top: 0.25rem !important;
+		margin-bottom: 0.25rem !important;
+	}
+
+	.dialog-content > div:first-child {
+		padding: 0.875rem !important;
+	}
+
+	.dialog-content > div:first-child .mb-6 {
+		margin-bottom: 0.75rem !important;
+	}
+}
+
 /* Mobile touch optimizations - removes 300ms tap delay and improves scrolling */
 .touch-manipulation {
 	touch-action: manipulation;

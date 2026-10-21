@@ -647,7 +647,7 @@
 						<!-- Items List (scrollable, takes available space) -->
 						<div
 							v-if="items.length > 0"
-							class="flex-1 overflow-y-auto divide-y divide-gray-100 min-h-0"
+							class="flex-1 overflow-y-auto divide-y divide-gray-100 min-h-0 max-h-36 lg:max-h-none"
 						>
 							<div
 								v-for="(item, index) in items"
@@ -1208,7 +1208,7 @@
 									getMethodTotal(method.mode_of_payment) === 0
 								"
 								:class="[
-									'inline-flex items-center rounded-lg border-2 transition-all font-medium select-none touch-none',
+									'inline-flex items-center rounded-lg border-2 transition-all font-medium select-none touch-manipulation',
 									isSmallMobile
 										? 'gap-0.5 px-1.5 h-7 text-[10px]'
 										: 'gap-1 lg:gap-2 px-2.5 lg:px-4 h-8 text-xs lg:h-11 lg:text-sm',
@@ -1687,10 +1687,10 @@
 								<span>{{ __("Pay") }} {{ formatCurrency(remainingAmount) }}</span>
 							</button>
 
-							<!-- Complete Payment Button -->
+							<!-- Complete / Partial Payment Button -->
 							<button
 								v-if="
-									(remainingAmount === 0 || (applyWriteOff && canWriteOff)) &&
+									(remainingAmount === 0 || (applyWriteOff && canWriteOff) || (allowPartialPayment && totalPaid > 0)) &&
 									totalPaid > 0
 								"
 								@click="completePayment"
@@ -1699,7 +1699,7 @@
 									'w-full font-bold rounded-lg flex items-center justify-center',
 									isSubmitting
 										? 'bg-blue-300 text-white cursor-not-allowed'
-										: 'bg-blue-500 text-white active:bg-blue-600',
+										: 'bg-blue-600 text-white active:bg-blue-700',
 									mobileButtonSize.height,
 									mobileButtonSize.text,
 									mobileButtonSize.gap,
@@ -1739,7 +1739,7 @@
 									/>
 								</svg>
 								<span>{{
-									isSubmitting ? __("Processing...") : __("Complete Payment")
+									isSubmitting ? __("Processing...") : paymentButtonText
 								}}</span>
 							</button>
 						</div>

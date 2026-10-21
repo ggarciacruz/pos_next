@@ -1,7 +1,7 @@
 <template>
 	<div
 		class="flex flex-col bg-gray-50 overflow-x-hidden"
-		style="height: 100vh; max-height: 100vh"
+		style="height: 100vh; max-height: 100vh; height: 100dvh; max-height: 100dvh"
 	>
 		<!-- Loading State -->
 		<LoadingSpinner v-if="uiStore.isLoading" />
@@ -253,8 +253,8 @@
 			<!-- Main Content: Responsive Layout -->
 			<div
 				v-if="shiftStore.hasOpenShift"
-				class="flex-1 flex overflow-hidden relative"
-				style="max-height: calc(100vh - 60px - var(--header-height, 60px))"
+				class="flex-1 flex overflow-hidden relative min-h-0"
+				style="max-height: calc(100dvh - 60px - var(--header-height, 60px))"
 			>
 				<!-- Icon-Only Management Slider - Always Visible -->
 				<ManagementSlider @menu-clicked="handleManagementMenuClick" />
@@ -262,7 +262,7 @@
 				<!-- Main Content Container -->
 				<div
 					ref="containerRef"
-					class="flex-1 flex flex-col lg:flex-row overflow-hidden relative"
+					class="flex-1 flex flex-col lg:flex-row overflow-hidden relative min-h-0"
 				>
 					<!-- Mobile Tab Navigation -->
 					<div
@@ -369,7 +369,7 @@
 								width: uiStore.isDesktop ? uiStore.leftPanelWidth + 'px' : '100%',
 							}"
 							:class="[
-								'flex flex-col bg-white overflow-hidden',
+								'flex flex-col bg-white overflow-hidden min-h-0',
 								uiStore.isDesktop ? 'flex-shrink-0' : 'flex-1',
 							]"
 							style="contain: layout style paint"
@@ -417,7 +417,7 @@
 						<div
 							v-if="uiStore.isDesktop || uiStore.mobileActiveTab === 'cart'"
 							:class="[
-								'flex flex-col bg-gray-50 overflow-hidden min-w-0 flex-1',
+								'flex flex-col bg-gray-50 overflow-hidden min-w-0 min-h-0 flex-1',
 							]"
 							style="contain: layout style paint"
 						>
