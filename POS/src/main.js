@@ -118,11 +118,10 @@ async function initializeApp() {
 	const csrfAwareFrappeRequest = createCSRFAwareRequest(frappeRequest);
 	setConfig("resourceFetcher", csrfAwareFrappeRequest);
 
-	// Register plugins
+	// Register core plugins (defer translationPlugin until CSRF token is ready)
 	app.use(pinia);
 	app.use(resourcesPlugin);
 	app.use(pageMetaPlugin);
-	app.use(translationPlugin);
 
 	// Register global components
 	for (const key in globalComponents) {
@@ -135,40 +134,32 @@ async function initializeApp() {
 	});
 
 	// -------------------------------------------------------------------------
-	// Authentication (CSRF + User fetched in parallel for faster startup)
+	// Authentication: Always ensure a fresh CSRF token via GET first so no
+	// subsequent POST requests (get_logged_user, translations, bootstrap)
+	// trigger HTTP 400 Bad Request in Nginx / Fail2ban.
 	// -------------------------------------------------------------------------
 
-	const csrfPromise = (async () => {
-		const existingToken = getCSRFTokenFromCookie();
-		if (existingToken) {
-			log.debug("CSRF token found in cookie");
-			await syncCSRFTokenToWorker();
-			return true;
-		}
+	try {
+		log.debug("Fetching fresh CSRF token via GET...");
+		await ensureCSRFToken({ forceRefresh: true, silent: true });
+		await syncCSRFTokenToWorker();
+	} catch {
+		log.debug("CSRF fetch failed, will retry on first API call");
+	}
 
-		log.debug("Fetching CSRF token...");
-		try {
-			await ensureCSRFToken({ silent: true });
-			await syncCSRFTokenToWorker();
-			return true;
-		} catch {
-			log.debug("CSRF fetch failed, will retry on first API call");
-			return false;
-		}
-	})();
+	// Now that window.csrf_token is ready, initialize translations and user check
+	app.use(translationPlugin);
 
-	const userPromise = (async () => {
-		try {
-			if (!userResource.loading) userResource.fetch();
-			await userResource.promise;
-			return sessionUser();
-		} catch (error) {
-			log.debug("User not logged in", error?.message || "No session");
-			return null;
-		}
-	})();
+	let user = null;
+	try {
+		if (!userResource.loading) userResource.fetch();
+		await userResource.promise;
+		user = sessionUser();
+	} catch (error) {
+		log.debug("User not logged in", error?.message || "No session");
+		user = null;
+	}
 
-	const [, user] = await Promise.all([csrfPromise, userPromise]);
 	session.user = user;
 	log.info(`User authenticated: ${session.user}`);
 

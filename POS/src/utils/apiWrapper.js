@@ -1,10 +1,11 @@
 import { call as frappeCall } from "frappe-ui";
 
-import { forceRefreshCSRFToken, isCSRFApiError } from "./csrf";
+import { ensureCSRFToken, forceRefreshCSRFToken, isCSRFApiError } from "./csrf";
 
 // Wrapped call function with CSRF auto-refresh
 export async function call(method, params) {
 	try {
+		await ensureCSRFToken({ silent: true });
 		return await frappeCall(method, params);
 	} catch (error) {
 		if (isCSRFApiError(error)) {

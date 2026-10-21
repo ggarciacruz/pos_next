@@ -210,6 +210,7 @@ export function isCSRFApiError(error) {
 export function createCSRFAwareRequest(originalRequest, { silent = false } = {}) {
 	return async function csrfAwareRequest(...args) {
 		try {
+			await ensureCSRFToken({ silent: true });
 			return await originalRequest.apply(this, args);
 		} catch (error) {
 			if (isCSRFApiError(error)) {
