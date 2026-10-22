@@ -1231,10 +1231,10 @@
 											</div>
 
 											<!-- Collection Mode -->
-											<div class="flex items-center gap-1.5 pt-1 border-t border-gray-200/60">
+											<div v-if="dispatch.custom_modalidad_cobro_chofer" class="flex items-center gap-1.5 pt-1 border-t border-gray-200/60">
 												<span class="font-semibold text-gray-600">{{ __('Modalidad:') }}</span>
 												<span class="font-medium text-gray-800">
-													{{ dispatch.custom_modalidad_cobro_chofer || __('Contra Entrega') }}
+													{{ dispatch.custom_modalidad_cobro_chofer === 'Cobrar al Chofer Contra Entrega' ? __('Pagar al Chofer Contra Entrega') : dispatch.custom_modalidad_cobro_chofer }}
 												</span>
 											</div>
 										</div>

@@ -88,7 +88,8 @@
 									v-model="driverCollectionMode"
 									class="flex-1 h-7 border border-amber-300 rounded px-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
 								>
-									<option value="Cobrar al Chofer Contra Entrega">{{ __("Cobrar Saldo al Entregar") }}</option>
+									<option value="">{{ __("— Sin especificar (En blanco) —") }}</option>
+									<option value="Pagar al Chofer Contra Entrega">{{ __("Pagar al Chofer Contra Entrega") }}</option>
 									<option value="Ya Pagado en Fábrica / Transferencia">{{ __("Ya Pagado (Solo Entregar)") }}</option>
 									<option value="A Crédito / Con Saldo">{{ __("A Crédito / Con Saldo (Recabar Firma)") }}</option>
 								</select>
@@ -2215,7 +2216,7 @@ const requiresDelivery = ref(false);
 const deliveryDate = ref("");
 const deliveryAddress = ref("");
 const deliveryPhone = ref("");
-const driverCollectionMode = ref("Cobrar al Chofer Contra Entrega");
+const driverCollectionMode = ref("");
 const today = new Date().toISOString().split("T")[0];
 const isSalesOrder = computed(() => props.targetDoctype === "Sales Order");
 const emitOfficialInvoice = ref(false);
@@ -3096,7 +3097,7 @@ watch(show, (newVal) => {
 		deliveryAddress.value = defaultAddr;
 		deliveryPhone.value = defaultPhone;
 		requiresDelivery.value = isSalesOrder.value || Boolean(defaultAddr);
-		driverCollectionMode.value = "Cobrar al Chofer Contra Entrega";
+		driverCollectionMode.value = "";
 
 		// Debug logging
 		log.debug("[PaymentDialog] Dialog opened with props:", {
@@ -3489,9 +3490,8 @@ function addCreditAccountPayment() {
 		custom_fecha_entrega: requiresDelivery.value ? deliveryDate.value : null,
 		custom_direccion_entrega: requiresDelivery.value ? deliveryAddress.value : null,
 		custom_telefono_contacto: requiresDelivery.value ? deliveryPhone.value : null,
-		custom_modalidad_cobro_chofer: requiresDelivery.value
-			? (driverCollectionMode.value === "Ya Pagado en Fábrica / Transferencia" ? "A Crédito / Con Saldo" : (driverCollectionMode.value || "A Crédito / Con Saldo"))
-			: null,
+		custom_modalidad_cobro_chofer:
+			requiresDelivery.value && driverCollectionMode.value ? driverCollectionMode.value : null,
 		custom_estado_entrega: requiresDelivery.value ? "Pendiente de Entrega" : null,
 		// Write-off data
 		write_off_amount: 0,
@@ -3565,7 +3565,8 @@ function completePayment() {
 		custom_fecha_entrega: requiresDelivery.value ? deliveryDate.value : null,
 		custom_direccion_entrega: requiresDelivery.value ? deliveryAddress.value : null,
 		custom_telefono_contacto: requiresDelivery.value ? deliveryPhone.value : null,
-		custom_modalidad_cobro_chofer: requiresDelivery.value ? driverCollectionMode.value : null,
+		custom_modalidad_cobro_chofer:
+			requiresDelivery.value && driverCollectionMode.value ? driverCollectionMode.value : null,
 		custom_estado_entrega: requiresDelivery.value ? "Pendiente de Entrega" : null,
 		// Write-off data
 		write_off_amount: writeOffAmount.value,
