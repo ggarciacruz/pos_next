@@ -40,7 +40,13 @@ function getPOSPrintSettings(invoiceData = {}) {
 		0
 	);
 
-	return { headerTitle, isFiscal };
+	const enableWhatsappSend = Boolean(
+		invoiceData.enable_whatsapp_send ??
+		storeSettings?.enableWhatsappSend ??
+		1
+	);
+
+	return { headerTitle, isFiscal, enableWhatsappSend };
 }
 
 function formatCurrency(amount) {
@@ -692,13 +698,37 @@ export function buildReceiptHTML(invoiceData) {
 }
 
 function buildReceiptDocumentHTML(invoiceData, { includeControls = false } = {}) {
+	const rawPhone = String(
+		invoiceData?.custom_telefono_contacto ||
+			invoiceData?.contact_mobile ||
+			invoiceData?.mobile_no ||
+			""
+	).replace(/\D/g, "");
+	const waPhone =
+		rawPhone.length === 8 && (rawPhone.startsWith("6") || rawPhone.startsWith("7"))
+			? `591${rawPhone}`
+			: rawPhone;
+	const publicPdfLine = invoiceData?.public_pdf_url
+		? `\nDescargar Comprobante en PDF:\n${invoiceData.public_pdf_url.startsWith("http") ? invoiceData.public_pdf_url : window.location.origin + invoiceData.public_pdf_url}`
+		: "";
+	const waSummary = encodeURIComponent(
+		`*${(invoiceData?.company || "Muebles Ruffino").toUpperCase()}*\n*Comprobante: ${invoiceData?.name || ""}*\nCliente: ${invoiceData?.customer_name || invoiceData?.customer || "Cliente Mostrador"}\nTotal: Bs. ${formatCurrency(invoiceData?.grand_total || 0)}${publicPdfLine}\n¡Gracias por su preferencia!`
+	);
+	const waHref = waPhone ? `https://wa.me/${waPhone}?text=${waSummary}` : `https://wa.me/?text=${waSummary}`;
+
+	const { headerTitle, enableWhatsappSend } = getPOSPrintSettings(invoiceData);
+	const waBtn = enableWhatsappSend
+		? `<a href="${waHref}" target="_blank" rel="noopener noreferrer" style="padding: 9px 16px; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 6px; background: #16a34a; color: #fff; text-decoration: none; display: inline-block;">WhatsApp</a>`
+		: "";
+
 	const controls = includeControls
 		? `
-			<div class="no-print" style="text-align: center; margin-top: 20px;">
-				<button onclick="window.print()" style="padding: 10px 20px; font-size: 14px; cursor: pointer;">${__(
+			<div class="no-print" style="text-align: center; margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+				<button onclick="window.print()" style="padding: 9px 16px; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff;">${__(
 					"Print Receipt"
 				)}</button>
-				<button onclick="window.close()" style="padding: 10px 20px; font-size: 14px; cursor: pointer; margin-left: 10px;">${__(
+				${waBtn}
+				<button onclick="window.close()" style="padding: 9px 16px; font-size: 13px; cursor: pointer; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc;">${__(
 					"Close"
 				)}</button>
 			</div>`
@@ -708,7 +738,7 @@ function buildReceiptDocumentHTML(invoiceData, { includeControls = false } = {})
 		<html>
 		<head>
 			<meta charset="UTF-8">
-			<title>${getPOSPrintSettings(invoiceData).headerTitle} - ${invoiceData.name}</title>
+			<title>${headerTitle} - ${invoiceData.name}</title>
 			<style>${RECEIPT_STYLES}</style>
 		</head>
 		<body>

@@ -736,6 +736,15 @@
 												"
 											/>
 											<CheckboxField
+												v-model="settings.enable_whatsapp_send"
+												:label="__('Habilitar Envío por WhatsApp')"
+												:description="
+													__(
+														'Mostrar el botón para enviar comprobantes de venta, cotizaciones y pre-tickets por WhatsApp al cliente'
+													)
+												"
+											/>
+											<CheckboxField
 												v-model="settings.silent_print"
 												:label="__('Silent Print')"
 												:description="
@@ -1214,6 +1223,7 @@ const settings = ref({
 	allow_write_off_change: 0,
 	allow_partial_payment: 0,
 	silent_print: 0,
+	enable_whatsapp_send: 1,
 	receipt_header_title: "Recibo de Venta",
 	enable_siat_fiscal_format: 0,
 	allow_negative_stock: 0,

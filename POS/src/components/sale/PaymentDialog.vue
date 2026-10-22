@@ -2215,7 +2215,7 @@ const requiresDelivery = ref(false);
 const deliveryDate = ref("");
 const deliveryAddress = ref("");
 const deliveryPhone = ref("");
-const driverCollectionMode = ref("Cobrar al Chofer (Contra Entrega)");
+const driverCollectionMode = ref("Cobrar al Chofer Contra Entrega");
 const today = new Date().toISOString().split("T")[0];
 const isSalesOrder = computed(() => props.targetDoctype === "Sales Order");
 const emitOfficialInvoice = ref(false);
@@ -3096,7 +3096,7 @@ watch(show, (newVal) => {
 		deliveryAddress.value = defaultAddr;
 		deliveryPhone.value = defaultPhone;
 		requiresDelivery.value = isSalesOrder.value || Boolean(defaultAddr);
-		driverCollectionMode.value = "Cobrar al Chofer (Contra Entrega)";
+		driverCollectionMode.value = "Cobrar al Chofer Contra Entrega";
 
 		// Debug logging
 		log.debug("[PaymentDialog] Dialog opened with props:", {

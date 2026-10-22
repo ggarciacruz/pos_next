@@ -463,6 +463,7 @@
 								@update-additional-discount="handleAdditionalDiscountUpdate"
 								@print-active-ticket="handlePrintActiveDraftTicket"
 								@print-active-pdf="handlePrintActiveDraftPDF"
+								@whatsapp-active-draft="handleWhatsAppActiveDraft"
 							/>
 						</div>
 					</keep-alive>
@@ -601,6 +602,7 @@
 				:allow-print-draft-invoices="posSettingsStore.allowPrintDraftInvoices"
 				@load-draft="handleLoadDraft"
 				@drafts-updated="draftsStore.updateDraftsCount"
+				@whatsapp-invoice="handleWhatsAppInvoice"
 			/>
 
 			<!-- Return Invoice Dialog -->
@@ -678,6 +680,7 @@
 				:currency="shiftStore.profileCurrency"
 				@view-invoice="handleViewInvoice"
 				@print-invoice="handlePrintInvoice"
+				@whatsapp-invoice="handleWhatsAppInvoice"
 				@return-created="handleReturnCreated"
 			/>
 
@@ -692,6 +695,7 @@
 				@delete-invoice="handleDeleteOfflineInvoice"
 				@edit-invoice="handleEditOfflineInvoice"
 				@print-invoice="handlePrintInvoice"
+				@whatsapp-invoice="handleWhatsAppInvoice"
 				@refresh="offlineStore.loadPendingInvoices"
 			/>
 
@@ -738,6 +742,7 @@
 				:draft-invoices="draftsStore.drafts"
 				@view-invoice="handleViewInvoice"
 				@print-invoice="handlePrintInvoice"
+				@whatsapp-invoice="handleWhatsAppInvoice"
 				@load-draft="handleLoadDraftFromManagement"
 				@delete-draft="handleDeleteDraft"
 				@refresh-history="loadInvoiceHistoryData"
@@ -750,6 +755,7 @@
 				:pos-profile="shiftStore.profileName"
 				:currency="shiftStore.profileCurrency"
 				@print-invoice="handlePrintInvoice"
+				@whatsapp-invoice="handleWhatsAppInvoice"
 			/>
 
 			<!-- Clear Cart Confirmation Dialog -->
@@ -950,16 +956,47 @@
 					</p>
 				</template>
 				<template #actions>
-					<div class="flex flex-wrap gap-2 justify-end">
-						<Button variant="subtle" @click="showPrintDraftConfirmDialog = false">
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+						<button
+							type="button"
+							@click="confirmPrintDraft"
+							class="w-full h-10 px-3.5 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 text-xs font-semibold transition-colors cursor-pointer"
+						>
+							<svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+							</svg>
+							<span class="truncate">{{ __("Print Ticket (Thermal)") }}</span>
+						</button>
+						<button
+							type="button"
+							@click="confirmPrintDraftPDF"
+							class="w-full h-10 px-3.5 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+						>
+							<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+							</svg>
+							<span class="truncate">{{ __("Print PDF (Letter Size)") }}</span>
+						</button>
+						<button
+							type="button"
+							@click="showPrintDraftConfirmDialog = false"
+							:class="posSettingsStore.enableWhatsappSend ? '' : 'sm:col-span-2'"
+							class="w-full h-10 px-3.5 inline-flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 text-xs font-semibold transition-colors cursor-pointer"
+						>
 							{{ __("Close") }}
-						</Button>
-						<Button variant="outline" @click="confirmPrintDraft">
-							{{ __("Print Ticket (Thermal)") }}
-						</Button>
-						<Button variant="solid" theme="blue" @click="confirmPrintDraftPDF">
-							{{ __("Print PDF (Letter Size)") }}
-						</Button>
+						</button>
+						<button
+							v-if="posSettingsStore.enableWhatsappSend"
+							type="button"
+							@click="confirmWhatsAppDraft"
+							class="w-full h-10 px-3.5 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+							style="background-color: #16a34a; color: #ffffff;"
+						>
+							<svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+								<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+							</svg>
+							<span class="truncate">{{ __("Enviar por WhatsApp") }}</span>
+						</button>
 					</div>
 				</template>
 			</Dialog>
@@ -970,12 +1007,12 @@
 				:options="{ title: __('Invoice Created Successfully'), size: 'md' }"
 			>
 				<template #body-content>
-					<div class="text-center py-6">
+					<div class="text-center py-5">
 						<div
-							class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100"
+							class="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-green-100 ring-4 ring-green-50"
 						>
 							<svg
-								class="h-6 w-6 text-green-600"
+								class="h-7 w-7 text-green-600"
 								fill="none"
 								stroke="currentColor"
 								viewBox="0 0 24 24"
@@ -983,48 +1020,188 @@
 								<path
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									stroke-width="2"
+									stroke-width="2.5"
 									d="M5 13l4 4L19 7"
 								/>
 							</svg>
 						</div>
-						<h3 class="mt-4 text-lg font-medium text-gray-900">
+						<h3 class="mt-4 text-base font-bold text-gray-900">
 							{{
 								__("Invoice {0} created successfully!", [uiStore.lastInvoiceName])
 							}}
 						</h3>
-						<p class="mt-2 text-sm text-gray-500">
+						<div class="mt-2.5 inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-xs font-semibold text-gray-700">
 							{{ __("Paid: {0}", [formatCurrency(uiStore.lastPaidAmount)]) }}
-						</p>
+						</div>
 					</div>
 				</template>
 				<template #actions>
-					<div class="flex flex-wrap gap-2 justify-end">
-						<Button variant="subtle" @click="uiStore.showSuccessDialog = false">
-							{{ __("Close") }}
-						</Button>
-						<Button
-							variant="outline"
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+						<button
+							type="button"
 							@click="
 								() => {
 									handlePrintInvoice({ name: uiStore.lastInvoiceName });
 									uiStore.showSuccessDialog = false;
 								}
 							"
+							class="w-full h-10 px-3.5 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 text-xs font-semibold transition-colors cursor-pointer"
 						>
-							{{ __("Print Ticket (Thermal)") }}
-						</Button>
-						<Button
-							variant="solid"
-							theme="blue"
+							<svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+							</svg>
+							<span class="truncate">{{ __("Print Ticket (Thermal)") }}</span>
+						</button>
+						<button
+							type="button"
 							@click="
 								() => {
 									handlePrintInvoicePDF(uiStore.lastInvoiceName);
 									uiStore.showSuccessDialog = false;
 								}
 							"
+							class="w-full h-10 px-3.5 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
 						>
-							{{ __("Print PDF (Letter Size)") }}
+							<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+							</svg>
+							<span class="truncate">{{ __("Print PDF (Letter Size)") }}</span>
+						</button>
+						<button
+							type="button"
+							@click="uiStore.showSuccessDialog = false"
+							:class="posSettingsStore.enableWhatsappSend ? '' : 'sm:col-span-2'"
+							class="w-full h-10 px-3.5 inline-flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 text-xs font-semibold transition-colors cursor-pointer"
+						>
+							{{ __("Close") }}
+						</button>
+						<button
+							v-if="posSettingsStore.enableWhatsappSend"
+							type="button"
+							@click="
+								() => {
+									handleWhatsAppInvoice({ name: uiStore.lastInvoiceName });
+									uiStore.showSuccessDialog = false;
+								}
+							"
+							class="w-full h-10 px-3.5 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+							style="background-color: #16a34a; color: #ffffff;"
+						>
+							<svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+								<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+							</svg>
+							<span class="truncate">{{ __("Enviar por WhatsApp") }}</span>
+						</button>
+					</div>
+				</template>
+			</Dialog>
+
+			<!-- WhatsApp Send Receipt Dialog -->
+			<Dialog
+				v-model="showWhatsAppDialog"
+				:options="{ title: __('Enviar Comprobante por WhatsApp'), size: 'md' }"
+			>
+				<template #body-content>
+					<div v-if="whatsAppLoading" class="py-8 flex flex-col items-center justify-center text-gray-500">
+						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mb-2"></div>
+						<p class="text-xs">{{ __("Preparando detalle de la venta...") }}</p>
+					</div>
+					<div v-else class="space-y-4 py-2 text-start">
+						<!-- Customer & Document Badge -->
+						<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between gap-2">
+							<div class="min-w-0">
+								<p class="text-xs font-bold text-emerald-900 truncate">
+									{{ whatsAppDoc?.customer_name || whatsAppDoc?.customer || __("Cliente Mostrador") }}
+								</p>
+								<p class="text-[11px] text-emerald-700 font-mono">
+									{{ whatsAppDoc?.name || "" }}
+								</p>
+							</div>
+							<span class="px-2.5 py-1 bg-white border border-emerald-200 rounded-md text-xs font-bold text-emerald-800 whitespace-nowrap">
+								{{ formatCurrency(whatsAppDoc?.grand_total || 0) }}
+							</span>
+						</div>
+
+						<!-- Phone Input -->
+						<div>
+							<label class="block text-xs font-bold text-gray-700 mb-1">
+								{{ __("Número de Celular / WhatsApp del Cliente") }}
+							</label>
+							<div class="flex rounded-lg shadow-sm">
+								<span class="inline-flex items-center px-3 rounded-s-lg border border-e-0 border-gray-300 bg-gray-100 text-gray-700 text-sm font-semibold">
+									+591
+								</span>
+								<input
+									ref="whatsAppPhoneInputRef"
+									v-model="whatsAppPhone"
+									type="tel"
+									placeholder="Ej: 70012345 (o déjelo vacío para elegir contacto en WhatsApp)"
+									class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-e-lg border border-gray-300 text-sm focus:ring-emerald-500 focus:border-emerald-500"
+									@keyup.enter="sendWhatsAppNow"
+								/>
+							</div>
+							<p class="mt-1 text-[11px] text-gray-500">
+								{{ __("Si el cliente tiene teléfono registrado se autocompleta. También puede escribir otro número o dejarlo en blanco para seleccionar el contacto directamente en WhatsApp.") }}
+							</p>
+						</div>
+
+						<!-- Message Preview (Editable) -->
+						<div>
+							<div class="flex items-center justify-between mb-1">
+								<label class="block text-xs font-bold text-gray-700">
+									{{ __("Mensaje a Enviar (Editable)") }}
+								</label>
+								<button
+									type="button"
+									@click="copyWhatsAppText"
+									class="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+								>
+									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+									</svg>
+									{{ __("Copiar texto") }}
+								</button>
+							</div>
+							<textarea
+								v-model="whatsAppMessage"
+								rows="8"
+								class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-xs font-mono text-gray-800 focus:bg-white focus:ring-emerald-500 focus:border-emerald-500"
+							></textarea>
+						</div>
+					</div>
+				</template>
+				<template #actions>
+					<div class="flex flex-wrap gap-2 justify-end w-full">
+						<Button variant="subtle" @click="showWhatsAppDialog = false">
+							{{ __("Cancel") }}
+						</Button>
+						<Button
+							v-if="whatsAppDoc?.public_pdf_url"
+							variant="outline"
+							theme="blue"
+							:loading="whatsAppPdfSharing"
+							:disabled="whatsAppLoading"
+							@click="handleShareOrDownloadPDF"
+						>
+							<template #prefix>
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+								</svg>
+							</template>
+							{{ __("Compartir / Descargar PDF") }}
+						</Button>
+						<Button
+							variant="solid"
+							theme="green"
+							:disabled="whatsAppLoading"
+							@click="sendWhatsAppNow"
+						>
+							<template #prefix>
+								<svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+									<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+								</svg>
+							</template>
+							{{ __("Abrir WhatsApp y Enviar") }}
 						</Button>
 					</div>
 				</template>
@@ -1148,6 +1325,12 @@ import {
 	printWithSilentFallback,
 	printInvoiceCustom,
 } from "@/utils/printInvoice";
+import {
+	buildWhatsAppReceiptMessage,
+	openWhatsAppChat,
+	resolveWhatsAppDocument,
+	shareOrDownloadReceiptPDF,
+} from "@/utils/whatsappInvoice";
 import { qzConnected, connect as qzConnect, disconnect as qzDisconnect } from "@/utils/qzTray";
 
 import { Button, Dialog, createResource } from "frappe-ui";
@@ -1229,6 +1412,15 @@ const clearCacheOverlayRef = ref(null);
 // Dialog state for printing saved draft
 const showPrintDraftConfirmDialog = ref(false);
 const lastSavedDraft = ref(null);
+
+// Dialog state for sending receipt via WhatsApp
+const showWhatsAppDialog = ref(false);
+const whatsAppLoading = ref(false);
+const whatsAppPdfSharing = ref(false);
+const whatsAppDoc = ref(null);
+const whatsAppPhone = ref("");
+const whatsAppMessage = ref("");
+const whatsAppPhoneInputRef = ref(null);
 
 
 // Debounce timer for offer reapplication
@@ -1453,6 +1645,7 @@ onMounted(async () => {
 			allow_write_off_change: __("Write Off Change"),
 			allow_partial_payment: __("Partial Payment"),
 			silent_print: __("Silent Print"),
+			enable_whatsapp_send: __("Envío por WhatsApp"),
 		};
 
 		const changedSettings = Object.keys(changes)
@@ -2700,6 +2893,120 @@ function handlePrintActiveDraftPDF() {
 	const doctype = isQuotation ? "Quotation" : "Sales Order";
 	const format = isQuotation ? "Cotización de Venta de Muebles" : "Nota de Pre-venta de Muebles";
 	printDocumentLetterPDF(doctype, draftId, format);
+}
+
+async function handleWhatsAppInvoice(invoiceOrDoc) {
+	if (!invoiceOrDoc) return;
+	showWhatsAppDialog.value = true;
+	whatsAppLoading.value = true;
+	try {
+		const resolved = await resolveWhatsAppDocument(
+			invoiceOrDoc,
+			shiftStore.profileCompany
+		);
+		whatsAppDoc.value = resolved;
+		whatsAppPhone.value = resolved?.resolved_phone || "";
+		whatsAppMessage.value = buildWhatsAppReceiptMessage(resolved);
+	} catch (err) {
+		console.error("Error preparing WhatsApp message:", err);
+		showError(__("No se pudo preparar el comprobante para WhatsApp"));
+		showWhatsAppDialog.value = false;
+	} finally {
+		whatsAppLoading.value = false;
+	}
+}
+
+async function confirmWhatsAppDraft() {
+	showPrintDraftConfirmDialog.value = false;
+	if (!lastSavedDraft.value) return;
+	const draft = lastSavedDraft.value;
+	const itemsList = draft.items || [];
+	const grandTotal = itemsList.reduce(
+		(total, item) => total + (item.amount || item.price * item.qty || 0),
+		0
+	);
+	const isQuotation =
+		draft.doctype === "Quotation" ||
+		(draft.draft_id &&
+			(draft.draft_id.startsWith("QTN-") || draft.draft_id.startsWith("COT-")));
+
+	await handleWhatsAppInvoice({
+		name: draft.draft_id,
+		doctype: isQuotation ? "Quotation" : draft.doctype || "Sales Order",
+		company: shiftStore.profileCompany,
+		items: itemsList,
+		payments: [],
+		grand_total: grandTotal,
+		posting_date: draft.created_at,
+		customer: draft.customer?.name || draft.customer,
+		customer_name:
+			draft.customer?.customer_name ||
+			draft.customer?.name ||
+			draft.customer ||
+			"Cliente Mostrador",
+		mobile_no: draft.customer?.mobile_no || draft.customer?.phone || "",
+		status: isQuotation ? "Quotation" : "Draft",
+	});
+}
+
+async function handleWhatsAppActiveDraft() {
+	if (!cartStore.currentDraftId) return;
+	const draftId = cartStore.currentDraftId;
+	const isQuotation =
+		draftId.includes("-QTN-") ||
+		draftId.includes("-COT-") ||
+		draftId.startsWith("QTN-") ||
+		draftId.startsWith("COT-") ||
+		draftId.startsWith("SAL-QTN-");
+	await handleWhatsAppInvoice({
+		name: draftId,
+		doctype: isQuotation ? "Quotation" : "Sales Order",
+		company: shiftStore.profileCompany,
+		items: cartStore.invoiceItems,
+		payments: [],
+		grand_total: cartStore.grandTotal,
+		posting_date: new Date().toISOString().split("T")[0],
+		customer: cartStore.customer?.name || cartStore.customer,
+		customer_name:
+			cartStore.customer?.customer_name ||
+			cartStore.customer?.name ||
+			cartStore.customer ||
+			"Cliente Mostrador",
+		mobile_no: cartStore.customer?.mobile_no || cartStore.customer?.phone || "",
+		status: isQuotation ? "Quotation" : "Draft",
+	});
+}
+
+function sendWhatsAppNow() {
+	if (!whatsAppMessage.value) return;
+	openWhatsAppChat(whatsAppPhone.value, whatsAppMessage.value);
+	showWhatsAppDialog.value = false;
+}
+
+async function handleShareOrDownloadPDF() {
+	if (!whatsAppDoc.value?.public_pdf_url) return;
+	whatsAppPdfSharing.value = true;
+	try {
+		const res = await shareOrDownloadReceiptPDF(whatsAppDoc.value, whatsAppMessage.value);
+		if (res?.mode === "downloaded") {
+			showSuccess(__("PDF descargado. Puede adjuntarlo en el chat de WhatsApp."));
+		}
+	} catch (err) {
+		console.error("Error sharing/downloading PDF:", err);
+		showError(__("No se pudo descargar el PDF del comprobante"));
+	} finally {
+		whatsAppPdfSharing.value = false;
+	}
+}
+
+async function copyWhatsAppText() {
+	if (!whatsAppMessage.value) return;
+	try {
+		await navigator.clipboard.writeText(whatsAppMessage.value);
+		showSuccess(__("Comprobante copiado al portapapeles"));
+	} catch {
+		showError(__("No se pudo copiar el texto"));
+	}
 }
 
 

@@ -268,3 +268,7 @@ scheduler_events = {
 website_route_rules = [
 	{"from_route": "/pos/<path:app_path>", "to_route": "pos"},
 ]
+
+page_renderer = [
+	"pos_next.api.invoices.PublicReceiptRenderer",
+]

@@ -273,6 +273,7 @@ export const usePOSEventsStore = defineStore("posEvents", () => {
 			"allow_write_off_change",
 			"allow_partial_payment",
 			"silent_print",
+			"enable_whatsapp_send",
 		];
 		const salesChanges = salesFields.filter((field) => field in changes);
 		if (salesChanges.length > 0) {

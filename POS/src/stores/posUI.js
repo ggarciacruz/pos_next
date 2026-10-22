@@ -3,12 +3,12 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 const LEFT_PANEL_MIN = 360;
-const RIGHT_PANEL_MIN = 380;
+const RIGHT_PANEL_MIN = 420;
+const DEFAULT_LEFT_PANEL_RATIO = 0.46;
 
 function computeDefaultLeftPanelWidth(totalWidth) {
-	if (!totalWidth || totalWidth < 1024) return 600;
-	const targetCartWidth = Math.max(380, Math.min(460, Math.round(totalWidth * 0.34)));
-	return Math.max(LEFT_PANEL_MIN, totalWidth - targetCartWidth);
+	if (!totalWidth || totalWidth < 1024) return 560;
+	return Math.max(LEFT_PANEL_MIN, Math.round(totalWidth * DEFAULT_LEFT_PANEL_RATIO));
 }
 
 export const usePOSUIStore = defineStore("posUI", () => {
@@ -63,8 +63,9 @@ export const usePOSUIStore = defineStore("posUI", () => {
 	const leftPanelWidth = ref(
 		typeof window !== "undefined"
 			? computeDefaultLeftPanelWidth(window.innerWidth)
-			: 850
+			: 600
 	);
+	const hasCustomLeftWidth = ref(false);
 	const isResizing = ref(false);
 
 
@@ -133,6 +134,7 @@ export const usePOSUIStore = defineStore("posUI", () => {
 	}
 
 	function setLeftPanelWidth(width, containerWidth = null) {
+		hasCustomLeftWidth.value = true;
 		if (containerWidth !== null) {
 			const clamped = clampLeftPanelWidth(width, containerWidth);
 			leftPanelWidth.value = clamped;
@@ -147,7 +149,10 @@ export const usePOSUIStore = defineStore("posUI", () => {
 
 	function updateLayoutBounds(containerWidth) {
 		if (containerWidth) {
-			leftPanelWidth.value = clampLeftPanelWidth(leftPanelWidth.value, containerWidth);
+			const targetWidth = hasCustomLeftWidth.value
+				? leftPanelWidth.value
+				: computeDefaultLeftPanelWidth(containerWidth);
+			leftPanelWidth.value = clampLeftPanelWidth(targetWidth, containerWidth);
 		}
 	}
 

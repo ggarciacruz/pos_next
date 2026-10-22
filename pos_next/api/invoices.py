@@ -286,6 +286,28 @@ def _strip_server_managed_fields(payload):
 	# Packed Items are regenerated from Product Bundle definitions during save.
 	# Accepting client-side packed rows can reintroduce duplicates on re-save.
 	cleaned.pop("packed_items", None)
+
+	# Normalize legacy/parenthesized driver collection mode labels
+	modalidad = cleaned.get("custom_modalidad_cobro_chofer")
+	if isinstance(modalidad, str) and modalidad:
+		modalidad_map = {
+			"Cobrar al Chofer (Contra Entrega)": "Cobrar al Chofer Contra Entrega",
+			"Cobrar Saldo al Entregar": "Cobrar al Chofer Contra Entrega",
+			"Ya Pagado (Solo Entregar)": "Ya Pagado en Fábrica / Transferencia",
+			"A Crédito / Con Saldo (Recabar Firma)": "A Crédito / Con Saldo",
+		}
+		cleaned["custom_modalidad_cobro_chofer"] = modalidad_map.get(modalidad.strip(), modalidad.strip())
+
+	estado_entrega = cleaned.get("custom_estado_entrega")
+	if isinstance(estado_entrega, str) and estado_entrega:
+		estado_map = {
+			"Pendiente de Carga": "Pendiente de Entrega",
+			"En Ruta": "En Ruta de Despacho",
+			"Entregado Conforme": "Entregado",
+			"Entregado al Cliente": "Entregado",
+		}
+		cleaned["custom_estado_entrega"] = estado_map.get(estado_entrega.strip(), estado_entrega.strip())
+
 	return cleaned
 
 
@@ -1667,6 +1689,177 @@ def submit_invoice(invoice=None, data=None):
 # ==========================================
 
 
+def _build_public_pdf_path(doc) -> str:
+	"""Build a short cryptographically signed public PDF URL path (/c/<name>/<token>) that does not require login."""
+	from urllib.parse import quote
+
+	sig = str(doc.get_signature() or "")[:12]
+	return f"/c/{quote(str(doc.name), safe='')}/{sig}"
+
+
+def _resolve_public_receipt_doc(name: str, token: str, doctype_hint: str | None = None):
+	"""Locate and verify signature (full or 12-char short token) for a public receipt document."""
+	import hmac
+
+	allowed_doctypes = ("Sales Invoice", "Quotation", "Sales Order")
+	candidates = [doctype_hint] if doctype_hint in allowed_doctypes else list(allowed_doctypes)
+
+	doc = None
+	for dt in candidates:
+		if dt and frappe.db.exists(dt, name):
+			doc = frappe.get_doc(dt, name)
+			break
+
+	if not doc:
+		frappe.throw(_("Comprobante no encontrado"), frappe.DoesNotExistError)
+
+	full_sig = str(doc.get_signature() or "")
+	short_sig = full_sig[:12]
+	token_str = str(token or "").strip()
+
+	valid = (
+		(len(token_str) == 12 and hmac.compare_digest(token_str, short_sig))
+		or (len(token_str) == 10 and hmac.compare_digest(token_str, full_sig[:10]))
+		or hmac.compare_digest(token_str, full_sig)
+	)
+	if not valid:
+		frappe.throw(_("Firma de seguridad inválida para este comprobante"), frappe.PermissionError)
+
+	return doc
+
+
+def _render_receipt_pdf_bytes(doc) -> bytes:
+	format_candidates = {
+		"Sales Invoice": "Nota de Venta Muebles Ruffino",
+		"Quotation": "Cotización de Venta de Muebles",
+		"Sales Order": "Nota de Pre-venta de Muebles",
+	}
+	candidate = format_candidates.get(doc.doctype)
+	print_format = candidate if (candidate and frappe.db.exists("Print Format", candidate)) else None
+
+	prev_flag = getattr(frappe.flags, "ignore_print_permissions", False)
+	try:
+		frappe.flags.ignore_print_permissions = True
+		return frappe.get_print(
+			doctype=doc.doctype,
+			name=doc.name,
+			print_format=print_format,
+			doc=doc,
+			as_pdf=True,
+			no_letterhead=1,
+		)
+	finally:
+		frappe.flags.ignore_print_permissions = prev_flag
+
+
+class PublicReceiptRenderer:
+	"""
+	Renders short public receipt URLs: /c/<doc_name>/<token>
+	- For WhatsApp / link-preview bots: returns clean OpenGraph metadata card.
+	- For human browsers / mobile clicks: streams the PDF binary directly (no login required).
+	"""
+
+	def __init__(self, path: str, http_status_code: int | None = None):
+		self.path = (path or "").strip("/ ")
+		self.http_status_code = http_status_code or 200
+
+	def can_render(self) -> bool:
+		parts = self.path.split("/")
+		return len(parts) == 3 and parts[0] == "c" and bool(parts[1]) and bool(parts[2])
+
+	def render(self):
+		from urllib.parse import unquote
+		from werkzeug.wrappers import Response
+		from frappe.utils import escape_html
+
+		parts = self.path.split("/")
+		doc_name = unquote(parts[1])
+		token = parts[2]
+
+		doc = _resolve_public_receipt_doc(doc_name, token)
+
+		ua = ""
+		if hasattr(frappe.local, "request") and frappe.local.request:
+			ua = (frappe.local.request.headers.get("User-Agent") or "").lower()
+
+		is_preview_bot = any(
+			bot in ua
+			for bot in ("whatsapp", "facebookexternalhit", "telegrambot", "twitterbot", "slackbot")
+		)
+		if is_preview_bot:
+			company = escape_html(
+				str(getattr(doc, "company", None) or "Muebles Ruffino").split(" - ")[0]
+			)
+			doc_label = (
+				"Cotización"
+				if doc.doctype == "Quotation"
+				else ("Nota de Pre-venta" if doc.doctype == "Sales Order" else "Nota de Venta")
+			)
+			total_val = flt(getattr(doc, "grand_total", 0))
+			total_str = f"Bs. {total_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+			title = f"{company} — {doc_label} {escape_html(doc.name)}"
+			desc = f"Comprobante Digital en PDF · Total: {total_str}"
+			html = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{title}</title>
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="{company}" />
+<meta property="og:title" content="{title}" />
+<meta property="og:description" content="{desc}" />
+</head>
+<body>{title}</body>
+</html>"""
+			return Response(html, content_type="text/html; charset=utf-8")
+
+		pdf_bytes = _render_receipt_pdf_bytes(doc)
+		download = 0
+		if hasattr(frappe.local, "request") and frappe.local.request:
+			download = cint(frappe.local.request.args.get("download") or 0)
+
+		disposition = "attachment" if download else "inline"
+		filename = f"Comprobante-{doc.name}.pdf"
+		return Response(
+			pdf_bytes,
+			mimetype="application/pdf",
+			headers={
+				"Content-Disposition": f'{disposition}; filename="{filename}"',
+				"Cache-Control": "private, max-age=300",
+			},
+		)
+
+
+@frappe.whitelist()
+def get_public_pdf_url(doctype: str = "Sales Invoice", name: str = "") -> dict:
+	"""Return the signed public PDF URL for a Sales Invoice, Quotation, or Sales Order."""
+	allowed_doctypes = ("Sales Invoice", "Quotation", "Sales Order")
+	if doctype not in allowed_doctypes:
+		frappe.throw(_("Invalid document type"))
+	if not name or not frappe.db.exists(doctype, name):
+		frappe.throw(_("Document {0} does not exist").format(name))
+
+	doc = frappe.get_doc(doctype, name)
+	return {
+		"public_pdf_url": _build_public_pdf_path(doc),
+		"filename": f"Comprobante-{doc.name}.pdf",
+	}
+
+
+@frappe.whitelist(allow_guest=True)
+def pdf(d: str = "Sales Invoice", n: str = "", k: str = "", download: int = 0):
+	"""
+	Public endpoint (no login required) to view or download a receipt PDF.
+	Protected by HMAC cryptographic signature (doc.get_signature()).
+	"""
+	doc = _resolve_public_receipt_doc(n, k, doctype_hint=d)
+	pdf_bytes = _render_receipt_pdf_bytes(doc)
+
+	frappe.local.response.filename = f"Comprobante-{doc.name}.pdf"
+	frappe.local.response.filecontent = pdf_bytes
+	frappe.local.response.type = "download" if cint(download) else "pdf"
+
+
 @frappe.whitelist()
 def get_invoice(invoice_name):
 	"""
@@ -1690,8 +1883,10 @@ def get_invoice(invoice_name):
 
 	# Get invoice document
 	invoice = frappe.get_doc("Sales Invoice", invoice_name)
+	data = invoice.as_dict()
+	data["public_pdf_url"] = _build_public_pdf_path(invoice)
 
-	return invoice.as_dict()
+	return data
 
 
 @frappe.whitelist()

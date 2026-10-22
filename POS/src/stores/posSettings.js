@@ -54,6 +54,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		enable_siat_fiscal_format: 0,
 		allow_print_last_invoice: 0,
 		silent_print: 0,
+		enable_whatsapp_send: 1,
 		// Delivery
 		use_delivery_charges: 0,
 		auto_set_delivery_charges: 0,
@@ -155,6 +156,11 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	);
 	const allowPrintLastInvoice = computed(() => Boolean(settings.value.allow_print_last_invoice));
 	const silentPrint = computed(() => Boolean(settings.value.silent_print));
+	const enableWhatsappSend = computed(() =>
+		settings.value.enable_whatsapp_send === undefined
+			? true
+			: Boolean(settings.value.enable_whatsapp_send)
+	);
 
 	// Computed - Delivery
 	const useDeliveryCharges = computed(() => Boolean(settings.value.use_delivery_charges));
@@ -285,6 +291,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			enable_siat_fiscal_format: 0,
 			allow_print_last_invoice: 0,
 			silent_print: 0,
+			enable_whatsapp_send: 1,
 			use_delivery_charges: 0,
 			auto_set_delivery_charges: 0,
 			use_limit_search: 0,
@@ -411,6 +418,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		enableSiatFiscalFormat,
 		allowPrintLastInvoice,
 		silentPrint,
+		enableWhatsappSend,
 
 		// Computed - Delivery
 		useDeliveryCharges,

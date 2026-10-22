@@ -59,6 +59,7 @@
   "enable_siat_fiscal_format",
   "allow_print_last_invoice",
   "silent_print",
+  "enable_whatsapp_send",
   "section_break_delivery",
   "use_delivery_charges",
   "auto_set_delivery_charges",
@@ -455,6 +456,13 @@
    "fieldname": "silent_print",
    "fieldtype": "Check",
    "label": "Impresión Silenciosa (Directa)"
+  },
+  {
+   "default": "1",
+   "description": "Mostrar el botón para enviar comprobantes, cotizaciones y pre-ventas por WhatsApp al cliente",
+   "fieldname": "enable_whatsapp_send",
+   "fieldtype": "Check",
+   "label": "Habilitar Envío por WhatsApp"
   },
   {
    "collapsible": 1,
