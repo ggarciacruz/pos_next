@@ -842,6 +842,7 @@
 
 					<!-- Draft Invoices -->
 					<button
+						v-if="settingsStore.allowSalesOrder || settingsStore.allowQuotation"
 						type="button"
 						@click="$emit('show-drafts')"
 						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 active:bg-purple-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
@@ -1340,8 +1341,17 @@
 				</button>
 
 				<!-- Pre-venta & Cotización (Dual compact row) -->
-				<div class="grid grid-cols-2 gap-2">
+				<div
+					v-if="settingsStore.allowSalesOrder || settingsStore.allowQuotation"
+					class="grid gap-2"
+					:class="
+						settingsStore.allowSalesOrder && settingsStore.allowQuotation
+							? 'grid-cols-2'
+							: 'grid-cols-1'
+					"
+				>
 					<button
+						v-if="settingsStore.allowSalesOrder"
 						type="button"
 						@click="$emit('save-draft', true)"
 						class="h-8 px-2.5 rounded-lg font-bold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 border border-orange-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] touch-manipulation"
@@ -1351,6 +1361,7 @@
 						<span class="truncate">{{ __("Pre-venta") }}</span>
 					</button>
 					<button
+						v-if="settingsStore.allowQuotation"
 						type="button"
 						@click="$emit('save-quotation', true)"
 						class="h-8 px-2.5 rounded-lg font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 border border-blue-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] touch-manipulation"

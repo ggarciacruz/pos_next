@@ -115,6 +115,9 @@ def get_pos_settings(pos_profile):
 	settings["_global_allow_negative_stock"] = cint(
 		frappe.db.get_single_value("Stock Settings", "allow_negative_stock") or 0
 	)
+	settings["user_can_cancel_invoice"] = cint(
+		bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
+	)
 
 	return settings
 

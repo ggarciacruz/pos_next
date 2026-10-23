@@ -24,6 +24,8 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allow_credit_sale: 0,
 		allow_customer_credit_payment: 0,
 		allow_return: 0,
+		allow_cancel_invoice: 0,
+		user_can_cancel_invoice: 0,
 		allow_write_off_change: 0,
 		allow_partial_payment: 0,
 		use_exact_amount: 0,
@@ -38,6 +40,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		show_variants_as_items: 0,
 		// Operations
 		allow_sales_order: 0,
+		allow_quotation: 0,
 		allow_select_sales_order: 0,
 		create_only_sales_order: 0,
 		allow_return_without_invoice: 0,
@@ -103,6 +106,12 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		Boolean(settings.value.allow_customer_credit_payment)
 	);
 	const allowReturn = computed(() => Boolean(settings.value.allow_return));
+	const allowCancelInvoice = computed(() => Boolean(settings.value.allow_cancel_invoice));
+	const canCancelInvoice = computed(
+		() =>
+			Boolean(settings.value.allow_cancel_invoice) &&
+			Boolean(settings.value.user_can_cancel_invoice)
+	);
 	const allowWriteOffChange = computed(() => Boolean(settings.value.allow_write_off_change));
 	const allowPartialPayment = computed(() => Boolean(settings.value.allow_partial_payment));
 	const useExactAmount = computed(() => Boolean(settings.value.use_exact_amount));
@@ -123,6 +132,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 
 	// Computed - Operations
 	const allowSalesOrder = computed(() => Boolean(settings.value.allow_sales_order));
+	const allowQuotation = computed(() => Boolean(settings.value.allow_quotation));
 	const allowSelectSalesOrder = computed(() => Boolean(settings.value.allow_select_sales_order));
 	const createOnlySalesOrder = computed(() => Boolean(settings.value.create_only_sales_order));
 	const allowReturnWithoutInvoice = computed(() =>
@@ -266,6 +276,8 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			allow_credit_sale: 0,
 			allow_customer_credit_payment: 0,
 			allow_return: 0,
+			allow_cancel_invoice: 0,
+			user_can_cancel_invoice: 0,
 			allow_write_off_change: 0,
 			allow_partial_payment: 0,
 			use_exact_amount: 0,
@@ -278,6 +290,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			display_discount_amount: 0,
 			show_variants_as_items: 0,
 			allow_sales_order: 0,
+			allow_quotation: 0,
 			allow_select_sales_order: 0,
 			create_only_sales_order: 0,
 			allow_return_without_invoice: 0,
@@ -383,6 +396,8 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allowCreditSale,
 		allowCustomerCreditPayment,
 		allowReturn,
+		allowCancelInvoice,
+		canCancelInvoice,
 		allowWriteOffChange,
 		allowPartialPayment,
 		useExactAmount,
@@ -399,6 +414,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 
 		// Computed - Operations
 		allowSalesOrder,
+		allowQuotation,
 		allowSelectSalesOrder,
 		createOnlySalesOrder,
 		allowReturnWithoutInvoice,

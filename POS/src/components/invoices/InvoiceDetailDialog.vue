@@ -438,6 +438,62 @@
 					</h4>
 					<p class="text-sm text-gray-600 text-start">{{ invoiceData.remarks }}</p>
 				</div>
+
+				<!-- Cancel Invoice Confirmation Panel -->
+				<div
+					v-if="showCancelConfirm && canCancelCurrentInvoice"
+					class="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col gap-3 text-start"
+				>
+					<div class="flex items-start gap-3">
+						<div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+							</svg>
+						</div>
+						<div class="flex-1">
+							<h4 class="text-sm font-bold text-red-900">
+								{{ __("¿Confirmas anular la nota {0}?", [invoiceData.name]) }}
+							</h4>
+							<p class="text-xs text-red-700 mt-1">
+								{{ __("Esta acción dejará la nota en estado Cancelado, anulará los cobros/anticipos asociados y reingresará los muebles al stock del almacén.") }}
+							</p>
+						</div>
+					</div>
+					<div>
+						<label class="block text-xs font-semibold text-red-900 mb-1">
+							{{ __("Motivo de anulación (opcional)") }}
+						</label>
+						<input
+							v-model="cancelReason"
+							type="text"
+							:placeholder="__('Ej: Error en digitación de productos o cliente...')"
+							class="w-full px-3 py-2 text-xs bg-white border border-red-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-800"
+							@keyup.enter="confirmCancelInvoice"
+						/>
+					</div>
+					<div class="flex items-center justify-end gap-2">
+						<button
+							type="button"
+							:disabled="cancellingInvoice"
+							@click="showCancelConfirm = false"
+							class="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+						>
+							{{ __("No, volver") }}
+						</button>
+						<button
+							type="button"
+							:disabled="cancellingInvoice"
+							@click="confirmCancelInvoice"
+							class="px-3.5 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+						>
+							<svg v-if="cancellingInvoice" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+							</svg>
+							<span>{{ cancellingInvoice ? __("Anulando...") : __("Sí, Anular Venta") }}</span>
+						</button>
+					</div>
+				</div>
 			</div>
 
 			<div v-else class="text-center py-12">
@@ -463,9 +519,22 @@
 			<div
 				class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-4 w-full"
 			>
-				<Button variant="subtle" @click="show = false">
-					{{ __("Close") }}
-				</Button>
+				<div class="flex items-center gap-2">
+					<Button variant="subtle" @click="show = false">
+						{{ __("Close") }}
+					</Button>
+					<button
+						v-if="canCancelCurrentInvoice && !showCancelConfirm"
+						type="button"
+						@click="showCancelConfirm = true"
+						class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
+					>
+						<svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+						</svg>
+						<span>{{ __("Anular Venta") }}</span>
+					</button>
+				</div>
 				<div class="flex flex-wrap sm:flex-nowrap gap-2 justify-end">
 					<Button variant="outline" @click="handlePrint">
 						<template #prefix>
@@ -503,10 +572,12 @@
 
 <script setup>
 import { useFormatters } from "@/composables/useFormatters";
+import { useToast } from "@/composables/useToast";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
 import { getInvoiceStatusColor } from "@/utils/invoice";
 import { logger } from "@/utils/logger";
 import { hydrateLocalOnlyInvoice, isLocalOnlyInvoiceName } from "@/utils/printInvoice";
+import { isOffline } from "@/utils/offline/offlineState";
 import { Button, Dialog, call } from "frappe-ui";
 import { db } from "@/utils/offline/db";
 import { usePOSSettingsStore } from "@/stores/posSettings";
@@ -514,6 +585,7 @@ import { ref, watch, nextTick, computed } from "vue";
 
 const log = logger.create("InvoiceDetailDialog");
 const { formatDate, formatTime } = useFormatters();
+const { showSuccess, showError } = useToast();
 const posSettingsStore = usePOSSettingsStore();
 
 const props = defineProps({
@@ -530,11 +602,23 @@ function formatCurrency(amount) {
 	return formatCurrencyUtil(Number.parseFloat(amount || 0), props.currency);
 }
 
-const emit = defineEmits(["update:modelValue", "print-invoice", "whatsapp-invoice"]);
+const emit = defineEmits(["update:modelValue", "print-invoice", "whatsapp-invoice", "invoice-cancelled"]);
 
 const show = ref(props.modelValue);
 const loading = ref(false);
 const invoiceData = ref(null);
+const showCancelConfirm = ref(false);
+const cancelReason = ref("");
+const cancellingInvoice = ref(false);
+
+const canCancelCurrentInvoice = computed(() => {
+	if (!posSettingsStore.canCancelInvoice || !invoiceData.value) return false;
+	if (isOffline()) return false;
+	if (Number(invoiceData.value.docstatus) !== 1) return false;
+	if (invoiceData.value.status === "Cancelled" || invoiceData.value.status === "Cancelado") return false;
+	if (isLocalOnlyInvoiceName(invoiceData.value.name)) return false;
+	return true;
+});
 
 // Computed: Check if this is a credit sale (Pay on Account - no payments, full outstanding)
 const isCreditSale = computed(() => {
@@ -583,6 +667,8 @@ watch(show, async (val) => {
 	if (!val) {
 		// Clear data when closing
 		invoiceData.value = null;
+		showCancelConfirm.value = false;
+		cancelReason.value = "";
 	} else {
 		// Ensure dialog appears above other dialogs
 		await nextTick();
@@ -664,6 +750,33 @@ function handlePrintPDF() {
 function handleWhatsApp() {
 	if (!invoiceData.value) return;
 	emit("whatsapp-invoice", invoiceData.value);
+}
+
+async function confirmCancelInvoice() {
+	if (!invoiceData.value?.name || cancellingInvoice.value) return;
+	cancellingInvoice.value = true;
+	try {
+		await call("pos_next.api.invoices.cancel_pos_invoice", {
+			invoice_name: invoiceData.value.name,
+			reason: cancelReason.value,
+			pos_profile: props.posProfile,
+		});
+		showSuccess(
+			__("Nota de venta {0} anulada correctamente. El stock fue reingresado al almacén.", [
+				invoiceData.value.name,
+			])
+		);
+		const cancelledName = invoiceData.value.name;
+		showCancelConfirm.value = false;
+		cancelReason.value = "";
+		show.value = false;
+		emit("invoice-cancelled", cancelledName);
+	} catch (error) {
+		log.error("Error cancelling invoice:", error);
+		showError(error.message || __("No se pudo anular la nota de venta"));
+	} finally {
+		cancellingInvoice.value = false;
+	}
 }
 </script>
 

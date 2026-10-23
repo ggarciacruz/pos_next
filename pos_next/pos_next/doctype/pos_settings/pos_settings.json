@@ -25,6 +25,7 @@
   "allow_credit_sale",
   "allow_customer_credit_payment",
   "allow_return",
+  "allow_cancel_invoice",
   "allow_partial_payment",
   "use_exact_amount",
   "enable_sales_persons",
@@ -40,6 +41,7 @@
   "show_variants_as_items",
   "section_break_operations",
   "allow_sales_order",
+  "allow_quotation",
   "allow_select_sales_order",
   "create_only_sales_order",
   "column_break_operations",
@@ -227,6 +229,13 @@
    "label": "Permitir Devoluciones"
   },
   {
+   "default": "1",
+   "description": "Habilitar el botón de Anular Venta directamente en el POS (requiere además que el rol del usuario tenga permiso de Cancelar sobre Facturas de Venta)",
+   "fieldname": "allow_cancel_invoice",
+   "fieldtype": "Check",
+   "label": "Permitir Anular Ventas Emitidas"
+  },
+  {
    "default": "0",
    "description": "Habilitar pagos parciales y anticipos en el punto de venta",
    "fieldname": "allow_partial_payment",
@@ -327,6 +336,13 @@
    "fieldname": "allow_sales_order",
    "fieldtype": "Check",
    "label": "Permitir Crear Pre-ventas (Pedidos)"
+  },
+  {
+   "default": "0",
+   "description": "Habilitar la creación de cotizaciones en el POS",
+   "fieldname": "allow_quotation",
+   "fieldtype": "Check",
+   "label": "Permitir Crear Cotizaciones"
   },
   {
    "default": "0",

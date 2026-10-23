@@ -80,8 +80,11 @@ def get_pos_settings(pos_profile):
 		)
 
 		if not pos_settings:
-			return DEFAULT_POS_SETTINGS.copy()
+			pos_settings = DEFAULT_POS_SETTINGS.copy()
 
+		pos_settings["user_can_cancel_invoice"] = cint(
+			bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
+		)
 		return pos_settings
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Get POS Settings Error")

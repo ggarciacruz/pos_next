@@ -54,7 +54,12 @@
 						<span>{{ __("View Shift") }}</span>
 					</button>
 					<button
-						v-if="canAccessShiftActions"
+						v-if="
+							canAccessShiftActions &&
+							(settingsStore.allowSalesOrder ||
+								settingsStore.allowQuotation ||
+								draftsStore.draftsCount > 0)
+						"
 						@click="openDraftDialog"
 						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 flex items-center gap-3 transition-colors relative"
 					>
@@ -682,6 +687,7 @@
 				@print-invoice="handlePrintInvoice"
 				@whatsapp-invoice="handleWhatsAppInvoice"
 				@return-created="handleReturnCreated"
+				@invoice-cancelled="handleInvoiceCancelled"
 			/>
 
 			<!-- Offline Invoices Dialog -->
@@ -746,6 +752,7 @@
 				@load-draft="handleLoadDraftFromManagement"
 				@delete-draft="handleDeleteDraft"
 				@refresh-history="loadInvoiceHistoryData"
+				@invoice-cancelled="handleInvoiceCancelled"
 			/>
 
 			<!-- Invoice Detail Dialog -->
@@ -756,6 +763,7 @@
 				:currency="shiftStore.profileCurrency"
 				@print-invoice="handlePrintInvoice"
 				@whatsapp-invoice="handleWhatsAppInvoice"
+				@invoice-cancelled="handleInvoiceCancelled"
 			/>
 
 			<!-- Clear Cart Confirmation Dialog -->
@@ -3060,6 +3068,18 @@ async function handleLoadDraft(draft) {
 function handleReturnCreated(returnInvoice) {
 	// Success message is already shown by ReturnInvoiceDialog
 	log.debug("Return invoice created:", returnInvoice.name);
+}
+
+async function handleInvoiceCancelled(invoiceName) {
+	log.info("Invoice cancelled from POS:", invoiceName);
+	try {
+		await Promise.all([
+			loadInvoiceHistoryData(),
+			stockStore.refresh(null, shiftStore.profileWarehouse),
+		]);
+	} catch (error) {
+		log.error("Error refreshing data after invoice cancellation:", error);
+	}
 }
 
 function handleDiscountApplied(discount) {

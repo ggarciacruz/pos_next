@@ -705,6 +705,15 @@
 												:description="__('Enable product returns')"
 											/>
 											<CheckboxField
+												v-model="settings.allow_cancel_invoice"
+												:label="__('Permitir Anular Ventas Emitidas')"
+												:description="
+													__(
+														'Habilitar el botón de Anular Venta en el POS (requiere además que el rol del usuario tenga permiso de Cancelar)'
+													)
+												"
+											/>
+											<CheckboxField
 												v-model="settings.allow_write_off_change"
 												:label="__('Allow Write Off Change')"
 												:description="__('Write off small change amounts')"
@@ -714,6 +723,24 @@
 												:label="__('Allow Partial Payment')"
 												:description="
 													__('Enable partial payment for invoices')
+												"
+											/>
+											<CheckboxField
+												v-model="settings.allow_sales_order"
+												:label="__('Permitir Crear Pre-ventas (Pedidos)')"
+												:description="
+													__(
+														'Mostrar el botón de Pre-venta en el carrito del POS'
+													)
+												"
+											/>
+											<CheckboxField
+												v-model="settings.allow_quotation"
+												:label="__('Permitir Crear Cotizaciones')"
+												:description="
+													__(
+														'Mostrar el botón de Cotización en el carrito del POS'
+													)
 												"
 											/>
 											<SelectField
@@ -1185,10 +1212,12 @@ import { getSectionHeaderClasses, getSubsectionClasses, icons } from "./settings
 import { offlineWorker } from "@/utils/offline/workerClient";
 import { logger } from "@/utils/logger";
 import { usePOSEvents } from "@/composables/usePOSEvents";
+import { usePOSSettingsStore } from "@/stores/posSettings";
 import TranslatedHTML from "../common/TranslatedHTML.vue";
 import { useQzTray } from "@/composables/useQzTray";
 
 const log = logger.create("POSSettings");
+const posSettingsStore = usePOSSettingsStore();
 const { detectSettingsChanges, updateSettingsSnapshot, emitStockSyncConfigured } = usePOSEvents();
 const { showSuccess, showError } = useToast();
 
@@ -1220,8 +1249,11 @@ const settings = ref({
 	disable_rounded_total: 1,
 	allow_credit_sale: 0,
 	allow_return: 0,
+	allow_cancel_invoice: 0,
 	allow_write_off_change: 0,
 	allow_partial_payment: 0,
+	allow_sales_order: 0,
+	allow_quotation: 0,
 	silent_print: 0,
 	enable_whatsapp_send: 1,
 	receipt_header_title: "Recibo de Venta",
@@ -1462,6 +1494,7 @@ async function saveSettings() {
 		// Detect and emit settings changes through event system
 		// This will notify all listeners (POSSale, stock store, cart store, etc.)
 		detectSettingsChanges(settings.value, oldSettings);
+		await posSettingsStore.reloadSettings();
 
 		// IMPORTANT: Page reload for critical stock policy change
 		// The allow_negative_stock setting affects deep stock validation logic

@@ -198,6 +198,27 @@
 											/>
 										</svg>
 									</button>
+									<button
+										v-if="canCancelInvoice(invoice)"
+										type="button"
+										@click="openCancelModal(invoice)"
+										class="p-1.5 hover:bg-red-50 rounded transition-colors cursor-pointer"
+										:title="__('Anular Venta')"
+									>
+										<svg
+											class="w-4 h-4 text-red-600"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+											/>
+										</svg>
+									</button>
 								</div>
 							</div>
 						</div>
@@ -209,6 +230,50 @@
 					<Button variant="subtle" @click="loadMore">
 						{{ __("Load More") }}
 					</Button>
+				</div>
+
+				<!-- Inline Cancel Invoice Confirmation -->
+				<div
+					v-if="invoiceToCancel"
+					class="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col gap-3 text-start"
+				>
+					<div class="flex items-start justify-between gap-2">
+						<div>
+							<h4 class="text-sm font-bold text-red-900">
+								{{ __("¿Confirmas anular la nota {0}?", [invoiceToCancel.name]) }}
+							</h4>
+							<p class="text-xs text-red-700 mt-1">
+								{{ __("Cliente:") }} <strong>{{ invoiceToCancel.customer_name }}</strong> · {{ __("Total:") }} <strong>{{ formatCurrency(invoiceToCancel.grand_total) }}</strong>. {{ __("Se anularán sus cobros vinculados y los muebles volverán al stock.") }}
+							</p>
+						</div>
+					</div>
+					<div>
+						<input
+							v-model="cancelReason"
+							type="text"
+							:placeholder="__('Motivo de anulación (opcional)...')"
+							class="w-full px-3 py-1.5 text-xs bg-white border border-red-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-800"
+							@keyup.enter="confirmCancelInvoice"
+						/>
+					</div>
+					<div class="flex items-center justify-end gap-2">
+						<button
+							type="button"
+							:disabled="cancellingInvoice"
+							@click="invoiceToCancel = null"
+							class="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+						>
+							{{ __("No, volver") }}
+						</button>
+						<button
+							type="button"
+							:disabled="cancellingInvoice"
+							@click="confirmCancelInvoice"
+							class="px-3.5 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+						>
+							<span>{{ cancellingInvoice ? __("Anulando...") : __("Sí, Anular Venta") }}</span>
+						</button>
+					</div>
 				</div>
 			</div>
 		</template>
@@ -240,7 +305,7 @@ import { computed, ref, watch } from "vue";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import ReturnInvoiceDialog from "./ReturnInvoiceDialog.vue";
 
-const { showError } = useToast();
+const { showSuccess, showError } = useToast();
 const { formatDate, formatTime } = useFormatters();
 const posSettingsStore = usePOSSettingsStore();
 
@@ -265,6 +330,7 @@ const emit = defineEmits([
 	"print-invoice",
 	"whatsapp-invoice",
 	"return-created",
+	"invoice-cancelled",
 ]);
 
 const show = ref(props.modelValue);
@@ -273,6 +339,9 @@ const searchTerm = ref("");
 const page = ref(0);
 const pageSize = 20;
 const hasMore = ref(true);
+const invoiceToCancel = ref(null);
+const cancelReason = ref("");
+const cancellingInvoice = ref(false);
 
 // Return dialog state
 const showReturnDialog = ref(false);
@@ -443,6 +512,42 @@ function canCreateReturn(invoice) {
 	return (
 		invoice.docstatus === 1 && !invoice.is_return && invoice.status !== "Credit Note Issued"
 	);
+}
+
+function canCancelInvoice(invoice) {
+	if (!posSettingsStore.canCancelInvoice || !invoice) return false;
+	return Number(invoice.docstatus) === 1 && invoice.status !== "Cancelled" && invoice.status !== "Cancelado";
+}
+
+function openCancelModal(invoice) {
+	invoiceToCancel.value = invoice;
+	cancelReason.value = "";
+}
+
+async function confirmCancelInvoice() {
+	if (!invoiceToCancel.value?.name || cancellingInvoice.value) return;
+	cancellingInvoice.value = true;
+	const targetName = invoiceToCancel.value.name;
+	try {
+		await call("pos_next.api.invoices.cancel_pos_invoice", {
+			invoice_name: targetName,
+			reason: cancelReason.value,
+			pos_profile: props.posProfile,
+		});
+		showSuccess(
+			__("Nota de venta {0} anulada correctamente. El stock fue reingresado al almacén.", [
+				targetName,
+			])
+		);
+		invoiceToCancel.value = null;
+		cancelReason.value = "";
+		invoicesResource.reload();
+		emit("invoice-cancelled", targetName);
+	} catch (error) {
+		showError(error.message || __("No se pudo anular la nota de venta"));
+	} finally {
+		cancellingInvoice.value = false;
+	}
 }
 
 function openReturnModal(invoice) {

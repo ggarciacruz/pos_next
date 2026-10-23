@@ -3619,3 +3619,151 @@ def update_customer_delivery_info(customer_name: str, direccion: str = None, tel
 
 	return {"status": "success"}
 
+
+@frappe.whitelist()
+def cancel_pos_invoice(invoice_name: str, reason: str = None, pos_profile: str = None) -> dict:
+	"""
+	Anular (cancelar) una Nota de Venta (Sales Invoice) desde el Punto de Venta (/pos).
+
+	Doble candado de seguridad:
+	1. POS Settings (`allow_cancel_invoice` == 1) habilitado en el Perfil de POS.
+	2. Rol del usuario con permiso `cancel` sobre `Sales Invoice` (o rol `Nexus POS Manager`).
+	"""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Autenticación requerida"), frappe.AuthenticationError)
+
+	if not invoice_name or not frappe.db.exists("Sales Invoice", invoice_name):
+		frappe.throw(_("La nota de venta {0} no existe.").format(invoice_name or ""))
+
+	invoice = frappe.get_doc("Sales Invoice", invoice_name)
+	target_profile = invoice.pos_profile or pos_profile
+
+	# Candado 1: Verificar interruptor en POS Settings
+	allow_cancel = 0
+	if target_profile:
+		allow_cancel = cint(
+			frappe.db.get_value(
+				"POS Settings",
+				{"pos_profile": target_profile, "enabled": 1},
+				"allow_cancel_invoice",
+			)
+			or 0
+		)
+	if not allow_cancel:
+		frappe.throw(
+			_("La anulación de ventas está deshabilitada en la configuración de este Perfil de POS."),
+			frappe.PermissionError,
+		)
+
+	# Candado 2: Verificar permiso por Rol del Usuario
+	has_role_perm = bool(
+		frappe.has_permission("Sales Invoice", "cancel", doc=invoice)
+		or "Nexus POS Manager" in frappe.get_roles()
+	)
+	if not has_role_perm:
+		frappe.throw(
+			_("Tu rol de usuario no tiene permisos para anular notas de venta."),
+			frappe.PermissionError,
+		)
+
+	# Validaciones de estado del documento
+	if invoice.docstatus == 2:
+		frappe.throw(_("La nota de venta {0} ya se encuentra anulada.").format(invoice_name))
+	if invoice.docstatus != 1:
+		frappe.throw(_("Solo se pueden anular notas de venta que ya fueron emitidas."))
+
+	# Verificar si ya tiene Notas de Crédito / Devoluciones activas
+	active_returns = frappe.get_all(
+		"Sales Invoice",
+		filters={"return_against": invoice_name, "docstatus": 1},
+		pluck="name",
+	)
+	if active_returns:
+		frappe.throw(
+			_(
+				"Esta nota ya tiene una Devolución registrada ({0}). Anula primero la devolución si deseas anular la venta original."
+			).format(", ".join(active_returns))
+		)
+
+	# Verificar si está incluida en un Arqueo / Cierre de Turno ya consolidado
+	closed_shifts = frappe.db.sql(
+		"""
+		SELECT parent
+		FROM `tabSales Invoice Reference`
+		WHERE sales_invoice = %(invoice_name)s AND docstatus = 1
+		""",
+		{"invoice_name": invoice_name},
+		as_dict=True,
+	)
+	if closed_shifts:
+		shift_names = ", ".join({row.parent for row in closed_shifts})
+		frappe.throw(
+			_(
+				"Esta venta pertenece a un turno de caja ya cerrado ({0}). Para reversarla, utiliza la opción 'Devolver Venta'."
+			).format(shift_names)
+		)
+
+	# Anular en cascada los cobros / anticipos (Payment Entry) vinculados a esta factura
+	linked_pe_names = set(
+		frappe.get_all(
+			"Payment Entry Reference",
+			filters={
+				"reference_doctype": "Sales Invoice",
+				"reference_name": invoice_name,
+				"docstatus": 1,
+			},
+			pluck="parent",
+		)
+	)
+	ple_pe_names = frappe.db.sql(
+		"""
+		SELECT DISTINCT voucher_no
+		FROM `tabPayment Ledger Entry`
+		WHERE voucher_type = 'Payment Entry'
+			AND against_voucher_no = %(invoice_name)s
+			AND delinked = 0
+		""",
+		{"invoice_name": invoice_name},
+		as_dict=True,
+	)
+	for row in ple_pe_names:
+		if row.voucher_no:
+			linked_pe_names.add(row.voucher_no)
+
+	cancelled_payments = []
+	clean_reason = (reason or "").strip()
+	user_fullname = frappe.utils.get_fullname(frappe.session.user) or frappe.session.user
+
+	for pe_name in linked_pe_names:
+		if frappe.db.exists("Payment Entry", pe_name):
+			pe_doc = frappe.get_doc("Payment Entry", pe_name)
+			if pe_doc.docstatus == 1:
+				pe_doc.flags.ignore_permissions = True
+				pe_doc.add_comment(
+					"Comment",
+					text=_("Cobro anulado automáticamente desde POS al anular la venta {0} por {1}.").format(
+						invoice_name, user_fullname
+					),
+				)
+				pe_doc.cancel()
+				cancelled_payments.append(pe_name)
+
+	# Registrar auditoría del motivo de anulación en la factura
+	audit_msg = _("Venta anulada desde Punto de Venta (/pos) por {0}.").format(user_fullname)
+	if clean_reason:
+		audit_msg += f" Motivo: {clean_reason}"
+	invoice.add_comment("Comment", text=audit_msg)
+
+	# Recargar documento por si los Payment Entries modificaron outstanding_amount al cancelarse
+	invoice.reload()
+	invoice.flags.ignore_permissions = True
+	invoice.cancel()
+	frappe.db.commit()
+
+	return {
+		"status": "success",
+		"invoice_name": invoice_name,
+		"cancelled_payments": cancelled_payments,
+	}
+
+

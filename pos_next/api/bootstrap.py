@@ -28,6 +28,7 @@ import frappe
 from frappe import _
 from frappe.query_builder import DocType
 from frappe.query_builder.functions import Coalesce
+from frappe.utils import cint
 
 from pos_next.api.constants import DEFAULT_POS_SETTINGS, POS_SETTINGS_FIELDS
 
@@ -66,6 +67,7 @@ def get_initial_data():
 		"precision": _get_precision_settings(),
 		"can_switch_to_desk": "Nexus POS Manager" in frappe.get_roles(),
 		"can_checkout": any(role in frappe.get_roles() for role in ["POSNext Cashier", "System Manager", "Administrator", "Nexus POS Manager"]),
+		"can_cancel_invoice": bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles()),
 		"shift": None,
 		"pos_profile": None,
 		"pos_settings": None,
@@ -223,6 +225,9 @@ def _get_pos_settings(pos_profile_doc):
 			1 if (pos_profile_doc.write_off_account and (pos_profile_doc.write_off_limit or 0) > 0) else 0
 		)
 		settings["disable_rounded_total"] = pos_profile_doc.disable_rounded_total or 0
+		settings["user_can_cancel_invoice"] = cint(
+			bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
+		)
 
 		return settings
 	except Exception:
