@@ -75,6 +75,7 @@
   "section_break_misc",
   "input_qty",
   "allow_negative_stock",
+  "allow_stock_entry",
   "section_break_security",
   "enable_session_lock",
   "session_lock_timeout",
@@ -564,6 +565,13 @@
    "fieldname": "allow_negative_stock",
    "fieldtype": "Check",
    "label": "Permitir Venta con Stock Agotado (Negativo)"
+  },
+  {
+   "default": "0",
+   "description": "Permitir añadir stock al inventario directamente desde el POS (requiere además permiso de Stock en el rol del usuario)",
+   "fieldname": "allow_stock_entry",
+   "fieldtype": "Check",
+   "label": "Permitir Añadir Inventario desde el POS"
   },
   {
    "collapsible": 1,

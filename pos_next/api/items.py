@@ -10,7 +10,7 @@ from erpnext.stock.get_item_details import get_item_details as erpnext_get_item_
 from frappe import _
 from frappe.query_builder import DocType
 from frappe.query_builder import functions as fn
-from frappe.utils import flt, nowdate
+from frappe.utils import cint, flt, nowdate
 
 ITEM_RESULT_FIELDS = [
 	"name as item_code",
@@ -819,6 +819,19 @@ def _build_item_base_conditions(
 		warehouses = [warehouse]
 		if frappe.db.get_value("Warehouse", warehouse, "is_group"):
 			warehouses = frappe.db.get_descendants("Warehouse", warehouse) or [warehouse]
+		elif "fábrica" in warehouse.lower() or "fabrica" in warehouse.lower():
+			factory_whs = frappe.get_all(
+				"Warehouse",
+				filters={
+					"company": pos_profile_doc.company,
+					"disabled": 0,
+					"is_group": 0,
+					"name": ["like", "%Fábrica%"],
+				},
+				pluck="name",
+			)
+			if factory_whs:
+				warehouses = list(set(warehouses + factory_whs))
 
 		wh_placeholders = ", ".join(["%s"] * len(warehouses))
 		extra_joins = (
@@ -1150,6 +1163,148 @@ def _get_bundle_warehouse_availability_bulk(bundle_codes, warehouses):
 	return dict(result)
 
 
+def _is_factory_warehouse(warehouse_name):
+	wh_lower = (warehouse_name or "").lower()
+	return not wh_lower or "fábrica" in wh_lower or "fabrica" in wh_lower
+
+
+def _resolve_item_warehouses_and_stock(items_or_codes, company=None, default_warehouse=None):
+	"""
+	Resolve each item's effective warehouse and calculate Bin quantities.
+	When default_warehouse is a factory warehouse (or empty), each item uses its
+	configured Item Default / Item Group Default warehouse for the company if present.
+	"""
+	if not items_or_codes:
+		return {}, {}, {}, {}, {}
+
+	if isinstance(items_or_codes[0], dict):
+		item_codes = [i["item_code"] for i in items_or_codes if i.get("item_code")]
+		item_group_by_code = {
+			i["item_code"]: i.get("item_group") for i in items_or_codes if i.get("item_code")
+		}
+	else:
+		item_codes = [c for c in items_or_codes if c]
+		item_group_by_code = {}
+
+	if not item_codes:
+		return {}, {}, {}, {}, {}
+
+	if not company and default_warehouse:
+		company = frappe.db.get_value("Warehouse", default_warehouse, "company")
+
+	item_wh_map = {}
+	if _is_factory_warehouse(default_warehouse):
+		id_filters = {"parent": ["in", item_codes], "parenttype": "Item"}
+		if company:
+			id_filters["company"] = company
+		item_defaults = frappe.get_all(
+			"Item Default",
+			filters=id_filters,
+			fields=["parent", "default_warehouse"],
+		)
+		for row in item_defaults:
+			if row.default_warehouse:
+				item_wh_map[row.parent] = row.default_warehouse
+
+		missing_codes = [c for c in item_codes if c not in item_wh_map]
+		if missing_codes:
+			if not item_group_by_code:
+				item_rows = frappe.get_all(
+					"Item",
+					filters={"name": ["in", missing_codes]},
+					fields=["name", "item_group"],
+				)
+				item_group_by_code = {r.name: r.item_group for r in item_rows}
+			groups = list({item_group_by_code.get(c) for c in missing_codes if item_group_by_code.get(c)})
+			if groups:
+				ig_filters = {"parent": ["in", groups], "parenttype": "Item Group"}
+				if company:
+					ig_filters["company"] = company
+				ig_defaults = frappe.get_all(
+					"Item Default",
+					filters=ig_filters,
+					fields=["parent", "default_warehouse"],
+				)
+				group_wh_map = {r.parent: r.default_warehouse for r in ig_defaults if r.default_warehouse}
+				for c in missing_codes:
+					grp = item_group_by_code.get(c)
+					if grp and grp in group_wh_map:
+						item_wh_map[c] = group_wh_map[grp]
+
+	for c in item_codes:
+		if not item_wh_map.get(c):
+			item_wh_map[c] = default_warehouse
+
+	wh_filters = {"disabled": 0, "is_group": 0}
+	if company:
+		wh_filters["company"] = company
+	raw_warehouses = frappe.get_all(
+		"Warehouse",
+		filters=wh_filters,
+		fields=["name", "warehouse_name", "warehouse_type"],
+	)
+	boilerplate_names = {
+		"las mercancías en tránsito",
+		"trabajo en proceso",
+		"productos terminados",
+		"sucursales",
+		"goods in transit",
+		"work in progress",
+		"finished goods",
+		"stores",
+	}
+	active_warehouses = [
+		w
+		for w in raw_warehouses
+		if (w.get("warehouse_type") or "") != "Transit"
+		and (w.get("warehouse_name") or "").strip().lower() not in boilerplate_names
+	]
+	wh_name_map = {w.name: (w.warehouse_name or w.name) for w in raw_warehouses}
+	active_wh_names = [w.name for w in active_warehouses]
+
+	query_wh_names = set(active_wh_names)
+	expanded_wh_map = {}
+	for wh in set(item_wh_map.values()):
+		if not wh:
+			continue
+		if frappe.db.get_value("Warehouse", wh, "is_group"):
+			desc = frappe.db.get_descendants("Warehouse", wh) or [wh]
+			expanded_wh_map[wh] = set(desc)
+			query_wh_names.update(desc)
+		else:
+			expanded_wh_map[wh] = {wh}
+			query_wh_names.add(wh)
+		if wh not in wh_name_map:
+			wh_name_map[wh] = frappe.db.get_value("Warehouse", wh, "warehouse_name") or wh
+
+	stock_map = defaultdict(float)
+	reserved_map = defaultdict(float)
+	other_stock_map = defaultdict(float)
+
+	if query_wh_names:
+		Bin = DocType("Bin")
+		bin_rows = (
+			frappe.qb.from_(Bin)
+			.select(Bin.item_code, Bin.warehouse, Bin.actual_qty, Bin.reserved_qty)
+			.where(Bin.item_code.isin(item_codes))
+			.where(Bin.warehouse.isin(list(query_wh_names)))
+			.run(as_dict=True)
+		)
+		active_wh_set = set(active_wh_names)
+		for row in bin_rows:
+			ic = row["item_code"]
+			wh = row["warehouse"]
+			eff_wh = item_wh_map.get(ic) or default_warehouse
+			eff_set = expanded_wh_map.get(eff_wh, {eff_wh} if eff_wh else set())
+			if wh in eff_set:
+				stock_map[ic] += flt(row["actual_qty"])
+				reserved_map[ic] += flt(row["reserved_qty"])
+			elif wh in active_wh_set:
+				other_stock_map[ic] += flt(row["actual_qty"])
+
+	return item_wh_map, wh_name_map, dict(stock_map), dict(other_stock_map), dict(reserved_map)
+
+
 @frappe.whitelist()
 def get_items(
 	pos_profile,
@@ -1320,47 +1475,12 @@ def get_items(
 			for price in prices:
 				uom_prices_map.setdefault(price["item_code"], {})[price["uom"]] = price["price_list_rate"]
 
-		# Batch query stock for all items at once using Query Builder
-		stock_map = {}
-		other_stock_map = {}
-		if item_codes and pos_profile_doc.warehouse:
-			stock_items = [item["item_code"] for item in items if item.get("is_stock_item")]
-			if stock_items:
-				Bin = DocType("Bin")
-				stocks = (
-					frappe.qb.from_(Bin)
-					.select(Bin.item_code, Bin.actual_qty)
-					.where(Bin.item_code.isin(stock_items))
-					.where(Bin.warehouse == pos_profile_doc.warehouse)
-					.run(as_dict=True)
-				)
-				stock_map = {s["item_code"]: s["actual_qty"] for s in stocks}
-
-				# Query stock for all other active warehouses of the company
-				local_warehouses = [pos_profile_doc.warehouse]
-				if frappe.db.get_value("Warehouse", pos_profile_doc.warehouse, "is_group"):
-					local_warehouses = frappe.db.get_descendants("Warehouse", pos_profile_doc.warehouse) or []
-
-				all_active_warehouses = frappe.get_list(
-					"Warehouse",
-					filters={
-						"company": pos_profile_doc.company,
-						"disabled": 0,
-						"is_group": 0
-					},
-					pluck="name"
-				)
-				other_warehouses = [w for w in all_active_warehouses if w not in local_warehouses]
-				if other_warehouses:
-					other_stocks = (
-						frappe.qb.from_(Bin)
-						.select(Bin.item_code, fn.Sum(Bin.actual_qty).as_("qty"))
-						.where(Bin.item_code.isin(stock_items))
-						.where(Bin.warehouse.isin(other_warehouses))
-						.groupby(Bin.item_code)
-						.run(as_dict=True)
-					)
-					other_stock_map = {s["item_code"]: flt(s["qty"]) for s in other_stocks}
+		# Batch query stock and effective warehouse per item
+		item_wh_map, wh_name_map, stock_map, other_stock_map, _ = _resolve_item_warehouses_and_stock(
+			items,
+			company=pos_profile_doc.company,
+			default_warehouse=pos_profile_doc.warehouse,
+		)
 
 		# ===================================================================
 		# PRODUCT BUNDLE AVAILABILITY: Calculate bundle stock (bulk optimized)
@@ -1524,8 +1644,10 @@ def get_items(
 			if item["item_code"] in bundle_availability_map:
 				item["is_bundle"] = True
 
-			# Add warehouse to item (needed for stock validation)
-			item["warehouse"] = pos_profile_doc.warehouse
+			# Add effective warehouse and display name to item (needed for stock validation and card badge)
+			eff_wh = item_wh_map.get(item["item_code"]) or pos_profile_doc.warehouse
+			item["warehouse"] = eff_wh
+			item["warehouse_name"] = wh_name_map.get(eff_wh, eff_wh)
 
 			# Barcode
 			# item["barcode"] = barcode_map.get(item["item_code"], "")
@@ -1673,47 +1795,13 @@ def get_items_bulk(
 			for p in prices:
 				uom_prices_map.setdefault(p.item_code, {})[p.uom] = flt(p.price_list_rate)
 
-		# Stock
+		# Stock & effective warehouse per item
 		warehouse = pos_profile_doc.warehouse
-		stock_map = {}
-		other_stock_map = {}
-		if warehouse and item_codes:
-			warehouses = [warehouse]
-			if frappe.db.get_value("Warehouse", warehouse, "is_group"):
-				warehouses = frappe.db.get_descendants("Warehouse", warehouse) or []
-
-			Bin = DocType("Bin")
-			stock_data = (
-				frappe.qb.from_(Bin)
-				.select(Bin.item_code, fn.Sum(Bin.actual_qty).as_("qty"))
-				.where(Bin.item_code.isin(item_codes))
-				.where(Bin.warehouse.isin(warehouses))
-				.groupby(Bin.item_code)
-				.run(as_dict=True)
-			)
-			stock_map = {s.item_code: flt(s.qty) for s in stock_data}
-
-			# Query stock for all other active warehouses of the company
-			all_active_warehouses = frappe.get_list(
-				"Warehouse",
-				filters={
-					"company": pos_profile_doc.company,
-					"disabled": 0,
-					"is_group": 0
-				},
-				pluck="name"
-			)
-			other_warehouses = [w for w in all_active_warehouses if w not in warehouses]
-			if other_warehouses:
-				other_stocks = (
-					frappe.qb.from_(Bin)
-					.select(Bin.item_code, fn.Sum(Bin.actual_qty).as_("qty"))
-					.where(Bin.item_code.isin(item_codes))
-					.where(Bin.warehouse.isin(other_warehouses))
-					.groupby(Bin.item_code)
-					.run(as_dict=True)
-				)
-				other_stock_map = {s["item_code"]: flt(s["qty"]) for s in other_stocks}
+		item_wh_map, wh_name_map, stock_map, other_stock_map, _ = _resolve_item_warehouses_and_stock(
+			items,
+			company=pos_profile_doc.company,
+			default_warehouse=warehouse,
+		)
 
 		# Bundle availability
 		bundle_availability_map = {}
@@ -1758,7 +1846,9 @@ def get_items_bulk(
 				if item.get("is_stock_item")
 				else 0
 			)
-			item["warehouse"] = warehouse
+			eff_wh = item_wh_map.get(item_code) or warehouse
+			item["warehouse"] = eff_wh
+			item["warehouse_name"] = wh_name_map.get(eff_wh, eff_wh)
 
 			# Bundle marker
 			if item_code in bundle_availability_map:
@@ -1873,9 +1963,16 @@ def get_item_details(item_code, pos_profile, customer=None, qty=1, uom=None):
 		if uom:
 			item["uom"] = uom
 
+		item_wh_map, _, _, _, _ = _resolve_item_warehouses_and_stock(
+			[item_code],
+			company=pos_profile_doc.company,
+			default_warehouse=pos_profile_doc.warehouse,
+		)
+		eff_wh = item_wh_map.get(item_code) or pos_profile_doc.warehouse
+
 		return get_item_detail(
 			item=json.dumps(item),
-			warehouse=pos_profile_doc.warehouse,
+			warehouse=eff_wh,
 			price_list=pos_profile_doc.selling_price_list,
 			company=pos_profile_doc.company,
 		)
@@ -2008,33 +2105,10 @@ def get_stock_quantities(item_codes, warehouse):
 		if not normalized_codes:
 			return []
 
-		# Support group warehouses by expanding to leaf warehouses
-		warehouses = [warehouse]
-		if frappe.db.get_value("Warehouse", warehouse, "is_group"):
-			child_warehouses = frappe.db.get_descendants("Warehouse", warehouse) or []
-			# Fallback to original warehouse if no children are returned
-			warehouses = child_warehouses or [warehouse]
-
-		if not warehouses:
-			return []
-
-		# Batch query for stock quantities across all relevant warehouses using Query Builder
-		Bin = DocType("Bin")
-		stock_rows = (
-			frappe.qb.from_(Bin)
-			.select(
-				Bin.item_code,
-				fn.Coalesce(fn.Sum(Bin.actual_qty), 0).as_("actual_qty"),
-				fn.Coalesce(fn.Sum(Bin.reserved_qty), 0).as_("reserved_qty"),
-			)
-			.where(Bin.item_code.isin(normalized_codes))
-			.where(Bin.warehouse.isin(warehouses))
-			.groupby(Bin.item_code)
-			.run(as_dict=True)
+		item_wh_map, wh_name_map, stock_map, _, reserved_map = _resolve_item_warehouses_and_stock(
+			normalized_codes,
+			default_warehouse=warehouse,
 		)
-
-		# Create a lookup for items that have stock entries
-		item_stock_map = {row["item_code"]: row for row in stock_rows}
 
 		# Get bundle availability for non-stock items (bulk optimized)
 		bundle_availability_map = _calculate_bundle_availability_bulk(normalized_codes, warehouse)
@@ -2042,21 +2116,19 @@ def get_stock_quantities(item_codes, warehouse):
 		# Return stock for all requested items
 		result = []
 		for item_code in normalized_codes:
-			# Check if it's a bundle
+			eff_wh = item_wh_map.get(item_code) or warehouse
 			if item_code in bundle_availability_map:
-				# Bundle item - use calculated availability
 				actual_qty = flt(bundle_availability_map[item_code])
 				reserved_qty = 0.0
 			else:
-				# Regular item - use Bin data
-				row = item_stock_map.get(item_code)
-				actual_qty = flt(row["actual_qty"]) if row else 0.0
-				reserved_qty = flt(row["reserved_qty"]) if row else 0.0
+				actual_qty = flt(stock_map.get(item_code, 0.0))
+				reserved_qty = flt(reserved_map.get(item_code, 0.0))
 
 			result.append(
 				{
 					"item_code": item_code,
-					"warehouse": warehouse,
+					"warehouse": eff_wh,
+					"warehouse_name": wh_name_map.get(eff_wh, eff_wh),
 					"actual_qty": actual_qty,
 					"stock_qty": actual_qty,  # Alias for frontend convenience
 					"reserved_qty": reserved_qty,
@@ -2140,7 +2212,9 @@ def _parse_item_codes_param(item_codes):
 
 
 @frappe.whitelist()
-def get_item_warehouse_availability(item_code=None, item_codes=None, company=None):
+def get_item_warehouse_availability(
+	item_code=None, item_codes=None, company=None, include_zero_stock=0, pos_profile=None
+):
 	"""
 	Get stock availability for item(s) across all warehouses.
 	Useful for showing cashiers where out-of-stock items are available.
@@ -2176,7 +2250,7 @@ def get_item_warehouse_availability(item_code=None, item_codes=None, company=Non
 		if item_codes:
 			items_to_check = _parse_item_codes_param(item_codes)
 			include_item_code = True
-		elif item_code:
+		elif item_code and item_code != "__ALL__":
 			item_doc = frappe.get_cached_doc("Item", item_code)
 			items_to_check = [item_code]
 			# If template item, include all its variants
@@ -2185,27 +2259,60 @@ def get_item_warehouse_availability(item_code=None, item_codes=None, company=Non
 					"Item", filters={"variant_of": item_code, "disabled": 0}, pluck="name"
 				)
 			include_item_code = False
+		elif cint(include_zero_stock):
+			items_to_check = []
+			include_item_code = False
 		else:
 			frappe.throw(_("Either item_code or item_codes must be provided"))
 
+		# Resolve POS Profile warehouse if provided
+		profile_warehouse = None
+		if pos_profile:
+			profile_warehouse = frappe.db.get_value("POS Profile", pos_profile, "warehouse")
+			if not company:
+				company = frappe.db.get_value("POS Profile", pos_profile, "company")
+
 		# ---------------------------------------------------------------------
-		# STEP 2: Get active warehouses (non-disabled, non-group)
+		# STEP 2: Get active warehouses (non-disabled, non-group, non-boilerplate)
 		# ---------------------------------------------------------------------
 		wh_filters = {"disabled": 0, "is_group": 0}
 		if company:
 			wh_filters["company"] = company
 
-		warehouses = frappe.get_list(
+		raw_warehouses = frappe.get_list(
 			"Warehouse",
 			filters=wh_filters,
-			fields=["name", "warehouse_name", "company"],
+			fields=["name", "warehouse_name", "company", "warehouse_type"],
 			order_by="warehouse_name",
 		)
+		boilerplate_names = {
+			"las mercancías en tránsito",
+			"trabajo en proceso",
+			"productos terminados",
+			"sucursales",
+			"goods in transit",
+			"work in progress",
+			"finished goods",
+			"stores",
+		}
+		warehouses = [
+			w
+			for w in raw_warehouses
+			if (w.get("warehouse_type") or "") != "Transit"
+			and (w.get("warehouse_name") or "").strip().lower() not in boilerplate_names
+		]
 		if not warehouses:
 			return []
 
 		warehouse_map = {w.name: w for w in warehouses}
 		warehouse_names = list(warehouse_map.keys())
+
+		# If only requesting active warehouses list (e.g. item_code == "__ALL__")
+		if not items_to_check and cint(include_zero_stock):
+			return [
+				_build_stock_entry(wh_name, 0, 0, warehouse_map, None, company)
+				for wh_name in warehouse_names
+			]
 
 		# ---------------------------------------------------------------------
 		# STEP 3: Separate Product Bundles from regular stock items
@@ -2243,7 +2350,9 @@ def get_item_warehouse_availability(item_code=None, item_codes=None, company=Non
 			else:
 				query = query.groupby(bin_tbl.warehouse)
 
+			seen_warehouses = set()
 			for stock in query.run(as_dict=True):
+				seen_warehouses.add(stock.warehouse)
 				result.append(
 					_build_stock_entry(
 						stock.warehouse,
@@ -2254,6 +2363,38 @@ def get_item_warehouse_availability(item_code=None, item_codes=None, company=Non
 						company,
 					)
 				)
+
+			# When include_zero_stock is enabled for a single item, ensure the item's default warehouse
+			# (or POS Profile's warehouse / first operational warehouse) is included even when stock is 0
+			if cint(include_zero_stock) and not include_item_code:
+				item_wh_map, _, _, _, _ = _resolve_item_warehouses_and_stock(
+					regular_items[:1],
+					company=company,
+					default_warehouse=profile_warehouse,
+				)
+				preferred_wh = item_wh_map.get(regular_items[0]) if regular_items else profile_warehouse
+				target_zero_whs = []
+				if preferred_wh and preferred_wh in warehouse_map:
+					target_zero_whs = [preferred_wh]
+				elif profile_warehouse and profile_warehouse in warehouse_map:
+					target_zero_whs = [profile_warehouse]
+				elif not seen_warehouses and warehouse_names:
+					target_zero_whs = [warehouse_names[0]]
+
+				for wh_name in target_zero_whs:
+					if wh_name not in seen_warehouses:
+						result.append(
+							_build_stock_entry(
+								wh_name,
+								0,
+								0,
+								warehouse_map,
+								None,
+								company,
+							)
+						)
+				if preferred_wh:
+					result.sort(key=lambda r: (0 if r.get("warehouse") == preferred_wh else 1, -flt(r.get("actual_qty"))))
 
 		# ---------------------------------------------------------------------
 		# STEP 5: Calculate availability for Product Bundles
@@ -2490,3 +2631,388 @@ def get_batch_serial_data_for_items(item_codes, warehouse):
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Get Batch/Serial Data for Items Error")
 		return {}
+
+
+def _verify_pos_stock_permission(pos_profile: str | None = None):
+	"""Validate dual lock (POS Settings allow_stock_entry + user role permission)."""
+	if pos_profile:
+		allow_stock = frappe.db.get_value(
+			"POS Settings", {"pos_profile": pos_profile, "enabled": 1}, "allow_stock_entry"
+		)
+		if allow_stock is not None and not cint(allow_stock):
+			frappe.throw(
+				_("El ingreso y ajuste de inventario está deshabilitado en la configuración de este Perfil POS."),
+				frappe.PermissionError,
+			)
+
+	can_manage = bool(
+		frappe.has_permission("Stock Entry", "create")
+		or frappe.has_permission("Stock Entry", "write")
+		or any(
+			r in frappe.get_roles()
+			for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
+		)
+	)
+	if not can_manage:
+		frappe.throw(
+			_("Tu rol de usuario no tiene permisos para registrar ni modificar movimientos de inventario."),
+			frappe.PermissionError,
+		)
+
+
+def _resolve_stock_entry_type(purpose: str) -> str:
+	"""Resolve the localized Stock Entry Type name for a given purpose."""
+	se_type = frappe.db.get_value("Stock Entry Type", {"purpose": purpose}, "name")
+	if se_type:
+		return se_type
+	return purpose
+
+
+def _resolve_item_valuation_rate(item_code: str, warehouse: str) -> float:
+	"""Resolve a positive valuation rate for Material Receipt so ERPNext never blocks on zero valuation."""
+	bin_rate = flt(
+		frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse}, "valuation_rate")
+	)
+	if bin_rate > 0:
+		return bin_rate
+
+	item_fields = ["valuation_rate", "standard_rate"]
+	if frappe.db.has_column("Item", "custom_costo_fabricacion"):
+		item_fields.append("custom_costo_fabricacion")
+	if frappe.db.has_column("Item", "custom_precio_venta"):
+		item_fields.append("custom_precio_venta")
+
+	item_vals = frappe.db.get_value("Item", item_code, item_fields, as_dict=True) or {}
+	for field in ("custom_costo_fabricacion", "valuation_rate", "standard_rate", "custom_precio_venta"):
+		val = flt(item_vals.get(field))
+		if val > 0:
+			return val
+
+	price_rate = flt(frappe.db.get_value("Item Price", {"item_code": item_code, "selling": 1}, "price_list_rate"))
+	if price_rate > 0:
+		return price_rate
+
+	return 0.0
+
+
+@frappe.whitelist()
+def create_pos_stock_entry(pos_profile, warehouse, items, entry_mode="add", remarks=None):
+	"""
+	Register an inventory receipt ('add') or physical count adjustment ('set') directly from POS.
+	Creates and submits official Stock Entry document(s) in ERPNext and returns fresh Bin quantities.
+	"""
+	_verify_pos_stock_permission(pos_profile)
+
+	if not warehouse or not frappe.db.exists("Warehouse", warehouse):
+		frappe.throw(_("Debe seleccionar un almacén válido."))
+
+	if isinstance(items, str):
+		items = json.loads(items)
+
+	if not items or not isinstance(items, list):
+		frappe.throw(_("Debe agregar al menos un producto."))
+
+	company = (
+		frappe.db.get_value("Warehouse", warehouse, "company")
+		or frappe.db.get_value("POS Profile", pos_profile, "company")
+	)
+	if not company:
+		frappe.throw(_("No se pudo determinar la compañía para el almacén seleccionado."))
+
+	receipt_rows = []
+	issue_rows = []
+	affected_codes = []
+
+	for row in items:
+		item_code = (row.get("item_code") or "").strip()
+		if not item_code or not frappe.db.exists("Item", item_code):
+			continue
+
+		raw_qty = flt(row.get("qty"))
+		current_qty = flt(
+			frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty") or 0
+		)
+		stock_uom = frappe.db.get_value("Item", item_code, "stock_uom") or "Nos"
+		val_rate = _resolve_item_valuation_rate(item_code, warehouse)
+
+		if entry_mode == "set":
+			if raw_qty < 0:
+				frappe.throw(_("El stock físico para {0} no puede ser negativo.").format(item_code))
+			diff = flt(raw_qty - current_qty)
+			if abs(diff) < 0.0001:
+				continue
+			if diff > 0:
+				receipt_rows.append(
+					{
+						"item_code": item_code,
+						"qty": diff,
+						"uom": stock_uom,
+						"stock_uom": stock_uom,
+						"conversion_factor": 1,
+						"t_warehouse": warehouse,
+						"basic_rate": val_rate,
+						"allow_zero_valuation_rate": 1 if val_rate <= 0 else 0,
+					}
+				)
+			else:
+				issue_rows.append(
+					{
+						"item_code": item_code,
+						"qty": abs(diff),
+						"uom": stock_uom,
+						"stock_uom": stock_uom,
+						"conversion_factor": 1,
+						"s_warehouse": warehouse,
+						"allow_zero_valuation_rate": 1,
+					}
+				)
+			affected_codes.append(item_code)
+		elif entry_mode in ("subtract", "remove"):
+			if raw_qty <= 0:
+				frappe.throw(_("La cantidad a descontar para {0} debe ser mayor a cero.").format(item_code))
+			if raw_qty > current_qty:
+				frappe.throw(
+					_("No puede descontar {0} unidades de {1} porque solo hay {2} en stock.").format(
+						int(raw_qty), item_code, int(current_qty)
+					)
+				)
+			issue_rows.append(
+				{
+					"item_code": item_code,
+					"qty": raw_qty,
+					"uom": stock_uom,
+					"stock_uom": stock_uom,
+					"conversion_factor": 1,
+					"s_warehouse": warehouse,
+					"allow_zero_valuation_rate": 1,
+				}
+			)
+			affected_codes.append(item_code)
+		else:
+			if raw_qty <= 0:
+				frappe.throw(_("La cantidad a ingresar para {0} debe ser mayor a cero.").format(item_code))
+			receipt_rows.append(
+				{
+					"item_code": item_code,
+					"qty": raw_qty,
+					"uom": stock_uom,
+					"stock_uom": stock_uom,
+					"conversion_factor": 1,
+					"t_warehouse": warehouse,
+					"basic_rate": val_rate,
+					"allow_zero_valuation_rate": 1 if val_rate <= 0 else 0,
+				}
+			)
+			affected_codes.append(item_code)
+
+	if not receipt_rows and not issue_rows:
+		frappe.throw(_("No hay diferencias de stock para registrar."))
+
+	clean_remarks = (remarks or "").strip()
+	if entry_mode in ("subtract", "remove"):
+		mode_label = "Salida / Descuento de Stock"
+	elif entry_mode == "set":
+		mode_label = "Ajuste de Conteo Físico"
+	else:
+		mode_label = "Ingreso de Inventario"
+	full_remarks = f"[POS {mode_label}] {clean_remarks}" if clean_remarks else f"[POS {mode_label}] Registrado desde Punto de Venta ({pos_profile})"
+
+	created_entries = []
+
+	for purpose, rows in (("Material Receipt", receipt_rows), ("Material Issue", issue_rows)):
+		if not rows:
+			continue
+		se = frappe.new_doc("Stock Entry")
+		se.company = company
+		se.purpose = purpose
+		se.stock_entry_type = _resolve_stock_entry_type(purpose)
+		se.remarks = full_remarks
+		for r in rows:
+			se.append("items", r)
+		se.insert(ignore_permissions=True)
+		se.submit()
+		created_entries.append(se.name)
+
+	# Fetch updated stock quantities from Bin for all affected items
+	updated_stock = []
+	for code in set(affected_codes):
+		bin_vals = frappe.db.get_value(
+			"Bin",
+			{"item_code": code, "warehouse": warehouse},
+			["actual_qty", "reserved_qty"],
+			as_dict=True,
+		) or {"actual_qty": 0, "reserved_qty": 0}
+		actual_q = flt(bin_vals.get("actual_qty"))
+		reserved_q = flt(bin_vals.get("reserved_qty"))
+		updated_stock.append(
+			{
+				"item_code": code,
+				"warehouse": warehouse,
+				"actual_qty": actual_q,
+				"stock_qty": actual_q,
+				"reserved_qty": reserved_q,
+				"available_qty": max(0.0, actual_q - reserved_q),
+			}
+		)
+
+	return {
+		"success": True,
+		"stock_entries": created_entries,
+		"stock_entry": created_entries[0] if created_entries else None,
+		"warehouse": warehouse,
+		"updated_stock": updated_stock,
+		"updated_bins": updated_stock,
+		"message": _("Movimiento de inventario {0} registrado exitosamente.").format(", ".join(created_entries)),
+	}
+
+
+@frappe.whitelist()
+def get_pos_stock_entries(pos_profile, warehouse=None, limit=30):
+	"""Return recent Stock Entries (Material Receipt / Material Issue) for POS history and quick cancellation."""
+	if not pos_profile:
+		return []
+
+	company = frappe.db.get_value("POS Profile", pos_profile, "company")
+	if not company:
+		return []
+
+	limit = min(max(cint(limit) or 30, 1), 100)
+
+	entries = frappe.db.sql(
+		"""
+		SELECT
+			se.name,
+			se.purpose,
+			se.stock_entry_type,
+			se.posting_date,
+			se.posting_time,
+			se.docstatus,
+			se.owner,
+			se.remarks,
+			u.full_name as owner_name
+		FROM `tabStock Entry` se
+		LEFT JOIN `tabUser` u ON u.name = se.owner
+		WHERE se.company = %(company)s
+			AND se.docstatus IN (1, 2)
+			AND se.purpose IN ('Material Receipt', 'Material Issue')
+		ORDER BY se.posting_date DESC, se.posting_time DESC, se.creation DESC
+		LIMIT %(limit)s
+		""",
+		{"company": company, "limit": limit},
+		as_dict=True,
+	)
+
+	if not entries:
+		return []
+
+	entry_names = [e.name for e in entries]
+	items_rows = frappe.db.sql(
+		"""
+		SELECT
+			 sed.parent,
+			 sed.item_code,
+			 sed.item_name,
+			 sed.qty,
+			 sed.uom,
+			 sed.t_warehouse,
+			 sed.s_warehouse,
+			 w.warehouse_name
+		FROM `tabStock Entry Detail` sed
+		LEFT JOIN `tabWarehouse` w ON w.name = COALESCE(NULLIF(sed.t_warehouse, ''), sed.s_warehouse)
+		WHERE sed.parent IN %(entry_names)s
+		ORDER BY sed.parent, sed.idx
+		""",
+		{"entry_names": tuple(entry_names)},
+		as_dict=True,
+	)
+
+	items_by_entry = {}
+	for row in items_rows:
+		wh = row.t_warehouse or row.s_warehouse or ""
+		items_by_entry.setdefault(row.parent, []).append(
+			{
+				"item_code": row.item_code,
+				"item_name": row.item_name or row.item_code,
+				"qty": flt(row.qty),
+				"uom": row.uom or "Und",
+				"warehouse": wh,
+				"warehouse_name": row.warehouse_name or wh,
+				"direction": "in" if row.t_warehouse else "out",
+			}
+		)
+
+	result = []
+	for e in entries:
+		e_items = items_by_entry.get(e.name, [])
+		if warehouse and not any(i["warehouse"] == warehouse for i in e_items):
+			continue
+		e["items"] = e_items
+		e["total_qty"] = sum(i["qty"] for i in e_items)
+		e["warehouse_name"] = e_items[0]["warehouse_name"] if e_items else ""
+		e["warehouse"] = e_items[0]["warehouse"] if e_items else ""
+		result.append(e)
+
+	return result
+
+
+@frappe.whitelist()
+def cancel_pos_stock_entry(stock_entry_name, reason, pos_profile=None):
+	"""Cancel a submitted Stock Entry from POS and return updated Bin quantities."""
+	_verify_pos_stock_permission(pos_profile)
+
+	if not stock_entry_name or not frappe.db.exists("Stock Entry", stock_entry_name):
+		frappe.throw(_("El registro de inventario {0} no existe.").format(stock_entry_name))
+
+	clean_reason = (reason or "").strip()
+	if not clean_reason:
+		frappe.throw(_("Debe ingresar el motivo de la anulación."))
+
+	se = frappe.get_doc("Stock Entry", stock_entry_name)
+	if se.docstatus == 2:
+		frappe.throw(_("Este movimiento de inventario ya se encuentra anulado."))
+	if se.docstatus != 1:
+		frappe.throw(_("Solo se pueden anular movimientos confirmados."))
+
+	affected_pairs = set()
+	for row in se.items:
+		wh = row.t_warehouse or row.s_warehouse
+		if row.item_code and wh:
+			affected_pairs.add((row.item_code, wh))
+
+	se.flags.ignore_permissions = True
+	se.cancel()
+	se.add_comment(
+		"Comment",
+		_("Movimiento de inventario anulado desde POS por {0}. Motivo: {1}").format(
+			frappe.session.user, clean_reason
+		),
+	)
+
+	updated_stock = []
+	for code, wh in affected_pairs:
+		bin_vals = frappe.db.get_value(
+			"Bin",
+			{"item_code": code, "warehouse": wh},
+			["actual_qty", "reserved_qty"],
+			as_dict=True,
+		) or {"actual_qty": 0, "reserved_qty": 0}
+		actual_q = flt(bin_vals.get("actual_qty"))
+		reserved_q = flt(bin_vals.get("reserved_qty"))
+		updated_stock.append(
+			{
+				"item_code": code,
+				"warehouse": wh,
+				"actual_qty": actual_q,
+				"stock_qty": actual_q,
+				"reserved_qty": reserved_q,
+				"available_qty": max(0.0, actual_q - reserved_q),
+			}
+		)
+
+	return {
+		"success": True,
+		"stock_entry": se.name,
+		"updated_stock": updated_stock,
+		"updated_bins": updated_stock,
+		"message": _("Movimiento {0} anulado exitosamente. El stock fue revertido.").format(se.name),
+	}

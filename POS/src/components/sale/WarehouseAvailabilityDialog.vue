@@ -1,7 +1,15 @@
 <template>
 	<Dialog v-model="show" :options="{ size: '3xl' }">
 		<template #body-title>
-			<h3 class="text-lg font-semibold text-gray-900">{{ __("Stock Lookup") }}</h3>
+			<div class="flex items-center gap-2">
+				<h3 class="text-lg font-semibold text-gray-900">
+					{{
+						isSearchMode && settingsStore.canManageStock
+							? __("Gestión de Inventario y Stock")
+							: __("Stock Lookup")
+					}}
+				</h3>
+			</div>
 		</template>
 		<template #body-content>
 			<!-- Initial Loading State - shown before any content is ready -->
@@ -26,12 +34,74 @@
 			</div>
 
 			<template v-else>
+				<!-- Top Tabs (only in search mode when user can manage stock) -->
+				<div
+					v-if="isSearchMode && settingsStore.canManageStock"
+					class="flex flex-wrap gap-1.5 p-1 bg-gray-100 rounded-lg mb-4"
+				>
+					<button
+						type="button"
+						@click="switchTab('lookup')"
+						:class="[
+							'flex-1 min-w-[140px] px-3 py-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5',
+							activeTab === 'lookup'
+								? 'bg-white text-blue-700 shadow-sm'
+								: 'text-gray-600 hover:text-gray-900',
+						]"
+					>
+						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+						</svg>
+						<span>{{ __("Buscar Producto") }}</span>
+					</button>
+					<button
+						type="button"
+						@click="switchTab('batch_entry')"
+						:class="[
+							'flex-1 min-w-[150px] px-3 py-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5',
+							activeTab === 'batch_entry'
+								? 'bg-white text-green-700 shadow-sm'
+								: 'text-gray-600 hover:text-gray-900',
+						]"
+					>
+						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+						</svg>
+						<span>{{ __("Añadir Varios Productos") }}</span>
+						<span
+							v-if="batchItems.length > 0"
+							class="px-1.5 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded-full"
+						>
+							{{ batchItems.length }}
+						</span>
+					</button>
+					<button
+						type="button"
+						@click="switchTab('history')"
+						:class="[
+							'flex-1 min-w-[140px] px-3 py-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5',
+							activeTab === 'history'
+								? 'bg-white text-blue-700 shadow-sm'
+								: 'text-gray-600 hover:text-gray-900',
+						]"
+					>
+						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<span>{{ __("Historial / Anular") }}</span>
+					</button>
+				</div>
+
+				<!-- ============================================================ -->
+				<!-- TAB 1: CONSULTAR / AÑADIR STOCK INDIVIDUAL                   -->
+				<!-- ============================================================ -->
+				<div v-if="!isSearchMode || activeTab === 'lookup'">
 				<!-- Subtitle -->
-				<div class="mb-4 -mt-2 text-start">
+				<div class="mb-4 -mt-1 text-start">
 					<p class="text-sm text-gray-500">
 						{{
 							isSearchMode && !selectedItemCode
-								? __("Search for items across warehouses")
+								? __("Busque un producto para ver su stock o añadir unidades")
 								: displayItemName
 						}}
 					</p>
@@ -708,7 +778,43 @@
 											{{ getVariantName(warehouse.item_code) }}
 										</p>
 									</div>
-									<div class="flex-shrink-0 flex items-center gap-3">
+									<div class="flex-shrink-0 flex flex-wrap items-center justify-end gap-2">
+										<!-- Quick Add Stock Button -->
+										<button
+											v-if="settingsStore.canManageStock && selectedVariants.length <= 1"
+											type="button"
+											@click="toggleQuickStockForm(warehouse, 'add')"
+											class="px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm border"
+											:class="
+												activeQuickWarehouse === warehouse.warehouse && quickEntryMode === 'add'
+													? 'bg-green-600 text-white border-green-600'
+													: 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
+											"
+										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+											</svg>
+											<span>{{ __("Añadir Stock") }}</span>
+										</button>
+
+										<!-- Quick Subtract Stock Button -->
+										<button
+											v-if="settingsStore.canManageStock && selectedVariants.length <= 1 && (warehouse.actual_qty || 0) > 0"
+											type="button"
+											@click="toggleQuickStockForm(warehouse, 'subtract')"
+											class="px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm border"
+											:class="
+												activeQuickWarehouse === warehouse.warehouse && quickEntryMode === 'subtract'
+													? 'bg-red-600 text-white border-red-600'
+													: 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
+											"
+										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12h-15" />
+											</svg>
+											<span>{{ __("Disminuir") }}</span>
+										</button>
+
 										<!-- Sell Button -->
 										<button
 											v-if="warehouse.available_qty > 0"
@@ -790,6 +896,152 @@
 										>
 									</div>
 								</div>
+
+								<!-- Simple & Clear Add / Subtract Stock Form -->
+								<div
+									v-if="activeQuickWarehouse === warehouse.warehouse"
+									class="mt-3 pt-3 border-t bg-white rounded-lg p-3.5 shadow-sm space-y-3 text-start"
+									:class="quickEntryMode === 'subtract' ? 'border-red-200' : 'border-green-200'"
+								>
+									<!-- Header + Live Calculation -->
+									<div class="flex flex-wrap items-center justify-between gap-2">
+										<span class="text-xs font-bold text-gray-800">
+											{{
+												quickEntryMode === "subtract"
+													? __("¿Cuántas unidades quieres descontar del stock?")
+													: __("¿Cuántas unidades quieres añadir al stock?")
+											}}
+										</span>
+
+										<div
+											v-if="quickEntryMode === 'subtract'"
+											class="text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-800 border border-red-200"
+										>
+											{{ __("Hay:") }} <strong>{{ Math.floor(warehouse.actual_qty || 0) }}</strong>
+											<span class="mx-1 text-red-600">−</span>
+											{{ __("Descuentas:") }} <strong>{{ Math.max(0, Math.floor(Number(quickQty) || 0)) }}</strong>
+											<span class="mx-1 text-red-600">=</span>
+											{{ __("Quedarán:") }}
+											<strong class="text-sm text-red-700">
+												{{ Math.max(0, Math.floor((warehouse.actual_qty || 0) - Math.max(0, Number(quickQty) || 0))) }}
+											</strong>
+										</div>
+										<div
+											v-else
+											class="text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-800 border border-green-200"
+										>
+											{{ __("Hay:") }} <strong>{{ Math.floor(warehouse.actual_qty || 0) }}</strong>
+											<span class="mx-1 text-green-600">+</span>
+											{{ __("Añades:") }} <strong>{{ Math.max(0, Math.floor(Number(quickQty) || 0)) }}</strong>
+											<span class="mx-1 text-green-600">=</span>
+											{{ __("Quedarán:") }}
+											<strong class="text-sm text-green-700">
+												{{ Math.floor((warehouse.actual_qty || 0) + Math.max(0, Number(quickQty) || 0)) }}
+											</strong>
+										</div>
+									</div>
+
+									<!-- Big Counter + Quick Buttons + Save Button on the same clean row -->
+									<div class="flex flex-wrap items-center justify-between gap-3">
+										<div class="flex flex-wrap items-center gap-2">
+											<!-- Stepper -->
+											<div
+												class="flex items-center border-2 rounded-lg overflow-hidden bg-white"
+												:class="quickEntryMode === 'subtract' ? 'border-red-500' : 'border-green-500'"
+											>
+												<button
+													type="button"
+													@click="quickQty = Math.max(1, (Number(quickQty) || 1) - 1)"
+													class="px-3.5 py-2 text-gray-700 hover:bg-gray-100 active:bg-gray-200 font-bold text-base"
+												>
+													−
+												</button>
+												<input
+													v-model.number="quickQty"
+													type="number"
+													min="1"
+													:max="quickEntryMode === 'subtract' ? Math.max(1, Math.floor(warehouse.actual_qty || 1)) : undefined"
+													step="1"
+													class="w-20 text-center text-base font-bold text-gray-900 border-x border-gray-200 py-1.5 focus:outline-none"
+													@keydown.enter.prevent="submitQuickStockEntry(warehouse)"
+												/>
+												<button
+													type="button"
+													@click="
+														quickQty =
+															quickEntryMode === 'subtract'
+																? Math.min(Math.max(1, Math.floor(warehouse.actual_qty || 1)), (Number(quickQty) || 0) + 1)
+																: (Number(quickQty) || 0) + 1
+													"
+													class="px-3.5 py-2 text-gray-700 hover:bg-gray-100 active:bg-gray-200 font-bold text-base"
+												>
+													+
+												</button>
+											</div>
+
+											<!-- Quick Add/Subtract Chips -->
+											<div class="flex items-center gap-1.5">
+												<button
+													v-for="step in [5, 10, 20]"
+													:key="step"
+													type="button"
+													@click="
+														quickQty =
+															quickEntryMode === 'subtract'
+																? Math.min(Math.max(1, Math.floor(warehouse.actual_qty || 1)), (Number(quickQty) || 0) + step)
+																: (Number(quickQty) || 0) + step
+													"
+													class="px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors border"
+													:class="
+														quickEntryMode === 'subtract'
+															? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-300'
+															: 'bg-green-50 hover:bg-green-100 text-green-700 border-green-300'
+													"
+												>
+													{{ quickEntryMode === "subtract" ? `−${step}` : `+${step}` }}
+												</button>
+											</div>
+										</div>
+
+										<!-- Clear Action Buttons -->
+										<div class="flex items-center gap-2 ms-auto">
+											<button
+												type="button"
+												@click="activeQuickWarehouse = null"
+												:disabled="submittingStock"
+												class="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+											>
+												{{ __("Cancelar") }}
+											</button>
+											<button
+												type="button"
+												@click="submitQuickStockEntry(warehouse)"
+												:disabled="submittingStock"
+												class="px-4 py-2 text-xs font-bold text-white disabled:opacity-50 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+												:class="
+													quickEntryMode === 'subtract'
+														? 'bg-red-600 hover:bg-red-700 active:bg-red-800'
+														: 'bg-green-600 hover:bg-green-700 active:bg-green-800'
+												"
+											>
+												<span
+													v-if="submittingStock"
+													class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"
+												></span>
+												<svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+													<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+												</svg>
+												<span>
+													{{
+														quickEntryMode === "subtract"
+															? `${__("Descontar")} (−${Math.max(1, Math.floor(Number(quickQty) || 1))})`
+															: `${__("Guardar")} (+${Math.max(1, Math.floor(Number(quickQty) || 1))})`
+													}}
+												</span>
+											</button>
+										</div>
+									</div>
+								</div>
 							</div>
 						</template>
 					</div>
@@ -820,6 +1072,356 @@
 								{{ __("This item is out of stock in all warehouses") }}
 							</p>
 						</div>
+					</div>
+				</div>
+				</div>
+
+				<!-- ============================================================ -->
+				<!-- TAB 2: INGRESO DE PRODUCCIÓN / MERCADERÍA (MULTI-PRODUCTO)    -->
+				<!-- ============================================================ -->
+				<div
+					v-else-if="isSearchMode && activeTab === 'batch_entry'"
+					class="space-y-4 text-start"
+				>
+					<!-- Warehouse + Remarks Header -->
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-green-50 border border-green-200 rounded-lg p-3">
+						<div>
+							<label class="block text-xs font-bold text-gray-700 mb-1">
+								{{ __("Almacén donde entra la mercadería") }}
+							</label>
+							<select
+								v-model="batchWarehouse"
+								class="w-full px-3 py-2 text-xs font-semibold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+							>
+								<option
+									v-for="wh in availableCompanyWarehouses"
+									:key="wh.warehouse || wh.name"
+									:value="wh.warehouse || wh.name"
+								>
+									{{ wh.warehouse_name || wh.warehouse || wh.name }}
+								</option>
+							</select>
+						</div>
+						<div>
+							<label class="block text-xs font-bold text-gray-700 mb-1">
+								{{ __("Nota opcional") }}
+							</label>
+							<input
+								v-model="batchRemarks"
+								type="text"
+								:placeholder="__('Ej: Llegó de fábrica')"
+								class="w-full px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+							/>
+						</div>
+					</div>
+
+					<!-- Product Search to Add to Batch List -->
+					<div class="relative">
+						<div class="relative">
+							<div class="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
+								<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+								</svg>
+							</div>
+							<input
+								v-model="batchSearchQuery"
+								type="text"
+								:placeholder="__('Buscar producto por nombre o código para añadir...')"
+								class="w-full ps-9 pe-8 py-2.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+								@input="handleBatchSearchInput"
+								@keydown.enter.prevent="selectFirstBatchResult"
+								autocomplete="off"
+							/>
+							<button
+								v-if="batchSearchQuery"
+								type="button"
+								@click="batchSearchQuery = ''; batchSearchResults = []"
+								class="absolute inset-y-0 end-0 pe-3 flex items-center text-gray-400 hover:text-gray-600"
+							>
+								×
+							</button>
+						</div>
+
+						<!-- Dropdown Results for Batch Search -->
+						<div
+							v-if="batchSearchResults.length > 0"
+							class="absolute start-0 end-0 z-30 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+						>
+							<button
+								v-for="item in batchSearchResults"
+								:key="item.item_code"
+								type="button"
+								@click="addBatchItem(item)"
+								class="w-full text-start px-3 py-2.5 flex items-center justify-between gap-3 border-b border-gray-100 last:border-0 hover:bg-green-50 transition-colors"
+							>
+								<div class="min-w-0">
+									<p class="text-xs font-semibold text-gray-900 truncate">{{ item.item_name }}</p>
+									<p class="text-[11px] text-gray-500 font-mono truncate">{{ item.item_code }}</p>
+								</div>
+								<div class="flex items-center gap-2 shrink-0">
+									<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-700">
+										{{ __("Stock:") }} {{ Math.floor(item.actual_qty || 0) }}
+									</span>
+									<span class="px-2 py-1 bg-green-600 text-white rounded text-[11px] font-semibold">
+										+ {{ __("Agregar") }}
+									</span>
+								</div>
+							</button>
+						</div>
+					</div>
+
+					<!-- Batch Items Table -->
+					<div v-if="batchItems.length > 0" class="border border-gray-200 rounded-lg overflow-hidden bg-white">
+						<div class="max-h-72 overflow-y-auto divide-y divide-gray-100">
+							<div
+								v-for="(row, idx) in batchItems"
+								:key="row.item_code"
+								class="p-3 flex flex-wrap items-center justify-between gap-3 hover:bg-gray-50"
+							>
+								<div class="flex-1 min-w-[180px]">
+									<p class="text-xs font-bold text-gray-900">{{ row.item_name }}</p>
+									<p class="text-[11px] text-gray-500 font-mono">
+										{{ row.item_code }} · {{ __("Hay:") }}
+										<strong>{{ Math.floor(row.actual_qty || 0) }}</strong>
+										<span class="text-green-700 font-semibold ms-1">
+											➔ {{ __("Quedarán:") }} {{ Math.floor((row.actual_qty || 0) + (Number(row.qty) || 0)) }}
+										</span>
+									</p>
+								</div>
+
+								<div class="flex items-center gap-2">
+									<!-- Quick +5 / +10 buttons -->
+									<button
+										type="button"
+										@click="row.qty = (Number(row.qty) || 0) + 5"
+										class="px-2 py-1 text-[11px] font-semibold bg-green-50 hover:bg-green-100 text-green-700 border border-green-300 rounded"
+									>
+										+5
+									</button>
+									<button
+										type="button"
+										@click="row.qty = (Number(row.qty) || 0) + 10"
+										class="px-2 py-1 text-[11px] font-semibold bg-green-50 hover:bg-green-100 text-green-700 border border-green-300 rounded"
+									>
+										+10
+									</button>
+
+									<!-- Stepper -->
+									<div class="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white">
+										<button
+											type="button"
+											@click="row.qty = Math.max(1, (Number(row.qty) || 1) - 1)"
+											class="px-2.5 py-1 text-gray-600 hover:bg-gray-100 font-bold text-xs"
+										>
+											-
+										</button>
+										<input
+											v-model.number="row.qty"
+											type="number"
+											min="1"
+											step="1"
+											class="w-16 text-center text-xs font-bold border-x border-gray-200 py-1 focus:outline-none"
+										/>
+										<button
+											type="button"
+											@click="row.qty = (Number(row.qty) || 0) + 1"
+											class="px-2.5 py-1 text-gray-600 hover:bg-gray-100 font-bold text-xs"
+										>
+											+
+										</button>
+									</div>
+
+									<!-- Remove Row -->
+									<button
+										type="button"
+										@click="batchItems.splice(idx, 1)"
+										class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+										:title="__('Quitar de la lista')"
+									>
+										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+										</svg>
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<!-- Batch Submit Bar -->
+						<div class="p-3 bg-gray-50 border-t border-gray-200 flex flex-wrap items-center justify-between gap-2">
+							<div class="text-xs text-gray-600">
+								<strong>{{ batchItems.length }}</strong> {{ __("producto(s)") }} ·
+								{{ __("Total unidades a añadir:") }}
+								<strong class="text-green-700">
+									+{{ batchItems.reduce((acc, r) => acc + (Number(r.qty) || 0), 0) }}
+								</strong>
+							</div>
+							<div class="flex items-center gap-2">
+								<button
+									type="button"
+									@click="batchItems = []"
+									:disabled="submittingStock"
+									class="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+								>
+									{{ __("Limpiar Lista") }}
+								</button>
+								<button
+									type="button"
+									@click="submitBatchStockEntry"
+									:disabled="submittingStock || batchItems.length === 0"
+									class="px-4 py-2 text-xs font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+								>
+									<span
+										v-if="submittingStock"
+										class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"
+									></span>
+									<span>{{ __("Guardar Ingreso") }}</span>
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- Empty Batch State -->
+					<div v-else class="py-10 text-center bg-gray-50 border border-dashed border-gray-300 rounded-lg">
+						<svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+						</svg>
+						<p class="mt-2 text-xs font-semibold text-gray-700">
+							{{ __("Busque arriba los productos que llegaron para sumarlos al stock") }}
+						</p>
+					</div>
+				</div>
+
+				<!-- ============================================================ -->
+				<!-- TAB 3: HISTORIAL DE INGRESOS RECIENTES Y ANULACIÓN            -->
+				<!-- ============================================================ -->
+				<div
+					v-else-if="isSearchMode && activeTab === 'history'"
+					class="space-y-3 text-start"
+				>
+					<div class="flex items-center justify-between">
+						<p class="text-xs text-gray-500">
+							{{ __("Últimos ingresos de stock registrados. Si se equivocó al añadir unidades, puede anularlo aquí.") }}
+						</p>
+						<button
+							type="button"
+							@click="loadStockEntriesHistory"
+							class="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+						>
+							{{ __("Actualizar") }}
+						</button>
+					</div>
+
+					<div v-if="loadingHistory" class="py-10 text-center">
+						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+						<p class="mt-2 text-xs text-gray-500">{{ __("Cargando historial...") }}</p>
+					</div>
+
+					<div
+						v-else-if="stockEntriesHistory.length > 0"
+						class="max-h-96 overflow-y-auto space-y-2.5 pr-1"
+					>
+						<div
+							v-for="entry in stockEntriesHistory"
+							:key="entry.name"
+							class="p-3 rounded-lg border transition-colors"
+							:class="
+								entry.docstatus === 2
+									? 'bg-gray-50 border-gray-200 opacity-70'
+									: 'bg-white border-gray-200 hover:border-blue-200'
+							"
+						>
+							<div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-gray-100">
+								<div class="flex items-center gap-2">
+									<span class="text-xs font-bold font-mono text-gray-900">{{ entry.name }}</span>
+									<span
+										class="px-2 py-0.5 text-[10px] font-bold rounded-full"
+										:class="
+											entry.docstatus === 2
+												? 'bg-red-100 text-red-700'
+												: entry.purpose === 'Material Receipt'
+												? 'bg-green-100 text-green-800'
+												: 'bg-orange-100 text-orange-800'
+										"
+									>
+										{{
+											entry.docstatus === 2
+												? __("Anulado")
+												: entry.purpose === "Material Receipt"
+												? __("Ingreso (+)")
+												: __("Salida (-)")
+										}}
+									</span>
+									<span v-if="entry.warehouse_name" class="text-[11px] text-gray-600 font-medium">
+										· {{ entry.warehouse_name }}
+									</span>
+								</div>
+
+								<div class="flex items-center gap-2">
+									<span class="text-[11px] text-gray-500">
+										{{ entry.posting_date }} {{ (entry.posting_time || "").slice(0, 5) }}
+									</span>
+									<button
+										v-if="entry.docstatus === 1 && settingsStore.canManageStock"
+										type="button"
+										@click="cancellingEntryName = cancellingEntryName === entry.name ? '' : entry.name; cancelReason = ''"
+										class="px-2.5 py-1 text-[11px] font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition-colors"
+									>
+										{{ __("Anular") }}
+									</button>
+								</div>
+							</div>
+
+							<!-- Items inside this Stock Entry -->
+							<div class="mt-2 flex flex-wrap gap-1.5">
+								<span
+									v-for="(it, iIdx) in entry.items"
+									:key="iIdx"
+									class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-800"
+								>
+									<strong :class="it.direction === 'in' ? 'text-green-700' : 'text-orange-700'">
+										{{ it.direction === "in" ? "+" : "-" }}{{ Math.floor(it.qty) }}
+									</strong>
+									<span>{{ it.item_name }}</span>
+								</span>
+							</div>
+
+							<p v-if="entry.remarks" class="mt-1.5 text-[11px] text-gray-500 truncate">
+								{{ entry.remarks }}
+							</p>
+
+							<!-- Inline Cancellation Confirmation -->
+							<div
+								v-if="cancellingEntryName === entry.name"
+								class="mt-2.5 pt-2.5 border-t border-red-200 bg-red-50 rounded p-2.5 flex flex-wrap items-center gap-2"
+							>
+								<input
+									v-model="cancelReason"
+									type="text"
+									:placeholder="__('Motivo de la anulación (ej: Me equivoqué de cantidad)...')"
+									class="flex-1 min-w-[200px] px-2.5 py-1.5 text-xs bg-white border border-red-300 rounded focus:outline-none focus:ring-1 focus:ring-red-500"
+									@keydown.enter.prevent="confirmCancelStockEntry(entry)"
+								/>
+								<button
+									type="button"
+									@click="cancellingEntryName = ''"
+									class="px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-200 rounded"
+								>
+									{{ __("Cancelar") }}
+								</button>
+								<button
+									type="button"
+									@click="confirmCancelStockEntry(entry)"
+									:disabled="submittingStock"
+									class="px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded shadow-sm"
+								>
+									{{ __("Confirmar Anulación") }}
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<div v-else class="py-10 text-center bg-gray-50 border border-gray-200 rounded-lg">
+						<p class="text-xs text-gray-500">{{ __("No hay ingresos de stock recientes.") }}</p>
 					</div>
 				</div>
 			</template>
@@ -886,6 +1488,10 @@ import { __ } from "@/utils/translation";
 import { usePOSCartStore } from "@/stores/posCart";
 import { usePOSShiftStore } from "@/stores/posShift";
 import { usePOSSettingsStore } from "@/stores/posSettings";
+import { useStockStore } from "@/stores/stock";
+import { useItemSearchStore } from "@/stores/itemSearch";
+import { useToast } from "@/composables/useToast";
+import { offlineWorker } from "@/utils/offline/workerClient";
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -961,8 +1567,34 @@ const isReady = ref(false); // Gate to prevent showing content before data is re
 const cartStore = usePOSCartStore();
 const shiftStore = usePOSShiftStore();
 const settingsStore = usePOSSettingsStore();
+const stockStore = useStockStore();
+const itemSearchStore = useItemSearchStore();
+const { showSuccess, showError } = useToast();
 
 const selectedItemObj = ref(null);
+
+// Inventory Management State (Tabs, Quick Inline Adjustment, Batch Receipt, History)
+const activeTab = ref("lookup"); // 'lookup' | 'batch_entry' | 'history'
+const activeQuickWarehouse = ref(null);
+const quickEntryMode = ref("add"); // 'add' | 'set'
+const quickQty = ref(null);
+const quickRemarks = ref("");
+const submittingStock = ref(false);
+
+// Batch Multi-Item Receipt State
+const availableCompanyWarehouses = ref([]);
+const batchWarehouse = ref("");
+const batchRemarks = ref("");
+const batchSearchQuery = ref("");
+const batchSearchResults = ref([]);
+const batchItems = ref([]);
+let batchSearchDebounce = null;
+
+// History & Cancellation State
+const stockEntriesHistory = ref([]);
+const loadingHistory = ref(false);
+const cancellingEntryName = ref(null);
+const cancelReason = ref("");
 
 // Computed display values
 const displayItemName = computed(() => {
@@ -1073,6 +1705,13 @@ watch(
 );
 
 function resetSearchState() {
+	activeTab.value = "lookup";
+	activeQuickWarehouse.value = null;
+	quickEntryMode.value = "add";
+	quickQty.value = null;
+	quickRemarks.value = "";
+	cancellingEntryName.value = null;
+	cancelReason.value = "";
 	searchQuery.value = "";
 	searchResults.value = [];
 	selectedResultIndex.value = -1;
@@ -1337,23 +1976,40 @@ async function loadAvailability() {
 	loading.value = true;
 	error.value = null;
 	warehouses.value = [];
+	activeQuickWarehouse.value = null;
 
 	try {
+		const sortWithProfileWarehouseFirst = (list) => {
+			if (! Array.isArray(list)) return [];
+			const profileWh = shiftStore.profileWarehouse;
+			return [...list].sort((a, b) => {
+				if (profileWh) {
+					if (a.warehouse === profileWh && b.warehouse !== profileWh) return -1;
+					if (b.warehouse === profileWh && a.warehouse !== profileWh) return 1;
+				}
+				return (b.available_qty || 0) - (a.available_qty || 0);
+			});
+		};
+
 		// If variants are selected, use item_codes parameter
 		if (selectedVariants.value.length > 0) {
 			const itemCodes = selectedVariants.value.map((v) => v.item_code);
 			const response = await call("pos_next.api.items.get_item_warehouse_availability", {
 				item_codes: JSON.stringify(itemCodes),
 				company: props.company,
+				include_zero_stock: settingsStore.canManageStock ? 1 : 0,
+				pos_profile: props.posProfile || shiftStore.currentProfile,
 			});
-			warehouses.value = response || [];
+			warehouses.value = sortWithProfileWarehouseFirst(response || []);
 		} else {
-			// Single item (backward compatible)
+			// Single item (backward compatible) - include 0-stock for active POS profile warehouse
 			const response = await call("pos_next.api.items.get_item_warehouse_availability", {
 				item_code: targetItemCode,
 				company: props.company,
+				include_zero_stock: 1,
+				pos_profile: props.posProfile || shiftStore.currentProfile,
 			});
-			warehouses.value = response || [];
+			warehouses.value = sortWithProfileWarehouseFirst(response || []);
 		}
 	} catch (err) {
 		console.error("Error loading warehouse availability:", err);
@@ -1382,6 +2038,353 @@ function sellFromWarehouse(w) {
 		closeDialog();
 	} catch (error) {
 		console.error("Error adding item to cart from warehouse:", error);
+	}
+}
+
+/**
+ * Propagate fresh Bin quantities to local dialog cards, Pinia stockStore, and IndexedDB worker
+ */
+function applyStockBinUpdates(updatedBins) {
+	if (!Array.isArray(updatedBins) || updatedBins.length === 0) return;
+
+	// 1. Update local warehouse cards if currently viewing an item
+	for (const bin of updatedBins) {
+		const match = warehouses.value.find(
+			(w) =>
+				w.warehouse === bin.warehouse &&
+				(!w.item_code || !bin.item_code || w.item_code === bin.item_code)
+		);
+		if (match) {
+			match.actual_qty = bin.actual_qty;
+			match.reserved_qty = bin.reserved_qty;
+			match.available_qty = bin.available_qty;
+		}
+	}
+
+	// 2. Update POS stockStore, itemSearchStore, and offlineWorker for items in their effective warehouse
+	const profileWh = shiftStore.profileWarehouse;
+	const findItemEffectiveWh = (code) => {
+		const found =
+			itemSearchStore.allItems?.find((i) => i.item_code === code) ||
+			itemSearchStore.searchResults?.find((i) => i.item_code === code);
+		return found?.warehouse || profileWh;
+	};
+	const stockUpdates = updatedBins
+		.filter((b) => {
+			const itemWh = findItemEffectiveWh(b.item_code);
+			return !itemWh || b.warehouse === itemWh || updatedBins.length === 1;
+		})
+		.map((b) => ({
+			item_code: b.item_code,
+			actual_qty: b.actual_qty,
+			available_qty: b.available_qty,
+		}));
+
+	if (stockUpdates.length > 0) {
+		stockStore.update(stockUpdates);
+		offlineWorker.updateStockQuantities(stockUpdates);
+		const updateItemArrQty = (arr) => {
+			if (!Array.isArray(arr)) return;
+			for (const upd of stockUpdates) {
+				const target = arr.find((i) => i.item_code === upd.item_code);
+				if (target) {
+					target.actual_qty = upd.actual_qty;
+					target.stock_qty = upd.actual_qty;
+				}
+			}
+		};
+		updateItemArrQty(itemSearchStore.allItems);
+		updateItemArrQty(itemSearchStore.searchResults);
+	}
+
+	// 3. If other warehouse stock changed while viewing a single item, update other_qty on item cards
+	const currentItemCode = isSearchMode.value ? selectedItemCode.value : props.itemCode;
+	const currentItemWh = currentItemCode ? findItemEffectiveWh(currentItemCode) : profileWh;
+	if (currentItemCode && warehouses.value.length > 0 && currentItemWh) {
+		const otherTotal = warehouses.value
+			.filter((w) => w.warehouse !== currentItemWh && (!w.item_code || w.item_code === currentItemCode))
+			.reduce((sum, w) => sum + (Number(w.actual_qty) || 0), 0);
+
+		const updateListOtherQty = (arr) => {
+			if (!Array.isArray(arr)) return;
+			const target = arr.find((i) => i.item_code === currentItemCode);
+			if (target) {
+				target.other_qty = otherTotal;
+			}
+		};
+		updateListOtherQty(itemSearchStore.allItems);
+		updateListOtherQty(itemSearchStore.searchResults);
+		itemSearchStore.invalidateCache();
+	}
+}
+
+/**
+ * Switch top navigation tabs in Search/Inventory Management mode
+ */
+async function switchTab(tab) {
+	activeTab.value = tab;
+	if (tab === "batch_entry") {
+		await loadCompanyWarehouses();
+	} else if (tab === "history") {
+		await loadStockEntriesHistory();
+	} else if (tab === "lookup") {
+		await nextTick();
+		if (!selectedItemCode.value) {
+			focusSearch();
+		}
+	}
+}
+
+/**
+ * Toggle inline quick stock entry/adjustment form for a specific warehouse card
+ */
+function toggleQuickStockForm(warehouse, mode = "add") {
+	if (activeQuickWarehouse.value === warehouse.warehouse && quickEntryMode.value === mode) {
+		activeQuickWarehouse.value = null;
+		return;
+	}
+	activeQuickWarehouse.value = warehouse.warehouse;
+	quickEntryMode.value = mode;
+	quickQty.value = 1;
+	quickRemarks.value = "";
+}
+
+/**
+ * Submit quick single-item stock entry or stock deduction
+ */
+async function submitQuickStockEntry(warehouse) {
+	const targetItemCode =
+		warehouse.item_code || (isSearchMode.value ? selectedItemCode.value : props.itemCode);
+	if (!targetItemCode || !warehouse.warehouse) return;
+
+	const qtyVal = Number(quickQty.value);
+	if (isNaN(qtyVal) || qtyVal <= 0) {
+		showError("Por favor ingrese una cantidad mayor a cero.");
+		return;
+	}
+	if (quickEntryMode.value === "subtract" && qtyVal > Number(warehouse.actual_qty || 0)) {
+		showError(`No puede descontar más de las ${Math.floor(warehouse.actual_qty || 0)} unidades disponibles.`);
+		return;
+	}
+
+	submittingStock.value = true;
+	try {
+		const res = await call("pos_next.api.items.create_pos_stock_entry", {
+			pos_profile: props.posProfile || shiftStore.currentProfile,
+			warehouse: warehouse.warehouse,
+			entry_mode: quickEntryMode.value,
+			remarks: quickRemarks.value || "",
+			items: JSON.stringify([
+				{
+					item_code: targetItemCode,
+					qty: qtyVal,
+				},
+			]),
+		});
+
+		if (res?.updated_bins) {
+			applyStockBinUpdates(res.updated_bins);
+		} else {
+			await loadAvailability();
+		}
+
+		showSuccess(res?.message || "Inventario actualizado correctamente.");
+		activeQuickWarehouse.value = null;
+		quickQty.value = null;
+		quickRemarks.value = "";
+	} catch (err) {
+		console.error("Error creating stock entry:", err);
+		showError(err?.message || "No se pudo actualizar el inventario.");
+	} finally {
+		submittingStock.value = false;
+	}
+}
+
+/**
+ * Load active company warehouses for Batch Receipt selector
+ */
+async function loadCompanyWarehouses() {
+	if (availableCompanyWarehouses.value.length > 0) {
+		if (!batchWarehouse.value) {
+			batchWarehouse.value =
+				shiftStore.profileWarehouse || availableCompanyWarehouses.value[0]?.warehouse || "";
+		}
+		return;
+	}
+	try {
+		const targetItem = selectedItemCode.value || props.itemCode || "__ALL__";
+		const res = await call("pos_next.api.items.get_item_warehouse_availability", {
+			item_code: targetItem,
+			company: props.company,
+			include_zero_stock: 1,
+		});
+		const list = Array.isArray(res) ? res : [];
+		const profileWh = shiftStore.profileWarehouse;
+		list.sort((a, b) => {
+			if (profileWh) {
+				if (a.warehouse === profileWh && b.warehouse !== profileWh) return -1;
+				if (b.warehouse === profileWh && a.warehouse !== profileWh) return 1;
+			}
+			return (a.warehouse_name || a.warehouse).localeCompare(b.warehouse_name || b.warehouse);
+		});
+		availableCompanyWarehouses.value = list;
+		if (!batchWarehouse.value) {
+			batchWarehouse.value = profileWh || list[0]?.warehouse || "";
+		}
+	} catch (err) {
+		console.error("Error loading company warehouses:", err);
+	}
+}
+
+/**
+ * Autocomplete search for adding items to a batch receipt
+ */
+function handleBatchSearchInput() {
+	if (batchSearchDebounce) {
+		clearTimeout(batchSearchDebounce);
+	}
+	if (!batchSearchQuery.value || batchSearchQuery.value.trim().length < 1) {
+		batchSearchResults.value = [];
+		return;
+	}
+	batchSearchDebounce = setTimeout(async () => {
+		try {
+			const res = await call("pos_next.api.items.get_items", {
+				pos_profile: props.posProfile || shiftStore.currentProfile,
+				search_term: batchSearchQuery.value.trim(),
+				start: 0,
+				limit: 12,
+			});
+			batchSearchResults.value = (res || []).filter((i) => !i.has_variants);
+		} catch (err) {
+			console.error("Error searching batch items:", err);
+			batchSearchResults.value = [];
+		}
+	}, 150);
+}
+
+function selectFirstBatchResult() {
+	if (batchSearchResults.value.length > 0) {
+		addBatchItem(batchSearchResults.value[0]);
+	}
+}
+
+function addBatchItem(item) {
+	if (!item || !item.item_code) return;
+	const existing = batchItems.value.find((i) => i.item_code === item.item_code);
+	if (existing) {
+		existing.qty = Number(existing.qty || 0) + 1;
+	} else {
+		batchItems.value.push({
+			item_code: item.item_code,
+			item_name: item.item_name || item.item_code,
+			image: item.image || "",
+			uom: item.stock_uom || item.uom || "Nos",
+			actual_qty: item.actual_qty ?? 0,
+			qty: 1,
+		});
+	}
+	batchSearchQuery.value = "";
+	batchSearchResults.value = [];
+}
+
+/**
+ * Submit multi-item merchandise/production receipt
+ */
+async function submitBatchStockEntry() {
+	if (!batchWarehouse.value) {
+		showError("Seleccione el almacén de destino.");
+		return;
+	}
+	const validItems = batchItems.value.filter((i) => Number(i.qty) > 0);
+	if (validItems.length === 0) {
+		showError("Agregue al menos un producto con cantidad mayor a 0.");
+		return;
+	}
+
+	submittingStock.value = true;
+	try {
+		const res = await call("pos_next.api.items.create_pos_stock_entry", {
+			pos_profile: props.posProfile || shiftStore.currentProfile,
+			warehouse: batchWarehouse.value,
+			entry_mode: "add",
+			remarks: batchRemarks.value || "Ingreso de mercadería / producción desde POS",
+			items: JSON.stringify(
+				validItems.map((i) => ({
+					item_code: i.item_code,
+					qty: Number(i.qty),
+				}))
+			),
+		});
+
+		if (res?.updated_bins) {
+			applyStockBinUpdates(res.updated_bins);
+		}
+
+		showSuccess(res?.message || "Ingreso de mercadería registrado exitosamente.");
+		batchItems.value = [];
+		batchRemarks.value = "";
+		await switchTab("history");
+	} catch (err) {
+		console.error("Error submitting batch stock entry:", err);
+		showError(err?.message || "No se pudo registrar el ingreso de mercadería.");
+	} finally {
+		submittingStock.value = false;
+	}
+}
+
+/**
+ * Load recent Stock Entries for the History & Cancellation tab
+ */
+async function loadStockEntriesHistory() {
+	loadingHistory.value = true;
+	cancellingEntryName.value = null;
+	cancelReason.value = "";
+	try {
+		const res = await call("pos_next.api.items.get_pos_stock_entries", {
+			pos_profile: props.posProfile || shiftStore.currentProfile,
+			limit: 30,
+		});
+		stockEntriesHistory.value = Array.isArray(res) ? res : [];
+	} catch (err) {
+		console.error("Error loading stock entries history:", err);
+		showError("Error al cargar el historial de movimientos de inventario.");
+	} finally {
+		loadingHistory.value = false;
+	}
+}
+
+/**
+ * Cancel a submitted Stock Entry with mandatory reason
+ */
+async function confirmCancelStockEntry(entry) {
+	if (!entry?.name) return;
+	if (!cancelReason.value || !cancelReason.value.trim()) {
+		showError("Debe ingresar el motivo de la anulación.");
+		return;
+	}
+
+	submittingStock.value = true;
+	try {
+		const res = await call("pos_next.api.items.cancel_pos_stock_entry", {
+			stock_entry_name: entry.name,
+			reason: cancelReason.value.trim(),
+			pos_profile: props.posProfile || shiftStore.currentProfile,
+		});
+
+		if (res?.updated_bins) {
+			applyStockBinUpdates(res.updated_bins);
+		}
+
+		showSuccess(res?.message || `Movimiento ${entry.name} anulado correctamente.`);
+		cancellingEntryName.value = null;
+		cancelReason.value = "";
+		await loadStockEntriesHistory();
+	} catch (err) {
+		console.error("Error cancelling stock entry:", err);
+		showError(err?.message || "No se pudo anular el movimiento de inventario.");
+	} finally {
+		submittingStock.value = false;
 	}
 }
 

@@ -118,6 +118,16 @@ def get_pos_settings(pos_profile):
 	settings["user_can_cancel_invoice"] = cint(
 		bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
 	)
+	settings["user_can_manage_stock"] = cint(
+		bool(
+			frappe.has_permission("Stock Entry", "create")
+			or frappe.has_permission("Stock Entry", "write")
+			or any(
+				r in frappe.get_roles()
+				for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
+			)
+		)
+	)
 
 	return settings
 
@@ -129,7 +139,21 @@ def create_default_settings(pos_profile):
 	doc.enabled = 1
 	doc.insert()
 
-	return doc.as_dict()
+	res = doc.as_dict()
+	res["user_can_cancel_invoice"] = cint(
+		bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
+	)
+	res["user_can_manage_stock"] = cint(
+		bool(
+			frappe.has_permission("Stock Entry", "create")
+			or frappe.has_permission("Stock Entry", "write")
+			or any(
+				r in frappe.get_roles()
+				for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
+			)
+		)
+	)
+	return res
 
 
 @frappe.whitelist()
@@ -161,4 +185,18 @@ def update_pos_settings(pos_profile, settings):
 		doc.update(settings)
 		doc.insert()
 
-	return doc.as_dict()
+	res = doc.as_dict()
+	res["user_can_cancel_invoice"] = cint(
+		bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
+	)
+	res["user_can_manage_stock"] = cint(
+		bool(
+			frappe.has_permission("Stock Entry", "create")
+			or frappe.has_permission("Stock Entry", "write")
+			or any(
+				r in frappe.get_roles()
+				for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
+			)
+		)
+	)
+	return res

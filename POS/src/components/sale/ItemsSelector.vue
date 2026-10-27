@@ -632,7 +632,7 @@
 								:title="__('Click to view all warehouses')"
 							>
 								<span class="inline-flex items-center gap-0.5">
-									<span class="font-medium text-gray-700">{{ currentWarehouseName }}:</span>
+									<span class="font-medium text-gray-700">{{ getItemWarehouseName(item) }}:</span>
 									<span :class="(item.actual_qty ?? item.stock_qty ?? 0) > 0 ? 'text-green-600 font-bold' : 'text-red-500 font-bold'">
 										{{ Math.floor(item.actual_qty ?? item.stock_qty ?? 0) }}
 									</span>
@@ -1111,6 +1111,7 @@
 		:item-name="warehouseDialogItem.itemName"
 		:uom="warehouseDialogItem.uom"
 		:company="warehouseDialogItem.company"
+		:pos-profile="posProfile"
 	/>
 </template>
 
@@ -1162,9 +1163,14 @@ const shiftStore = usePOSShiftStore();
 const currentWarehouseName = computed(() => {
 	const wh = shiftStore.profileWarehouse;
 	if (!wh) return __("Esta Tienda");
-	// Replace hyphen with a space to make it look premium (e.g. "Sucursal - NE" -> "Sucursal NE")
-	return wh.replace(/\s*-\s*/g, ' ');
+	return wh.replace(/\s*-\s*[A-Z0-9]+$/i, "").replace(/\s*-\s*/g, " ").trim();
 });
+
+function getItemWarehouseName(item) {
+	const raw = item?.warehouse_name || item?.warehouse || shiftStore.profileWarehouse;
+	if (!raw) return __("Esta Tienda");
+	return raw.replace(/\s*-\s*[A-Z0-9]+$/i, "").replace(/\s*-\s*/g, " ").trim();
+}
 
 function getItemPrimaryTitle(item) {
 	if (!item) return "";

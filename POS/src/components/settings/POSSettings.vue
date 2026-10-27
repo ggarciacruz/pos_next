@@ -314,6 +314,19 @@
 													)
 												"
 											/>
+											<CheckboxField
+												v-model="settings.allow_stock_entry"
+												:label="
+													__(
+														'Permitir Añadir / Ajustar Inventario desde el POS'
+													)
+												"
+												:description="
+													__(
+														'Habilitar el registro de ingresos de producción/mercadería, ajustes de conteo físico y anulación de ingresos directamente desde el POS (requiere permiso de Stock en el rol del usuario)'
+													)
+												"
+											/>
 											<div class="mt-3 p-3 bg-blue-100 rounded-md">
 												<div class="flex items-start gap-2">
 													<svg
@@ -1259,6 +1272,7 @@ const settings = ref({
 	receipt_header_title: "Recibo de Venta",
 	enable_siat_fiscal_format: 0,
 	allow_negative_stock: 0,
+	allow_stock_entry: 1,
 	tax_inclusive: 0,
 });
 

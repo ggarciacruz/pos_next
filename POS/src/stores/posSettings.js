@@ -70,6 +70,8 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		// Miscellaneous
 		input_qty: 0,
 		allow_negative_stock: 0,
+		allow_stock_entry: 0,
+		user_can_manage_stock: 0,
 		// Sales Persons
 		enable_sales_persons: "Disabled",
 		// Security
@@ -194,6 +196,10 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	// Computed - Miscellaneous
 	const inputQty = computed(() => Boolean(settings.value.input_qty));
 	const allowNegativeStock = computed(() => Boolean(settings.value.allow_negative_stock));
+	const allowStockEntry = computed(() => Boolean(settings.value.allow_stock_entry));
+	const canManageStock = computed(
+		() => allowStockEntry.value && Boolean(settings.value.user_can_manage_stock)
+	);
 
 	// Computed - Sales Persons
 	const enableSalesPersons = computed(() => settings.value.enable_sales_persons !== "Disabled");
@@ -314,6 +320,8 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			allow_change_posting_date: 0,
 			input_qty: 0,
 			allow_negative_stock: 0,
+			allow_stock_entry: 0,
+			user_can_manage_stock: 0,
 			enable_sales_persons: "Disabled",
 			// Security
 			enable_session_lock: 0,
@@ -450,6 +458,8 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		// Computed - Miscellaneous
 		inputQty,
 		allowNegativeStock,
+		allowStockEntry,
+		canManageStock,
 
 		// Computed - Sales Persons
 		enableSalesPersons,

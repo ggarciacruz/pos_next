@@ -228,6 +228,16 @@ def _get_pos_settings(pos_profile_doc):
 		settings["user_can_cancel_invoice"] = cint(
 			bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
 		)
+		settings["user_can_manage_stock"] = cint(
+			bool(
+				frappe.has_permission("Stock Entry", "create")
+				or frappe.has_permission("Stock Entry", "write")
+				or any(
+					r in frappe.get_roles()
+					for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
+				)
+			)
+		)
 
 		return settings
 	except Exception:
