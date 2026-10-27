@@ -32,12 +32,12 @@ def monitor_branding_integrity():
 			# Send notification to System Managers
 			send_tampering_alert(doc)
 
-		# Verify signature integrity
+		# Verify signature integrity (auto-initialize if never generated on this site)
 		if not doc.encrypted_signature:
-			frappe.log_error(
-				title="BrainWise Branding - Missing Signature",
-				message="Branding configuration is missing encrypted signature. Please resave the BrainWise Branding document.",
-			)
+			doc.generate_signature()
+			if doc.encrypted_signature:
+				doc.db_set("encrypted_signature", doc.encrypted_signature, update_modified=False)
+				frappe.db.commit()
 
 		# Log monitoring activity
 		frappe.logger().info(
