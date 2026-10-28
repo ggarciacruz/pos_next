@@ -2898,31 +2898,37 @@ const enrichedInventoryRows = computed(() => {
 	const fallbackThreshold =
 		settingsStore.lowStockThreshold || inventoryDefaultThreshold.value || 10;
 
-	return (inventoryReportItems.value || []).map((it) => {
-		const displayQty = whFilter
-			? Number(it.by_warehouse?.[whFilter] ?? 0)
-			: Number(it.actual_qty ?? 0);
-		const displayWhName = whFilter
-			? selectedWhObj?.warehouse_name || whFilter
-			: it.warehouse_name || it.warehouse || "";
-		const threshold =
-			Number(it.safety_stock) > 0 ? Number(it.safety_stock) : fallbackThreshold;
+	return (inventoryReportItems.value || [])
+		.filter((it) => {
+			if (!whFilter) return true;
+			const whQty = Number(it.by_warehouse?.[whFilter] ?? 0);
+			return it.warehouse === whFilter || whQty !== 0;
+		})
+		.map((it) => {
+			const displayQty = whFilter
+				? Number(it.by_warehouse?.[whFilter] ?? 0)
+				: Number(it.actual_qty ?? 0);
+			const displayWhName = whFilter
+				? selectedWhObj?.warehouse_name || whFilter
+				: it.warehouse_name || it.warehouse || "";
+			const threshold =
+				Number(it.safety_stock) > 0 ? Number(it.safety_stock) : fallbackThreshold;
 
-		let stockLevel = "safe";
-		if (displayQty <= 0) {
-			stockLevel = "out";
-		} else if (displayQty <= threshold) {
-			stockLevel = "low";
-		}
+			let stockLevel = "safe";
+			if (displayQty <= 0) {
+				stockLevel = "out";
+			} else if (displayQty <= threshold) {
+				stockLevel = "low";
+			}
 
-		return {
-			...it,
-			display_qty: displayQty,
-			display_warehouse_name: displayWhName,
-			effective_threshold: threshold,
-			stock_level: stockLevel,
-		};
-	});
+			return {
+				...it,
+				display_qty: displayQty,
+				display_warehouse_name: displayWhName,
+				effective_threshold: threshold,
+				stock_level: stockLevel,
+			};
+		});
 });
 
 const filteredInventoryItems = computed(() => {
