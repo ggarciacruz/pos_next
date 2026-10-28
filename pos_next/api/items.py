@@ -3630,3 +3630,218 @@ def save_pos_item(pos_profile, item_data):
 			"uom_prices": {item.stock_uom: selling_rate},
 		},
 	}
+
+
+@frappe.whitelist()
+def get_pos_inventory_report(pos_profile):
+	"""Return the complete current inventory report for the POS modal and PDF export."""
+	pos_profile = _normalize_pos_profile_name(pos_profile)
+	if not pos_profile or not frappe.db.exists("POS Profile", pos_profile):
+		frappe.throw(_("Perfil de POS no válido."))
+
+	has_access = frappe.db.exists(
+		"POS Profile User", {"parent": pos_profile, "user": frappe.session.user}
+	)
+	if not has_access and not frappe.has_permission("Item", "read"):
+		frappe.throw(_("No tiene permisos para consultar el inventario de este POS."))
+
+	pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+	company = pos_profile_doc.company
+	selling_price_list = pos_profile_doc.selling_price_list or "Standard Selling"
+
+	low_stock_threshold = 10
+	if frappe.db.has_column("POS Settings", "low_stock_threshold") and frappe.db.exists("POS Settings", pos_profile):
+		low_stock_threshold = cint(frappe.db.get_value("POS Settings", pos_profile, "low_stock_threshold")) or 10
+
+	company_warehouses = frappe.get_all(
+		"Warehouse",
+		filters={"company": company, "is_group": 0, "disabled": 0},
+		fields=["name", "warehouse_name"],
+		order_by="warehouse_name asc",
+	)
+	_system_noise_wh = {
+		"las mercancías en tránsito",
+		"productos terminados",
+		"trabajo en proceso",
+		"sucursales",
+		"bienes en tránsito",
+		"work in progress",
+		"finished goods",
+		"goods in transit",
+	}
+	company_warehouses = [
+		w
+		for w in company_warehouses
+		if (w.warehouse_name or w.name).strip().lower() not in _system_noise_wh
+	]
+	wh_names_list = [w.name for w in company_warehouses]
+
+	# Resolve allowed item groups if POS Profile filters by item_groups
+	allowed_groups = set()
+	if pos_profile_doc.item_groups:
+		for row in pos_profile_doc.item_groups:
+			if not row.item_group:
+				continue
+			ig_bounds = frappe.db.get_value(
+				"Item Group", row.item_group, ["lft", "rgt"], as_dict=True
+			)
+			if ig_bounds:
+				descendants = frappe.get_all(
+					"Item Group",
+					filters={"lft": [">=", ig_bounds.lft], "rgt": ["<=", ig_bounds.rgt]},
+					pluck="name",
+				)
+				allowed_groups.update(descendants)
+			else:
+				allowed_groups.add(row.item_group)
+
+	item_filters = {
+		"disabled": 0,
+		"is_stock_item": 1,
+		"has_variants": 0,
+	}
+	if allowed_groups:
+		item_filters["item_group"] = ["in", list(allowed_groups)]
+
+	item_fields = [
+		"name as item_code",
+		"item_name",
+		"item_group",
+		"stock_uom",
+		"image",
+		"standard_rate",
+		"valuation_rate",
+		"safety_stock",
+	]
+	for optional_col in (
+		"custom_medida",
+		"custom_ancho_cm",
+		"custom_largo_cm",
+		"custom_alto_cm",
+		"custom_plazas",
+		"custom_costo_fabricacion",
+		"custom_precio_venta",
+	):
+		if frappe.db.has_column("Item", optional_col):
+			item_fields.append(optional_col)
+
+	raw_items = frappe.get_all(
+		"Item",
+		filters=item_filters,
+		fields=item_fields,
+		order_by="item_group asc, item_name asc",
+	)
+
+	item_codes = [it.item_code for it in raw_items]
+	item_wh_map, wh_name_map, stock_map, other_stock_map, _reserved_map = _resolve_item_warehouses_and_stock(
+		item_codes,
+		company=company,
+		default_warehouse=pos_profile_doc.warehouse,
+	)
+
+	# Batch fetch Bin quantities per warehouse
+	by_wh_map = {code: {} for code in item_codes}
+	if item_codes and wh_names_list:
+		bins = frappe.get_all(
+			"Bin",
+			filters={"item_code": ["in", item_codes], "warehouse": ["in", wh_names_list]},
+			fields=["item_code", "warehouse", "actual_qty"],
+		)
+		for b in bins:
+			by_wh_map.setdefault(b.item_code, {})[b.warehouse] = flt(b.actual_qty)
+
+	# Batch fetch Item Prices
+	selling_price_map = {}
+	cost_price_map = {}
+	if item_codes:
+		price_lists = list({selling_price_list, "Precio Mayoreo Ruffino", "Standard Selling", "Precio Fábrica (Costo)"})
+		prices = frappe.get_all(
+			"Item Price",
+			filters={"item_code": ["in", item_codes], "price_list": ["in", price_lists]},
+			fields=["item_code", "price_list", "price_list_rate"],
+		)
+		# Priority for selling price: selling_price_list -> Precio Mayoreo Ruffino -> Standard Selling
+		by_item_pl = {}
+		for p in prices:
+			by_item_pl.setdefault(p.item_code, {})[p.price_list] = flt(p.price_list_rate)
+		for code, pl_dict in by_item_pl.items():
+			sell_val = (
+				pl_dict.get(selling_price_list)
+				or pl_dict.get("Precio Mayoreo Ruffino")
+				or pl_dict.get("Standard Selling")
+				or 0.0
+			)
+			selling_price_map[code] = sell_val
+			if pl_dict.get("Precio Fábrica (Costo)"):
+				cost_price_map[code] = pl_dict.get("Precio Fábrica (Costo)")
+
+	enriched_items = []
+	groups_seen = set()
+	for it in raw_items:
+		code = it.item_code
+		eff_wh = item_wh_map.get(code) or pos_profile_doc.warehouse
+		eff_wh_name = wh_name_map.get(eff_wh, eff_wh)
+		primary_qty = flt(stock_map.get(code, 0))
+		other_qty = flt(other_stock_map.get(code, 0))
+
+		ancho = flt(it.get("custom_ancho_cm"))
+		largo = flt(it.get("custom_largo_cm"))
+		alto = flt(it.get("custom_alto_cm"))
+		medida = it.get("custom_medida") or (
+			f"{int(ancho)}x{int(largo)}" + (f"x{int(alto)}cm" if alto > 0 else "cm")
+			if ancho > 0 and largo > 0
+			else ""
+		)
+
+		sell_rate = (
+			selling_price_map.get(code)
+			or flt(it.get("custom_precio_venta"))
+			or flt(it.get("standard_rate"))
+			or 0.0
+		)
+		cost_rate = (
+			flt(it.get("custom_costo_fabricacion"))
+			or cost_price_map.get(code)
+			or flt(it.get("valuation_rate"))
+			or 0.0
+		)
+
+		wh_qtys = {w: flt(by_wh_map.get(code, {}).get(w, 0)) for w in wh_names_list}
+		total_company_qty = sum(wh_qtys.values()) if wh_qtys else (primary_qty + other_qty)
+
+		if it.item_group:
+			groups_seen.add(it.item_group)
+
+		enriched_items.append(
+			{
+				"item_code": code,
+				"item_name": it.item_name,
+				"item_group": it.item_group or "",
+				"stock_uom": it.stock_uom or "Unidad(es)",
+				"image": it.image or "",
+				"custom_medida": medida,
+				"custom_plazas": it.get("custom_plazas") or "",
+				"selling_rate": sell_rate,
+				"cost_rate": cost_rate,
+				"safety_stock": flt(it.get("safety_stock") or 0),
+				"warehouse": eff_wh,
+				"warehouse_name": eff_wh_name,
+				"actual_qty": primary_qty,
+				"other_qty": other_qty,
+				"total_company_qty": total_company_qty,
+				"by_warehouse": wh_qtys,
+			}
+		)
+
+	return {
+		"company": company,
+		"pos_profile": pos_profile,
+		"default_warehouse": pos_profile_doc.warehouse,
+		"default_low_stock_threshold": low_stock_threshold,
+		"warehouses": [
+			{"warehouse": w.name, "warehouse_name": w.warehouse_name or w.name}
+			for w in company_warehouses
+		],
+		"item_groups": sorted(groups_seen),
+		"items": enriched_items,
+	}

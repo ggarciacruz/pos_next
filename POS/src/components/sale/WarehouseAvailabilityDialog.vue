@@ -14,34 +14,28 @@
 							: 'max-w-4xl max-h-[88vh]',
 					]"
 				>
-					<!-- Modal Header -->
-					<div class="px-3.5 sm:px-7 py-3 sm:py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-slate-50 to-blue-50/40 shrink-0">
-						<div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
-							<div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-								<svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+					<!-- Modal Header (Compact) -->
+					<div class="px-3.5 sm:px-6 py-2 sm:py-2.5 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-slate-50 to-blue-50/40 shrink-0">
+						<div class="flex items-center gap-2.5 min-w-0">
+							<div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+								<svg class="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
 								</svg>
 							</div>
 							<div class="min-w-0 text-start">
-								<h3 class="text-sm sm:text-lg font-bold text-gray-900 truncate">
+								<h3 class="text-sm sm:text-base font-bold text-gray-900 truncate">
 									{{
 										isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)
 											? __("Gestión de Productos e Inventario")
 											: __("Disponibilidad y Stock")
 									}}
 								</h3>
-								<p
-									v-if="isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)"
-									class="text-xs text-gray-500 truncate hidden sm:block"
-								>
-									{{ __("Consulte stock por almacén, cree o edite productos y registre ingresos o salidas de inventario") }}
-								</p>
 							</div>
 						</div>
 						<button
 							type="button"
 							@click="closeDialog"
-							class="p-1.5 sm:p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 rounded-lg transition-colors shrink-0"
+							class="p-1 sm:p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 rounded-lg transition-colors shrink-0"
 							:title="__('Cerrar')"
 						>
 							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -51,7 +45,7 @@
 					</div>
 
 					<!-- Modal Body (Scrollable) -->
-					<div class="flex-1 overflow-y-auto px-3.5 sm:px-7 py-3.5 sm:py-5">
+					<div class="flex-1 overflow-y-auto px-3 sm:px-5 py-1.5 sm:py-2">
 						<!-- Initial Loading State - shown before any content is ready -->
 						<div
 							v-if="!isReady && loading"
@@ -77,35 +71,35 @@
 							<!-- Top Tabs (2x2 compact grid on mobile, single flex bar on desktop) -->
 							<div
 								v-if="isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)"
-								class="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5 sm:gap-2 p-1 sm:p-1.5 bg-gray-100 rounded-xl mb-3.5 sm:mb-5"
+								class="grid grid-cols-2 sm:flex sm:flex-wrap gap-1 p-1 bg-gray-100 rounded-lg mb-1.5"
 							>
 								<button
 									type="button"
 									@click="switchTab('lookup')"
 									:class="[
-										'sm:flex-1 px-2.5 sm:px-3.5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 sm:gap-2',
+										'sm:flex-1 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5',
 										activeTab === 'lookup'
-											? 'bg-white text-blue-700 shadow-sm'
+											? 'bg-white text-blue-700 shadow-xs'
 											: 'text-gray-600 hover:text-gray-900',
 									]"
 								>
-									<svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
 									</svg>
-									<span class="truncate">{{ __("Consultar / Stock") }}</span>
+									<span class="truncate">{{ __("Inventario / Stock") }}</span>
 								</button>
 								<button
 									v-if="settingsStore.canManageItems"
 									type="button"
 									@click="switchTab('catalog')"
 									:class="[
-										'sm:flex-1 px-2.5 sm:px-3.5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 sm:gap-2',
+										'sm:flex-1 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5',
 										activeTab === 'catalog'
-											? 'bg-white text-blue-700 shadow-sm'
+											? 'bg-white text-blue-700 shadow-xs'
 											: 'text-gray-600 hover:text-gray-900',
 									]"
 								>
-									<svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
 									</svg>
 									<span class="sm:hidden truncate">{{ __("Productos") }}</span>
@@ -116,13 +110,13 @@
 									type="button"
 									@click="switchTab('batch_entry')"
 									:class="[
-										'sm:flex-1 px-2.5 sm:px-3.5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 sm:gap-2',
+										'sm:flex-1 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5',
 										activeTab === 'batch_entry'
-											? 'bg-white text-green-700 shadow-sm'
+											? 'bg-white text-green-700 shadow-xs'
 											: 'text-gray-600 hover:text-gray-900',
 									]"
 								>
-									<svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 									</svg>
 									<span class="sm:hidden truncate">{{ __("Inv. Masivo") }}</span>
@@ -139,13 +133,13 @@
 									type="button"
 									@click="switchTab('history')"
 									:class="[
-										'sm:flex-1 px-2.5 sm:px-3.5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 sm:gap-2',
+										'sm:flex-1 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5',
 										activeTab === 'history'
-											? 'bg-white text-blue-700 shadow-sm'
+											? 'bg-white text-blue-700 shadow-xs'
 											: 'text-gray-600 hover:text-gray-900',
 									]"
 								>
-									<svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
 									</svg>
 									<span class="truncate">{{ __("Historial / Anular") }}</span>
@@ -156,15 +150,27 @@
 				<!-- TAB 1: CONSULTAR / AÑADIR STOCK INDIVIDUAL                   -->
 				<!-- ============================================================ -->
 				<div v-if="!isSearchMode || activeTab === 'lookup'">
-				<!-- Subtitle -->
-				<div class="mb-3 sm:mb-4 flex items-start sm:items-center justify-between gap-2 text-start">
-					<p class="text-xs sm:text-sm font-semibold text-gray-800 leading-snug line-clamp-2 flex-1 min-w-0">
-						{{
-							isSearchMode && !selectedItemCode
-								? __("Busque un producto para ver su stock o añadir unidades")
-								: displayItemName
-						}}
-					</p>
+				<!-- Subtitle (Only shown in single-item mode or when an item is selected) -->
+				<div
+					v-if="!isSearchMode || selectedItemCode"
+					class="mb-2.5 flex flex-wrap items-center justify-between gap-2 text-start"
+				>
+					<div class="flex items-center gap-2 min-w-0 flex-1">
+						<button
+							v-if="isSearchMode && selectedItemCode"
+							type="button"
+							@click="clearSelectedItem"
+							class="px-2.5 py-1.5 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center gap-1 shrink-0"
+						>
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+							</svg>
+							<span>{{ __("Volver al Inventario") }}</span>
+						</button>
+						<p class="text-xs sm:text-sm font-bold text-gray-800 leading-snug line-clamp-2 min-w-0">
+							{{ displayItemName }}
+						</p>
+					</div>
 					<button
 						v-if="settingsStore.canManageItems && (selectedItemCode || itemCode)"
 						type="button"
@@ -182,10 +188,10 @@
 					</button>
 				</div>
 
-				<!-- Search Section (Search Mode) -->
+				<!-- Search Section (Only shown when viewing a specific item in Search Mode) -->
 				<div
-					v-if="isSearchMode"
-					class="py-4 px-4 border-b border-gray-200 bg-gray-50 rounded-lg relative mb-4"
+					v-if="isSearchMode && selectedItemCode"
+					class="py-2.5 px-3 border-b border-gray-200 bg-gray-50 rounded-lg relative mb-3"
 				>
 					<div class="relative">
 						<!-- Search Icon / Loading Spinner -->
@@ -609,7 +615,7 @@
 				</div>
 
 				<!-- Content -->
-				<div class="flex-1 overflow-y-auto">
+				<div class="flex-1">
 					<!-- Loading State (only show if not in variant selection) -->
 					<div
 						v-if="loading && !showVariantSelection"
@@ -654,56 +660,402 @@
 						</div>
 					</div>
 
-					<!-- Prompt to Search (Search Mode, No Item Selected) -->
+					<!-- Current Inventory Overview Table + Compact Unified Toolbar + PDF Export -->
 					<div
 						v-else-if="isSearchMode && !selectedItemCode && !showVariantSelection"
-						class="flex items-center justify-center py-12"
+						class="space-y-1.5 text-start"
 					>
-						<div class="text-center">
-							<svg
-								class="mx-auto h-16 w-16 text-gray-300"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-								/>
-							</svg>
-							<p class="mt-4 text-base font-medium text-gray-700">
-								{{ __("Search for an item") }}
-							</p>
-							<p class="mt-2 text-sm text-gray-500">
-								{{ __("Start typing to see suggestions") }}
-							</p>
-							<div
-								class="mt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs text-gray-400"
-							>
-								<span class="flex items-center gap-1">
-									<kbd
-										class="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono"
-										>↑↓</kbd
+						<!-- Unified Compact Control Bar (Mobile-First: 3 slim rows on mobile, 2 on desktop) -->
+						<div class="p-1.5 sm:p-2 bg-gray-50 border border-gray-200 rounded-lg space-y-1.5">
+							<!-- Row 1: Search + Filters + Refresh + PDF -->
+							<div class="grid grid-cols-1 sm:grid-cols-12 gap-1.5 items-center">
+								<!-- Search Input + Mobile Quick Actions (Refresh & PDF share Row 1 on mobile) -->
+								<div class="flex items-center gap-1.5 sm:col-span-4">
+									<div class="relative flex-1 min-w-0">
+										<svg
+											class="w-3.5 h-3.5 text-gray-400 absolute start-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+										</svg>
+										<input
+											ref="searchInputRef"
+											v-model="searchQuery"
+											type="text"
+											:placeholder="__('Buscar producto, código o medida...')"
+											class="w-full ps-8 pe-7 py-1 text-xs bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+											@keydown.enter.prevent="filteredInventoryItems.length > 0 && selectItem(filteredInventoryItems[0])"
+											autocomplete="off"
+										/>
+										<button
+											v-if="searchQuery"
+											type="button"
+											@click="searchQuery = ''"
+											class="absolute inset-y-0 end-0 pe-2 flex items-center text-gray-400 hover:text-gray-600"
+										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+											</svg>
+										</button>
+									</div>
+
+									<!-- Mobile-only Refresh & PDF buttons inline with Search -->
+									<button
+										type="button"
+										@click="loadInventoryReport"
+										:disabled="loadingInventoryReport"
+										class="sm:hidden p-1.5 text-gray-700 bg-white hover:bg-gray-100 border border-gray-300 rounded-md transition-colors shrink-0"
+										:title="__('Actualizar inventario')"
 									>
-									<span>{{ __("Navigate") }}</span>
-								</span>
-								<span class="flex items-center gap-1">
-									<kbd
-										class="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono"
-										>{{ __("Enter") }}</kbd
+										<svg
+											class="w-3.5 h-3.5"
+											:class="loadingInventoryReport ? 'animate-spin text-blue-600' : ''"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											stroke-width="2"
+										>
+											<path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+										</svg>
+									</button>
+
+									<button
+										type="button"
+										@click="exportInventoryPDF"
+										:disabled="filteredInventoryItems.length === 0"
+										class="sm:hidden px-2 py-1 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 rounded-md shadow-xs transition-colors flex items-center gap-1 shrink-0"
 									>
-									<span>{{ __("Select") }}</span>
-								</span>
-								<span class="flex items-center gap-1">
-									<kbd
-										class="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono"
-										>{{ __("Esc") }}</kbd
+										<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+										</svg>
+										<span>PDF</span>
+									</button>
+								</div>
+
+								<!-- Warehouse Filter & Category Filter (Side-by-side on mobile & desktop) -->
+								<div class="grid grid-cols-2 gap-1.5 sm:col-span-5">
+									<select
+										v-model="invWarehouseFilter"
+										class="w-full px-2 py-1 text-[11px] sm:text-xs font-semibold text-gray-800 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
 									>
-									<span>{{ __("Clear") }}</span>
-								</span>
+										<option value="">{{ __("Almacén: Todos") }}</option>
+										<option
+											v-for="wh in inventoryWarehouses"
+											:key="wh.warehouse"
+											:value="wh.warehouse"
+										>
+											{{ wh.warehouse_name }}
+										</option>
+									</select>
+
+									<select
+										v-model="invGroupFilter"
+										class="w-full px-2 py-1 text-[11px] sm:text-xs font-semibold text-gray-800 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
+									>
+										<option value="">{{ __("Categoría: Todas") }}</option>
+										<option
+											v-for="grp in inventoryGroups"
+											:key="grp"
+											:value="grp"
+										>
+											{{ grp }}
+										</option>
+									</select>
+								</div>
+
+								<!-- Desktop Refresh + Export PDF -->
+								<div class="hidden sm:flex items-center justify-end gap-1.5 sm:col-span-3">
+									<button
+										type="button"
+										@click="loadInventoryReport"
+										:disabled="loadingInventoryReport"
+										class="p-1 text-gray-700 bg-white hover:bg-gray-100 border border-gray-300 rounded-md transition-colors shrink-0"
+										:title="__('Actualizar inventario')"
+									>
+										<svg
+											class="w-4 h-4"
+											:class="loadingInventoryReport ? 'animate-spin text-blue-600' : ''"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											stroke-width="2"
+										>
+											<path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+										</svg>
+									</button>
+
+									<button
+										type="button"
+										@click="exportInventoryPDF"
+										:disabled="filteredInventoryItems.length === 0"
+										class="px-2.5 py-1 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 rounded-md shadow-xs transition-colors flex items-center gap-1.5 whitespace-nowrap"
+									>
+										<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+										</svg>
+										<span>{{ __("Exportar PDF") }}</span>
+									</button>
+								</div>
 							</div>
+
+							<!-- Row 2: Single-Line Status Chips + Cost Toggle -->
+							<div class="flex flex-wrap items-center justify-between gap-1 pt-1 border-t border-gray-200/80">
+								<div class="flex flex-wrap items-center gap-1">
+									<button
+										type="button"
+										@click="invStatusFilter = ''"
+										class="px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold border transition-all flex items-center gap-1"
+										:class="invStatusFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'"
+									>
+										<span>Todos: {{ filteredInventoryItems.length }}</span>
+									</button>
+
+									<span class="px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold bg-gray-100 text-gray-800 border border-gray-300">
+										<span class="hidden sm:inline">Unidades: </span>{{ inventorySummary.totalUnits }} uds
+									</span>
+
+									<button
+										type="button"
+										@click="invStatusFilter = invStatusFilter === 'low' ? '' : 'low'"
+										class="px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold border transition-all flex items-center gap-1"
+										:class="invStatusFilter === 'low' ? 'bg-amber-500 text-white border-amber-600' : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'"
+									>
+										<span class="sm:hidden">Bajo: {{ inventorySummary.lowStockCount }}</span>
+										<span class="hidden sm:inline">Stock Bajo: {{ inventorySummary.lowStockCount }}</span>
+									</button>
+
+									<button
+										type="button"
+										@click="invStatusFilter = invStatusFilter === 'out' ? '' : 'out'"
+										class="px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold border transition-all flex items-center gap-1"
+										:class="invStatusFilter === 'out' ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'"
+									>
+										<span>Sin Stock: {{ inventorySummary.outOfStockCount }}</span>
+									</button>
+								</div>
+
+								<label class="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded bg-white border border-gray-300 hover:bg-gray-50 cursor-pointer select-none ms-auto">
+									<input
+										v-model="showCostPrice"
+										type="checkbox"
+										class="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+									/>
+									<span class="text-[10px] sm:text-[11px] font-semibold text-gray-700">
+										<span class="sm:hidden">Costo</span>
+										<span class="hidden sm:inline">Mostrar Costo Fábrica</span>
+									</span>
+								</label>
+							</div>
+						</div>
+
+						<!-- Loading Inventory State -->
+						<div v-if="loadingInventoryReport && inventoryReportItems.length === 0" class="py-10 text-center">
+							<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+							<p class="mt-2 text-xs text-gray-500">{{ __("Cargando inventario actual...") }}</p>
+						</div>
+
+						<!-- Inventory List & Table (Single Scrollbar, Zero Horizontal Overflow on Mobile) -->
+						<div
+							v-else-if="filteredInventoryItems.length > 0"
+							class="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-xs"
+						>
+							<!-- MOBILE VIEW (< 640px): Compact 100%-Width Product Rows (No horizontal cut-off) -->
+							<div class="sm:hidden divide-y divide-gray-100">
+								<div class="px-2.5 py-1.5 bg-gray-100 flex items-center justify-between text-[10px] font-bold text-gray-600 uppercase tracking-wider">
+									<span>Producto / Almacén</span>
+									<div class="flex items-center gap-3">
+										<span>Precio</span>
+										<span>Cant.</span>
+										<span class="w-12 text-end">Acción</span>
+									</div>
+								</div>
+								<div
+									v-for="row in filteredInventoryItems"
+									:key="`mob-${row.item_code}`"
+									class="px-2.5 py-2 hover:bg-gray-50 active:bg-gray-100 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+									@click="selectItem(row)"
+								>
+									<!-- Left: Product Name + 1-line compact metadata -->
+									<div class="flex-1 min-w-0">
+										<div class="text-xs font-bold text-gray-900 leading-snug truncate">
+											{{ row.item_name }}
+										</div>
+										<div class="text-[10px] text-gray-500 truncate mt-0.5">
+											<span class="font-mono text-gray-400">{{ row.item_code }}</span>
+											<template v-if="row.custom_medida"> · {{ row.custom_medida }}</template>
+											<template v-if="row.display_warehouse_name"> · {{ cleanWarehouseName(row.display_warehouse_name) }}</template>
+										</div>
+										<div v-if="showCostPrice" class="text-[10px] font-semibold text-gray-500 mt-0.5">
+											Costo: Bs. {{ Number(row.cost_rate || 0).toFixed(0) }}
+										</div>
+									</div>
+
+									<!-- Right: Price + Stock Pill + Actions -->
+									<div class="shrink-0 flex items-center gap-1.5" @click.stop>
+										<div class="text-xs font-bold text-gray-900 whitespace-nowrap text-end">
+											Bs. {{ Number(row.selling_rate || 0).toFixed(0) }}
+										</div>
+
+										<button
+											type="button"
+											@click="selectItem(row)"
+											class="inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-md text-[11px] font-extrabold text-white shadow-2xs"
+											:class="
+												row.stock_level === 'out'
+													? 'bg-red-500'
+													: row.stock_level === 'low'
+													? 'bg-amber-500'
+													: 'bg-green-500'
+											"
+										>
+											{{ Math.floor(row.display_qty) }}
+										</button>
+
+										<button
+											type="button"
+											@click="selectItem(row)"
+											class="px-1.5 py-0.5 text-[10px] font-bold text-gray-700 bg-white hover:bg-gray-100 border border-gray-300 rounded transition-colors"
+											:title="__('Ajustar Stock')"
+										>
+											+ / −
+										</button>
+
+										<button
+											v-if="settingsStore.canManageItems"
+											type="button"
+											@click="openEditItemModal(row.item_code)"
+											class="p-1 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+											:title="__('Editar Producto')"
+										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+											</svg>
+										</button>
+									</div>
+								</div>
+							</div>
+
+							<!-- DESKTOP/TABLET VIEW (>= 640px): Full Table -->
+							<div class="hidden sm:block overflow-x-auto">
+								<table class="min-w-full divide-y divide-gray-200 text-xs">
+									<thead class="bg-gray-100 sticky top-0 z-10">
+										<tr>
+											<th class="px-3 py-1.5 text-start font-bold text-gray-700 uppercase tracking-wider">
+												Producto
+											</th>
+											<th class="px-2.5 py-1.5 text-start font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell">
+												Categoría
+											</th>
+											<th class="px-2.5 py-1.5 text-start font-bold text-gray-700 uppercase tracking-wider">
+												Almacén
+											</th>
+											<th
+												v-if="showCostPrice"
+												class="px-2.5 py-1.5 text-end font-bold text-gray-700 uppercase tracking-wider"
+											>
+												Costo
+											</th>
+											<th class="px-2.5 py-1.5 text-end font-bold text-gray-700 uppercase tracking-wider">
+												Precio
+											</th>
+											<th class="px-2.5 py-1.5 text-center font-bold text-gray-700 uppercase tracking-wider">
+												Cantidad
+											</th>
+											<th class="px-2.5 py-1.5 text-end font-bold text-gray-700 uppercase tracking-wider">
+												Acción
+											</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-gray-100 bg-white">
+										<tr
+											v-for="row in filteredInventoryItems"
+											:key="row.item_code"
+											class="hover:bg-gray-50 transition-colors cursor-pointer"
+											@click="selectItem(row)"
+										>
+											<td class="px-3 py-1.5">
+												<div class="font-bold text-gray-900 leading-tight">
+													{{ row.item_name }}
+												</div>
+												<div class="flex items-center gap-1 flex-wrap mt-0.5 text-[10px] text-gray-500">
+													<span class="font-mono text-gray-400">{{ row.item_code }}</span>
+													<span v-if="row.custom_medida" class="px-1 bg-gray-100 text-gray-600 rounded font-medium">
+														{{ row.custom_medida }}
+													</span>
+												</div>
+											</td>
+											<td class="px-2.5 py-1.5 text-gray-600 font-medium hidden md:table-cell">
+												{{ row.item_group }}
+											</td>
+											<td class="px-2.5 py-1.5 text-gray-700">
+												<div class="font-semibold text-gray-800 leading-tight">
+													{{ cleanWarehouseName(row.display_warehouse_name) }}
+												</div>
+												<div
+													v-if="!invWarehouseFilter && row.other_qty > 0"
+													class="text-[10px] text-gray-500 font-medium"
+												>
+													+ {{ Math.floor(row.other_qty) }} {{ __("otros") }}
+												</div>
+											</td>
+											<td
+												v-if="showCostPrice"
+												class="px-2.5 py-1.5 text-end font-semibold text-gray-600 whitespace-nowrap"
+											>
+												Bs. {{ Number(row.cost_rate || 0).toFixed(0) }}
+											</td>
+											<td class="px-2.5 py-1.5 text-end font-bold text-gray-900 whitespace-nowrap">
+												Bs. {{ Number(row.selling_rate || 0).toFixed(0) }}
+											</td>
+											<td class="px-2.5 py-1.5 text-center whitespace-nowrap">
+												<span
+													class="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-0.5 rounded-md text-xs font-extrabold text-white shadow-2xs"
+													:class="
+														row.stock_level === 'out'
+															? 'bg-red-500'
+															: row.stock_level === 'low'
+															? 'bg-amber-500'
+															: 'bg-green-500'
+													"
+												>
+													{{ Math.floor(row.display_qty) }}
+												</span>
+											</td>
+											<td class="px-2.5 py-1.5 text-end whitespace-nowrap" @click.stop>
+												<div class="inline-flex items-center gap-1">
+													<button
+														type="button"
+														@click="selectItem(row)"
+														class="px-2 py-0.5 text-[11px] font-bold text-gray-700 bg-white hover:bg-gray-100 border border-gray-300 rounded-md transition-colors"
+													>
+														{{ settingsStore.canManageStock ? "+ / − Stock" : "Ver" }}
+													</button>
+													<button
+														v-if="settingsStore.canManageItems"
+														type="button"
+														@click="openEditItemModal(row.item_code)"
+														class="p-1 text-gray-500 hover:text-gray-800 hover:bg-gray-100 border border-transparent hover:border-gray-300 rounded-md transition-colors"
+														:title="__('Editar Producto')"
+													>
+														<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+															<path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+														</svg>
+													</button>
+												</div>
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+						<!-- Empty Filtered State -->
+						<div v-else class="py-8 text-center bg-gray-50 border border-gray-200 rounded-xl">
+							<p class="text-xs font-semibold text-gray-600">
+								{{ __("No se encontraron productos con los filtros seleccionados.") }}
+							</p>
 						</div>
 					</div>
 
@@ -1614,16 +1966,33 @@
 						</template>
 					</div>
 
-					<!-- Modal Sticky Footer -->
-					<div v-if="isReady" class="px-3.5 sm:px-7 py-3 sm:py-3.5 bg-gray-50 border-t border-gray-200 shrink-0">
-						<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
+					<!-- Modal Sticky Footer (Compact) -->
+					<div v-if="isReady" class="px-3 sm:px-6 py-1.5 sm:py-2 bg-gray-50 border-t border-gray-200 shrink-0">
+						<div class="flex items-center justify-between gap-2">
+							<!-- Inventory Table Valuation Totals when in general inventory view -->
 							<div
-								v-if="(!isSearchMode || activeTab === 'lookup') && (selectedItemCode || itemCode) && warehouses.length > 0"
+								v-if="isSearchMode && activeTab === 'lookup' && !selectedItemCode"
+								class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] sm:text-xs text-start min-w-0"
+							>
+								<span v-if="showCostPrice" class="text-gray-700 font-semibold whitespace-nowrap">
+									<span class="sm:hidden">Costo:</span>
+									<span class="hidden sm:inline">Total Costo:</span>
+									<strong class="font-extrabold text-gray-900 ms-1">Bs. {{ formatPrice(inventorySummary.totalCostValue) || "0.00" }}</strong>
+								</span>
+								<span class="text-gray-700 font-semibold whitespace-nowrap">
+									<span class="sm:hidden">Total Venta:</span>
+									<span class="hidden sm:inline">Total Precio Venta:</span>
+									<strong class="font-extrabold text-gray-900 ms-1">Bs. {{ formatPrice(inventorySummary.totalSellingValue) || "0.00" }}</strong>
+								</span>
+							</div>
+
+							<div
+								v-else-if="(!isSearchMode || activeTab === 'lookup') && (selectedItemCode || itemCode) && warehouses.length > 0"
 								class="text-xs sm:text-sm text-gray-600 text-start"
 							>
 								<div>
 									<span class="font-medium">{{ __("Total disponible") }}:</span>
-									<span class="ms-1.5 text-gray-900 font-bold text-sm sm:text-lg">
+									<span class="ms-1.5 text-gray-900 font-bold text-sm sm:text-base">
 										{{ totalAvailable }} {{ displayUom }}
 									</span>
 									<span v-if="warehouses.length > 0" class="ms-1.5 text-gray-500">
@@ -1634,21 +2003,11 @@
 										}}
 									</span>
 								</div>
-								<!-- Converted total in barcode UOM if different -->
-								<div
-									v-if="
-										selectedBarcodeUom && convertToBarcodeUom(totalAvailable) !== null
-									"
-									class="text-blue-600 font-medium mt-1"
-								>
-									≈ {{ Math.floor(convertToBarcodeUom(totalAvailable) * 100) / 100 }}
-									{{ selectedBarcodeUom }}
-								</div>
 							</div>
 							<button
 								type="button"
 								@click="closeDialog"
-								class="w-full sm:w-auto sm:ms-auto px-5 py-2 bg-gray-700 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-gray-800 transition-colors"
+								class="ms-auto shrink-0 px-3 sm:px-4 py-1 sm:py-1.5 bg-gray-700 text-white text-xs font-semibold rounded-lg hover:bg-gray-800 transition-colors"
 							>
 								{{ __("Cerrar") }}
 							</button>
@@ -1853,10 +2212,11 @@ watch(
 			error.value = null;
 
 			if (isSearchMode.value) {
-				// Search mode - clear state and focus search
+				// Search mode - clear state, load full inventory report, and focus search
 				resetSearchState();
 				isReady.value = true;
 				loading.value = false;
+				loadInventoryReport();
 				await nextTick();
 				focusSearch();
 			} else if (props.itemCode) {
@@ -2328,6 +2688,11 @@ function applyStockBinUpdates(updatedBins) {
 		updateListOtherQty(itemSearchStore.searchResults);
 		itemSearchStore.invalidateCache();
 	}
+
+	// 4. Refresh inventory overview table in background so numbers stay 100% live
+	if (isSearchMode.value) {
+		loadInventoryReport();
+	}
 }
 
 /**
@@ -2349,6 +2714,309 @@ async function switchTab(tab) {
 			focusSearch();
 		}
 	}
+}
+
+// ============================================================================
+// CURRENT INVENTORY OVERVIEW & PDF EXPORT
+// ============================================================================
+const loadingInventoryReport = ref(false);
+const inventoryReportItems = ref([]);
+const inventoryWarehouses = ref([]);
+const inventoryGroups = ref([]);
+const inventoryCompany = ref("");
+const inventoryDefaultThreshold = ref(10);
+
+const invWarehouseFilter = ref("");
+const invGroupFilter = ref("");
+const invStatusFilter = ref("");
+const showCostPrice = ref(false); // Unchecked by default for privacy
+
+function cleanWarehouseName(name) {
+	return (name || "").replace(/\s*-\s*[A-Z0-9]+$/i, "");
+}
+
+async function loadInventoryReport() {
+	const activeProfile = props.posProfile || shiftStore.profileName;
+	if (!activeProfile) return;
+	loadingInventoryReport.value = true;
+	try {
+		const res = await call("pos_next.api.items.get_pos_inventory_report", {
+			pos_profile: activeProfile,
+		});
+		const data = res?.message || res || {};
+		inventoryReportItems.value = Array.isArray(data.items) ? data.items : [];
+		inventoryWarehouses.value = Array.isArray(data.warehouses) ? data.warehouses : [];
+		inventoryGroups.value = Array.isArray(data.item_groups) ? data.item_groups : [];
+		inventoryCompany.value = data.company || props.company || "Muebles Ruffino";
+		inventoryDefaultThreshold.value =
+			Number(data.default_low_stock_threshold) || settingsStore.lowStockThreshold || 10;
+	} catch (err) {
+		console.error("Error loading inventory report:", err);
+	} finally {
+		loadingInventoryReport.value = false;
+	}
+}
+
+const enrichedInventoryRows = computed(() => {
+	const whFilter = invWarehouseFilter.value;
+	const selectedWhObj = whFilter
+		? inventoryWarehouses.value.find((w) => w.warehouse === whFilter)
+		: null;
+	const fallbackThreshold =
+		settingsStore.lowStockThreshold || inventoryDefaultThreshold.value || 10;
+
+	return (inventoryReportItems.value || []).map((it) => {
+		const displayQty = whFilter
+			? Number(it.by_warehouse?.[whFilter] ?? 0)
+			: Number(it.actual_qty ?? 0);
+		const displayWhName = whFilter
+			? selectedWhObj?.warehouse_name || whFilter
+			: it.warehouse_name || it.warehouse || "";
+		const threshold =
+			Number(it.safety_stock) > 0 ? Number(it.safety_stock) : fallbackThreshold;
+
+		let stockLevel = "safe";
+		if (displayQty <= 0) {
+			stockLevel = "out";
+		} else if (displayQty <= threshold) {
+			stockLevel = "low";
+		}
+
+		return {
+			...it,
+			display_qty: displayQty,
+			display_warehouse_name: displayWhName,
+			effective_threshold: threshold,
+			stock_level: stockLevel,
+		};
+	});
+});
+
+const filteredInventoryItems = computed(() => {
+	const q = (searchQuery.value || "").trim().toLowerCase();
+	const grpFilter = invGroupFilter.value;
+	const statusFilter = invStatusFilter.value;
+
+	return enrichedInventoryRows.value.filter((row) => {
+		if (grpFilter && row.item_group !== grpFilter) return false;
+		if (statusFilter && row.stock_level !== statusFilter) return false;
+		if (q) {
+			const match =
+				(row.item_name || "").toLowerCase().includes(q) ||
+				(row.item_code || "").toLowerCase().includes(q) ||
+				(row.item_group || "").toLowerCase().includes(q) ||
+				(row.custom_medida || "").toLowerCase().includes(q);
+			if (!match) return false;
+		}
+		return true;
+	});
+});
+
+const inventorySummary = computed(() => {
+	let totalUnits = 0;
+	let lowStockCount = 0;
+	let outOfStockCount = 0;
+	let totalCostValue = 0;
+	let totalSellingValue = 0;
+
+	// Count status KPIs across warehouse + group + search (so clicking Low/Out chips shows accurate counts)
+	const q = (searchQuery.value || "").trim().toLowerCase();
+	const grpFilter = invGroupFilter.value;
+	for (const row of enrichedInventoryRows.value) {
+		if (grpFilter && row.item_group !== grpFilter) continue;
+		if (q) {
+			const match =
+				(row.item_name || "").toLowerCase().includes(q) ||
+				(row.item_code || "").toLowerCase().includes(q) ||
+				(row.item_group || "").toLowerCase().includes(q) ||
+				(row.custom_medida || "").toLowerCase().includes(q);
+			if (!match) continue;
+		}
+		if (row.stock_level === "low") lowStockCount++;
+		if (row.stock_level === "out") outOfStockCount++;
+	}
+
+	for (const row of filteredInventoryItems.value) {
+		const posQty = Math.max(0, Math.floor(row.display_qty || 0));
+		totalUnits += Math.floor(row.display_qty || 0);
+		totalCostValue += posQty * Number(row.cost_rate || 0);
+		totalSellingValue += posQty * Number(row.selling_rate || 0);
+	}
+
+	return {
+		totalUnits,
+		lowStockCount,
+		outOfStockCount,
+		totalCostValue,
+		totalSellingValue,
+	};
+});
+
+function exportInventoryPDF() {
+	const rows = filteredInventoryItems.value;
+	if (!rows.length) return;
+
+	const includeCost = Boolean(showCostPrice.value);
+	const companyTitle = inventoryCompany.value || props.company || "Muebles Ruffino";
+	const nowStr = new Date().toLocaleString("es-BO", {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+	const whLabel = invWarehouseFilter.value
+		? cleanWarehouseName(
+				inventoryWarehouses.value.find((w) => w.warehouse === invWarehouseFilter.value)
+					?.warehouse_name || invWarehouseFilter.value
+		  )
+		: "Todos los Almacenes (Almacén Asignado)";
+	const grpLabel = invGroupFilter.value || "Todas las Categorías";
+	const statusMap = {
+		"": "Todos los Estados",
+		safe: "En Stock Óptimo",
+		low: "Stock Bajo (Amarillo)",
+		out: "Sin Stock / Agotados",
+	};
+	const statusLabel = statusMap[invStatusFilter.value] || "Todos";
+
+	const escapeHtml = (str) =>
+		String(str ?? "")
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;");
+
+	const tableRowsHtml = rows
+		.map((r, idx) => {
+			const qty = Math.floor(r.display_qty || 0);
+			const statusBadge =
+				r.stock_level === "out"
+					? '<span style="color:#b91c1c;font-weight:700;">AGOTADO</span>'
+					: r.stock_level === "low"
+					? '<span style="color:#b45309;font-weight:700;">BAJO</span>'
+					: '<span style="color:#15803d;font-weight:700;">OK</span>';
+
+			return `
+				<tr>
+					<td style="text-align:center;color:#64748b;">${idx + 1}</td>
+					<td style="font-family:monospace;font-size:10px;">${escapeHtml(r.item_code)}</td>
+					<td>
+						<strong>${escapeHtml(r.item_name)}</strong>
+						${r.custom_medida ? `<span style="color:#475569;font-size:10px;"> (${escapeHtml(r.custom_medida)})</span>` : ""}
+					</td>
+					<td>${escapeHtml(r.item_group)}</td>
+					<td>${escapeHtml(cleanWarehouseName(r.display_warehouse_name))}</td>
+					${
+						includeCost
+							? `<td style="text-align:right;">Bs. ${Number(r.cost_rate || 0).toFixed(2)}</td>`
+							: ""
+					}
+					<td style="text-align:right;font-weight:600;">Bs. ${Number(r.selling_rate || 0).toFixed(2)}</td>
+					<td style="text-align:center;font-weight:800;font-size:12px;">${qty}</td>
+					<td style="text-align:center;font-size:10px;">${statusBadge}</td>
+					<td style="text-align:center;color:#94a3b8;">________</td>
+				</tr>
+			`;
+		})
+		.join("");
+
+	const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<title>Reporte de Inventario Actual - ${escapeHtml(companyTitle)}</title>
+	<style>
+		@page { size: letter portrait; margin: 12mm; }
+		body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; font-size: 11px; margin: 0; padding: 0; }
+		.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 12px; }
+		.title { font-size: 18px; font-weight: 800; margin: 0; color: #0f172a; }
+		.subtitle { font-size: 12px; font-weight: 600; color: #334155; margin: 3px 0 0 0; }
+		.meta { text-align: right; font-size: 10px; color: #475569; line-height: 1.4; }
+		.filters-bar { display: flex; flex-wrap: wrap; gap: 16px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 10.5px; }
+		table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+		th { background: #1e293b; color: #ffffff; font-size: 10px; text-transform: uppercase; padding: 6px 6px; text-align: left; border: 1px solid #1e293b; }
+		td { padding: 5px 6px; border: 1px solid #cbd5e1; vertical-align: middle; }
+		tr:nth-child(even) td { background: #f8fafc; }
+		.summary-box { display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border: 1px solid #94a3b8; border-radius: 6px; padding: 10px 14px; font-size: 11.5px; }
+		.signatures { display: flex; justify-content: space-around; margin-top: 38px; text-align: center; font-size: 11px; color: #334155; }
+		.sig-line { width: 200px; border-top: 1px solid #334155; padding-top: 5px; }
+	</style>
+</head>
+<body>
+	<div class="header">
+		<div>
+			<h1 class="title">${escapeHtml(companyTitle)}</h1>
+			<p class="subtitle">REPORTE DE INVENTARIO ACTUAL Y VERIFICACIÓN FÍSICA</p>
+		</div>
+		<div class="meta">
+			<div><strong>Fecha y Hora:</strong> ${escapeHtml(nowStr)}</div>
+			<div><strong>Punto de Venta:</strong> ${escapeHtml(props.posProfile || shiftStore.profileName || "")}</div>
+		</div>
+	</div>
+
+	<div class="filters-bar">
+		<div><strong>Almacén:</strong> ${escapeHtml(whLabel)}</div>
+		<div><strong>Categoría:</strong> ${escapeHtml(grpLabel)}</div>
+		<div><strong>Estado:</strong> ${escapeHtml(statusLabel)}</div>
+		<div><strong>Productos Listados:</strong> ${rows.length}</div>
+		<div><strong>Total Unidades:</strong> ${inventorySummary.value.totalUnits} uds</div>
+	</div>
+
+	<table>
+		<thead>
+			<tr>
+				<th style="width:26px;text-align:center;">#</th>
+				<th style="width:85px;">Código</th>
+				<th>Producto / Medida</th>
+				<th style="width:110px;">Categoría</th>
+				<th style="width:110px;">Almacén</th>
+				${includeCost ? '<th style="width:78px;text-align:right;">Costo Fáb.</th>' : ""}
+				<th style="width:78px;text-align:right;">Precio Venta</th>
+				<th style="width:58px;text-align:center;">Cantidad</th>
+				<th style="width:54px;text-align:center;">Estado</th>
+				<th style="width:68px;text-align:center;">Físico</th>
+			</tr>
+		</thead>
+		<tbody>
+			${tableRowsHtml}
+		</tbody>
+	</table>
+
+	<div class="summary-box">
+		<div>
+			<strong>Total Productos:</strong> ${rows.length} &nbsp;|&nbsp;
+			<strong>Total Unidades en Stock:</strong> ${inventorySummary.value.totalUnits} uds
+		</div>
+		<div>
+			${
+				includeCost
+					? `<strong>Valor Total (Costo Fábrica):</strong> Bs. ${inventorySummary.value.totalCostValue.toFixed(2)} &nbsp;|&nbsp; `
+					: ""
+			}
+			<strong>Valor Total (Precio Venta):</strong> Bs. ${inventorySummary.value.totalSellingValue.toFixed(2)}
+		</div>
+	</div>
+
+	<div class="signatures">
+		<div class="sig-line">Responsable de Almacén / Fábrica</div>
+		<div class="sig-line">Verificado por Administración</div>
+	</div>
+</body>
+</html>`;
+
+	const printWin = window.open("", "_blank", "width=960,height=760");
+	if (!printWin) {
+		showError("Por favor permita las ventanas emergentes para exportar el PDF.");
+		return;
+	}
+	printWin.document.open();
+	printWin.document.write(htmlContent);
+	printWin.document.close();
+	printWin.focus();
+	setTimeout(() => {
+		printWin.print();
+	}, 250);
 }
 
 // ============================================================================
@@ -2385,6 +3053,7 @@ function openEditItemModal(code) {
 async function handleCatalogItemSaved({ item }) {
 	const activeProfile = props.posProfile || shiftStore.profileName;
 	await itemSearchStore.upsertCatalogItem(item, activeProfile);
+	loadInventoryReport();
 
 	// Also sync any matching line already in the current cart
 	if (item && Array.isArray(cartStore.items)) {
