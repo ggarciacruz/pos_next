@@ -1,110 +1,185 @@
 <template>
-	<Dialog v-model="show" :options="{ size: '3xl' }">
-		<template #body-title>
-			<div class="flex items-center gap-2">
-				<h3 class="text-lg font-semibold text-gray-900">
-					{{
-						isSearchMode && settingsStore.canManageStock
-							? __("Gestión de Inventario y Stock")
-							: __("Stock Lookup")
-					}}
-				</h3>
-			</div>
-		</template>
-		<template #body-content>
-			<!-- Initial Loading State - shown before any content is ready -->
+	<Teleport to="body">
+		<Transition name="fade">
 			<div
-				v-if="!isReady && loading"
-				class="flex flex-col items-center justify-center py-12"
+				v-if="show"
+				class="fixed inset-0 z-[300] bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-5 md:p-7"
+				@click.self="closeDialog"
 			>
-				<div class="text-center">
-					<div
-						class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"
-					></div>
-					<p class="mt-4 text-sm text-gray-500">
-						{{ __("Loading stock information...") }}
-					</p>
-				</div>
-				<button
-					@click="closeDialog"
-					class="mt-6 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-				>
-					{{ __("Cancel") }}
-				</button>
-			</div>
-
-			<template v-else>
-				<!-- Top Tabs (only in search mode when user can manage stock) -->
 				<div
-					v-if="isSearchMode && settingsStore.canManageStock"
-					class="flex flex-wrap gap-1.5 p-1 bg-gray-100 rounded-lg mb-4"
+					:class="[
+						'bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden border border-gray-200',
+						isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)
+							? 'max-w-[96vw] xl:max-w-7xl h-[90vh] max-h-[90vh]'
+							: 'max-w-4xl max-h-[88vh]',
+					]"
 				>
-					<button
-						type="button"
-						@click="switchTab('lookup')"
-						:class="[
-							'flex-1 min-w-[140px] px-3 py-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5',
-							activeTab === 'lookup'
-								? 'bg-white text-blue-700 shadow-sm'
-								: 'text-gray-600 hover:text-gray-900',
-						]"
-					>
-						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-						</svg>
-						<span>{{ __("Buscar Producto") }}</span>
-					</button>
-					<button
-						type="button"
-						@click="switchTab('batch_entry')"
-						:class="[
-							'flex-1 min-w-[150px] px-3 py-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5',
-							activeTab === 'batch_entry'
-								? 'bg-white text-green-700 shadow-sm'
-								: 'text-gray-600 hover:text-gray-900',
-						]"
-					>
-						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-						</svg>
-						<span>{{ __("Añadir Varios Productos") }}</span>
-						<span
-							v-if="batchItems.length > 0"
-							class="px-1.5 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded-full"
+					<!-- Modal Header -->
+					<div class="px-3.5 sm:px-7 py-3 sm:py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-slate-50 to-blue-50/40 shrink-0">
+						<div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+							<div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+								<svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+								</svg>
+							</div>
+							<div class="min-w-0 text-start">
+								<h3 class="text-sm sm:text-lg font-bold text-gray-900 truncate">
+									{{
+										isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)
+											? __("Gestión de Productos e Inventario")
+											: __("Disponibilidad y Stock")
+									}}
+								</h3>
+								<p
+									v-if="isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)"
+									class="text-xs text-gray-500 truncate hidden sm:block"
+								>
+									{{ __("Consulte stock por almacén, cree o edite productos y registre ingresos o salidas de inventario") }}
+								</p>
+							</div>
+						</div>
+						<button
+							type="button"
+							@click="closeDialog"
+							class="p-1.5 sm:p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 rounded-lg transition-colors shrink-0"
+							:title="__('Cerrar')"
 						>
-							{{ batchItems.length }}
-						</span>
-					</button>
-					<button
-						type="button"
-						@click="switchTab('history')"
-						:class="[
-							'flex-1 min-w-[140px] px-3 py-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5',
-							activeTab === 'history'
-								? 'bg-white text-blue-700 shadow-sm'
-								: 'text-gray-600 hover:text-gray-900',
-						]"
-					>
-						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-						<span>{{ __("Historial / Anular") }}</span>
-					</button>
-				</div>
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+							</svg>
+						</button>
+					</div>
+
+					<!-- Modal Body (Scrollable) -->
+					<div class="flex-1 overflow-y-auto px-3.5 sm:px-7 py-3.5 sm:py-5">
+						<!-- Initial Loading State - shown before any content is ready -->
+						<div
+							v-if="!isReady && loading"
+							class="flex flex-col items-center justify-center py-12"
+						>
+							<div class="text-center">
+								<div
+									class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"
+								></div>
+								<p class="mt-4 text-sm text-gray-500">
+									{{ __("Loading stock information...") }}
+								</p>
+							</div>
+							<button
+								@click="closeDialog"
+								class="mt-6 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+							>
+								{{ __("Cancel") }}
+							</button>
+						</div>
+
+						<template v-else>
+							<!-- Top Tabs (2x2 compact grid on mobile, single flex bar on desktop) -->
+							<div
+								v-if="isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)"
+								class="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5 sm:gap-2 p-1 sm:p-1.5 bg-gray-100 rounded-xl mb-3.5 sm:mb-5"
+							>
+								<button
+									type="button"
+									@click="switchTab('lookup')"
+									:class="[
+										'sm:flex-1 px-2.5 sm:px-3.5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 sm:gap-2',
+										activeTab === 'lookup'
+											? 'bg-white text-blue-700 shadow-sm'
+											: 'text-gray-600 hover:text-gray-900',
+									]"
+								>
+									<svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+									</svg>
+									<span class="truncate">{{ __("Consultar / Stock") }}</span>
+								</button>
+								<button
+									v-if="settingsStore.canManageItems"
+									type="button"
+									@click="switchTab('catalog')"
+									:class="[
+										'sm:flex-1 px-2.5 sm:px-3.5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 sm:gap-2',
+										activeTab === 'catalog'
+											? 'bg-white text-blue-700 shadow-sm'
+											: 'text-gray-600 hover:text-gray-900',
+									]"
+								>
+									<svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+									</svg>
+									<span class="sm:hidden truncate">{{ __("Productos") }}</span>
+									<span class="hidden sm:inline truncate">{{ __("Productos (Crear / Editar)") }}</span>
+								</button>
+								<button
+									v-if="settingsStore.canManageStock"
+									type="button"
+									@click="switchTab('batch_entry')"
+									:class="[
+										'sm:flex-1 px-2.5 sm:px-3.5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 sm:gap-2',
+										activeTab === 'batch_entry'
+											? 'bg-white text-green-700 shadow-sm'
+											: 'text-gray-600 hover:text-gray-900',
+									]"
+								>
+									<svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+									</svg>
+									<span class="sm:hidden truncate">{{ __("Inv. Masivo") }}</span>
+									<span class="hidden sm:inline truncate">{{ __("Añadir Inventario Masivo") }}</span>
+									<span
+										v-if="batchItems.length > 0"
+										class="px-1.5 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded-full shrink-0"
+									>
+										{{ batchItems.length }}
+									</span>
+								</button>
+								<button
+									v-if="settingsStore.canManageStock"
+									type="button"
+									@click="switchTab('history')"
+									:class="[
+										'sm:flex-1 px-2.5 sm:px-3.5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 sm:gap-2',
+										activeTab === 'history'
+											? 'bg-white text-blue-700 shadow-sm'
+											: 'text-gray-600 hover:text-gray-900',
+									]"
+								>
+									<svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+									<span class="truncate">{{ __("Historial / Anular") }}</span>
+								</button>
+							</div>
 
 				<!-- ============================================================ -->
 				<!-- TAB 1: CONSULTAR / AÑADIR STOCK INDIVIDUAL                   -->
 				<!-- ============================================================ -->
 				<div v-if="!isSearchMode || activeTab === 'lookup'">
 				<!-- Subtitle -->
-				<div class="mb-4 -mt-1 text-start">
-					<p class="text-sm text-gray-500">
+				<div class="mb-3 sm:mb-4 flex items-start sm:items-center justify-between gap-2 text-start">
+					<p class="text-xs sm:text-sm font-semibold text-gray-800 leading-snug line-clamp-2 flex-1 min-w-0">
 						{{
 							isSearchMode && !selectedItemCode
 								? __("Busque un producto para ver su stock o añadir unidades")
 								: displayItemName
 						}}
 					</p>
+					<button
+						v-if="settingsStore.canManageItems && (selectedItemCode || itemCode)"
+						type="button"
+						@click="openEditItemModal(isSearchMode ? selectedItemCode : itemCode)"
+						class="px-2.5 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors flex items-center gap-1 flex-shrink-0"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"
+							/>
+						</svg>
+						<span>{{ __("Editar Producto") }}</span>
+					</button>
 				</div>
 
 				<!-- Search Section (Search Mode) -->
@@ -688,7 +763,7 @@
 											<div class="flex-shrink-0 flex items-center gap-2">
 												<!-- Sell Button -->
 												<button
-													v-if="warehouse.available_qty > 0"
+													v-if="warehouse.available_qty > 0 || !settingsStore.shouldEnforceStockValidation()"
 													@click="sellFromWarehouse(warehouse)"
 													class="px-2 py-1 text-[10px] font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded transition-colors flex items-center gap-0.5 shadow-sm"
 												>
@@ -757,14 +832,15 @@
 							<div
 								v-for="warehouse in warehouses"
 								:key="warehouse.warehouse"
-								class="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors"
+								class="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-200 hover:border-blue-300 transition-colors"
 							>
-								<div class="flex items-center justify-between gap-4">
+								<!-- Top Row: Warehouse Name (left) + Available Qty (right) -->
+								<div class="flex items-start justify-between gap-3">
 									<div class="flex-1 min-w-0 text-start">
-										<h3 class="font-medium text-gray-900 truncate">
+										<h3 class="text-sm sm:text-base font-bold text-gray-900 leading-snug truncate">
 											{{ warehouse.warehouse_name }}
 										</h3>
-										<p class="text-sm text-gray-500 mt-0.5 truncate">
+										<p class="text-xs text-gray-500 mt-0.5 truncate">
 											{{ warehouse.company }}
 										</p>
 										<!-- Show variant name if single variant selected -->
@@ -778,71 +854,23 @@
 											{{ getVariantName(warehouse.item_code) }}
 										</p>
 									</div>
-									<div class="flex-shrink-0 flex flex-wrap items-center justify-end gap-2">
-										<!-- Quick Add Stock Button -->
-										<button
-											v-if="settingsStore.canManageStock && selectedVariants.length <= 1"
-											type="button"
-											@click="toggleQuickStockForm(warehouse, 'add')"
-											class="px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm border"
-											:class="
-												activeQuickWarehouse === warehouse.warehouse && quickEntryMode === 'add'
-													? 'bg-green-600 text-white border-green-600'
-													: 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
-											"
-										>
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-												<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-											</svg>
-											<span>{{ __("Añadir Stock") }}</span>
-										</button>
 
-										<!-- Quick Subtract Stock Button -->
-										<button
-											v-if="settingsStore.canManageStock && selectedVariants.length <= 1 && (warehouse.actual_qty || 0) > 0"
-											type="button"
-											@click="toggleQuickStockForm(warehouse, 'subtract')"
-											class="px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm border"
-											:class="
-												activeQuickWarehouse === warehouse.warehouse && quickEntryMode === 'subtract'
-													? 'bg-red-600 text-white border-red-600'
-													: 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
-											"
+									<div class="text-end shrink-0">
+										<div
+											:class="[
+												'text-base sm:text-lg font-bold leading-tight',
+												warehouse.available_qty > 0
+													? 'text-green-600'
+													: 'text-red-500',
+											]"
 										>
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-												<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12h-15" />
-											</svg>
-											<span>{{ __("Disminuir") }}</span>
-										</button>
-
-										<!-- Sell Button -->
-										<button
-											v-if="warehouse.available_qty > 0"
-											@click="sellFromWarehouse(warehouse)"
-											class="px-2.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
-										>
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-												<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-											</svg>
-											<span>{{ __("Vender de aquí") }}</span>
-										</button>
-
-										<div class="text-end flex-shrink-0">
-											<div
-												:class="[
-													'text-lg font-bold',
-													warehouse.available_qty > 0
-														? 'text-green-600'
-														: 'text-red-500',
-												]"
-											>
-												{{ Math.floor(warehouse.available_qty) }}
-												{{
-													warehouse.item_code
-														? getVariantUom(warehouse.item_code)
-														: displayUom
-												}}
-											</div>
+											{{ Math.floor(warehouse.available_qty) }}
+											{{
+												warehouse.item_code
+													? getVariantUom(warehouse.item_code)
+													: displayUom
+											}}
+										</div>
 										<!-- Converted quantity in barcode UOM if different -->
 										<div
 											v-if="
@@ -850,7 +878,7 @@
 												convertToBarcodeUom(warehouse.available_qty) !==
 													null
 											"
-											class="text-sm text-blue-600 font-medium"
+											class="text-xs sm:text-sm text-blue-600 font-medium"
 										>
 											≈
 											{{
@@ -861,7 +889,7 @@
 											}}
 											{{ selectedBarcodeUom }}
 										</div>
-										<div class="text-xs text-gray-500 mt-0.5">
+										<div class="text-[11px] sm:text-xs text-gray-500 mt-0.5">
 											<span
 												v-if="warehouse.reserved_qty > 0"
 												class="text-orange-600"
@@ -872,11 +900,66 @@
 													])
 												}}
 											</span>
-											<span v-else>{{ __("Available") }}</span>
+											<span v-else>{{ __("Disponible") }}</span>
 										</div>
 									</div>
 								</div>
-							</div>
+
+								<!-- Action Buttons Bar (Wraps cleanly on mobile, zero horizontal overflow) -->
+								<div
+									v-if="(settingsStore.canManageStock && selectedVariants.length <= 1) || warehouse.available_qty > 0 || !settingsStore.shouldEnforceStockValidation()"
+									class="mt-2.5 pt-2.5 border-t border-gray-200/80 flex flex-wrap items-center gap-1.5 sm:gap-2"
+								>
+									<!-- Quick Add Stock Button -->
+									<button
+										v-if="settingsStore.canManageStock && selectedVariants.length <= 1"
+										type="button"
+										@click="toggleQuickStockForm(warehouse, 'add')"
+										class="flex-1 sm:flex-initial justify-center px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm border"
+										:class="
+											activeQuickWarehouse === warehouse.warehouse && quickEntryMode === 'add'
+												? 'bg-green-600 text-white border-green-600'
+												: 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
+										"
+									>
+										<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+										</svg>
+										<span>{{ __("Añadir Stock") }}</span>
+									</button>
+
+									<!-- Quick Subtract Stock Button -->
+									<button
+										v-if="settingsStore.canManageStock && selectedVariants.length <= 1 && (warehouse.actual_qty || 0) > 0"
+										type="button"
+										@click="toggleQuickStockForm(warehouse, 'subtract')"
+										class="flex-1 sm:flex-initial justify-center px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm border"
+										:class="
+											activeQuickWarehouse === warehouse.warehouse && quickEntryMode === 'subtract'
+												? 'bg-red-600 text-white border-red-600'
+												: 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
+										"
+									>
+										<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12h-15" />
+										</svg>
+										<span>{{ __("Disminuir") }}</span>
+									</button>
+
+									<!-- Sell Button -->
+									<button
+										v-if="warehouse.available_qty > 0 || !settingsStore.shouldEnforceStockValidation()"
+										type="button"
+										@click="sellFromWarehouse(warehouse)"
+										class="flex-1 sm:flex-initial sm:ms-auto justify-center px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+									>
+										<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+										</svg>
+										<span>{{ __("Vender de aquí") }}</span>
+									</button>
+								</div>
+
 								<!-- Actual vs Available -->
 								<div
 									v-if="warehouse.actual_qty !== warehouse.available_qty"
@@ -900,11 +983,11 @@
 								<!-- Simple & Clear Add / Subtract Stock Form -->
 								<div
 									v-if="activeQuickWarehouse === warehouse.warehouse"
-									class="mt-3 pt-3 border-t bg-white rounded-lg p-3.5 shadow-sm space-y-3 text-start"
+									class="mt-3 pt-3 border-t bg-white rounded-lg p-3 sm:p-3.5 shadow-sm space-y-3 text-start"
 									:class="quickEntryMode === 'subtract' ? 'border-red-200' : 'border-green-200'"
 								>
 									<!-- Header + Live Calculation -->
-									<div class="flex flex-wrap items-center justify-between gap-2">
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
 										<span class="text-xs font-bold text-gray-800">
 											{{
 												quickEntryMode === "subtract"
@@ -915,7 +998,7 @@
 
 										<div
 											v-if="quickEntryMode === 'subtract'"
-											class="text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-800 border border-red-200"
+											class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-red-50 text-red-800 border border-red-200 self-start sm:self-auto"
 										>
 											{{ __("Hay:") }} <strong>{{ Math.floor(warehouse.actual_qty || 0) }}</strong>
 											<span class="mx-1 text-red-600">−</span>
@@ -928,7 +1011,7 @@
 										</div>
 										<div
 											v-else
-											class="text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-800 border border-green-200"
+											class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-green-50 text-green-800 border border-green-200 self-start sm:self-auto"
 										>
 											{{ __("Hay:") }} <strong>{{ Math.floor(warehouse.actual_qty || 0) }}</strong>
 											<span class="mx-1 text-green-600">+</span>
@@ -941,8 +1024,8 @@
 										</div>
 									</div>
 
-									<!-- Big Counter + Quick Buttons + Save Button on the same clean row -->
-									<div class="flex flex-wrap items-center justify-between gap-3">
+									<!-- Big Counter + Quick Buttons + Save Button -->
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 										<div class="flex flex-wrap items-center gap-2">
 											<!-- Stepper -->
 											<div
@@ -952,7 +1035,7 @@
 												<button
 													type="button"
 													@click="quickQty = Math.max(1, (Number(quickQty) || 1) - 1)"
-													class="px-3.5 py-2 text-gray-700 hover:bg-gray-100 active:bg-gray-200 font-bold text-base"
+													class="px-3.5 py-1.5 sm:py-2 text-gray-700 hover:bg-gray-100 active:bg-gray-200 font-bold text-base"
 												>
 													−
 												</button>
@@ -962,7 +1045,7 @@
 													min="1"
 													:max="quickEntryMode === 'subtract' ? Math.max(1, Math.floor(warehouse.actual_qty || 1)) : undefined"
 													step="1"
-													class="w-20 text-center text-base font-bold text-gray-900 border-x border-gray-200 py-1.5 focus:outline-none"
+													class="w-16 sm:w-20 text-center text-base font-bold text-gray-900 border-x border-gray-200 py-1 sm:py-1.5 focus:outline-none"
 													@keydown.enter.prevent="submitQuickStockEntry(warehouse)"
 												/>
 												<button
@@ -973,7 +1056,7 @@
 																? Math.min(Math.max(1, Math.floor(warehouse.actual_qty || 1)), (Number(quickQty) || 0) + 1)
 																: (Number(quickQty) || 0) + 1
 													"
-													class="px-3.5 py-2 text-gray-700 hover:bg-gray-100 active:bg-gray-200 font-bold text-base"
+													class="px-3.5 py-1.5 sm:py-2 text-gray-700 hover:bg-gray-100 active:bg-gray-200 font-bold text-base"
 												>
 													+
 												</button>
@@ -1003,13 +1086,13 @@
 											</div>
 										</div>
 
-										<!-- Clear Action Buttons -->
-										<div class="flex items-center gap-2 ms-auto">
+										<!-- Clear Action Buttons (Full width 50/50 on mobile) -->
+										<div class="flex items-center gap-2 w-full sm:w-auto sm:ms-auto">
 											<button
 												type="button"
 												@click="activeQuickWarehouse = null"
 												:disabled="submittingStock"
-												class="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+												class="flex-1 sm:flex-initial justify-center px-3.5 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
 											>
 												{{ __("Cancelar") }}
 											</button>
@@ -1017,7 +1100,7 @@
 												type="button"
 												@click="submitQuickStockEntry(warehouse)"
 												:disabled="submittingStock"
-												class="px-4 py-2 text-xs font-bold text-white disabled:opacity-50 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+												class="flex-1 sm:flex-initial justify-center px-4 py-2 text-xs font-bold text-white disabled:opacity-50 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
 												:class="
 													quickEntryMode === 'subtract'
 														? 'bg-red-600 hover:bg-red-700 active:bg-red-800'
@@ -1028,7 +1111,7 @@
 													v-if="submittingStock"
 													class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"
 												></span>
-												<svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+												<svg v-else class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
 													<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
 												</svg>
 												<span>
@@ -1424,49 +1507,165 @@
 						<p class="text-xs text-gray-500">{{ __("No hay ingresos de stock recientes.") }}</p>
 					</div>
 				</div>
-			</template>
 
-			<!-- Footer -->
-			<div v-if="isReady" class="pt-4 mt-4 border-t border-gray-200">
-				<div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-					<div
-						v-if="(selectedItemCode || itemCode) && warehouses.length > 0"
-						class="text-sm text-gray-600 text-start"
-					>
-						<div>
-							<span class="font-medium">{{ __("Total Available") }}:</span>
-							<span class="ms-2 text-gray-900 font-semibold text-lg">
-								{{ totalAvailable }} {{ displayUom }}
-							</span>
-							<span v-if="warehouses.length > 0" class="ms-2 text-gray-500">
-								{{
-									warehouses.length === 1
-										? __("in 1 warehouse")
-										: __("in {0} warehouses", [warehouses.length])
-								}}
-							</span>
+				<!-- ============================================================ -->
+				<!-- TAB: GESTIÓN DE PRODUCTOS (CREAR Y EDITAR)                   -->
+				<!-- ============================================================ -->
+				<div v-else-if="isSearchMode && activeTab === 'catalog'" class="space-y-3 sm:space-y-4 text-start">
+					<!-- Toolbar: Search + Create Button -->
+					<div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 bg-gray-50 p-3 sm:p-3.5 rounded-xl border border-gray-200">
+						<div class="relative flex-1">
+							<svg
+								class="w-4 h-4 text-gray-400 absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+							</svg>
+							<input
+								v-model="catalogSearchQuery"
+								type="text"
+								:placeholder="__('Buscar producto por nombre, código o categoría...')"
+								class="w-full ps-9 pe-3 py-2 sm:py-2.5 text-xs sm:text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							/>
 						</div>
-						<!-- Converted total in barcode UOM if different -->
-						<div
-							v-if="
-								selectedBarcodeUom && convertToBarcodeUom(totalAvailable) !== null
-							"
-							class="text-blue-600 font-medium mt-1"
+
+						<button
+							type="button"
+							@click="openCreateItemModal"
+							class="px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-green-600 hover:bg-green-700 active:bg-green-800 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1.5 flex-shrink-0"
 						>
-							≈ {{ Math.floor(convertToBarcodeUom(totalAvailable) * 100) / 100 }}
-							{{ selectedBarcodeUom }}
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+							</svg>
+							<span>{{ __("Crear Nuevo Producto") }}</span>
+						</button>
+					</div>
+
+					<!-- Product List (Mobile-First stacked card on phone, 2-column grid on desktop) -->
+					<div class="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3">
+						<div
+							v-for="prod in filteredCatalogItems"
+							:key="prod.item_code"
+							class="bg-white border border-gray-200 hover:border-blue-300 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 transition-colors shadow-sm"
+						>
+							<div class="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+								<div class="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+									<img
+										v-if="prod.image"
+										:src="prod.image"
+										:alt="prod.item_name"
+										class="w-full h-full object-cover"
+									/>
+									<svg v-else class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+									</svg>
+								</div>
+								<div class="min-w-0 flex-1">
+									<p class="text-xs sm:text-sm font-bold text-gray-900 leading-snug line-clamp-2">
+										{{ prod.item_name }}
+									</p>
+									<div class="flex items-center gap-1.5 flex-wrap mt-1 text-[11px] sm:text-xs text-gray-500">
+										<span class="font-mono text-gray-400">
+											{{ prod.item_code }}
+										</span>
+										<span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-medium">
+											{{ prod.item_group }}
+										</span>
+										<span class="text-gray-600">
+											{{ (prod.warehouse_name || prod.warehouse || "").replace(/\s*-\s*[A-Z0-9]+$/i, "") }}:
+											<strong :class="(prod.actual_qty ?? 0) > 0 ? 'text-green-600' : 'text-red-500'">
+												{{ Math.floor(prod.actual_qty ?? 0) }}
+											</strong>
+										</span>
+									</div>
+								</div>
+							</div>
+
+							<div class="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-gray-100 sm:border-0 flex-shrink-0">
+								<div class="text-start sm:text-end">
+									<span class="text-sm font-bold text-blue-600">
+										Bs. {{ Number(prod.rate || prod.price_list_rate || 0).toFixed(2) }}
+									</span>
+									<span class="text-[11px] text-gray-400 sm:block ms-1 sm:ms-0">
+										/ {{ prod.stock_uom || prod.uom || "Unidad(es)" }}
+									</span>
+								</div>
+
+								<button
+									type="button"
+									@click="openEditItemModal(prod.item_code)"
+									class="px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors flex items-center gap-1"
+								>
+									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+									</svg>
+									<span>{{ __("Editar") }}</span>
+								</button>
+							</div>
+						</div>
+
+						<div v-if="filteredCatalogItems.length === 0" class="col-span-full py-10 text-center bg-gray-50 border border-gray-200 rounded-lg">
+							<p class="text-xs text-gray-500">{{ __("No se encontraron productos con ese criterio.") }}</p>
 						</div>
 					</div>
-					<button
-						@click="closeDialog"
-						class="w-full sm:w-auto sm:ms-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-					>
-						{{ __("Close") }}
-					</button>
+				</div>
+						</template>
+					</div>
+
+					<!-- Modal Sticky Footer -->
+					<div v-if="isReady" class="px-3.5 sm:px-7 py-3 sm:py-3.5 bg-gray-50 border-t border-gray-200 shrink-0">
+						<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
+							<div
+								v-if="(!isSearchMode || activeTab === 'lookup') && (selectedItemCode || itemCode) && warehouses.length > 0"
+								class="text-xs sm:text-sm text-gray-600 text-start"
+							>
+								<div>
+									<span class="font-medium">{{ __("Total disponible") }}:</span>
+									<span class="ms-1.5 text-gray-900 font-bold text-sm sm:text-lg">
+										{{ totalAvailable }} {{ displayUom }}
+									</span>
+									<span v-if="warehouses.length > 0" class="ms-1.5 text-gray-500">
+										{{
+											warehouses.length === 1
+												? __("en 1 almacén")
+												: __("en {0} almacenes", [warehouses.length])
+										}}
+									</span>
+								</div>
+								<!-- Converted total in barcode UOM if different -->
+								<div
+									v-if="
+										selectedBarcodeUom && convertToBarcodeUom(totalAvailable) !== null
+									"
+									class="text-blue-600 font-medium mt-1"
+								>
+									≈ {{ Math.floor(convertToBarcodeUom(totalAvailable) * 100) / 100 }}
+									{{ selectedBarcodeUom }}
+								</div>
+							</div>
+							<button
+								type="button"
+								@click="closeDialog"
+								class="w-full sm:w-auto sm:ms-auto px-5 py-2 bg-gray-700 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-gray-800 transition-colors"
+							>
+								{{ __("Cerrar") }}
+							</button>
+						</div>
+					</div>
 				</div>
 			</div>
-		</template>
-	</Dialog>
+		</Transition>
+	</Teleport>
+
+	<!-- Quick Create / Edit Product Modal -->
+	<ItemQuickFormDialog
+		v-model="showItemQuickForm"
+		:pos-profile="posProfile || shiftStore.profileName"
+		:item-code="editingCatalogItemCode"
+		@saved="handleCatalogItemSaved"
+	/>
 </template>
 
 <script setup>
@@ -1483,7 +1682,8 @@
  * Translations: All user-facing strings use __() for i18n
  */
 import { ref, computed, watch, nextTick } from "vue";
-import { call, Dialog } from "frappe-ui";
+import { call } from "frappe-ui";
+import ItemQuickFormDialog from "@/components/sale/ItemQuickFormDialog.vue";
 import { __ } from "@/utils/translation";
 import { usePOSCartStore } from "@/stores/posCart";
 import { usePOSShiftStore } from "@/stores/posShift";
@@ -1516,7 +1716,7 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(["update:modelValue", "close"]);
+const emit = defineEmits(["update:modelValue", "close", "edit-item"]);
 
 // v-model binding for Dialog
 const show = computed({
@@ -2020,14 +2220,25 @@ async function loadAvailability() {
 }
 
 function sellFromWarehouse(w) {
+	const targetCode = w.item_code || selectedItemCode.value || props.itemCode;
+	const catalogItem =
+		(selectedItemObj.value && selectedItemObj.value.item_code === targetCode
+			? selectedItemObj.value
+			: null) ||
+		itemSearchStore.allItems?.find((i) => i.item_code === targetCode) ||
+		itemSearchStore.searchResults?.find((i) => i.item_code === targetCode) ||
+		selectedItemObj.value;
+
 	const itemToSell = {
-		...(selectedItemObj.value || {
-			item_code: w.item_code || selectedItemCode.value || props.itemCode,
+		...(catalogItem || {
+			item_code: targetCode,
 			item_name: displayItemName.value,
 			image: selectedItemImage.value,
 			uom: w.item_code ? getVariantUom(w.item_code) : displayUom.value,
 			stock_uom: w.item_code ? getVariantUom(w.item_code) : displayUom.value,
 			item_uoms: selectedItemUoms.value,
+			rate: w.rate || 0,
+			price_list_rate: w.rate || 0,
 		}),
 		warehouse: w.warehouse || w.name,
 		actual_qty: w.actual_qty ?? w.available_qty ?? 0,
@@ -2038,6 +2249,7 @@ function sellFromWarehouse(w) {
 		closeDialog();
 	} catch (error) {
 		console.error("Error adding item to cart from warehouse:", error);
+		showError(error.message || __("No se pudo agregar el producto al carrito"));
 	}
 }
 
@@ -2127,11 +2339,76 @@ async function switchTab(tab) {
 		await loadCompanyWarehouses();
 	} else if (tab === "history") {
 		await loadStockEntriesHistory();
+	} else if (tab === "catalog") {
+		if (!itemSearchStore.allItems || itemSearchStore.allItems.length === 0) {
+			await itemSearchStore.loadAllItems(props.posProfile || shiftStore.profileName);
+		}
 	} else if (tab === "lookup") {
 		await nextTick();
 		if (!selectedItemCode.value) {
 			focusSearch();
 		}
+	}
+}
+
+// ============================================================================
+// PRODUCT CATALOG (CREATE / EDIT) INSIDE INVENTORY DIALOG
+// ============================================================================
+const catalogSearchQuery = ref("");
+const showItemQuickForm = ref(false);
+const editingCatalogItemCode = ref("");
+
+const filteredCatalogItems = computed(() => {
+	const list = itemSearchStore.allItems || [];
+	const q = (catalogSearchQuery.value || "").trim().toLowerCase();
+	if (!q) return list;
+	return list.filter(
+		(it) =>
+			(it.item_name || "").toLowerCase().includes(q) ||
+			(it.item_code || "").toLowerCase().includes(q) ||
+			(it.item_group || "").toLowerCase().includes(q) ||
+			(it.custom_medida || "").toLowerCase().includes(q)
+	);
+});
+
+function openCreateItemModal() {
+	editingCatalogItemCode.value = "";
+	showItemQuickForm.value = true;
+}
+
+function openEditItemModal(code) {
+	if (!code) return;
+	editingCatalogItemCode.value = code;
+	showItemQuickForm.value = true;
+}
+
+async function handleCatalogItemSaved({ item }) {
+	const activeProfile = props.posProfile || shiftStore.profileName;
+	await itemSearchStore.upsertCatalogItem(item, activeProfile);
+
+	// Also sync any matching line already in the current cart
+	if (item && Array.isArray(cartStore.items)) {
+		for (const cartRow of cartStore.items) {
+			if (cartRow.item_code === item.item_code) {
+				cartRow.item_name = item.item_name || cartRow.item_name;
+				if (item.image) {
+					cartRow.image = item.image;
+				}
+				if (Number(item.rate) > 0) {
+					cartRow.rate = Number(item.rate);
+					cartRow.price_list_rate = Number(item.price_list_rate || item.rate);
+					cartRow.amount = Number(cartRow.qty || 1) * Number(item.rate);
+				}
+			}
+		}
+	}
+
+	if ((selectedItemCode.value || props.itemCode) && item?.item_code === (selectedItemCode.value || props.itemCode)) {
+		selectedItemName.value = item.item_name;
+		if (item.image) {
+			selectedItemImage.value = item.image;
+		}
+		await loadAvailability();
 	}
 }
 
@@ -2170,7 +2447,7 @@ async function submitQuickStockEntry(warehouse) {
 	submittingStock.value = true;
 	try {
 		const res = await call("pos_next.api.items.create_pos_stock_entry", {
-			pos_profile: props.posProfile || shiftStore.currentProfile,
+			pos_profile: props.posProfile || shiftStore.profileName,
 			warehouse: warehouse.warehouse,
 			entry_mode: quickEntryMode.value,
 			remarks: quickRemarks.value || "",
@@ -2250,7 +2527,7 @@ function handleBatchSearchInput() {
 	batchSearchDebounce = setTimeout(async () => {
 		try {
 			const res = await call("pos_next.api.items.get_items", {
-				pos_profile: props.posProfile || shiftStore.currentProfile,
+				pos_profile: props.posProfile || shiftStore.profileName,
 				search_term: batchSearchQuery.value.trim(),
 				start: 0,
 				limit: 12,
@@ -2305,7 +2582,7 @@ async function submitBatchStockEntry() {
 	submittingStock.value = true;
 	try {
 		const res = await call("pos_next.api.items.create_pos_stock_entry", {
-			pos_profile: props.posProfile || shiftStore.currentProfile,
+			pos_profile: props.posProfile || shiftStore.profileName,
 			warehouse: batchWarehouse.value,
 			entry_mode: "add",
 			remarks: batchRemarks.value || "Ingreso de mercadería / producción desde POS",
@@ -2342,7 +2619,7 @@ async function loadStockEntriesHistory() {
 	cancelReason.value = "";
 	try {
 		const res = await call("pos_next.api.items.get_pos_stock_entries", {
-			pos_profile: props.posProfile || shiftStore.currentProfile,
+			pos_profile: props.posProfile || shiftStore.profileName,
 			limit: 30,
 		});
 		stockEntriesHistory.value = Array.isArray(res) ? res : [];
@@ -2369,7 +2646,7 @@ async function confirmCancelStockEntry(entry) {
 		const res = await call("pos_next.api.items.cancel_pos_stock_entry", {
 			stock_entry_name: entry.name,
 			reason: cancelReason.value.trim(),
-			pos_profile: props.posProfile || shiftStore.currentProfile,
+			pos_profile: props.posProfile || shiftStore.profileName,
 		});
 
 		if (res?.updated_bins) {

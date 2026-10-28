@@ -128,6 +128,16 @@ def get_pos_settings(pos_profile):
 			)
 		)
 	)
+	settings["user_can_manage_items"] = cint(
+		bool(
+			frappe.has_permission("Item", "create")
+			or frappe.has_permission("Item", "write")
+			or any(
+				r in frappe.get_roles()
+				for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
+			)
+		)
+	)
 
 	return settings
 
@@ -147,6 +157,16 @@ def create_default_settings(pos_profile):
 		bool(
 			frappe.has_permission("Stock Entry", "create")
 			or frappe.has_permission("Stock Entry", "write")
+			or any(
+				r in frappe.get_roles()
+				for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
+			)
+		)
+	)
+	res["user_can_manage_items"] = cint(
+		bool(
+			frappe.has_permission("Item", "create")
+			or frappe.has_permission("Item", "write")
 			or any(
 				r in frappe.get_roles()
 				for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
@@ -193,6 +213,16 @@ def update_pos_settings(pos_profile, settings):
 		bool(
 			frappe.has_permission("Stock Entry", "create")
 			or frappe.has_permission("Stock Entry", "write")
+			or any(
+				r in frappe.get_roles()
+				for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
+			)
+		)
+	)
+	res["user_can_manage_items"] = cint(
+		bool(
+			frappe.has_permission("Item", "create")
+			or frappe.has_permission("Item", "write")
 			or any(
 				r in frappe.get_roles()
 				for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")

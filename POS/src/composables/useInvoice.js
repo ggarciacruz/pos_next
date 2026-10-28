@@ -246,6 +246,10 @@ export function useInvoice() {
 			} else {
 				existingItem.quantity += quantity;
 			}
+			if (item.original_stock !== undefined) {
+				existingItem.original_stock = item.original_stock;
+				existingItem.actual_qty = item.original_stock;
+			}
 			recalculateItem(existingItem);
 
 			// Update cache incrementally (new values - old values)
@@ -256,6 +260,8 @@ export function useInvoice() {
 			_cachedTotalTax.value += (existingItem.tax_amount || 0) - oldTax;
 			_cachedTotalDiscount.value += (existingItem.discount_amount || 0) - oldDiscount;
 		} else {
+			const totalWarehouseStock =
+				item.original_stock ?? item.actual_qty ?? item.stock_qty ?? 0;
 			const newItem = {
 				item_code: item.item_code,
 				item_name: item.item_name,
@@ -266,7 +272,7 @@ export function useInvoice() {
 				discount_percentage: 0,
 				tax_amount: 0,
 				amount: quantity * (item.rate || item.price_list_rate || 0),
-				stock_qty: item.stock_qty || 0,
+				stock_qty: totalWarehouseStock,
 				image: item.image,
 				uom: item.uom || item.stock_uom,
 				stock_uom: item.stock_uom,
@@ -285,7 +291,8 @@ export function useInvoice() {
 				// Resolved barcode flag - prevents editing qty/uom/rate for weighted/priced barcodes
 				is_resolved_barcode: item.is_resolved_barcode || false,
 				// Stock validation fields — needed for qty increase checks in cart
-				actual_qty: item.actual_qty ?? 0,
+				actual_qty: totalWarehouseStock,
+				original_stock: totalWarehouseStock,
 				is_stock_item: item.is_stock_item ?? 1,
 				is_bundle: item.is_bundle || false,
 				allow_negative_stock: item.allow_negative_stock || 0,

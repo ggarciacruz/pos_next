@@ -70,8 +70,11 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		// Miscellaneous
 		input_qty: 0,
 		allow_negative_stock: 0,
+		low_stock_threshold: 10,
 		allow_stock_entry: 0,
 		user_can_manage_stock: 0,
+		allow_item_management: 0,
+		user_can_manage_items: 0,
 		// Sales Persons
 		enable_sales_persons: "Disabled",
 		// Security
@@ -196,9 +199,17 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	// Computed - Miscellaneous
 	const inputQty = computed(() => Boolean(settings.value.input_qty));
 	const allowNegativeStock = computed(() => Boolean(settings.value.allow_negative_stock));
+	const lowStockThreshold = computed(() => {
+		const val = Number.parseInt(settings.value.low_stock_threshold);
+		return Number.isNaN(val) || val < 0 ? 10 : val;
+	});
 	const allowStockEntry = computed(() => Boolean(settings.value.allow_stock_entry));
 	const canManageStock = computed(
 		() => allowStockEntry.value && Boolean(settings.value.user_can_manage_stock)
+	);
+	const allowItemManagement = computed(() => Boolean(settings.value.allow_item_management));
+	const canManageItems = computed(
+		() => allowItemManagement.value && Boolean(settings.value.user_can_manage_items)
 	);
 
 	// Computed - Sales Persons
@@ -320,6 +331,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			allow_change_posting_date: 0,
 			input_qty: 0,
 			allow_negative_stock: 0,
+			low_stock_threshold: 10,
 			allow_stock_entry: 0,
 			user_can_manage_stock: 0,
 			enable_sales_persons: "Disabled",
@@ -458,8 +470,11 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		// Computed - Miscellaneous
 		inputQty,
 		allowNegativeStock,
+		lowStockThreshold,
 		allowStockEntry,
 		canManageStock,
+		allowItemManagement,
+		canManageItems,
 
 		// Computed - Sales Persons
 		enableSalesPersons,

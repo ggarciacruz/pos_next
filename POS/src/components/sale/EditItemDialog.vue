@@ -792,17 +792,28 @@ async function handleWarehouseChange() {
 	try {
 		// Check stock availability in the new warehouse
 		const availableStock = await getItemStock(localItem.value.item_code, localWarehouse.value);
+		const enforceStock = settingsStore.shouldEnforceStockValidation();
 
-		if (availableStock === 0) {
-			hasStock.value = false;
-			showError(
-				__('"{0}" is not available in warehouse "{1}". Please select another warehouse.', [
-					localItem.value.item_name,
-					localWarehouse.value,
-				])
-			);
+		if (availableStock <= 0) {
+			hasStock.value = !enforceStock;
+			if (enforceStock) {
+				showError(
+					__('"{0}" is not available in warehouse "{1}". Please select another warehouse.', [
+						localItem.value.item_name,
+						localWarehouse.value,
+					])
+				);
+			} else {
+				showWarning(
+					__('"{0}" tiene stock {1} en "{2}" (se venderá en negativo).', [
+						localItem.value.item_name,
+						availableStock,
+						localWarehouse.value,
+					])
+				);
+			}
 		} else if (availableStock < localQuantity.value) {
-			hasStock.value = false;
+			hasStock.value = !enforceStock;
 			showWarning(
 				__('Only {0} units of "{1}" available in "{2}". Current quantity: {3}', [
 					availableStock,

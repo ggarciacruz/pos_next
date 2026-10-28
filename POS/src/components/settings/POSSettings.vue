@@ -323,10 +323,41 @@
 												"
 												:description="
 													__(
-														'Habilitar el registro de ingresos de producción/mercadería, ajustes de conteo físico y anulación de ingresos directamente desde el POS (requiere permiso de Stock en el rol del usuario)'
+														'Habilitar el registro de ingresos de producción/mercadería, descuentos de stock y anulación de movimientos directamente desde el POS (requiere permiso de Stock en el rol del usuario)'
 													)
 												"
 											/>
+											<CheckboxField
+												v-model="settings.allow_item_management"
+												:label="
+													__(
+														'Permitir Crear y Editar Productos desde el POS'
+													)
+												"
+												:description="
+													__(
+														'Habilitar el botón para crear nuevos productos y editar precios, costos, categorías, medidas y fotos directamente desde el catálogo del POS'
+													)
+												"
+											/>
+											<div class="pt-2 border-t border-blue-200/60">
+												<NumberField
+													v-model="settings.low_stock_threshold"
+													:label="
+														__(
+															'Umbral General de Alerta de Stock Bajo (Color Amarillo)'
+														)
+													"
+													:description="
+														__(
+															'Cantidad de unidades a partir de la cual la etiqueta de stock se muestra en amarillo (por defecto: 10). También puede personalizarse por cada producto.'
+														)
+													"
+													:min="0"
+													:max="9999"
+													:step="1"
+												/>
+											</div>
 											<div class="mt-3 p-3 bg-blue-100 rounded-md">
 												<div class="flex items-start gap-2">
 													<svg
@@ -1272,7 +1303,9 @@ const settings = ref({
 	receipt_header_title: "Recibo de Venta",
 	enable_siat_fiscal_format: 0,
 	allow_negative_stock: 0,
-	allow_stock_entry: 1,
+	low_stock_threshold: 10,
+	allow_stock_entry: 0,
+	allow_item_management: 0,
 	tax_inclusive: 0,
 });
 

@@ -488,8 +488,8 @@
 								'px-2 sm:px-2.5 py-1 sm:py-1 text-[10px] sm:text-xs font-bold',
 								'border-2 border-white cursor-pointer select-none',
 								'hover:scale-110 hover:shadow-xl transition-all duration-200',
-								getStockStatus(item.actual_qty ?? item.stock_qty ?? 0).color,
-								getStockStatus(item.actual_qty ?? item.stock_qty ?? 0).textColor,
+								getStockStatus(item.actual_qty ?? item.stock_qty ?? 0, item).color,
+								getStockStatus(item.actual_qty ?? item.stock_qty ?? 0, item).textColor,
 							]"
 							:title="__('Click to check availability in other warehouses')"
 						>
@@ -500,10 +500,11 @@
 						<div
 							class="relative aspect-square bg-gray-100 rounded-md mb-1.5 sm:mb-2 overflow-hidden"
 						>
-							<!-- Image with conditional blur on hover -->
+							<!-- Image with conditional blur on hover (only when negative stock is NOT allowed) -->
 							<div
 								:class="[
 									'w-full h-full transition-all duration-300',
+									settingsStore.shouldEnforceStockValidation() &&
 									(item.is_stock_item || item.is_bundle) &&
 									(item.actual_qty ?? item.stock_qty ?? 0) <= 0
 										? 'group-hover:blur-sm group-hover:brightness-75'
@@ -551,9 +552,10 @@
 								</div>
 							</div>
 
-							<!-- Info Icon Overlay - Click to show warehouse availability -->
+							<!-- Info Icon Overlay - Click to show warehouse availability (only when negative stock is NOT allowed) -->
 							<div
 								v-if="
+									settingsStore.shouldEnforceStockValidation() &&
 									(item.is_stock_item || item.is_bundle) &&
 									(item.actual_qty ?? item.stock_qty ?? 0) <= 0
 								"
@@ -942,9 +944,9 @@
 											'inline-block px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-md shadow-sm',
 											'text-[10px] sm:text-xs font-bold cursor-pointer select-none',
 											'hover:scale-105 hover:shadow-md transition-all duration-200',
-											getStockStatus(item.actual_qty ?? item.stock_qty ?? 0)
+											getStockStatus(item.actual_qty ?? item.stock_qty ?? 0, item)
 												.color,
-											getStockStatus(item.actual_qty ?? item.stock_qty ?? 0)
+											getStockStatus(item.actual_qty ?? item.stock_qty ?? 0, item)
 												.textColor,
 										]"
 										:title="__('Click to check availability in other warehouses')"

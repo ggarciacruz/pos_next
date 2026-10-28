@@ -2263,6 +2263,69 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		clearBaseCache();
 	}
 
+	/**
+	 * Immediately synchronize a newly created or edited item across:
+	 * 1. Reactive allItems & searchResults arrays (+ version bump & cache clear)
+	 * 2. Live stockStore (for initial stock or warehouse stock badge)
+	 * 3. Offline IndexedDB worker cache (so searches and group filters see the fresh item)
+	 * 4. Item group tabs & fresh server reload (forceServerFetch = true)
+	 */
+	async function upsertCatalogItem(item, activeProfile = null) {
+		const targetProfile = activeProfile || posProfile.value;
+		if (item && item.item_code) {
+			const updateListInPlace = (arr) => {
+				if (!Array.isArray(arr)) return;
+				const idx = arr.findIndex((i) => i.item_code === item.item_code);
+				if (idx !== -1) {
+					if (item.disabled) {
+						arr.splice(idx, 1);
+					} else {
+						arr.splice(idx, 1, { ...arr[idx], ...item });
+					}
+				} else if (!item.disabled) {
+					arr.unshift(item);
+				}
+			};
+
+			updateListInPlace(allItems.value);
+			updateListInPlace(searchResults.value);
+			allItemsVersion.value += 1;
+			searchResultsVersion.value += 1;
+			clearBaseCache();
+
+			if (!item.disabled) {
+				const qty = Number(item.actual_qty ?? item.stock_qty ?? 0);
+				stockStore.update([
+					{
+						item_code: item.item_code,
+						actual_qty: qty,
+						available_qty: qty,
+					},
+				]);
+				try {
+					await offlineWorker.cacheItems([item]);
+				} catch (err) {
+					log.warn("Could not update item in offline cache:", err?.message);
+				}
+			} else {
+				try {
+					await offlineWorker.clearItemsCache();
+				} catch (err) {
+					log.warn("Could not clear offline cache after disabling item:", err?.message);
+				}
+			}
+		}
+
+		if (targetProfile) {
+			posProfile.value = targetProfile;
+			await loadItemGroups();
+			await loadAllItems(targetProfile, true);
+			if (searchTerm.value?.trim()) {
+				await searchItems(searchTerm.value);
+			}
+		}
+	}
+
 	// Stock delegates - Smart & minimal!
 	const applyStockUpdates = (updates) => stockStore.update(updates);
 	const refreshStockFromServer = (codes, wh) => stockStore.refresh(codes, wh);
@@ -2320,6 +2383,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		stopBackgroundCacheSync,
 		cleanup,
 		invalidateCache,
+		upsertCatalogItem,
 		setSortFilter,
 		clearSortFilter,
 

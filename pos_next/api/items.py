@@ -26,6 +26,7 @@ ITEM_RESULT_FIELDS = [
 	"has_variants",
 	"variant_of",
 	"disabled",
+	"safety_stock",
 ]
 
 def get_item_result_columns():
@@ -1476,7 +1477,7 @@ def get_items(
 				uom_prices_map.setdefault(price["item_code"], {})[price["uom"]] = price["price_list_rate"]
 
 		# Batch query stock and effective warehouse per item
-		item_wh_map, wh_name_map, stock_map, other_stock_map, _ = _resolve_item_warehouses_and_stock(
+		item_wh_map, wh_name_map, stock_map, other_stock_map, _reserved_map = _resolve_item_warehouses_and_stock(
 			items,
 			company=pos_profile_doc.company,
 			default_warehouse=pos_profile_doc.warehouse,
@@ -1797,7 +1798,7 @@ def get_items_bulk(
 
 		# Stock & effective warehouse per item
 		warehouse = pos_profile_doc.warehouse
-		item_wh_map, wh_name_map, stock_map, other_stock_map, _ = _resolve_item_warehouses_and_stock(
+		item_wh_map, wh_name_map, stock_map, other_stock_map, _reserved_map = _resolve_item_warehouses_and_stock(
 			items,
 			company=pos_profile_doc.company,
 			default_warehouse=warehouse,
@@ -1963,7 +1964,7 @@ def get_item_details(item_code, pos_profile, customer=None, qty=1, uom=None):
 		if uom:
 			item["uom"] = uom
 
-		item_wh_map, _, _, _, _ = _resolve_item_warehouses_and_stock(
+		item_wh_map, _wh_names, _stocks, _others, _reserved = _resolve_item_warehouses_and_stock(
 			[item_code],
 			company=pos_profile_doc.company,
 			default_warehouse=pos_profile_doc.warehouse,
@@ -2105,7 +2106,7 @@ def get_stock_quantities(item_codes, warehouse):
 		if not normalized_codes:
 			return []
 
-		item_wh_map, wh_name_map, stock_map, _, reserved_map = _resolve_item_warehouses_and_stock(
+		item_wh_map, wh_name_map, stock_map, _other_map, reserved_map = _resolve_item_warehouses_and_stock(
 			normalized_codes,
 			default_warehouse=warehouse,
 		)
@@ -2367,7 +2368,7 @@ def get_item_warehouse_availability(
 			# When include_zero_stock is enabled for a single item, ensure the item's default warehouse
 			# (or POS Profile's warehouse / first operational warehouse) is included even when stock is 0
 			if cint(include_zero_stock) and not include_item_code:
-				item_wh_map, _, _, _, _ = _resolve_item_warehouses_and_stock(
+				item_wh_map, _wh_names, _stocks, _others, _reserved = _resolve_item_warehouses_and_stock(
 					regular_items[:1],
 					company=company,
 					default_warehouse=profile_warehouse,
@@ -2633,8 +2634,23 @@ def get_batch_serial_data_for_items(item_codes, warehouse):
 		return {}
 
 
+def _normalize_pos_profile_name(pos_profile):
+	"""Ensure pos_profile is a plain string profile name even if passed as a dict or JSON object."""
+	if isinstance(pos_profile, str):
+		try:
+			parsed = json.loads(pos_profile)
+			if isinstance(parsed, dict):
+				pos_profile = parsed.get("name") or parsed.get("pos_profile") or ""
+		except (json.JSONDecodeError, ValueError):
+			pass
+	elif isinstance(pos_profile, dict):
+		pos_profile = pos_profile.get("name") or pos_profile.get("pos_profile") or ""
+	return (pos_profile or "").strip()
+
+
 def _verify_pos_stock_permission(pos_profile: str | None = None):
 	"""Validate dual lock (POS Settings allow_stock_entry + user role permission)."""
+	pos_profile = _normalize_pos_profile_name(pos_profile)
 	if pos_profile:
 		allow_stock = frappe.db.get_value(
 			"POS Settings", {"pos_profile": pos_profile, "enabled": 1}, "allow_stock_entry"
@@ -2701,6 +2717,7 @@ def create_pos_stock_entry(pos_profile, warehouse, items, entry_mode="add", rema
 	Register an inventory receipt ('add') or physical count adjustment ('set') directly from POS.
 	Creates and submits official Stock Entry document(s) in ERPNext and returns fresh Bin quantities.
 	"""
+	pos_profile = _normalize_pos_profile_name(pos_profile)
 	_verify_pos_stock_permission(pos_profile)
 
 	if not warehouse or not frappe.db.exists("Warehouse", warehouse):
@@ -2869,6 +2886,7 @@ def create_pos_stock_entry(pos_profile, warehouse, items, entry_mode="add", rema
 @frappe.whitelist()
 def get_pos_stock_entries(pos_profile, warehouse=None, limit=30):
 	"""Return recent Stock Entries (Material Receipt / Material Issue) for POS history and quick cancellation."""
+	pos_profile = _normalize_pos_profile_name(pos_profile)
 	if not pos_profile:
 		return []
 
@@ -3015,4 +3033,600 @@ def cancel_pos_stock_entry(stock_entry_name, reason, pos_profile=None):
 		"updated_stock": updated_stock,
 		"updated_bins": updated_stock,
 		"message": _("Movimiento {0} anulado exitosamente. El stock fue revertido.").format(se.name),
+	}
+
+
+# =============================================================================
+# POS ITEM QUICK CREATE & EDIT (A PRUEBA DE ERRORES)
+# =============================================================================
+
+
+def _verify_pos_item_permission(pos_profile=None):
+	"""Verify that POS Settings allows item management and the user has permission."""
+	pos_profile = _normalize_pos_profile_name(pos_profile)
+	if pos_profile:
+		allow_mgmt = frappe.db.get_value(
+			"POS Settings", {"pos_profile": pos_profile, "enabled": 1}, "allow_item_management"
+		)
+		if allow_mgmt is not None and not cint(allow_mgmt):
+			frappe.throw(_("La creación y edición de productos está deshabilitada en los Ajustes del POS."))
+
+	has_role_or_perm = (
+		frappe.has_permission("Item", "create")
+		or frappe.has_permission("Item", "write")
+		or any(
+			r in frappe.get_roles()
+			for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
+		)
+	)
+	if not has_role_or_perm:
+		frappe.throw(_("No tiene permisos para crear o editar productos."))
+
+
+def _save_base64_item_image(item_code, image_base64):
+	"""Decode base64 image data URL, resize/pad to 800x800 PNG, and return /files/ URL."""
+	import base64
+	import io
+	import os
+	import re
+	import time
+
+	if not image_base64 or not isinstance(image_base64, str):
+		return None
+
+	if "," in image_base64:
+		_header, encoded = image_base64.split(",", 1)
+	else:
+		encoded = image_base64
+
+	raw_bytes = base64.b64decode(encoded)
+	safe_slug = re.sub(r"[^a-zA-Z0-9_-]+", "_", item_code.lower()).strip("_") or "item"
+	filename = f"{safe_slug}_{int(time.time())}.png"
+	site_files = frappe.get_site_path("public", "files")
+	os.makedirs(site_files, exist_ok=True)
+	filepath = os.path.join(site_files, filename)
+
+	try:
+		from PIL import Image, ImageOps
+
+		img = Image.open(io.BytesIO(raw_bytes))
+		img = ImageOps.exif_transpose(img)
+		img = img.convert("RGB")
+		img = ImageOps.fit(img, (800, 800), method=Image.Resampling.LANCZOS)
+		img.save(filepath, "PNG", optimize=True)
+	except Exception:
+		with open(filepath, "wb") as f:
+			f.write(raw_bytes)
+
+	return f"/files/{filename}"
+
+
+def _generate_clean_item_code(item_name, item_group=""):
+	"""Generate a clean human-readable SKU code from item_name and item_group."""
+	import re
+	import unicodedata
+
+	def _ascii(txt):
+		norm = unicodedata.normalize("NFKD", txt or "")
+		return "".join(c for c in norm if not unicodedata.combining(c)).upper()
+
+	grp_clean = _ascii(item_group)
+	name_clean = _ascii(item_name)
+	words = [w for w in re.split(r"[^A-Z0-9.]+", name_clean) if w]
+
+	prefix = "PROD"
+	if "SOMIER" in grp_clean or "SOMIER" in name_clean:
+		prefix = "SOM"
+	elif "CANNON" in grp_clean or "CANNON" in name_clean:
+		prefix = "CANNON"
+	elif "EDRE" in grp_clean or "EDRE" in name_clean:
+		prefix = "EDRE"
+	elif "ORTO" in grp_clean or "ORTO" in name_clean:
+		prefix = "ORTO"
+	elif words:
+		prefix = words[0][:6]
+
+	plaza_token = ""
+	m_plaza = re.search(r"(\d+(?:\.\d+)?)\s*(?:PLAZA|P\b)", name_clean)
+	if m_plaza:
+		plaza_token = f"{m_plaza.group(1)}P"
+
+	stop_words = {
+		"COLCHON",
+		"COLCHONES",
+		"SOMIER",
+		"SOMIERES",
+		"CANNON",
+		"EDREDONADO",
+		"ORTOPEDICO",
+		"PLAZA",
+		"PLAZAS",
+		"DE",
+		"EL",
+		"LA",
+		"CON",
+	}
+	tail_words = [w for w in words if w not in stop_words and not re.match(r"^\d+(\.\d+)?P?$", w)]
+	tail = tail_words[-1][:4] if tail_words else ""
+
+	parts = [p for p in (prefix, plaza_token, tail) if p]
+	base_code = "-".join(parts) if len(parts) > 1 else f"{prefix}-01"
+	candidate = base_code
+	counter = 1
+	while frappe.db.exists("Item", candidate):
+		counter += 1
+		candidate = f"{base_code}-{counter:02d}"
+	return candidate
+
+
+@frappe.whitelist()
+def get_pos_item_form_data(pos_profile, item_code=None):
+	"""Return metadata (groups, warehouse mappings, UOMs) and current item fields for POS Create/Edit modal."""
+	pos_profile = _normalize_pos_profile_name(pos_profile)
+	_verify_pos_item_permission(pos_profile)
+
+	pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+	company = pos_profile_doc.company
+	price_list = pos_profile_doc.selling_price_list or "Standard Selling"
+
+	groups = frappe.get_all(
+		"Item Group",
+		filters={"is_group": 0},
+		fields=["name", "parent_item_group"],
+		order_by="name asc",
+	)
+	boilerplate_groups = {
+		"all item groups",
+		"todos los grupos de artículos",
+		"materia prima",
+		"raw material",
+		"servicios",
+		"services",
+		"sub-ensambles",
+		"sub-ensamblajes",
+		"sub assemblies",
+		"consumibles",
+		"consumible",
+		"consumable",
+		"productos",
+		"products",
+	}
+	clean_groups = [g for g in groups if g.name.strip().lower() not in boilerplate_groups]
+
+	# Resolve default warehouse per Item Group
+	group_names = [g.name for g in clean_groups]
+	ig_defaults = {}
+	if group_names:
+		rows = frappe.get_all(
+			"Item Default",
+			filters={"parent": ["in", group_names], "parenttype": "Item Group", "company": company},
+			fields=["parent", "default_warehouse"],
+		)
+		for r in rows:
+			if r.default_warehouse:
+				wh_label = frappe.db.get_value("Warehouse", r.default_warehouse, "warehouse_name") or r.default_warehouse
+				ig_defaults[r.parent] = {
+					"warehouse": r.default_warehouse,
+					"warehouse_name": wh_label,
+				}
+
+	default_wh_label = (
+		frappe.db.get_value("Warehouse", pos_profile_doc.warehouse, "warehouse_name") or pos_profile_doc.warehouse
+	)
+	for g in clean_groups:
+		if g.name not in ig_defaults:
+			ig_defaults[g.name] = {
+				"warehouse": pos_profile_doc.warehouse,
+				"warehouse_name": default_wh_label,
+			}
+
+	has_dimensions = bool(frappe.db.has_column("Item", "custom_ancho_cm"))
+	has_plazas = bool(frappe.db.has_column("Item", "custom_plazas"))
+
+	item_payload = None
+	if item_code and frappe.db.exists("Item", item_code):
+		doc = frappe.get_doc("Item", item_code)
+		selling_rate = flt(
+			frappe.db.get_value(
+				"Item Price",
+				{"item_code": item_code, "price_list": price_list, "selling": 1},
+				"price_list_rate",
+			)
+			or getattr(doc, "custom_precio_venta", 0)
+			or doc.standard_rate
+			or 0
+		)
+		cost_rate = flt(
+			getattr(doc, "custom_costo_fabricacion", 0)
+			or frappe.db.get_value(
+				"Item Price",
+				{"item_code": item_code, "price_list": "Precio Fábrica (Costo)"},
+				"price_list_rate",
+			)
+			or doc.valuation_rate
+			or 0
+		)
+		item_wh_map, wh_name_map, stock_map, _other_map, _reserved_map = _resolve_item_warehouses_and_stock(
+			[item_code],
+			company=company,
+			default_warehouse=pos_profile_doc.warehouse,
+		)
+		eff_wh = item_wh_map.get(item_code) or pos_profile_doc.warehouse
+		doc_ancho = flt(getattr(doc, "custom_ancho_cm", 0))
+		doc_largo = flt(getattr(doc, "custom_largo_cm", 0))
+		doc_alto = flt(getattr(doc, "custom_alto_cm", 0))
+		doc_medida = getattr(doc, "custom_medida", "") or (
+			f"{int(doc_ancho)}x{int(doc_largo)}" + (f"x{int(doc_alto)}cm" if doc_alto > 0 else "cm")
+			if doc_ancho > 0 and doc_largo > 0
+			else ""
+		)
+		item_payload = {
+			"item_code": doc.name,
+			"item_name": doc.item_name,
+			"item_group": doc.item_group,
+			"stock_uom": doc.stock_uom or "Unidad(es)",
+			"image": doc.image or "",
+			"disabled": cint(doc.disabled),
+			"selling_rate": selling_rate,
+			"cost_rate": cost_rate,
+			"custom_plazas": getattr(doc, "custom_plazas", "") or "",
+			"custom_linea_modelo": getattr(doc, "custom_linea_modelo", "") or "",
+			"custom_ancho_cm": doc_ancho,
+			"custom_largo_cm": doc_largo,
+			"custom_alto_cm": doc_alto,
+			"custom_medida": doc_medida,
+			"warehouse": eff_wh,
+			"warehouse_name": wh_name_map.get(eff_wh, eff_wh),
+			"actual_qty": flt(stock_map.get(item_code, 0)),
+			"safety_stock": flt(getattr(doc, "safety_stock", 0)),
+		}
+
+	low_stock_threshold = 10
+	if frappe.db.has_column("POS Settings", "low_stock_threshold") and frappe.db.exists("POS Settings", pos_profile):
+		low_stock_threshold = cint(frappe.db.get_value("POS Settings", pos_profile, "low_stock_threshold")) or 10
+
+	return {
+		"item_groups": [g.name for g in clean_groups],
+		"group_warehouses": ig_defaults,
+		"default_uom": "Unidad(es)" if frappe.db.exists("UOM", "Unidad(es)") else "Nos",
+		"has_dimensions": has_dimensions,
+		"has_plazas": has_plazas,
+		"plazas_options": ["1 Plaza", "1.5 Plazas", "2 Plazas", "2.5 Plazas / Queen", "3 Plazas / King"],
+		"default_low_stock_threshold": low_stock_threshold,
+		"item": item_payload,
+	}
+
+
+@frappe.whitelist()
+def create_pos_item_group(pos_profile, item_group_name):
+	"""Create a new Item Group directly from POS and return its resolved warehouse info."""
+	pos_profile = _normalize_pos_profile_name(pos_profile)
+	_verify_pos_item_permission(pos_profile)
+
+	clean_group = (item_group_name or "").strip()
+	if not clean_group:
+		frappe.throw(_("Por favor escriba el nombre de la nueva categoría."))
+
+	pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+	company = pos_profile_doc.company
+
+	target_wh = pos_profile_doc.warehouse
+	if "somier" in clean_group.lower():
+		somier_wh = frappe.db.get_value(
+			"Warehouse",
+			{"company": company, "warehouse_name": ["like", "%Somier%"], "is_group": 0},
+			"name",
+		)
+		if somier_wh:
+			target_wh = somier_wh
+
+	if not frappe.db.exists("Item Group", clean_group):
+		parent_grp = (
+			"Productos"
+			if frappe.db.exists("Item Group", "Productos")
+			else (
+				frappe.db.get_value("Item Group", {"is_group": 1, "parent_item_group": ""}, "name")
+				or "Todos los grupos de artículos"
+			)
+		)
+		ig = frappe.new_doc("Item Group")
+		ig.item_group_name = clean_group
+		ig.parent_item_group = parent_grp
+		ig.is_group = 0
+		ig.append(
+			"item_group_defaults",
+			{
+				"company": company,
+				"default_warehouse": target_wh,
+			},
+		)
+		ig.insert(ignore_permissions=True)
+		clean_group = ig.name
+
+	wh_label = frappe.db.get_value("Warehouse", target_wh, "warehouse_name") or target_wh
+	frappe.cache().delete_value(f"pos_item_groups:{pos_profile}")
+
+	return {
+		"success": True,
+		"item_group": clean_group,
+		"warehouse": target_wh,
+		"warehouse_name": wh_label,
+		"message": _("Categoría '{0}' guardada y seleccionada.").format(clean_group),
+	}
+
+
+@frappe.whitelist()
+def save_pos_item(pos_profile, item_data):
+	"""
+	Create or update an Item directly from POS in a single atomic operation:
+	- Creates new Item Group if requested
+	- Saves/updates Item & custom fields (dimensions, cost, margin, image)
+	- Assigns Item Default (warehouse & accounts) based on Item Group
+	- Updates Item Price in selling & buying price lists
+	- Optionally creates initial Stock Entry (Material Receipt) when creating a new item
+	"""
+	pos_profile = _normalize_pos_profile_name(pos_profile)
+	_verify_pos_item_permission(pos_profile)
+
+	if isinstance(item_data, str):
+		item_data = json.loads(item_data)
+
+	pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+	company = pos_profile_doc.company
+	selling_price_list = pos_profile_doc.selling_price_list or "Standard Selling"
+
+	is_new = bool(item_data.get("is_new"))
+	item_name = (item_data.get("item_name") or "").strip()
+	if not item_name:
+		frappe.throw(_("Por favor ingrese el nombre del producto."))
+
+	new_group_name = (item_data.get("new_item_group") or "").strip()
+	item_group = new_group_name or (item_data.get("item_group") or "").strip()
+	if not item_group:
+		frappe.throw(_("Por favor seleccione o escriba una categoría para el producto."))
+
+	# Create new Item Group on the fly if requested
+	if not frappe.db.exists("Item Group", item_group):
+		parent_grp = (
+			"Productos"
+			if frappe.db.exists("Item Group", "Productos")
+			else (
+				frappe.db.get_value("Item Group", {"is_group": 1, "parent_item_group": ""}, "name")
+				or "Todos los grupos de artículos"
+			)
+		)
+		ig = frappe.new_doc("Item Group")
+		ig.item_group_name = item_group
+		ig.parent_item_group = parent_grp
+		ig.is_group = 0
+		ig.insert(ignore_permissions=True)
+
+	selling_rate = flt(item_data.get("selling_rate"))
+	if selling_rate < 0:
+		frappe.throw(_("El precio de venta no puede ser negativo."))
+
+	cost_rate = max(0.0, flt(item_data.get("cost_rate")))
+	ancho = max(0.0, flt(item_data.get("custom_ancho_cm")))
+	largo = max(0.0, flt(item_data.get("custom_largo_cm")))
+	alto = max(0.0, flt(item_data.get("custom_alto_cm")))
+	plazas = (item_data.get("custom_plazas") or "").strip()
+	linea = (item_data.get("custom_linea_modelo") or "").strip()
+
+	if is_new:
+		requested_code = (item_data.get("item_code") or "").strip().upper()
+		if requested_code:
+			if frappe.db.exists("Item", requested_code):
+				frappe.throw(_("Ya existe un producto con el código {0}.").format(requested_code))
+			item_code = requested_code
+		else:
+			item_code = _generate_clean_item_code(item_name, item_group)
+
+		item = frappe.new_doc("Item")
+		item.item_code = item_code
+		item.stock_uom = (
+			item_data.get("stock_uom")
+			or ("Unidad(es)" if frappe.db.exists("UOM", "Unidad(es)") else "Nos")
+		)
+		item.is_stock_item = 1
+		item.is_sales_item = 1
+	else:
+		item_code = (item_data.get("item_code") or "").strip()
+		if not item_code or not frappe.db.exists("Item", item_code):
+			frappe.throw(_("No se encontró el producto {0} para editar.").format(item_code))
+		item = frappe.get_doc("Item", item_code)
+
+	item.item_name = item_name
+	item.item_group = item_group
+	item.disabled = 1 if cint(item_data.get("disabled")) else 0
+	item.standard_rate = selling_rate
+	if cost_rate > 0:
+		item.valuation_rate = cost_rate
+	safety_stock = max(0.0, flt(item_data.get("safety_stock")))
+	item.safety_stock = safety_stock
+
+	# Handle optional base64 photo upload
+	image_base64 = item_data.get("image_base64")
+	if image_base64:
+		uploaded_url = _save_base64_item_image(item_code, image_base64)
+		if uploaded_url:
+			item.image = uploaded_url
+
+	# Custom Furniture / Commercial fields (guarded by column checks)
+	if frappe.db.has_column("Item", "custom_ancho_cm"):
+		item.custom_ancho_cm = ancho
+	if frappe.db.has_column("Item", "custom_largo_cm"):
+		item.custom_largo_cm = largo
+	if frappe.db.has_column("Item", "custom_alto_cm"):
+		item.custom_alto_cm = alto
+	if frappe.db.has_column("Item", "custom_plazas"):
+		item.custom_plazas = plazas
+	if frappe.db.has_column("Item", "custom_linea_modelo"):
+		item.custom_linea_modelo = linea or item_group
+	if frappe.db.has_column("Item", "custom_costo_fabricacion"):
+		item.custom_costo_fabricacion = cost_rate
+	if frappe.db.has_column("Item", "custom_precio_venta"):
+		item.custom_precio_venta = selling_rate
+	if frappe.db.has_column("Item", "custom_margen_mayoreo"):
+		item.custom_margen_mayoreo = max(0.0, selling_rate - cost_rate)
+	if frappe.db.has_column("Item", "custom_medida"):
+		if ancho > 0 and largo > 0:
+			dim_str = f"{int(ancho)}x{int(largo)}" + (f"x{int(alto)}cm" if alto > 0 else "cm")
+			item.custom_medida = dim_str
+		elif item_data.get("custom_medida") is not None:
+			item.custom_medida = (item_data.get("custom_medida") or "").strip()
+
+	if is_new:
+		item.insert(ignore_permissions=True)
+	else:
+		item.save(ignore_permissions=True)
+
+	# Resolve Item Default from Item Group (or parent group) so warehouse & accounts match automatically
+	group_default = frappe.db.get_value(
+		"Item Default",
+		{"parent": item_group, "parenttype": "Item Group", "company": company},
+		["default_warehouse", "income_account", "expense_account", "buying_cost_center", "selling_cost_center"],
+		as_dict=True,
+	)
+	if not group_default:
+		parent_ig = frappe.db.get_value("Item Group", item_group, "parent_item_group")
+		if parent_ig:
+			group_default = frappe.db.get_value(
+				"Item Default",
+				{"parent": parent_ig, "parenttype": "Item Group", "company": company},
+				["default_warehouse", "income_account", "expense_account", "buying_cost_center", "selling_cost_center"],
+				as_dict=True,
+			)
+
+	target_warehouse = (
+		(group_default.get("default_warehouse") if group_default else None)
+		or pos_profile_doc.warehouse
+	)
+
+	existing_id = frappe.db.get_value(
+		"Item Default",
+		{"parent": item.name, "parenttype": "Item", "company": company},
+		"name",
+	)
+	id_values = {"default_warehouse": target_warehouse}
+	if group_default:
+		for k in ("income_account", "expense_account", "buying_cost_center", "selling_cost_center"):
+			if group_default.get(k):
+				id_values[k] = group_default.get(k)
+
+	if existing_id:
+		frappe.db.set_value("Item Default", existing_id, id_values)
+	else:
+		item_reload = frappe.get_doc("Item", item.name)
+		row_dict = {"company": company, **id_values}
+		item_reload.append("item_defaults", row_dict)
+		item_reload.save(ignore_permissions=True)
+
+	# Upsert Item Prices (Selling & Cost)
+	def _upsert_price(pl_name, rate_val, is_selling=1):
+		if not pl_name or not frappe.db.exists("Price List", pl_name):
+			return
+		existing_price = frappe.db.get_value(
+			"Item Price",
+			{"item_code": item.name, "price_list": pl_name},
+			"name",
+		)
+		if existing_price:
+			frappe.db.set_value("Item Price", existing_price, "price_list_rate", rate_val)
+		else:
+			ip = frappe.new_doc("Item Price")
+			ip.item_code = item.name
+			ip.price_list = pl_name
+			ip.price_list_rate = rate_val
+			ip.selling = 1 if is_selling else 0
+			ip.buying = 0 if is_selling else 1
+			ip.currency = pos_profile_doc.currency or "BOB"
+			ip.insert(ignore_permissions=True)
+
+	_upsert_price(selling_price_list, selling_rate, is_selling=1)
+	if selling_price_list != "Standard Selling":
+		_upsert_price("Standard Selling", selling_rate, is_selling=1)
+	_upsert_price("Precio Mayoreo Ruffino", selling_rate, is_selling=1)
+	if cost_rate > 0:
+		_upsert_price("Precio Fábrica (Costo)", cost_rate, is_selling=0)
+
+	# Optional initial stock when creating a new item
+	opening_stock = flt(item_data.get("opening_stock"))
+	if is_new and opening_stock > 0 and target_warehouse:
+		se = frappe.new_doc("Stock Entry")
+		se.company = company
+		se.purpose = "Material Receipt"
+		se.stock_entry_type = _resolve_stock_entry_type("Material Receipt")
+		se.remarks = f"[POS Stock Inicial] Creación de producto {item.item_name} ({item.name})"
+		se.append(
+			"items",
+			{
+				"item_code": item.name,
+				"qty": opening_stock,
+				"uom": item.stock_uom,
+				"stock_uom": item.stock_uom,
+				"conversion_factor": 1,
+				"t_warehouse": target_warehouse,
+				"basic_rate": cost_rate if cost_rate > 0 else selling_rate,
+				"allow_zero_valuation_rate": 1 if (cost_rate <= 0 and selling_rate <= 0) else 0,
+			},
+		)
+		se.insert(ignore_permissions=True)
+		se.submit()
+
+	frappe.clear_document_cache("Item", item.name)
+	frappe.cache().delete_value(f"pos_item_groups:{pos_profile}")
+
+	item_wh_map, wh_name_map, stock_map, other_stock_map, _reserved_map = _resolve_item_warehouses_and_stock(
+		[item.name],
+		company=company,
+		default_warehouse=pos_profile_doc.warehouse,
+	)
+	eff_wh = item_wh_map.get(item.name) or target_warehouse
+	actual_qty = flt(stock_map.get(item.name, 0))
+
+	return {
+		"success": True,
+		"is_new": is_new,
+		"message": (
+			_("Producto '{0}' creado exitosamente.").format(item.item_name)
+			if is_new
+			else _("Producto '{0}' actualizado exitosamente.").format(item.item_name)
+		),
+		"item": {
+			"name": item.name,
+			"item_code": item.name,
+			"item_name": item.item_name,
+			"item_group": item.item_group,
+			"stock_uom": item.stock_uom,
+			"uom": item.stock_uom,
+			"price_uom": item.stock_uom,
+			"conversion_factor": 1,
+			"image": item.image,
+			"disabled": cint(item.disabled),
+			"is_stock_item": 1,
+			"is_sales_item": 1,
+			"has_variants": 0,
+			"rate": selling_rate,
+			"price_list_rate": selling_rate,
+			"price_list_rate_price_uom": selling_rate,
+			"standard_rate": selling_rate,
+			"actual_qty": actual_qty,
+			"stock_qty": actual_qty,
+			"other_qty": flt(other_stock_map.get(item.name, 0)),
+			"warehouse": eff_wh,
+			"warehouse_name": wh_name_map.get(eff_wh, eff_wh),
+			"custom_medida": getattr(item, "custom_medida", "")
+			or (
+				f"{int(ancho)}x{int(largo)}" + (f"x{int(alto)}cm" if alto > 0 else "cm")
+				if ancho > 0 and largo > 0
+				else ""
+			),
+			"custom_ancho_cm": ancho,
+			"custom_largo_cm": largo,
+			"custom_alto_cm": alto,
+			"custom_plazas": plazas,
+			"safety_stock": safety_stock,
+			"item_uoms": [],
+			"uom_prices": {item.stock_uom: selling_rate},
+		},
 	}

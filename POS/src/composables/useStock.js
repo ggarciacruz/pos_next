@@ -10,16 +10,30 @@
  * const status = getStockStatus(item.actual_qty)
  */
 
+import { usePOSSettingsStore } from "@/stores/posSettings";
+
 export function useStock() {
+	const settingsStore = usePOSSettingsStore();
+
 	/**
-	 * Get stock status information based on quantity
+	 * Get stock status information based on quantity, item safety_stock, or profile default
 	 *
 	 * @param {number|null|undefined} qty - The stock quantity
-	 * @param {number} lowStockThreshold - Threshold for low stock warning (default: 10)
+	 * @param {Object|number|null} itemOrThreshold - Item object (uses item.safety_stock if > 0) or custom threshold number
 	 * @returns {Object} Stock status with level, color, textColor, and label
 	 */
-	function getStockStatus(qty, lowStockThreshold = 10) {
+	function getStockStatus(qty, itemOrThreshold = null) {
 		const quantity = Math.floor(qty !== undefined && qty !== null ? qty : 0);
+
+		let lowStockThreshold = settingsStore.lowStockThreshold ?? 10;
+		if (itemOrThreshold && typeof itemOrThreshold === "object") {
+			const itemSafetyStock = Number(itemOrThreshold.safety_stock);
+			if (Number.isFinite(itemSafetyStock) && itemSafetyStock > 0) {
+				lowStockThreshold = itemSafetyStock;
+			}
+		} else if (typeof itemOrThreshold === "number" && itemOrThreshold > 0) {
+			lowStockThreshold = itemOrThreshold;
+		}
 
 		if (quantity < 0) {
 			return {

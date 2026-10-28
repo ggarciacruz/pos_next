@@ -95,6 +95,16 @@ def get_pos_settings(pos_profile):
 				)
 			)
 		)
+		pos_settings["user_can_manage_items"] = cint(
+			bool(
+				frappe.has_permission("Item", "create")
+				or frappe.has_permission("Item", "write")
+				or any(
+					r in frappe.get_roles()
+					for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
+				)
+			)
+		)
 		return pos_settings
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Get POS Settings Error")

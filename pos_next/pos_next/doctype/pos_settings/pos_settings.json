@@ -75,7 +75,9 @@
   "section_break_misc",
   "input_qty",
   "allow_negative_stock",
+  "low_stock_threshold",
   "allow_stock_entry",
+  "allow_item_management",
   "section_break_security",
   "enable_session_lock",
   "session_lock_timeout",
@@ -567,11 +569,25 @@
    "label": "Permitir Venta con Stock Agotado (Negativo)"
   },
   {
+   "default": "10",
+   "description": "Cantidad mínima general a partir de la cual la etiqueta del producto cambia a color amarillo en el POS (si el producto no tiene un stock mínimo propio)",
+   "fieldname": "low_stock_threshold",
+   "fieldtype": "Int",
+   "label": "Umbral de Alerta de Stock Bajo (Amarillo)"
+  },
+  {
    "default": "0",
    "description": "Permitir añadir stock al inventario directamente desde el POS (requiere además permiso de Stock en el rol del usuario)",
    "fieldname": "allow_stock_entry",
    "fieldtype": "Check",
    "label": "Permitir Añadir Inventario desde el POS"
+  },
+  {
+   "default": "0",
+   "description": "Permitir crear y editar productos (precio, costo, categoría, medidas y foto) directamente desde el POS",
+   "fieldname": "allow_item_management",
+   "fieldtype": "Check",
+   "label": "Permitir Crear y Editar Productos desde el POS"
   },
   {
    "collapsible": 1,

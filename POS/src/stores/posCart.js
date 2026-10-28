@@ -2,6 +2,7 @@ import { useInvoice } from "@/composables/useInvoice";
 import { usePOSOffersStore } from "@/stores/posOffers";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import { usePOSShiftStore } from "@/stores/posShift";
+import { useStockStore } from "@/stores/stock";
 import { parseError } from "@/utils/errorHandler";
 import { shouldValidateItemStock, checkStockAvailability } from "@/utils/stockValidator";
 import { offlineState } from "@/utils/offline/offlineState";
@@ -111,6 +112,15 @@ export const usePOSCartStore = defineStore("posCart", () => {
 
 	const offersStore = usePOSOffersStore();
 	const settingsStore = usePOSSettingsStore();
+	const stockStore = useStockStore();
+
+	function getTotalWarehouseStock(item) {
+		if (!item) return 0;
+		if (stockStore.server.has(item.item_code)) {
+			return Number(stockStore.server.get(item.item_code)?.qty ?? 0);
+		}
+		return Number(item.original_stock ?? item.actual_qty ?? item.stock_qty ?? 0);
+	}
 
 	// Additional cart state
 	const pendingItem = ref(null);
@@ -176,11 +186,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 
 	// Actions
 	function addItem(item, qty = 1, _autoAdd = false, currentProfile = null) {
-		if (
-			currentProfile &&
-			settingsStore.shouldEnforceStockValidation() &&
-			shouldValidateItemStock(item)
-		) {
+		if (currentProfile && shouldValidateItemStock(item)) {
 			// Account for quantity already in the cart for this item
 			const itemUom = item.uom || item.stock_uom;
 			const existing = invoiceItems.value.find(
@@ -189,9 +195,31 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			const totalQty = (existing ? existing.quantity : 0) + qty;
 			const warehouse = item.warehouse || currentProfile.warehouse;
 
-			const check = checkStockAvailability(item, totalQty, warehouse);
-			if (!check.available) {
-				throw new Error(check.error);
+			if (settingsStore.shouldEnforceStockValidation()) {
+				const check = checkStockAvailability(
+					{ ...item, original_stock: getTotalWarehouseStock(item) },
+					totalQty,
+					warehouse
+				);
+				if (!check.available) {
+					throw new Error(check.error);
+				}
+			} else {
+				const actualQty = getTotalWarehouseStock(item);
+				if (actualQty <= 0) {
+					showWarning(
+						__('"{0}" agregado sin stock en almacén (se venderá en negativo).', [
+							item.item_name || item.item_code,
+						])
+					);
+				} else if (totalQty > actualQty) {
+					showWarning(
+						__(
+							'"{0}" supera el stock disponible ({1}). Se venderá en negativo.',
+							[item.item_name || item.item_code, Math.floor(actualQty)]
+						)
+					);
+				}
 			}
 		}
 
@@ -213,15 +241,26 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		const newQty = Number.parseFloat(quantity) || 1;
 
 		// Only validate when quantity is increasing
-		if (
-			newQty > item.quantity &&
-			settingsStore.shouldEnforceStockValidation() &&
-			shouldValidateItemStock(item)
-		) {
-			const check = checkStockAvailability(item, newQty);
-			if (!check.available) {
-				showWarning(check.error);
-				return;
+		if (newQty > item.quantity && shouldValidateItemStock(item)) {
+			if (settingsStore.shouldEnforceStockValidation()) {
+				const check = checkStockAvailability({
+					...item,
+					original_stock: getTotalWarehouseStock(item),
+				}, newQty);
+				if (!check.available) {
+					showWarning(check.error);
+					return;
+				}
+			} else {
+				const actualQty = getTotalWarehouseStock(item);
+				if (newQty > actualQty) {
+					showWarning(
+						__(
+							'"{0}" supera el stock disponible ({1}). Se venderá en negativo.',
+							[item.item_name || item.item_code, Math.floor(actualQty)]
+						)
+					);
+				}
 			}
 		}
 
