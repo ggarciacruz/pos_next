@@ -800,7 +800,7 @@
 								</div>
 							</div>
 
-							<!-- Row 2: Single-Line Status Chips + Cost Toggle -->
+							<!-- Row 2: Single-Line Status Filter Chips + Cost Toggle -->
 							<div class="flex flex-wrap items-center justify-between gap-1 pt-1 border-t border-gray-200/80">
 								<div class="flex flex-wrap items-center gap-1">
 									<button
@@ -811,10 +811,6 @@
 									>
 										<span>Todos: {{ filteredInventoryItems.length }}</span>
 									</button>
-
-									<span class="px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold bg-gray-100 text-gray-800 border border-gray-300">
-										<span class="hidden sm:inline">Unidades: </span>{{ inventorySummary.totalUnits }} uds
-									</span>
 
 									<button
 										type="button"
@@ -864,10 +860,31 @@
 							<!-- MOBILE VIEW (< 640px): Compact 100%-Width Product Rows (No horizontal cut-off) -->
 							<div class="sm:hidden divide-y divide-gray-100">
 								<div class="px-2.5 py-1.5 bg-gray-100 flex items-center justify-between text-[10px] font-bold text-gray-600 uppercase tracking-wider">
-									<span>Producto / Almacén</span>
+									<button
+										type="button"
+										@click="toggleInvSort('item_name')"
+										class="flex items-center gap-1 hover:text-gray-900"
+									>
+										<span>Producto / Almacén</span>
+										<span class="text-[9px] text-gray-400">{{ getSortIndicator("item_name") }}</span>
+									</button>
 									<div class="flex items-center gap-3">
-										<span>Precio</span>
-										<span>Cant.</span>
+										<button
+											type="button"
+											@click="toggleInvSort('selling_rate')"
+											class="flex items-center gap-0.5 hover:text-gray-900"
+										>
+											<span>Precio</span>
+											<span class="text-[9px] text-gray-400">{{ getSortIndicator("selling_rate") }}</span>
+										</button>
+										<button
+											type="button"
+											@click="toggleInvSort('display_qty')"
+											class="flex items-center gap-0.5 hover:text-gray-900"
+										>
+											<span>Cant.</span>
+											<span class="text-[9px] text-gray-400">{{ getSortIndicator("display_qty") }}</span>
+										</button>
 										<span class="w-12 text-end">Acción</span>
 									</div>
 								</div>
@@ -884,7 +901,7 @@
 										</div>
 										<div class="text-[10px] text-gray-500 truncate mt-0.5">
 											<span class="font-mono text-gray-400">{{ row.item_code }}</span>
-											<template v-if="row.custom_medida"> · {{ row.custom_medida }}</template>
+											<template v-if="shouldShowExtraMedida(row)"> · {{ row.custom_medida }}</template>
 											<template v-if="row.display_warehouse_name"> · {{ cleanWarehouseName(row.display_warehouse_name) }}</template>
 										</div>
 										<div v-if="showCostPrice" class="text-[10px] font-semibold text-gray-500 mt-0.5">
@@ -892,7 +909,7 @@
 										</div>
 									</div>
 
-									<!-- Right: Price + Stock Pill + Actions -->
+									<!-- Right: Price + Soft Stock Pill + Actions -->
 									<div class="shrink-0 flex items-center gap-1.5" @click.stop>
 										<div class="text-xs font-bold text-gray-900 whitespace-nowrap text-end">
 											Bs. {{ Number(row.selling_rate || 0).toFixed(0) }}
@@ -901,13 +918,13 @@
 										<button
 											type="button"
 											@click="selectItem(row)"
-											class="inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-md text-[11px] font-extrabold text-white shadow-2xs"
+											class="inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-md text-[11px] font-extrabold border"
 											:class="
 												row.stock_level === 'out'
-													? 'bg-red-500'
+													? 'bg-red-50 text-red-700 border-red-200'
 													: row.stock_level === 'low'
-													? 'bg-amber-500'
-													: 'bg-green-500'
+													? 'bg-amber-50 text-amber-800 border-amber-300'
+													: 'bg-emerald-50 text-emerald-700 border-emerald-200'
 											"
 										>
 											{{ Math.floor(row.display_qty) }}
@@ -937,33 +954,62 @@
 								</div>
 							</div>
 
-							<!-- DESKTOP/TABLET VIEW (>= 640px): Full Table -->
+							<!-- DESKTOP/TABLET VIEW (>= 640px): Full Table with Sortable Headers & Fixed Right Column Widths -->
 							<div class="hidden sm:block overflow-x-auto">
-								<table class="min-w-full divide-y divide-gray-200 text-xs">
-									<thead class="bg-gray-100 sticky top-0 z-10">
+								<table class="min-w-full divide-y divide-gray-200 text-xs table-fixed">
+									<thead class="bg-gray-100 sticky top-0 z-10 select-none">
 										<tr>
-											<th class="px-3 py-1.5 text-start font-bold text-gray-700 uppercase tracking-wider">
-												Producto
+											<th
+												@click="toggleInvSort('item_name')"
+												class="px-3 py-1.5 text-start font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200/70 transition-colors"
+											>
+												<div class="inline-flex items-center gap-1">
+													<span>Producto</span>
+													<span class="text-[10px] text-gray-400">{{ getSortIndicator("item_name") }}</span>
+												</div>
 											</th>
-											<th class="px-2.5 py-1.5 text-start font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell">
-												Categoría
+											<th
+												@click="toggleInvSort('item_group')"
+												class="w-[170px] px-2.5 py-1.5 text-start font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-200/70 transition-colors"
+											>
+												<div class="inline-flex items-center gap-1">
+													<span>Categoría</span>
+													<span class="text-[10px] text-gray-400">{{ getSortIndicator("item_group") }}</span>
+												</div>
 											</th>
-											<th class="px-2.5 py-1.5 text-start font-bold text-gray-700 uppercase tracking-wider">
+											<th class="w-[165px] px-2.5 py-1.5 text-start font-bold text-gray-700 uppercase tracking-wider">
 												Almacén
 											</th>
 											<th
 												v-if="showCostPrice"
-												class="px-2.5 py-1.5 text-end font-bold text-gray-700 uppercase tracking-wider"
+												@click="toggleInvSort('cost_rate')"
+												class="w-[125px] px-2.5 py-1.5 text-end font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200/70 transition-colors"
 											>
-												Costo
+												<div class="inline-flex items-center justify-end gap-1">
+													<span>Costo</span>
+													<span class="text-[10px] text-gray-400">{{ getSortIndicator("cost_rate") }}</span>
+												</div>
 											</th>
-											<th class="px-2.5 py-1.5 text-end font-bold text-gray-700 uppercase tracking-wider">
-												Precio
+											<th
+												@click="toggleInvSort('selling_rate')"
+												class="w-[130px] px-2.5 py-1.5 text-end font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200/70 transition-colors"
+											>
+												<div class="inline-flex items-center justify-end gap-1">
+													<span>Precio</span>
+													<span class="text-[10px] text-gray-400">{{ getSortIndicator("selling_rate") }}</span>
+												</div>
 											</th>
-											<th class="px-2.5 py-1.5 text-center font-bold text-gray-700 uppercase tracking-wider">
-												Cantidad
+											<th
+												@click="toggleInvSort('display_qty')"
+												class="w-[100px] px-2.5 py-1.5 text-center font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200/70 transition-colors"
+												title="Clic para ordenar por Cantidad / Estado"
+											>
+												<div class="inline-flex items-center justify-center gap-1">
+													<span>Cantidad</span>
+													<span class="text-[10px] text-gray-400">{{ getSortIndicator("display_qty") }}</span>
+												</div>
 											</th>
-											<th class="px-2.5 py-1.5 text-end font-bold text-gray-700 uppercase tracking-wider">
+											<th class="w-[125px] px-2.5 py-1.5 text-end font-bold text-gray-700 uppercase tracking-wider">
 												Acción
 											</th>
 										</tr>
@@ -975,22 +1021,22 @@
 											class="hover:bg-gray-50 transition-colors cursor-pointer"
 											@click="selectItem(row)"
 										>
-											<td class="px-3 py-1.5">
-												<div class="font-bold text-gray-900 leading-tight">
+											<td class="px-3 py-1.5 truncate">
+												<div class="font-bold text-gray-900 leading-tight truncate">
 													{{ row.item_name }}
 												</div>
 												<div class="flex items-center gap-1 flex-wrap mt-0.5 text-[10px] text-gray-500">
 													<span class="font-mono text-gray-400">{{ row.item_code }}</span>
-													<span v-if="row.custom_medida" class="px-1 bg-gray-100 text-gray-600 rounded font-medium">
+													<span v-if="shouldShowExtraMedida(row)" class="px-1 bg-gray-100 text-gray-600 rounded font-medium">
 														{{ row.custom_medida }}
 													</span>
 												</div>
 											</td>
-											<td class="px-2.5 py-1.5 text-gray-600 font-medium hidden md:table-cell">
+											<td class="w-[170px] px-2.5 py-1.5 text-gray-600 font-medium hidden md:table-cell truncate">
 												{{ row.item_group }}
 											</td>
-											<td class="px-2.5 py-1.5 text-gray-700">
-												<div class="font-semibold text-gray-800 leading-tight">
+											<td class="w-[165px] px-2.5 py-1.5 text-gray-700 truncate">
+												<div class="font-semibold text-gray-800 leading-tight truncate">
 													{{ cleanWarehouseName(row.display_warehouse_name) }}
 												</div>
 												<div
@@ -1002,28 +1048,28 @@
 											</td>
 											<td
 												v-if="showCostPrice"
-												class="px-2.5 py-1.5 text-end font-semibold text-gray-600 whitespace-nowrap"
+												class="w-[125px] px-2.5 py-1.5 text-end font-semibold text-gray-600 whitespace-nowrap"
 											>
 												Bs. {{ Number(row.cost_rate || 0).toFixed(0) }}
 											</td>
-											<td class="px-2.5 py-1.5 text-end font-bold text-gray-900 whitespace-nowrap">
+											<td class="w-[130px] px-2.5 py-1.5 text-end font-bold text-gray-900 whitespace-nowrap">
 												Bs. {{ Number(row.selling_rate || 0).toFixed(0) }}
 											</td>
-											<td class="px-2.5 py-1.5 text-center whitespace-nowrap">
+											<td class="w-[100px] px-2.5 py-1.5 text-center whitespace-nowrap">
 												<span
-													class="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-0.5 rounded-md text-xs font-extrabold text-white shadow-2xs"
+													class="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-0.5 rounded-md text-xs font-extrabold border"
 													:class="
 														row.stock_level === 'out'
-															? 'bg-red-500'
+															? 'bg-red-50 text-red-700 border-red-200'
 															: row.stock_level === 'low'
-															? 'bg-amber-500'
-															: 'bg-green-500'
+															? 'bg-amber-50 text-amber-800 border-amber-300'
+															: 'bg-emerald-50 text-emerald-700 border-emerald-200'
 													"
 												>
 													{{ Math.floor(row.display_qty) }}
 												</span>
 											</td>
-											<td class="px-2.5 py-1.5 text-end whitespace-nowrap" @click.stop>
+											<td class="w-[125px] px-2.5 py-1.5 text-end whitespace-nowrap" @click.stop>
 												<div class="inline-flex items-center gap-1">
 													<button
 														type="button"
@@ -1966,28 +2012,74 @@
 						</template>
 					</div>
 
-					<!-- Modal Sticky Footer (Compact) -->
-					<div v-if="isReady" class="px-3 sm:px-6 py-1.5 sm:py-2 bg-gray-50 border-t border-gray-200 shrink-0">
-						<div class="flex items-center justify-between gap-2">
-							<!-- Inventory Table Valuation Totals when in general inventory view -->
-							<div
-								v-if="isSearchMode && activeTab === 'lookup' && !selectedItemCode"
-								class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] sm:text-xs text-start min-w-0"
-							>
-								<span v-if="showCostPrice" class="text-gray-700 font-semibold whitespace-nowrap">
-									<span class="sm:hidden">Costo:</span>
-									<span class="hidden sm:inline">Total Costo:</span>
-									<strong class="font-extrabold text-gray-900 ms-1">Bs. {{ formatPrice(inventorySummary.totalCostValue) || "0.00" }}</strong>
-								</span>
-								<span class="text-gray-700 font-semibold whitespace-nowrap">
-									<span class="sm:hidden">Total Venta:</span>
-									<span class="hidden sm:inline">Total Precio Venta:</span>
-									<strong class="font-extrabold text-gray-900 ms-1">Bs. {{ formatPrice(inventorySummary.totalSellingValue) || "0.00" }}</strong>
-								</span>
+					<!-- Modal Sticky Footer (Compact & Pixel-Aligned with Table Columns) -->
+					<div v-if="isReady" class="px-3 sm:ps-5 sm:pe-[34px] py-1.5 sm:py-2 bg-gray-50 border-t border-gray-200 shrink-0">
+						<!-- General Inventory Overview Mode: Exact Column Alignment on Desktop + Compact Mobile -->
+						<div v-if="isSearchMode && activeTab === 'lookup' && !selectedItemCode">
+							<!-- Desktop (>= 640px): Each footer box has the exact width of its column above -->
+							<div class="hidden sm:flex items-center w-full text-xs">
+								<div class="flex-1 text-end pe-3 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+									Totales ({{ filteredInventoryItems.length }} prod.):
+								</div>
+								<div
+									v-if="showCostPrice"
+									class="w-[125px] px-2.5 text-end font-extrabold text-gray-900 whitespace-nowrap"
+									title="Total Costo Fábrica"
+								>
+									Bs. {{ formatPrice(inventorySummary.totalCostValue) || "0.00" }}
+								</div>
+								<div
+									class="w-[130px] px-2.5 text-end font-extrabold text-gray-900 whitespace-nowrap"
+									title="Total Precio Venta"
+								>
+									Bs. {{ formatPrice(inventorySummary.totalSellingValue) || "0.00" }}
+								</div>
+								<div
+									class="w-[100px] px-2.5 text-center whitespace-nowrap"
+									title="Total Unidades en Stock"
+								>
+									<span class="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-0.5 rounded-md bg-white border border-gray-300 text-xs font-extrabold text-gray-900">
+										{{ inventorySummary.totalUnits }}
+									</span>
+								</div>
+								<div class="w-[125px] px-2.5 text-end">
+									<button
+										type="button"
+										@click="closeDialog"
+										class="px-4 py-1.5 bg-gray-700 text-white text-xs font-semibold rounded-lg hover:bg-gray-800 transition-colors"
+									>
+										{{ __("Cerrar") }}
+									</button>
+								</div>
 							</div>
 
+							<!-- Mobile (< 640px): Compact aligned bar -->
+							<div class="flex sm:hidden items-center justify-between gap-2 text-[11px]">
+								<div class="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+									<span v-if="showCostPrice" class="text-gray-600 font-semibold whitespace-nowrap">
+										Costo: <strong class="font-extrabold text-gray-900">Bs. {{ formatPrice(inventorySummary.totalCostValue) || "0.00" }}</strong>
+									</span>
+									<span class="text-gray-600 font-semibold whitespace-nowrap">
+										Venta: <strong class="font-extrabold text-gray-900">Bs. {{ formatPrice(inventorySummary.totalSellingValue) || "0.00" }}</strong>
+									</span>
+									<span class="px-1.5 py-0.5 rounded bg-white border border-gray-300 font-extrabold text-gray-900 whitespace-nowrap">
+										{{ inventorySummary.totalUnits }} uds
+									</span>
+								</div>
+								<button
+									type="button"
+									@click="closeDialog"
+									class="shrink-0 px-3 py-1 bg-gray-700 text-white text-xs font-semibold rounded-lg hover:bg-gray-800 transition-colors"
+								>
+									{{ __("Cerrar") }}
+								</button>
+							</div>
+						</div>
+
+						<!-- Other Tabs / Single Item Mode -->
+						<div v-else class="flex items-center justify-between gap-2">
 							<div
-								v-else-if="(!isSearchMode || activeTab === 'lookup') && (selectedItemCode || itemCode) && warehouses.length > 0"
+								v-if="(!isSearchMode || activeTab === 'lookup') && (selectedItemCode || itemCode) && warehouses.length > 0"
 								class="text-xs sm:text-sm text-gray-600 text-start"
 							>
 								<div>
@@ -2731,6 +2823,47 @@ const invGroupFilter = ref("");
 const invStatusFilter = ref("");
 const showCostPrice = ref(false); // Unchecked by default for privacy
 
+// Default sort: 'status_grouped' (Optimal Stock on top -> Low Stock in middle -> Out of Stock at bottom)
+const invSortKey = ref("status_grouped");
+const invSortDir = ref("desc");
+
+function toggleInvSort(key) {
+	if (key === "display_qty") {
+		if (invSortKey.value === "status_grouped") {
+			invSortKey.value = "display_qty";
+			invSortDir.value = "desc";
+		} else if (invSortKey.value === "display_qty" && invSortDir.value === "desc") {
+			invSortDir.value = "asc";
+		} else {
+			invSortKey.value = "status_grouped";
+			invSortDir.value = "desc";
+		}
+		return;
+	}
+	if (invSortKey.value === key) {
+		invSortDir.value = invSortDir.value === "asc" ? "desc" : "asc";
+	} else {
+		invSortKey.value = key;
+		invSortDir.value = "asc";
+	}
+}
+
+function getSortIndicator(key) {
+	if (key === "display_qty" && invSortKey.value === "status_grouped") {
+		return "↕";
+	}
+	if (invSortKey.value !== key) return "↕";
+	return invSortDir.value === "asc" ? "↑" : "↓";
+}
+
+function shouldShowExtraMedida(row) {
+	const medida = String(row?.custom_medida || "").trim();
+	if (!medida) return false;
+	const itemName = String(row?.item_name || "").toLowerCase();
+	const coreMedida = medida.replace(/\s*cm$/i, "").toLowerCase();
+	return !itemName.includes(coreMedida);
+}
+
 function cleanWarehouseName(name) {
 	return (name || "").replace(/\s*-\s*[A-Z0-9]+$/i, "");
 }
@@ -2797,7 +2930,7 @@ const filteredInventoryItems = computed(() => {
 	const grpFilter = invGroupFilter.value;
 	const statusFilter = invStatusFilter.value;
 
-	return enrichedInventoryRows.value.filter((row) => {
+	const filtered = enrichedInventoryRows.value.filter((row) => {
 		if (grpFilter && row.item_group !== grpFilter) return false;
 		if (statusFilter && row.stock_level !== statusFilter) return false;
 		if (q) {
@@ -2809,6 +2942,28 @@ const filteredInventoryItems = computed(() => {
 			if (!match) return false;
 		}
 		return true;
+	});
+
+	const statusRank = { safe: 1, low: 2, out: 3 };
+	const sortKey = invSortKey.value;
+	const dirMultiplier = invSortDir.value === "asc" ? 1 : -1;
+
+	return [...filtered].sort((a, b) => {
+		if (sortKey === "status_grouped") {
+			const rankDiff = (statusRank[a.stock_level] || 2) - (statusRank[b.stock_level] || 2);
+			if (rankDiff !== 0) return rankDiff;
+			const grpDiff = (a.item_group || "").localeCompare(b.item_group || "", "es");
+			if (grpDiff !== 0) return grpDiff;
+			return (a.item_name || "").localeCompare(b.item_name || "", "es");
+		}
+		if (sortKey === "display_qty" || sortKey === "selling_rate" || sortKey === "cost_rate") {
+			const diff = Number(a[sortKey] || 0) - Number(b[sortKey] || 0);
+			if (diff !== 0) return diff * dirMultiplier;
+			return (a.item_name || "").localeCompare(b.item_name || "", "es");
+		}
+		const strDiff = String(a[sortKey] || "").localeCompare(String(b[sortKey] || ""), "es");
+		if (strDiff !== 0) return strDiff * dirMultiplier;
+		return (a.item_name || "").localeCompare(b.item_name || "", "es");
 	});
 });
 
@@ -2875,7 +3030,7 @@ function exportInventoryPDF() {
 	const statusMap = {
 		"": "Todos los Estados",
 		safe: "En Stock Óptimo",
-		low: "Stock Bajo (Amarillo)",
+		low: "Stock Bajo",
 		out: "Sin Stock / Agotados",
 	};
 	const statusLabel = statusMap[invStatusFilter.value] || "Todos";
@@ -2900,21 +3055,23 @@ function exportInventoryPDF() {
 			return `
 				<tr>
 					<td style="text-align:center;color:#64748b;">${idx + 1}</td>
-					<td style="font-family:monospace;font-size:10px;">${escapeHtml(r.item_code)}</td>
 					<td>
-						<strong>${escapeHtml(r.item_name)}</strong>
-						${r.custom_medida ? `<span style="color:#475569;font-size:10px;"> (${escapeHtml(r.custom_medida)})</span>` : ""}
+						<strong>${escapeHtml(r.item_name)}</strong>${
+							shouldShowExtraMedida(r)
+								? ` <span style="color:#475569;font-size:10px;">(${escapeHtml(r.custom_medida)})</span>`
+								: ""
+						}
 					</td>
 					<td>${escapeHtml(r.item_group)}</td>
 					<td>${escapeHtml(cleanWarehouseName(r.display_warehouse_name))}</td>
 					${
 						includeCost
-							? `<td style="text-align:right;">Bs. ${Number(r.cost_rate || 0).toFixed(2)}</td>`
+							? `<td style="text-align:right;white-space:nowrap;">Bs. ${Number(r.cost_rate || 0).toFixed(2)}</td>`
 							: ""
 					}
-					<td style="text-align:right;font-weight:600;">Bs. ${Number(r.selling_rate || 0).toFixed(2)}</td>
-					<td style="text-align:center;font-weight:800;font-size:12px;">${qty}</td>
-					<td style="text-align:center;font-size:10px;">${statusBadge}</td>
+					<td style="text-align:right;font-weight:600;white-space:nowrap;">Bs. ${Number(r.selling_rate || 0).toFixed(2)}</td>
+					<td style="text-align:center;font-weight:800;font-size:11.5px;">${qty}</td>
+					<td style="text-align:center;font-size:9.5px;">${statusBadge}</td>
 					<td style="text-align:center;color:#94a3b8;">________</td>
 				</tr>
 			`;
@@ -2927,20 +3084,20 @@ function exportInventoryPDF() {
 	<meta charset="UTF-8" />
 	<title>Reporte de Inventario Actual - ${escapeHtml(companyTitle)}</title>
 	<style>
-		@page { size: letter portrait; margin: 12mm; }
-		body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; font-size: 11px; margin: 0; padding: 0; }
-		.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 12px; }
-		.title { font-size: 18px; font-weight: 800; margin: 0; color: #0f172a; }
-		.subtitle { font-size: 12px; font-weight: 600; color: #334155; margin: 3px 0 0 0; }
-		.meta { text-align: right; font-size: 10px; color: #475569; line-height: 1.4; }
-		.filters-bar { display: flex; flex-wrap: wrap; gap: 16px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 10.5px; }
-		table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
-		th { background: #1e293b; color: #ffffff; font-size: 10px; text-transform: uppercase; padding: 6px 6px; text-align: left; border: 1px solid #1e293b; }
-		td { padding: 5px 6px; border: 1px solid #cbd5e1; vertical-align: middle; }
+		@page { size: letter portrait; margin: 9mm 10mm; }
+		body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; font-size: 10.5px; margin: 0; padding: 0; }
+		.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 7px; margin-bottom: 8px; }
+		.title { font-size: 16px; font-weight: 800; margin: 0; color: #0f172a; }
+		.subtitle { font-size: 11px; font-weight: 600; color: #334155; margin: 2px 0 0 0; }
+		.meta { text-align: right; font-size: 9.5px; color: #475569; line-height: 1.35; }
+		.filters-bar { display: flex; flex-wrap: wrap; gap: 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 5px; padding: 6px 10px; margin-bottom: 8px; font-size: 10px; }
+		table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+		th { background: #1e293b; color: #ffffff; font-size: 9.5px; text-transform: uppercase; padding: 4.5px 6px; text-align: left; border: 1px solid #1e293b; }
+		td { padding: 3.5px 6px; border: 1px solid #cbd5e1; vertical-align: middle; line-height: 1.25; }
 		tr:nth-child(even) td { background: #f8fafc; }
-		.summary-box { display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border: 1px solid #94a3b8; border-radius: 6px; padding: 10px 14px; font-size: 11.5px; }
-		.signatures { display: flex; justify-content: space-around; margin-top: 38px; text-align: center; font-size: 11px; color: #334155; }
-		.sig-line { width: 200px; border-top: 1px solid #334155; padding-top: 5px; }
+		.summary-box { display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border: 1px solid #94a3b8; border-radius: 5px; padding: 7px 12px; font-size: 10.5px; page-break-inside: avoid; }
+		.signatures { display: flex; justify-content: space-around; margin-top: 28px; text-align: center; font-size: 10.5px; color: #334155; page-break-inside: avoid; }
+		.sig-line { width: 190px; border-top: 1px solid #334155; padding-top: 4px; }
 	</style>
 </head>
 <body>
@@ -2966,37 +3123,39 @@ function exportInventoryPDF() {
 	<table>
 		<thead>
 			<tr>
-				<th style="width:26px;text-align:center;">#</th>
-				<th style="width:85px;">Código</th>
+				<th style="width:24px;text-align:center;">#</th>
 				<th>Producto / Medida</th>
-				<th style="width:110px;">Categoría</th>
-				<th style="width:110px;">Almacén</th>
-				${includeCost ? '<th style="width:78px;text-align:right;">Costo Fáb.</th>' : ""}
-				<th style="width:78px;text-align:right;">Precio Venta</th>
-				<th style="width:58px;text-align:center;">Cantidad</th>
-				<th style="width:54px;text-align:center;">Estado</th>
-				<th style="width:68px;text-align:center;">Físico</th>
+				<th style="width:118px;">Categoría</th>
+				<th style="width:115px;">Almacén</th>
+				${includeCost ? '<th style="width:74px;text-align:right;">Costo Fáb.</th>' : ""}
+				<th style="width:76px;text-align:right;">Precio Venta</th>
+				<th style="width:52px;text-align:center;">Cant.</th>
+				<th style="width:50px;text-align:center;">Estado</th>
+				<th style="width:62px;text-align:center;">Físico</th>
 			</tr>
 		</thead>
 		<tbody>
 			${tableRowsHtml}
 		</tbody>
+		<tfoot>
+			<tr style="background:#e2e8f0;font-weight:800;border-top:2px solid #1e293b;">
+				<td colspan="3" style="text-align:left;text-transform:uppercase;font-size:10px;color:#0f172a;">
+					TOTAL INVENTARIO (${rows.length} prod.)
+				</td>
+				<td style="text-align:right;text-transform:uppercase;font-size:9.5px;color:#334155;">
+					TOTALES:
+				</td>
+				${
+					includeCost
+						? `<td style="text-align:right;white-space:nowrap;">Bs. ${inventorySummary.value.totalCostValue.toFixed(2)}</td>`
+						: ""
+				}
+				<td style="text-align:right;white-space:nowrap;">Bs. ${inventorySummary.value.totalSellingValue.toFixed(2)}</td>
+				<td style="text-align:center;white-space:nowrap;">${inventorySummary.value.totalUnits} uds</td>
+				<td colspan="2"></td>
+			</tr>
+		</tfoot>
 	</table>
-
-	<div class="summary-box">
-		<div>
-			<strong>Total Productos:</strong> ${rows.length} &nbsp;|&nbsp;
-			<strong>Total Unidades en Stock:</strong> ${inventorySummary.value.totalUnits} uds
-		</div>
-		<div>
-			${
-				includeCost
-					? `<strong>Valor Total (Costo Fábrica):</strong> Bs. ${inventorySummary.value.totalCostValue.toFixed(2)} &nbsp;|&nbsp; `
-					: ""
-			}
-			<strong>Valor Total (Precio Venta):</strong> Bs. ${inventorySummary.value.totalSellingValue.toFixed(2)}
-		</div>
-	</div>
 
 	<div class="signatures">
 		<div class="sig-line">Responsable de Almacén / Fábrica</div>
