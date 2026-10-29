@@ -13,12 +13,12 @@
 				>
 					<!-- Header -->
 					<div
-						class="flex items-center justify-between px-6 py-5 border-b bg-gradient-to-r from-indigo-50 to-purple-50"
+						class="flex items-center justify-between px-5 py-3 border-b bg-gradient-to-r from-indigo-50 to-purple-50"
 					>
-						<div class="flex items-center gap-3">
-							<div class="p-2 bg-indigo-100 rounded-lg">
+						<div class="flex items-center gap-2.5">
+							<div class="p-1.5 bg-indigo-100 rounded-lg">
 								<svg
-									class="w-6 h-6 text-indigo-600"
+									class="w-5 h-5 text-indigo-600"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -32,10 +32,10 @@
 								</svg>
 							</div>
 							<div>
-								<h2 class="text-xl font-bold text-gray-900">
+								<h2 class="text-base font-bold text-gray-900 leading-tight">
 									{{ __("Invoice Management") }}
 								</h2>
-								<p class="text-sm text-gray-600 flex items-center mt-0.5">
+								<p class="text-xs text-gray-600 flex items-center">
 									{{ __("Manage all your invoices in one place") }}
 								</p>
 							</div>
@@ -66,7 +66,7 @@
 							</Button>
 							<button
 								@click="handleClose"
-								class="p-2 hover:bg-white/50 rounded-lg transition-colors"
+								class="p-1.5 hover:bg-white/50 rounded-lg transition-colors"
 							>
 								<svg
 									class="w-5 h-5 text-gray-600"
@@ -87,19 +87,19 @@
 
 					<!-- Tabs Navigation -->
 					<div class="border-b border-gray-200 bg-gray-50">
-						<nav class="flex gap-2 px-6" :aria-label="__('Tabs')">
+						<nav class="flex gap-1 px-4 overflow-x-auto" :aria-label="__('Tabs')">
 							<button
 								v-for="tab in tabs"
 								:key="tab.id"
 								@click="activeTab = tab.id"
 								:class="[
-									'px-4 py-3 text-sm font-semibold transition-all border-b-2 relative',
+									'px-3.5 py-2.5 text-xs font-semibold transition-all border-b-2 relative whitespace-nowrap',
 									activeTab === tab.id
 										? getTabActiveClass(tab.id)
 										: 'text-gray-600 border-transparent hover:text-gray-800 hover:border-gray-300',
 								]"
 							>
-								<div class="flex items-center gap-2">
+								<div class="flex items-center gap-1.5">
 									<svg
 										class="w-4 h-4"
 										fill="none"
@@ -117,7 +117,7 @@
 									<span
 										v-if="tab.badge && tab.badge() > 0"
 										:class="[
-											'ms-1 px-2 py-0.5 text-xs font-bold rounded-full',
+											'ms-0.5 px-1.5 py-0.5 text-[11px] font-bold rounded-full leading-none',
 											activeTab === tab.id
 												? getBadgeActiveClass(tab.id)
 												: getBadgeInactiveClass(tab.id),
@@ -135,121 +135,105 @@
 						<!-- Loading State -->
 						<div
 							v-if="loading && activeTab === 'partial'"
-							class="flex flex-col items-center justify-center py-16"
+							class="flex flex-col items-center justify-center py-12"
 						>
 							<div
-								class="animate-spin rounded-full h-12 w-12 border-b-3 border-indigo-500 mb-4"
+								class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500 mb-3"
 							></div>
-							<p class="text-sm font-medium text-gray-600">
+							<p class="text-xs font-medium text-gray-600">
 								{{ __("Loading {0}...", [currentTabLabel]) }}
 							</p>
 						</div>
 
 						<!-- Tab Content -->
-						<div class="p-6">
+						<div class="p-4">
 							<!-- Unpaid Tab -->
-							<div v-if="activeTab === 'partial'" class="flex flex-col gap-4">
-								<!-- Filter Buttons -->
-								<div class="flex items-center gap-2 mb-4 flex-wrap gap-2">
-									<button
-										@click="unpaidFilter = 'all'"
-										:class="[
-											'px-4 py-2 rounded-lg font-medium text-sm transition-all',
-											unpaidFilter === 'all'
-												? 'bg-orange-500 text-white shadow-md'
-												: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-										]"
-									>
-										{{ __("All ({0})", [unpaidInvoices.length]) }}
-									</button>
-									<button
-										@click="unpaidFilter = 'partial'"
-										:class="[
-											'px-4 py-2 rounded-lg font-medium text-sm transition-all',
-											unpaidFilter === 'partial'
-												? 'bg-orange-500 text-white shadow-md'
-												: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-										]"
-									>
-										{{
-											__("Partially Paid ({0})", [
-												unpaidInvoices.filter(
-													(inv) => inv.status === "Partly Paid"
-												).length,
-											])
-										}}
-									</button>
-									<button
-										@click="unpaidFilter = 'unpaid'"
-										:class="[
-											'px-4 py-2 rounded-lg font-medium text-sm transition-all',
-											unpaidFilter === 'unpaid'
-												? 'bg-orange-500 text-white shadow-md'
-												: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-										]"
-									>
-										{{
-											__("Unpaid ({0})", [
-												unpaidInvoices.filter(
-													(inv) => inv.status === "Unpaid"
-												).length,
-											])
-										}}
-									</button>
-									<button
-										@click="unpaidFilter = 'overdue'"
-										:class="[
-											'px-4 py-2 rounded-lg font-medium text-sm transition-all',
-											unpaidFilter === 'overdue'
-												? 'bg-red-500 text-white shadow-md'
-												: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-										]"
-									>
-										{{
-											__("Overdue ({0})", [
-												unpaidInvoices.filter(
-													(inv) => inv.status === "Overdue"
-												).length,
-											])
-										}}
-									</button>
-								</div>
+							<div v-if="activeTab === 'partial'" class="flex flex-col gap-2.5">
+								<!-- Filter Buttons + Summary inline bar -->
+								<div class="flex flex-wrap items-center justify-between gap-2">
+									<div class="flex items-center gap-1.5 flex-wrap">
+										<button
+											@click="unpaidFilter = 'all'"
+											:class="[
+												'px-3 py-1.5 rounded-lg font-semibold text-xs transition-all',
+												unpaidFilter === 'all'
+													? 'bg-orange-500 text-white shadow-xs'
+													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
+											]"
+										>
+											{{ __("All ({0})", [unpaidInvoices.length]) }}
+										</button>
+										<button
+											@click="unpaidFilter = 'partial'"
+											:class="[
+												'px-3 py-1.5 rounded-lg font-semibold text-xs transition-all',
+												unpaidFilter === 'partial'
+													? 'bg-orange-500 text-white shadow-xs'
+													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
+											]"
+										>
+											{{
+												__("Partially Paid ({0})", [
+													unpaidInvoices.filter(
+														(inv) => inv.status === "Partly Paid"
+													).length,
+												])
+											}}
+										</button>
+										<button
+											@click="unpaidFilter = 'unpaid'"
+											:class="[
+												'px-3 py-1.5 rounded-lg font-semibold text-xs transition-all',
+												unpaidFilter === 'unpaid'
+													? 'bg-orange-500 text-white shadow-xs'
+													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
+											]"
+										>
+											{{
+												__("Unpaid ({0})", [
+													unpaidInvoices.filter(
+														(inv) => inv.status === "Unpaid"
+													).length,
+												])
+											}}
+										</button>
+										<button
+											@click="unpaidFilter = 'overdue'"
+											:class="[
+												'px-3 py-1.5 rounded-lg font-semibold text-xs transition-all',
+												unpaidFilter === 'overdue'
+													? 'bg-red-500 text-white shadow-xs'
+													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
+											]"
+										>
+											{{
+												__("Overdue ({0})", [
+													unpaidInvoices.filter(
+														(inv) => inv.status === "Overdue"
+													).length,
+												])
+											}}
+										</button>
+									</div>
 
-								<!-- Summary -->
-								<div
-									v-if="filteredUnpaidSummary.count > 0"
-									class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-4"
-								>
-									<div class="flex items-center justify-between">
-										<div>
-											<div class="text-sm text-orange-600 font-medium">
-												{{ __("Outstanding Payments") }}
-											</div>
-											<div class="text-2xl font-bold text-gray-900 mt-1">
-												{{
-													formatCurrency(
-														filteredUnpaidSummary.total_outstanding
-													)
-												}}
-											</div>
+									<!-- Compact Summary Pill -->
+									<div
+										v-if="filteredUnpaidSummary.count > 0"
+										class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg px-3.5 py-1.5 flex items-center gap-4 text-xs"
+									>
+										<div class="flex items-center gap-1.5">
+											<span class="text-orange-700 font-semibold">{{ __("Outstanding Payments") }}:</span>
+											<span class="text-sm font-bold text-gray-900 tabular-nums">
+												{{ formatCurrency(filteredUnpaidSummary.total_outstanding) }}
+											</span>
 										</div>
-										<div class="text-end">
-											<div class="text-xs text-gray-600">
-												{{
-													__("{0} invoices", [
-														filteredUnpaidSummary.count,
-													])
-												}}
-											</div>
-											<div class="text-sm text-gray-800 font-semibold mt-1">
-												{{
-													__("{0} paid", [
-														formatCurrency(
-															filteredUnpaidSummary.total_paid
-														),
-													])
-												}}
-											</div>
+										<div class="h-3.5 w-px bg-orange-200"></div>
+										<div class="flex items-center gap-2 text-gray-600">
+											<span>{{ __("{0} invoices", [filteredUnpaidSummary.count]) }}</span>
+											<span>·</span>
+											<span class="font-semibold text-green-700 tabular-nums">
+												{{ __("{0} paid", [formatCurrency(filteredUnpaidSummary.total_paid)]) }}
+											</span>
 										</div>
 									</div>
 								</div>
@@ -313,258 +297,193 @@
 								</div>
 
 								<!-- Invoices List -->
-								<div v-else class="flex flex-col gap-4">
+								<div v-else class="flex flex-col gap-2">
 									<div
 										v-for="invoice in filteredUnpaidInvoices"
 										:key="invoice.name"
-										class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+										class="bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden hover:border-gray-300 transition-all"
 									>
-										<!-- Invoice Header -->
-										<div class="p-4 border-b bg-gray-50">
-											<div class="flex items-start justify-between">
-												<div>
-													<div class="flex items-center gap-2">
-														<h3
-															class="text-lg font-bold text-gray-900"
-														>
-															{{ invoice.name }}
-														</h3>
-														<span
-															:class="[
-																'px-2 py-0.5 text-xs font-semibold rounded-full',
-																getInvoiceStatusColor(invoice),
-															]"
-														>
-															{{ __(invoice.status) }}
-														</span>
-													</div>
-													<div
-														class="flex items-center gap-4 mt-1 text-sm text-gray-600"
-													>
-														<div class="flex items-center">
-															<svg
-																class="w-4 h-4 me-1"
-																fill="none"
-																stroke="currentColor"
-																viewBox="0 0 24 24"
-															>
-																<path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-																/>
-															</svg>
-															{{
-																invoice.customer_name ||
-																invoice.customer
-															}}
-														</div>
-														<div class="flex items-center">
-															<svg
-																class="w-4 h-4 me-1"
-																fill="none"
-																stroke="currentColor"
-																viewBox="0 0 24 24"
-															>
-																<path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-																/>
-															</svg>
-															{{ formatDate(invoice.posting_date) }}
-															{{ formatTime(invoice.posting_time) }}
-														</div>
-													</div>
-												</div>
+										<!-- Compact Single-Row Invoice Card -->
+										<div class="px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+											<!-- Left: Document + Status + Customer + Date -->
+											<div class="min-w-[210px] flex-1">
 												<div class="flex items-center gap-2">
-													<button
-														type="button"
-														@click="$emit('print-invoice', invoice)"
-														class="px-3 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
-														:title="__('Print')"
+													<h3 class="text-sm font-bold text-gray-900 tabular-nums">
+														{{ invoice.name }}
+													</h3>
+													<span
+														:class="[
+															'px-2 py-0.5 text-[11px] font-semibold rounded-full',
+															getInvoiceStatusColor(invoice),
+														]"
 													>
-														<svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+														{{ __(invoice.status) }}
+													</span>
+												</div>
+												<div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-600">
+													<div class="flex items-center font-medium text-gray-800">
+														<svg
+															class="w-3.5 h-3.5 me-1 text-gray-400"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+															/>
 														</svg>
-														<span class="hidden sm:inline">{{ __("Print") }}</span>
-													</button>
-													<button
-														v-if="posSettingsStore.enableWhatsappSend"
-														type="button"
-														@click="$emit('whatsapp-invoice', invoice)"
-														class="px-3 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-1"
-														style="background-color: #16a34a; color: #ffffff;"
-														:title="__('Enviar por WhatsApp')"
-													>
-														<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
-															<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+														{{ invoice.customer_name || invoice.customer }}
+													</div>
+													<div class="flex items-center text-gray-500 tabular-nums">
+														<svg
+															class="w-3.5 h-3.5 me-1 text-gray-400"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+															/>
 														</svg>
-														<span class="hidden sm:inline">WhatsApp</span>
-													</button>
-													<button
-														v-if="canCancelInvoice(invoice)"
-														type="button"
-														@click="openCancelModal(invoice)"
-														class="px-3 py-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-														:title="__('Anular Venta')"
-													>
-														<svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-														</svg>
-														<span class="hidden sm:inline">{{ __("Anular") }}</span>
-													</button>
-													<button
-														@click="selectInvoiceForPayment(invoice)"
-														:disabled="
-															loadingInvoiceDetails || isOffline()
-														"
-														:title="
-															isOffline()
-																? __(
-																		'Payments cannot be added while offline'
-																  )
-																: ''
-														"
-														class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-													>
-														<LoadingIndicator
-															v-if="loadingInvoiceDetails"
-															class="w-4 h-4"
-														/>
-														{{ __("Add Payment") }}
-													</button>
+														{{ formatDate(invoice.posting_date) }}
+														{{ formatTime(invoice.posting_time) }}
+													</div>
 												</div>
 											</div>
-										</div>
 
-										<!-- Payment Summary -->
-										<div class="p-4">
-											<div class="grid grid-cols-3 gap-4 mb-4">
-												<div
-													class="text-center p-3 bg-blue-50 rounded-lg border border-blue-100"
-												>
-													<div class="text-xs text-gray-600 mb-1">
+											<!-- Center: Inline Financial Summary -->
+											<div class="flex items-center gap-2 sm:gap-3 text-xs tabular-nums">
+												<div class="px-2.5 py-1 bg-slate-50 rounded-lg border border-slate-200/80 text-right">
+													<div class="text-[10px] text-gray-500 leading-tight">
 														{{ __("Total Amount") }}
 													</div>
-													<div class="text-lg font-bold text-gray-900">
+													<div class="text-xs sm:text-sm font-bold text-gray-900">
 														{{ formatCurrency(invoice.grand_total) }}
 													</div>
 												</div>
-												<div
-													class="text-center p-3 bg-green-50 rounded-lg border border-green-100"
-												>
-													<div class="text-xs text-gray-600 mb-1">
+												<div class="px-2.5 py-1 bg-green-50/70 rounded-lg border border-green-100 text-right">
+													<div class="text-[10px] text-gray-500 leading-tight">
 														{{ __("Paid") }}
 													</div>
-													<div class="text-lg font-bold text-green-600">
+													<div class="text-xs sm:text-sm font-bold text-green-600">
 														{{ formatCurrency(invoice.paid_amount) }}
 													</div>
 												</div>
-												<div
-													class="text-center p-3 bg-orange-50 rounded-lg border border-orange-100"
-												>
-													<div class="text-xs text-gray-600 mb-1">
+												<div class="px-2.5 py-1 bg-orange-50/80 rounded-lg border border-orange-200/80 text-right">
+													<div class="text-[10px] text-orange-700 font-medium leading-tight">
 														{{ __("Saldo Pendiente") }}
 													</div>
-													<div class="text-lg font-bold text-orange-600">
-														{{
-															formatCurrency(
-																invoice.outstanding_amount
-															)
-														}}
+													<div class="text-xs sm:text-sm font-bold text-orange-600">
+														{{ formatCurrency(invoice.outstanding_amount) }}
 													</div>
 												</div>
 											</div>
 
-											<!-- Payment Progress Bar -->
+											<!-- Right: Compact Action Buttons -->
+											<div class="flex items-center gap-1.5">
+												<button
+													type="button"
+													@click="$emit('print-invoice', invoice)"
+													class="px-2.5 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
+													:title="__('Print')"
+												>
+													<svg class="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+													</svg>
+													<span class="hidden sm:inline">{{ __("Print") }}</span>
+												</button>
+												<button
+													v-if="posSettingsStore.enableWhatsappSend"
+													type="button"
+													@click="$emit('whatsapp-invoice', invoice)"
+													class="px-2.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-1"
+													style="background-color: #16a34a; color: #ffffff;"
+													:title="__('Enviar por WhatsApp')"
+												>
+													<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+														<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+													</svg>
+													<span class="hidden sm:inline">WhatsApp</span>
+												</button>
+												<button
+													v-if="canCancelInvoice(invoice)"
+													type="button"
+													@click="openCancelModal(invoice)"
+													class="px-2.5 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+													:title="__('Anular Venta')"
+												>
+													<svg class="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+													</svg>
+													<span class="hidden sm:inline">{{ __("Anular") }}</span>
+												</button>
+												<button
+													@click="selectInvoiceForPayment(invoice)"
+													:disabled="
+														loadingInvoiceDetails || isOffline()
+													"
+													:title="
+														isOffline()
+															? __(
+																	'Payments cannot be added while offline'
+															  )
+															: ''
+													"
+													class="px-3 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+												>
+													<LoadingIndicator
+														v-if="loadingInvoiceDetails"
+														class="w-3.5 h-3.5"
+													/>
+													{{ __("Add Payment") }}
+												</button>
+											</div>
+										</div>
+
+										<!-- Optional Partial Payment Progress & History (only when there are payments) -->
+										<div
+											v-if="(invoice.paid_amount || 0) > 0 || (invoice.payments && invoice.payments.length > 0)"
+											class="px-3.5 py-2 bg-gray-50/70 border-t border-gray-100"
+										>
 											<div
-												class="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-3"
+												v-if="(invoice.paid_amount || 0) > 0 && invoice.grand_total > 0"
+												class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden mb-1.5"
 											>
 												<div
 													class="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-300"
 													:style="{
-														width: `${
-															(invoice.paid_amount /
-																invoice.grand_total) *
-															100
-														}%`,
+														width: `${Math.min(100, (invoice.paid_amount / invoice.grand_total) * 100)}%`,
 													}"
 												></div>
 											</div>
-
-											<!-- Payment Methods -->
 											<div
-												v-if="
-													invoice.payments && invoice.payments.length > 0
-												"
-												class="mt-3"
+												v-if="invoice.payments && invoice.payments.length > 0"
+												class="flex flex-wrap items-center gap-1.5"
 											>
+												<span class="text-[11px] font-medium text-gray-500 me-1">
+													{{ __("Payment History") }}:
+												</span>
 												<div
-													class="text-xs font-medium text-gray-600 mb-2"
+													v-for="(payment, idx) in invoice.payments"
+													:key="idx"
+													:class="[
+														'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px]',
+														payment.source === 'Payment Entry'
+															? 'bg-blue-50 border-blue-200 text-blue-800'
+															: 'bg-white border-gray-200 text-gray-700',
+													]"
 												>
-													{{ __("Payment History") }}
-												</div>
-												<div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-													<div
-														v-for="(payment, idx) in invoice.payments"
-														:key="idx"
-														:class="[
-															'flex flex-col p-2 rounded-lg border text-sm',
-															payment.source === 'Payment Entry'
-																? 'bg-blue-50 border-blue-200'
-																: 'bg-gray-50 border-gray-200',
-														]"
-													>
-														<div
-															class="flex items-center justify-between mb-1"
-														>
-															<span
-																class="text-gray-700 font-medium"
-																>{{
-																	payment.mode_of_payment ||
-																	__("N/A")
-																}}</span
-															>
-															<span
-																class="font-semibold text-gray-900"
-																>{{
-																	formatCurrency(payment.amount)
-																}}</span
-															>
-														</div>
-														<div
-															class="flex items-center justify-between"
-														>
-															<span
-																v-if="payment.posting_date"
-																class="text-[9px] text-gray-500"
-															>
-																{{
-																	formatDate(
-																		payment.posting_date
-																	)
-																}}
-															</span>
-															<span
-																:class="[
-																	'text-[9px] font-semibold',
-																	payment.source ===
-																	'Payment Entry'
-																		? 'text-blue-600'
-																		: 'text-gray-500',
-																]"
-															>
-																{{
-																	getPaymentSourceLabel(
-																		payment.source
-																	)
-																}}
-															</span>
-														</div>
-													</div>
+													<span class="font-medium">{{ payment.mode_of_payment || __("N/A") }}</span>
+													<span class="font-bold tabular-nums">{{ formatCurrency(payment.amount) }}</span>
+													<span v-if="payment.posting_date" class="text-[10px] text-gray-400">
+														({{ formatDate(payment.posting_date) }})
+													</span>
 												</div>
 											</div>
 										</div>
@@ -575,7 +494,7 @@
 							<!-- Invoice History Tab -->
 							<div v-if="activeTab === 'history'">
 								<!-- Filters Component -->
-								<div class="mb-6">
+								<div class="mb-3">
 									<InvoiceFilters
 										:unique-customers="invoiceFilters.uniqueCustomers.value"
 										:unique-products="invoiceFilters.uniqueProducts.value"
@@ -586,10 +505,10 @@
 								<!-- Empty State -->
 								<div
 									v-if="filteredHistoryInvoices.length === 0"
-									class="flex flex-col items-center justify-center py-16 text-center"
+									class="flex flex-col items-center justify-center py-12 text-center"
 								>
 									<svg
-										class="w-16 h-16 text-gray-400 mb-4"
+										class="w-12 h-12 text-gray-400 mb-3"
 										fill="none"
 										stroke="currentColor"
 										viewBox="0 0 24 24"
@@ -601,145 +520,109 @@
 											d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 										/>
 									</svg>
-									<p class="text-gray-600 font-medium">
+									<p class="text-gray-600 font-medium text-sm">
 										{{ __("No invoices found") }}
 									</p>
 								</div>
 
-								<!-- Invoices Grid - 2 columns on large screens -->
-								<div v-else class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+								<!-- Invoices Grid - Compact 3 columns on XL screens -->
+								<div v-else class="grid gap-2.5 lg:grid-cols-2 xl:grid-cols-3">
 									<div
 										v-for="invoice in filteredHistoryInvoices"
 										:key="invoice.name"
-										class="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-lg transition-all overflow-hidden"
+										class="bg-white border border-gray-200 rounded-xl shadow-xs hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
 									>
-										<!-- Card Header with gradient -->
+										<!-- Compact Card Header -->
 										<div
-											class="bg-gradient-to-r from-indigo-50 to-blue-50 px-5 py-4 border-b border-gray-200"
+											class="bg-gradient-to-r from-indigo-50/70 to-blue-50/70 px-3.5 py-2 border-b border-gray-200 flex items-center justify-between gap-2"
 										>
-											<div class="flex items-start justify-between mb-2">
-												<div class="flex-1">
-													<h3 class="text-base font-bold text-gray-900">
-														{{ invoice.name }}
-													</h3>
-													<div class="flex items-center gap-2 mt-1">
-														<span
-															:class="[
-																'text-xs px-2.5 py-1 rounded-full font-semibold',
-																getInvoiceStatusColor(invoice),
-															]"
-														>
-															{{ __(invoice.status) }}
-														</span>
-													</div>
-												</div>
-												<div class="text-end ms-3">
-													<div class="text-xs text-gray-500 mb-1">
-														{{ __("Total") }}
-													</div>
-													<div class="text-lg font-bold text-indigo-600">
-														{{ formatCurrency(invoice.grand_total) }}
-													</div>
-												</div>
+											<div class="flex items-center gap-2 min-w-0">
+												<h3 class="text-sm font-bold text-gray-900 truncate tabular-nums">
+													{{ invoice.name }}
+												</h3>
+												<span
+													:class="[
+														'text-[11px] px-2 py-0.5 rounded-full font-semibold shrink-0',
+														getInvoiceStatusColor(invoice),
+													]"
+												>
+													{{ __(invoice.status) }}
+												</span>
+											</div>
+											<div class="text-end shrink-0 flex items-baseline gap-1.5">
+												<span class="text-[10px] text-gray-500 uppercase">{{ __("Total") }}</span>
+												<span class="text-sm font-bold text-indigo-600 tabular-nums">
+													{{ formatCurrency(invoice.grand_total) }}
+												</span>
 											</div>
 										</div>
 
-										<!-- Card Body -->
-										<div class="px-5 py-4 flex flex-col gap-3">
-											<!-- Customer Info -->
-											<div class="flex items-start">
-												<svg
-													class="w-5 h-5 text-gray-400 me-2 mt-0.5 flex-shrink-0"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-													/>
-												</svg>
-												<div class="flex-1">
-													<div class="text-xs text-gray-500">
-														{{ __("Customer") }}
-													</div>
-													<div
-														class="text-sm font-semibold text-gray-900"
+										<!-- Compact Card Body -->
+										<div class="px-3.5 py-2.5 flex flex-col gap-2">
+											<!-- Customer + Date & Time on one line -->
+											<div class="flex items-center justify-between gap-2 text-xs">
+												<div class="flex items-center min-w-0 font-semibold text-gray-900 truncate">
+													<svg
+														class="w-3.5 h-3.5 text-gray-400 me-1.5 shrink-0"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
 													>
-														{{
-															invoice.customer_name ||
-															invoice.customer
-														}}
-													</div>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+														/>
+													</svg>
+													<span class="truncate">{{ invoice.customer_name || invoice.customer }}</span>
+												</div>
+												<div class="flex items-center text-[11px] text-gray-500 tabular-nums shrink-0">
+													<svg
+														class="w-3.5 h-3.5 text-gray-400 me-1 shrink-0"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+													>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+														/>
+													</svg>
+													{{ formatDate(invoice.posting_date) }}
+													{{ formatTime(invoice.posting_time) }}
 												</div>
 											</div>
 
-											<!-- Date & Time -->
-											<div class="flex items-start">
-												<svg
-													class="w-5 h-5 text-gray-400 me-2 mt-0.5 flex-shrink-0"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-													/>
-												</svg>
-												<div class="flex-1">
-													<div class="text-xs text-gray-500">
-														{{ __("Date & Time") }}
-													</div>
-													<div class="text-sm font-medium text-gray-900">
-														{{ formatDate(invoice.posting_date) }}
-														{{ formatTime(invoice.posting_time) }}
-													</div>
-												</div>
-											</div>
-
-											<!-- Payment Details -->
+											<!-- Payment Details in 3 columns -->
 											<div
-												class="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100"
+												class="grid grid-cols-3 gap-2 pt-1.5 border-t border-gray-100 text-xs"
 											>
 												<div>
-													<div class="text-xs text-gray-500 mb-1">
-														{{ __("Paid Amount") }}
+													<div class="text-[10px] text-gray-500 leading-tight">
+														{{ __("Paid") }}
 													</div>
-													<div
-														class="text-sm font-semibold text-green-600"
-													>
-														{{
-															formatCurrency(
-																invoice.paid_amount || 0
-															)
-														}}
+													<div class="text-xs font-semibold text-green-600 tabular-nums mt-0.5">
+														{{ formatCurrency(invoice.paid_amount || 0) }}
 													</div>
 												</div>
 												<div>
-													<div class="text-xs text-gray-500 mb-1">
+													<div class="text-[10px] text-gray-500 leading-tight">
 														{{ __("Saldo Pendiente") }}
 													</div>
-													<div
-														class="text-sm font-semibold text-orange-600"
-													>
-														{{
-															formatCurrency(
-																invoice.outstanding_amount || 0
-															)
-														}}
+													<div class="text-xs font-semibold text-orange-600 tabular-nums mt-0.5">
+														{{ formatCurrency(invoice.outstanding_amount || 0) }}
 													</div>
 												</div>
-												<div class="col-span-2">
-													<div class="text-xs text-gray-500 mb-1">
+												<div class="min-w-0">
+													<div class="text-[10px] text-gray-500 leading-tight">
 														{{ __("Payment Mode") }}
 													</div>
 													<div
-														class="text-sm font-semibold text-gray-900"
+														class="text-xs font-semibold text-gray-800 truncate mt-0.5"
+														:title="formatPaymentModes(invoice)"
 													>
 														{{ formatPaymentModes(invoice) }}
 													</div>
@@ -747,17 +630,17 @@
 											</div>
 										</div>
 
-										<!-- Card Footer with Actions -->
+										<!-- Compact Card Footer with Actions -->
 										<div
-											class="px-5 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2"
+											class="px-3 py-1.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-1.5"
 										>
 											<button
 												@click="$emit('view-invoice', invoice)"
-												class="px-3 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
+												class="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors flex items-center gap-1"
 												:title="__('View Details')"
 											>
 												<svg
-													class="w-4 h-4"
+													class="w-3.5 h-3.5"
 													fill="none"
 													stroke="currentColor"
 													viewBox="0 0 24 24"
@@ -779,11 +662,11 @@
 											</button>
 											<button
 												@click="$emit('print-invoice', invoice)"
-												class="px-3 py-2 text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors flex items-center gap-1"
+												class="px-2.5 py-1 text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors flex items-center gap-1"
 												:title="__('Print')"
 											>
 												<svg
-													class="w-4 h-4"
+													class="w-3.5 h-3.5"
 													fill="none"
 													stroke="currentColor"
 													viewBox="0 0 24 24"
@@ -801,11 +684,11 @@
 												v-if="posSettingsStore.enableWhatsappSend"
 												type="button"
 												@click="$emit('whatsapp-invoice', invoice)"
-												class="px-3 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-1"
+												class="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors flex items-center gap-1"
 												style="background-color: #16a34a; color: #ffffff;"
 												:title="__('Enviar por WhatsApp')"
 											>
-												<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+												<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
 													<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
 												</svg>
 												<span>WhatsApp</span>
@@ -814,10 +697,10 @@
 												v-if="canCancelInvoice(invoice)"
 												type="button"
 												@click="openCancelModal(invoice)"
-												class="px-3 py-2 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+												class="px-2.5 py-1 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
 												:title="__('Anular Venta')"
 											>
-												<svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<svg class="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
 												</svg>
 												<span>{{ __("Anular") }}</span>
@@ -1986,7 +1869,7 @@ function formatPaymentModes(invoice) {
 	const validPayments = payments.filter((payment) => payment.mode_of_payment);
 
 	if (validPayments.length === 0) {
-		return __("No payment mode");
+		return __("Crédito / Sin cobro");
 	}
 
 	if (validPayments.length === 1) {
