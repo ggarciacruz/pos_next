@@ -1734,7 +1734,9 @@ const customerSearchContainer = ref(null); // Ref to search container for click-
 const customerSearchFocused = ref(false); // Track if search input is focused
 // Use Pinia store for allCustomers (shared with CustomerDialog, synced on customer creation)
 const allCustomers = computed(() => customerSearchStore.allCustomers);
-const customersLoaded = computed(() => customerSearchStore.allCustomers.length > 0);
+const customersLoaded = computed(
+	() => !customerSearchStore.loading || customerSearchStore.allCustomers.length > 0
+);
 const selectedIndex = ref(-1); // Keyboard navigation index for search results
 const availableGiftCards = ref([]); // Available gift cards for current customer
 const previousCustomer = ref(null); // Store previous customer for restore on blur
@@ -1775,16 +1777,17 @@ const cartSortContainer = ref(null);
  * This ensures customers are synced across all components (InvoiceCart, CustomerDialog).
  * New customers are immediately available after creation without page refresh.
  */
-// Load customers via the shared Pinia store (if not already loaded)
-if (props.posProfile) {
-	customerSearchStore.loadAllCustomers(props.posProfile);
-}
-
-// Load offers on component init (uses shared store method to prevent duplicate fetches)
-// ensureOffersFetched handles both online/offline cases and caching
-if (props.posProfile) {
-	offersStore.ensureOffersFetched(props.posProfile);
-}
+// Watch posProfile so customers and offers load as soon as the active shift/profile is resolved
+watch(
+	() => props.posProfile,
+	(newProfile) => {
+		if (newProfile) {
+			customerSearchStore.loadAllCustomers(newProfile);
+			offersStore.ensureOffersFetched(newProfile);
+		}
+	},
+	{ immediate: true }
+);
 
 /**
  * Gift Cards Resource
@@ -1863,20 +1866,9 @@ const customerMap = computed(() => {
 const customerResults = computed(() => {
 	const searchValue = customerSearch.value.trim().toLowerCase();
 
-	// When focused with no/short search term, show frequent customers (top 5)
-	if (searchValue.length < 2) {
+	// When focused with no search term, show top 10 customers from the list
+	if (searchValue.length < 1) {
 		if (customerSearchFocused.value) {
-			// Get frequent customer IDs from the store
-			// const frequentIds = customerSearchStore.frequentCustomers.slice(0, 5);
-			// if (frequentIds.length > 0) {
-			// 	const frequentCustomers = [];
-			// 	for (const id of frequentIds) {
-			// 		const cust = customerMap.value.get(id);
-			// 		if (cust) frequentCustomers.push(cust);
-			// 	}
-			// 	return frequentCustomers;
-			// }
-			// If no frequent customers, show first 5 from the list
 			return allCustomers.value.slice(0, 10);
 		}
 		return [];
@@ -1887,11 +1879,13 @@ const customerResults = computed(() => {
 		.filter((cust) => {
 			const name = (cust.customer_name || "").toLowerCase();
 			const mobile = (cust.mobile_no || "").toLowerCase();
+			const taxId = (cust.tax_id || "").toLowerCase();
 			const id = (cust.name || "").toLowerCase();
 
 			return (
 				name.includes(searchValue) ||
 				mobile.includes(searchValue) ||
+				taxId.includes(searchValue) ||
 				id.includes(searchValue)
 			);
 		})

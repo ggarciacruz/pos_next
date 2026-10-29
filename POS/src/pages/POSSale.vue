@@ -1769,6 +1769,7 @@ onMounted(async () => {
 
 		const backgroundOps = Promise.allSettled([
 			cartStore.setDefaultCustomer(),
+			customerSearchStore.loadAllCustomers(shiftStore.profileName, true),
 			offlineStore.isOffline
 				? offlineStore.checkOfflineCacheAvailability()
 				: offlineStore.preloadDataForOffline(shiftStore.currentProfile),
@@ -2105,6 +2106,7 @@ async function handleShiftOpened() {
 
 	const backgroundOps = Promise.allSettled([
 		cartStore.setDefaultCustomer(),
+		customerSearchStore.loadAllCustomers(shiftStore.profileName, true),
 		offlineStore.isOffline
 			? offlineStore.checkOfflineCacheAvailability()
 			: offlineStore.preloadDataForOffline(shiftStore.currentProfile),
@@ -2288,7 +2290,7 @@ function handleProceedToPayment() {
 	}
 
 	const customerValue = cartStore.customer?.name || cartStore.customer;
-	if (!customerValue && !shiftStore.profileCustomer) {
+	if (!customerValue) {
 		showWarning(__("Please select a customer before proceeding"));
 		uiStore.showCustomerDialog = true;
 		pendingPaymentAfterCustomer.value = true;
@@ -2328,7 +2330,7 @@ async function handleErrorRetry() {
 async function handlePaymentCompleted(paymentData) {
 	try {
 		const customerValue = cartStore.customer?.name || cartStore.customer;
-		if (!customerValue && !shiftStore.profileCustomer) {
+		if (!customerValue) {
 			showWarning(__("Please select a customer before proceeding"));
 			uiStore.showPaymentDialog = false;
 			uiStore.showCustomerDialog = true;
@@ -2768,6 +2770,11 @@ function logoutWithCloseShift() {
 }
 
 async function handleSaveDraft(submit = false) {
+	if (!cartStore.customer) {
+		showWarning(__("Please select a customer before proceeding"));
+		uiStore.showCustomerDialog = true;
+		return;
+	}
 	const savedDraft = await draftsStore.saveDraftInvoice(
 		cartStore.invoiceItems,
 		cartStore.customer,
@@ -2789,10 +2796,8 @@ async function handleSaveDraft(submit = false) {
 
 async function handleSaveQuotation(submit = false) {
 	if (!cartStore.customer) {
-		frappe.show_alert({
-			message: __("Please select a customer before proceeding"),
-			indicator: "orange",
-		});
+		showWarning(__("Please select a customer before proceeding"));
+		uiStore.showCustomerDialog = true;
 		return;
 	}
 	const savedDraft = await draftsStore.saveDraftInvoice(

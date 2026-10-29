@@ -36,6 +36,7 @@ export const useCustomerSearchStore = defineStore("customerSearch", () => {
 				name: (customer.customer_name || "").toLowerCase(),
 				mobile: (customer.mobile_no || "").toLowerCase(),
 				email: (customer.email_id || "").toLowerCase(),
+				taxId: (customer.tax_id || "").toLowerCase(),
 				id: (customer.name || "").toLowerCase(),
 				// Pre-compute word starts for super fast word matching
 				nameWords: (customer.customer_name || "").toLowerCase().split(" "),
@@ -55,10 +56,10 @@ export const useCustomerSearchStore = defineStore("customerSearch", () => {
 
 		if (cached.name.includes(term)) return 180; // Name contains
 
-		// Phone checks (very important for POS)
-		if (cached.mobile === term) return 250;
-		if (cached.mobile.startsWith(term)) return 225;
-		if (cached.mobile.includes(term)) return 150;
+		// Phone & NIT/Tax ID checks (very important for POS)
+		if (cached.mobile === term || cached.taxId === term) return 250;
+		if (cached.mobile.startsWith(term) || cached.taxId.startsWith(term)) return 225;
+		if (cached.mobile.includes(term) || cached.taxId.includes(term)) return 150;
 
 		// Email checks
 		if (cached.email.startsWith(term)) return 200;
@@ -110,34 +111,24 @@ export const useCustomerSearchStore = defineStore("customerSearch", () => {
 			return cachedResult;
 		}
 
-		// Ultra-fast search with early exit
+		// Single-pass search collecting high-priority and secondary matches
 		const results = [];
+		const secondaryResults = [];
 		const maxResults = 50;
-		let scanned = 0;
 
-		// First pass: Get exact and high-scoring matches ONLY
 		for (const cust of allCustomers.value) {
-			scanned++;
 			const score = quickMatch(term, cust);
 
 			if (score >= 240) {
-				// High priority matches
 				results.push({ customer: cust, score });
-				if (results.length >= maxResults) break; // Exit immediately when we have enough
+				if (results.length >= maxResults) break;
+			} else if (score > 0 && secondaryResults.length < maxResults) {
+				secondaryResults.push({ customer: cust, score });
 			}
 		}
 
-		// Second pass: Fill remaining slots with lower scores if needed
-		if (results.length < maxResults && scanned < allCustomers.value.length) {
-			for (let i = scanned; i < allCustomers.value.length; i++) {
-				const cust = allCustomers.value[i];
-				const score = quickMatch(term, cust);
-
-				if (score > 0 && score < 240) {
-					results.push({ customer: cust, score });
-					if (results.length >= maxResults) break;
-				}
-			}
+		if (results.length < maxResults && secondaryResults.length > 0) {
+			results.push(...secondaryResults.slice(0, maxResults - results.length));
 		}
 
 		// Sort ONLY what we found (much faster than sorting everything)
@@ -215,47 +206,40 @@ export const useCustomerSearchStore = defineStore("customerSearch", () => {
 				log.debug(`Loaded ${cachedCustomers.length} customers from cache`);
 			}
 
-			// Step 2: If online, fetch delta from server
+			// Step 2: If online, fetch authoritative active customer list from server
+			// (avoids UTC vs server local time timezone mismatch on modified_since and purges deleted records)
 			if (!isOffline()) {
-				const lastSync = forceReload ? null : localStorage.getItem(CUSTOMERS_SYNC_KEY);
-
 				const response = await call("pos_next.api.customers.get_customers", {
 					pos_profile: posProfile,
 					search_term: "",
 					start: 0,
 					limit: 0,
-					modified_since: lastSync,
+					modified_since: null,
 				});
-				const delta = response?.message || response || [];
+				const serverCustomers = response?.message || response || [];
+				const active = serverCustomers.filter((c) => !c.disabled);
+				const activeNames = new Set(active.map((c) => c.name));
 
-				if (delta.length > 0) {
-					const active = delta.filter((c) => !c.disabled);
-					const disabled = delta.filter((c) => c.disabled);
+				// Find any cached customers that were deleted or disabled on the server
+				const removedNames = allCustomers.value
+					.map((c) => c.name)
+					.filter((name) => name && !activeNames.has(name));
 
-					// Merge active customers into memory
-					const existingMap = new Map(allCustomers.value.map((c) => [c.name, c]));
-					for (const c of active) {
-						existingMap.set(c.name, c);
-					}
-					// Remove disabled customers from memory
-					for (const c of disabled) {
-						existingMap.delete(c.name);
-					}
-					allCustomers.value = Array.from(existingMap.values());
+				// Replace in-memory list with the authoritative active list from server
+				allCustomers.value = active;
 
-					// Persist active to IndexedDB
-					if (active.length) {
-						await offlineWorker.cacheCustomers(active);
-					}
-					// Remove disabled from IndexedDB
-					if (disabled.length) {
-						await offlineWorker.deleteCustomers(disabled.map((c) => c.name));
-					}
-
-					log.debug(
-						`Synced ${active.length} active, removed ${disabled.length} disabled customers`
-					);
+				// Persist active to IndexedDB
+				if (active.length > 0) {
+					await offlineWorker.cacheCustomers(active);
 				}
+				// Remove deleted/disabled customers from IndexedDB
+				if (removedNames.length > 0) {
+					await offlineWorker.deleteCustomers(removedNames);
+				}
+
+				log.debug(
+					`Synced ${active.length} active customers from server, purged ${removedNames.length} stale records`
+				);
 
 				serverDataFresh = true;
 				localStorage.setItem(CUSTOMERS_SYNC_KEY, new Date().toISOString());

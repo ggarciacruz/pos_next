@@ -53,6 +53,7 @@ def get_customers(search_term="", pos_profile=None, limit=20, modified_since=Non
 				["Customer", "customer_name", "like", like_term],
 				["Customer", "mobile_no", "like", like_term],
 				["Customer", "email_id", "like", like_term],
+				["Customer", "tax_id", "like", like_term],
 			]
 
 		customer_limit = limit if limit not in (None, 0) else frappe.db.count("Customer", filters)
@@ -60,7 +61,7 @@ def get_customers(search_term="", pos_profile=None, limit=20, modified_since=Non
 			"Customer",
 			filters=filters,
 			or_filters=or_filters or None,
-			fields=["name", "customer_name", "mobile_no", "email_id", "primary_address", "disabled"],
+			fields=["name", "customer_name", "mobile_no", "email_id", "tax_id", "primary_address", "disabled"],
 			limit=customer_limit,
 			order_by="customer_name asc",
 		)

@@ -1174,37 +1174,11 @@ export function useInvoice() {
 	}
 
 	/**
-	 * Sets the default customer from POS Profile if available.
-	 * This is called when resetting/clearing the cart to auto-select
-	 * the default customer configured in the POS Profile.
+	 * Resets the selected customer to null so the user must explicitly
+	 * choose or create a customer for each transaction.
 	 */
 	async function setDefaultCustomer() {
-		// Reset to null first
 		customer.value = null;
-
-		// Only fetch default customer if we have a POS Profile
-		if (!posProfile.value) {
-			return;
-		}
-
-		try {
-			const result = await getDefaultCustomerResource.submit({
-				pos_profile: posProfile.value,
-			});
-
-			// Set the default customer if one is configured
-			if (result && result.customer) {
-				// Create customer object matching the structure from customer selection
-				customer.value = {
-					name: result.customer,
-					customer_name: result.customer_name || result.customer,
-					customer_group: result.customer_group,
-				};
-			}
-		} catch (error) {
-			// Silently fail - default customer is optional
-			console.log("No default customer set in POS Profile");
-		}
 	}
 
 	/**
