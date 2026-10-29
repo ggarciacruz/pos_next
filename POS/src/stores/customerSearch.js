@@ -97,7 +97,7 @@ export const useCustomerSearchStore = defineStore("customerSearch", () => {
 					else other.push(c);
 				}
 
-				cached = [...recent, ...frequent, ...other].slice(0, 50);
+				cached = [...recent, ...frequent, ...other];
 				resultCache.value.set(cacheKey, cached);
 			}
 

@@ -367,29 +367,32 @@
 
 				<!-- Customer Dropdown -->
 				<div
-					v-if="customerSearchFocused || customerSearch.trim().length >= 2"
-					class="absolute z-50 mt-0.5 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-hidden will-change-transform"
+					v-if="customerSearchFocused || customerSearch.trim().length >= 1"
+					class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl flex flex-col max-h-[calc(100vh-140px)] overflow-hidden will-change-transform"
 				>
-					<!-- Frequent Customers Header (when showing suggestions) -->
+					<!-- Customers Header -->
 					<div
-						v-if="
-							customerSearchFocused &&
-							customerSearch.trim().length < 2 &&
-							customerResults.length > 0
-						"
-						class="px-2 py-1 bg-gray-50 border-b border-gray-200"
+						v-if="customerResults.length > 0"
+						class="px-3 py-1.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0"
 					>
 						<span
-							class="text-[10px] font-medium text-gray-500 uppercase tracking-wide"
+							class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide"
 						>
-							{{ __("Frequent Customers") }}
+							{{
+								customerSearch.trim().length > 0
+									? __("Resultados de búsqueda")
+									: __("Clientes")
+							}}
+						</span>
+						<span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+							{{ customerResults.length }}
 						</span>
 					</div>
 
 					<!-- Customer Results -->
 					<div
 						v-if="customerResults.length > 0"
-						class="max-h-48 overflow-y-auto overscroll-contain"
+						class="flex-1 max-h-[calc(100vh-200px)] overflow-y-auto overscroll-contain"
 					>
 						<button
 							type="button"
@@ -415,9 +418,9 @@
 					</div>
 
 					<!-- No Results + Create New Option -->
-					<div v-else-if="customerSearch.trim().length >= 2">
+					<div v-else-if="customerSearch.trim().length >= 1" class="flex-shrink-0">
 						<div
-							class="px-2 py-1.5 text-center text-[11px] font-medium text-gray-700 border-b border-gray-100"
+							class="px-3 py-2 text-center text-[11px] font-medium text-gray-700 border-b border-gray-100"
 						>
 							{{ __('No results for "{0}"', [customerSearch]) }}
 						</div>
@@ -426,9 +429,9 @@
 					<!-- Create New Customer Option -->
 					<button
 						type="button"
-						v-if="customerSearch.trim().length >= 2"
+						v-if="customerSearch.trim().length >= 1"
 						@mousedown.prevent="createNewCustomer"
-						class="w-full text-start px-2 py-1.5 hover:bg-green-50 active:bg-green-100 flex items-center gap-1.5 border-t border-gray-200 touch-manipulation select-none cursor-pointer"
+						class="w-full text-start px-3 py-2 hover:bg-green-50 active:bg-green-100 flex items-center gap-2 border-t border-gray-200 touch-manipulation select-none cursor-pointer flex-shrink-0 bg-white"
 					>
 						<div
 							class="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 pointer-events-none"
@@ -1866,30 +1869,28 @@ const customerMap = computed(() => {
 const customerResults = computed(() => {
 	const searchValue = customerSearch.value.trim().toLowerCase();
 
-	// When focused with no search term, show top 10 customers from the list
+	// When focused with no search term, show all customers
 	if (searchValue.length < 1) {
 		if (customerSearchFocused.value) {
-			return allCustomers.value.slice(0, 10);
+			return allCustomers.value;
 		}
 		return [];
 	}
 
-	// Instant in-memory filter
-	return allCustomers.value
-		.filter((cust) => {
-			const name = (cust.customer_name || "").toLowerCase();
-			const mobile = (cust.mobile_no || "").toLowerCase();
-			const taxId = (cust.tax_id || "").toLowerCase();
-			const id = (cust.name || "").toLowerCase();
+	// Instant in-memory filter across all customers
+	return allCustomers.value.filter((cust) => {
+		const name = (cust.customer_name || "").toLowerCase();
+		const mobile = (cust.mobile_no || "").toLowerCase();
+		const taxId = (cust.tax_id || "").toLowerCase();
+		const id = (cust.name || "").toLowerCase();
 
-			return (
-				name.includes(searchValue) ||
-				mobile.includes(searchValue) ||
-				taxId.includes(searchValue) ||
-				id.includes(searchValue)
-			);
-		})
-		.slice(0, 20);
+		return (
+			name.includes(searchValue) ||
+			mobile.includes(searchValue) ||
+			taxId.includes(searchValue) ||
+			id.includes(searchValue)
+		);
+	});
 });
 
 /**
