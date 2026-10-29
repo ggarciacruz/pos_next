@@ -513,13 +513,14 @@ function deleteSavedFilter(name) {
 
 .search-input {
 	width: 100%;
-	padding-block: 0.875rem;
-	padding-inline: 3rem;
-	border: 2px solid #e5e7eb;
-	border-radius: 12px;
-	font-size: 0.9375rem;
+	padding-block: 0.625rem;
+	padding-inline: 2.75rem;
+	border: 1px solid #cbd5e1;
+	border-radius: 10px;
+	font-size: 0.875rem;
 	color: #111827;
 	background: white;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 	transition: all 0.2s;
 }
 
@@ -557,12 +558,12 @@ function deleteSavedFilter(name) {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.375rem;
-	padding: 0.5rem 0.875rem;
+	padding: 0.375rem 0.75rem;
 	background: white;
-	border: 1.5px solid #e5e7eb;
+	border: 1px solid #cbd5e1;
 	border-radius: 20px;
-	font-size: 0.8125rem;
-	font-weight: 500;
+	font-size: 0.75rem;
+	font-weight: 600;
 	color: #374151;
 	cursor: pointer;
 	transition: all 0.15s;

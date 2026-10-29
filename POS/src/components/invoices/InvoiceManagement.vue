@@ -131,7 +131,7 @@
 					</div>
 
 					<!-- Tab Content -->
-					<div class="flex-1 overflow-y-auto bg-gray-50">
+					<div class="flex-1 overflow-y-auto pos-inv-canvas">
 						<!-- Loading State -->
 						<div
 							v-if="loading && activeTab === 'partial'"
@@ -297,14 +297,14 @@
 								</div>
 
 								<!-- Invoices List -->
-								<div v-else class="flex flex-col gap-2">
+								<div v-else class="flex flex-col gap-2.5">
 									<div
 										v-for="invoice in filteredUnpaidInvoices"
 										:key="invoice.name"
-										class="bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden hover:border-gray-300 transition-all"
+										class="pos-inv-card overflow-hidden transition-all"
 									>
 										<!-- Compact Single-Row Invoice Card -->
-										<div class="px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+										<div class="px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 bg-white">
 											<!-- Left: Document + Status + Customer + Date -->
 											<div class="min-w-[210px] flex-1">
 												<div class="flex items-center gap-2">
@@ -359,7 +359,7 @@
 
 											<!-- Center: Inline Financial Summary -->
 											<div class="flex items-center gap-2 sm:gap-3 text-xs tabular-nums">
-												<div class="px-2.5 py-1 bg-slate-50 rounded-lg border border-slate-200/80 text-right">
+												<div class="px-2.5 py-1 rounded-lg text-right pos-inv-stat-total">
 													<div class="text-[10px] text-gray-500 leading-tight">
 														{{ __("Total Amount") }}
 													</div>
@@ -367,7 +367,7 @@
 														{{ formatCurrency(invoice.grand_total) }}
 													</div>
 												</div>
-												<div class="px-2.5 py-1 bg-green-50/70 rounded-lg border border-green-100 text-right">
+												<div class="px-2.5 py-1 rounded-lg text-right pos-inv-stat-paid">
 													<div class="text-[10px] text-gray-500 leading-tight">
 														{{ __("Paid") }}
 													</div>
@@ -375,7 +375,7 @@
 														{{ formatCurrency(invoice.paid_amount) }}
 													</div>
 												</div>
-												<div class="px-2.5 py-1 bg-orange-50/80 rounded-lg border border-orange-200/80 text-right">
+												<div class="px-2.5 py-1 rounded-lg text-right pos-inv-stat-due">
 													<div class="text-[10px] text-orange-700 font-medium leading-tight">
 														{{ __("Saldo Pendiente") }}
 													</div>
@@ -449,7 +449,7 @@
 										<!-- Optional Partial Payment Progress & History (only when there are payments) -->
 										<div
 											v-if="(invoice.paid_amount || 0) > 0 || (invoice.payments && invoice.payments.length > 0)"
-											class="px-3.5 py-2 bg-gray-50/70 border-t border-gray-100"
+											class="px-3.5 py-2 pos-inv-card-footer"
 										>
 											<div
 												v-if="(invoice.paid_amount || 0) > 0 && invoice.grand_total > 0"
@@ -526,15 +526,15 @@
 								</div>
 
 								<!-- Invoices Grid - Compact 3 columns on XL screens -->
-								<div v-else class="grid gap-2.5 lg:grid-cols-2 xl:grid-cols-3">
+								<div v-else class="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
 									<div
 										v-for="invoice in filteredHistoryInvoices"
 										:key="invoice.name"
-										class="bg-white border border-gray-200 rounded-xl shadow-xs hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
+										class="pos-inv-card transition-all overflow-hidden flex flex-col justify-between"
 									>
 										<!-- Compact Card Header -->
 										<div
-											class="bg-gradient-to-r from-indigo-50/70 to-blue-50/70 px-3.5 py-2 border-b border-gray-200 flex items-center justify-between gap-2"
+											class="pos-inv-card-header px-3.5 py-2 flex items-center justify-between gap-2"
 										>
 											<div class="flex items-center gap-2 min-w-0">
 												<h3 class="text-sm font-bold text-gray-900 truncate tabular-nums">
@@ -550,15 +550,15 @@
 												</span>
 											</div>
 											<div class="text-end shrink-0 flex items-baseline gap-1.5">
-												<span class="text-[10px] text-gray-500 uppercase">{{ __("Total") }}</span>
-												<span class="text-sm font-bold text-indigo-600 tabular-nums">
+												<span class="text-[10px] font-semibold text-gray-500 uppercase">{{ __("Total") }}</span>
+												<span class="text-sm font-bold text-gray-900 tabular-nums">
 													{{ formatCurrency(invoice.grand_total) }}
 												</span>
 											</div>
 										</div>
 
 										<!-- Compact Card Body -->
-										<div class="px-3.5 py-2.5 flex flex-col gap-2">
+										<div class="px-3.5 py-2.5 flex flex-col gap-2 bg-white">
 											<!-- Customer + Date & Time on one line -->
 											<div class="flex items-center justify-between gap-2 text-xs">
 												<div class="flex items-center min-w-0 font-semibold text-gray-900 truncate">
@@ -598,7 +598,7 @@
 
 											<!-- Payment Details in 3 columns -->
 											<div
-												class="grid grid-cols-3 gap-2 pt-1.5 border-t border-gray-100 text-xs"
+												class="grid grid-cols-3 gap-2 pt-2 pos-inv-card-divider text-xs"
 											>
 												<div>
 													<div class="text-[10px] text-gray-500 leading-tight">
@@ -632,7 +632,7 @@
 
 										<!-- Compact Card Footer with Actions -->
 										<div
-											class="px-3 py-1.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-1.5"
+											class="px-3 py-1.5 pos-inv-card-footer flex items-center justify-end gap-1.5"
 										>
 											<button
 												@click="$emit('view-invoice', invoice)"
@@ -739,11 +739,11 @@
 								</div>
 
 								<!-- Drafts Grid -->
-								<div v-else class="grid gap-4">
+								<div v-else class="grid gap-3">
 									<div
 										v-for="draft in draftInvoices"
 										:key="draft.draft_id"
-										class="bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-400 transition-all cursor-pointer"
+										class="pos-inv-card p-3.5 transition-all cursor-pointer"
 										@click="$emit('load-draft', draft)"
 									>
 										<div class="flex items-start justify-between mb-2">
@@ -853,11 +853,11 @@
 								</div>
 
 								<!-- Returns Grid -->
-								<div v-else class="grid gap-4">
+								<div v-else class="grid gap-3">
 									<div
 										v-for="invoice in returnInvoices"
 										:key="invoice.name"
-										class="bg-white border border-red-200 rounded-lg p-4 hover:shadow-md transition-all"
+										class="pos-inv-card p-3.5 transition-all"
 									>
 										<div class="flex items-start justify-between">
 											<div class="flex-1">
@@ -1916,6 +1916,52 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Canvas & Card visual separation (independent of frappe-ui preset palette) */
+.pos-inv-canvas {
+	background-color: #eef2f6;
+}
+
+.pos-inv-card {
+	background-color: #ffffff;
+	border: 1px solid #cbd5e1;
+	border-radius: 0.75rem;
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.pos-inv-card:hover {
+	border-color: #94a3b8;
+	box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+}
+
+.pos-inv-card-header {
+	background-color: #f1f5f9;
+	border-bottom: 1px solid #cbd5e1;
+}
+
+.pos-inv-card-divider {
+	border-top: 1px solid #e2e8f0;
+}
+
+.pos-inv-card-footer {
+	background-color: #f8fafc;
+	border-top: 1px solid #cbd5e1;
+}
+
+.pos-inv-stat-total {
+	background-color: #f8fafc;
+	border: 1px solid #cbd5e1;
+}
+
+.pos-inv-stat-paid {
+	background-color: #f0fdf4;
+	border: 1px solid #bbf7d0;
+}
+
+.pos-inv-stat-due {
+	background-color: #fff7ed;
+	border: 1px solid #fed7aa;
+}
+
 /* Fade transition for overlay */
 .fade-enter-active,
 .fade-leave-active {
