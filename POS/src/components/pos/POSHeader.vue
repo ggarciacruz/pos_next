@@ -1,45 +1,20 @@
 <template>
-	<div class="bg-white shadow-sm sticky top-0 z-[200]">
-		<div class="flex py-2 sm:py-3">
-			<!-- POS Icon - Aligned with Management Sidebar (64px) -->
-			<div class="w-16 flex-shrink-0 flex items-center justify-center">
-				<button
-					class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md flex-shrink-0 hover:from-blue-600 hover:to-blue-700 active:scale-95 transition-all"
-					:aria-label="'MDX POS'"
-					:title="__('MDX POS')"
-				>
-					<svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-						<path
-							d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4zm10 16H4V9h16v11z"
-						/>
-					</svg>
-				</button>
-			</div>
-
-			<!-- Main Header Content -->
-			<div
-				class="flex-1 flex justify-between items-center gap-1 sm:gap-2 px-2 sm:px-4 md:px-6"
-			>
-				<!-- Left Side: Brand Info -->
-				<div class="flex items-center gap-1 sm:gap-4 min-w-0 flex-1 overflow-hidden">
-					<div class="min-w-0 flex-shrink overflow-hidden">
-						<div class="flex items-center gap-1 sm:gap-2">
-							<h1
-								class="text-xs sm:text-base font-bold text-gray-900 truncate flex-shrink"
-							>
-								{{ "MDX POS" }}
-							</h1>
-						</div>
-						<p
-							v-if="profileName"
-							class="text-[9px] sm:text-xs text-gray-500 truncate hidden sm:block mt-0.5"
-						>
-							{{ profileName }}
-						</p>
-					</div>
-
-					<!-- Time and Shift Duration - Compact on mobile -->
-					<div class="hidden lg:flex items-center gap-4 ms-6 flex-shrink-0">
+	<div class="pos-header-wrapper">
+		<MdxNavbar
+			class="pos-mdx-navbar"
+			:class="{ 'pos-mdx-navbar--collapsed': navbarCollapsed }"
+			:show-hamburger="hasOpenShift"
+			logo="/assets/pos_next/pos/icon.svg"
+			app-name="MDX POS"
+			:subtitle="profileName"
+			@toggle-menu="$emit('toggle-menu')"
+			@toggle-collapse="toggleNavbar"
+		>
+			<template #left>
+				<!-- Shift & Time Telemetry -->
+				<div class="flex items-center gap-1.5 sm:gap-4 min-w-0">
+					<!-- Time and Shift Duration - Desktop -->
+					<div class="hidden lg:flex items-center gap-3 ms-2 flex-shrink-0">
 						<!-- Current Time -->
 						<StatusBadge
 							variant="blue"
@@ -59,21 +34,28 @@
 						/>
 					</div>
 
-					<!-- Mobile Time Display - Very compact -->
+					<!-- Mobile Time Display - Compact -->
 					<div
-						class="flex lg:hidden items-center text-[10px] text-gray-600 font-medium flex-shrink-0 ms-1"
+						class="flex lg:hidden items-center text-[10px] text-slate-600 font-semibold flex-shrink-0 ms-1"
 					>
 						<span class="hidden xs:inline whitespace-nowrap">{{ currentTime }}</span>
 					</div>
 				</div>
+			</template>
 
+			<!-- Empty center slot so #left and #right use full horizontal width -->
+			<template #default>
+				<span></span>
+			</template>
+
+			<template #right>
 				<!-- Right Side: Controls -->
 				<div class="flex items-center gap-0.5 sm:gap-1 md:gap-2 flex-shrink-0">
 					<!-- WiFi/Offline Status -->
 					<button
 						@click="$emit('sync-click')"
 						:class="[
-							'p-1.5 sm:p-2 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors relative group touch-manipulation',
+							'p-1.5 sm:p-2 hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors relative group touch-manipulation',
 							isSyncing ? 'animate-pulse' : '',
 						]"
 						:title="
@@ -87,7 +69,7 @@
 					>
 						<svg
 							v-if="!isOffline"
-							class="w-4 h-4 sm:w-5 sm:h-5 text-green-600"
+							class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600"
 							fill="currentColor"
 							viewBox="0 0 24 24"
 						>
@@ -373,8 +355,33 @@
 						</template>
 					</UserMenu>
 				</div>
-			</div>
-		</div>
+			</template>
+		</MdxNavbar>
+
+		<!-- Floating indicator to expand the navbar when collapsed -->
+		<transition name="mdx-slide-down">
+			<button
+				v-if="navbarCollapsed"
+				class="pos-navbar-expand-trigger"
+				@click="toggleNavbar"
+				:aria-label="__('Expand navbar')"
+				:title="__('Expandir barra superior')"
+			>
+				<svg
+					width="12"
+					height="12"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="3.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="m6 9 6 6 6-6" />
+				</svg>
+				<span v-if="isOffline" class="pos-navbar-expand-dot"></span>
+			</button>
+		</transition>
 	</div>
 </template>
 
@@ -384,20 +391,49 @@ import StatusBadge from "@/components/common/StatusBadge.vue";
 import UserMenu from "@/components/common/UserMenu.vue";
 import LanguageSwitcher from "@/components/common/LanguageSwitcher.vue";
 import { DEFAULT_LOCALE } from "@/utils/currency";
-import { ref } from "vue";
+import { MdxNavbar } from "mdx_ui";
+import { onMounted, ref } from "vue";
 
 const showCacheTooltip = ref(false);
+const navbarCollapsed = ref(false);
 
 const emit = defineEmits([
 	"sync-click",
 	"printer-click",
 	"refresh-click",
 	"menu-click",
+	"toggle-menu",
 	"logout",
 	"menu-opened",
 	"menu-closed",
 	"clear-cache",
 ]);
+
+function updateCssVariable() {
+	if (typeof document !== "undefined") {
+		const heightVal = navbarCollapsed.value ? "0px" : "4rem";
+		document.documentElement.style.setProperty("--mdx-navbar-height", heightVal);
+		document.documentElement.style.setProperty("--header-height", heightVal);
+	}
+}
+
+function toggleNavbar() {
+	navbarCollapsed.value = !navbarCollapsed.value;
+	updateCssVariable();
+	try {
+		localStorage.setItem("pos_navbar_collapsed", navbarCollapsed.value ? "1" : "0");
+	} catch {}
+}
+
+onMounted(() => {
+	try {
+		const saved = localStorage.getItem("pos_navbar_collapsed");
+		if (saved !== null) {
+			navbarCollapsed.value = saved === "1";
+		}
+	} catch {}
+	updateCssVariable();
+});
 
 function handleClearCacheClick() {
 	showCacheTooltip.value = false;
@@ -555,3 +591,64 @@ const printerIcon =
 const refreshIcon =
 	"M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15";
 </script>
+
+<style scoped>
+.pos-header-wrapper {
+	position: relative;
+	flex-shrink: 0;
+	z-index: var(--mdx-z-navbar, 300);
+}
+
+.pos-mdx-navbar {
+	transition: transform var(--mdx-duration-base, 250ms) cubic-bezier(0.16, 1, 0.3, 1),
+		height var(--mdx-duration-base, 250ms) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pos-mdx-navbar--collapsed {
+	height: 0 !important;
+	min-height: 0 !important;
+	max-height: 0 !important;
+	overflow: hidden !important;
+	padding-top: 0 !important;
+	padding-bottom: 0 !important;
+	border-bottom: none !important;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.pos-navbar-expand-trigger {
+	position: fixed;
+	top: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 900;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 38px;
+	height: 18px;
+	border-radius: 0 0 10px 10px;
+	background: var(--mdx-bg-surface, #ffffff);
+	border: 1px solid var(--mdx-border-strong, #bfcad8);
+	border-top: none;
+	color: var(--mdx-text-secondary, #475569);
+	box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+	cursor: pointer;
+	transition: all 0.18s ease;
+}
+
+.pos-navbar-expand-trigger:hover {
+	color: var(--mdx-accent, #0050ff);
+	height: 22px;
+}
+
+.pos-navbar-expand-dot {
+	position: absolute;
+	top: 3px;
+	right: 6px;
+	width: 6px;
+	height: 6px;
+	border-radius: 9999px;
+	background: #f59e0b;
+}
+</style>

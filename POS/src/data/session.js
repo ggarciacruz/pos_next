@@ -4,6 +4,7 @@ import { computed, reactive } from "vue";
 
 import { ensureCSRFToken } from "@/utils/csrf";
 import { cleanupUserSession } from "@/utils/sessionCleanup";
+import { initTranslations } from "@/utils/translation";
 import { userResource, userData } from "./user";
 
 export function sessionUser() {
@@ -26,7 +27,7 @@ export const session = reactive({
 		},
 		async onSuccess(data) {
 			// Initialize CSRF token immediately after successful login
-			await ensureCSRFToken();
+			await ensureCSRFToken({ forceRefresh: true });
 
 			await userResource.reload();
 
@@ -36,6 +37,9 @@ export const session = reactive({
 
 			session.user = sessionUser();
 			session.login.reset();
+
+			// Load server translations now that user is authenticated
+			initTranslations().catch(() => {});
 			// Don't redirect here - let the Login page watcher handle navigation
 			// This prevents conflicts with the shift opening dialog flow
 		},

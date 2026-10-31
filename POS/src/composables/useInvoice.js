@@ -5,6 +5,7 @@ import { useSerialNumberStore } from "@/stores/serialNumber";
 import { CoalescingMutex } from "@/utils/mutex";
 import { logger } from "@/utils/logger";
 import { roundCurrency } from "@/utils/currency";
+import { sessionUser } from "@/data/session";
 
 const log = logger.create("Invoice");
 
@@ -1228,8 +1229,8 @@ export function useInvoice() {
 		setDefaultCustomer();
 
 		// Cleanup old draft invoices (older than 1 hour) in background
-		// Skip if offline to avoid network errors
-		if (!isOffline()) {
+		// Skip if offline, unauthenticated, or no POS Profile is active
+		if (!isOffline() && posProfile.value && sessionUser()) {
 			try {
 				await cleanupDraftsResource.submit({
 					pos_profile: posProfile.value,

@@ -208,14 +208,25 @@ const getLocale = (): string => {
   )
 }
 
+function isGuestSession(): boolean {
+  if (typeof document === "undefined") return false
+  const cookies = new URLSearchParams(document.cookie.split("; ").join("&"))
+  const userId = cookies.get("user_id")
+  return !userId || userId === "Guest"
+}
+
 /**
- * Initializes translations on app startup.
+ * Initializes translations on app startup or after login.
  * Uses stale-while-revalidate: shows cached immediately, refreshes in background.
  */
-async function init() {
+export async function initTranslations() {
   const locale = getLocale()
   const loaded = await loadLocale(locale, { preferCache: true })
-  if (!loaded) fallbackFetch(locale)
+  if (!loaded && !isGuestSession()) fallbackFetch(locale)
+}
+
+async function init() {
+  await initTranslations()
 }
 
 /**
@@ -265,6 +276,10 @@ async function loadLocale(locale: string, options: LoadOptions = {}) {
       applyMessages(cached.messages)
       appliedFromCache = true
 
+      if (isGuestSession()) {
+        return true
+      }
+
       if (!translationCache.isStale(cached.timestamp) && !forceNetwork) {
         // Stale-While-Revalidate: revalidate in background to capture server updates
         translationCache
@@ -276,6 +291,10 @@ async function loadLocale(locale: string, options: LoadOptions = {}) {
         return true
       }
     }
+  }
+
+  if (isGuestSession()) {
+    return appliedFromCache
   }
 
   const entry = await translationCache.getFresh(target, () => requestTranslations(), {

@@ -78,7 +78,10 @@ export const userResource = createResource({
 	url: "frappe.auth.get_logged_user",
 	cache: "User",
 	onError(error) {
-		if (error?.exc_type === "AuthenticationError") {
+		if (
+			error?.exc_type === "AuthenticationError" ||
+			error?.exc_type === "PermissionError"
+		) {
 			router.push({ name: "Login" });
 		}
 	},

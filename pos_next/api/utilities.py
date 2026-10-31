@@ -9,7 +9,7 @@ from frappe import _
 from frappe.utils import cint
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_csrf_token():
 	"""
 	Get CSRF token for the current session.
@@ -20,21 +20,22 @@ def get_csrf_token():
 	- Session must be valid
 	- User must be enabled
 	"""
-	if frappe.session.user == "Guest":
-		frappe.throw(_("Authentication required"), frappe.AuthenticationError)
+	if (
+		frappe.session.user == "Guest"
+		or not frappe.session.sid
+		or frappe.session.sid == "Guest"
+	):
+		return {"csrf_token": None, "session_id": "Guest", "authenticated": False}
 
 	if not frappe.db.get_value("User", frappe.session.user, "enabled"):
-		frappe.throw(_("User is disabled"), frappe.AuthenticationError)
-
-	if not frappe.session.sid or frappe.session.sid == "Guest":
-		frappe.throw(_("Invalid session"), frappe.AuthenticationError)
+		return {"csrf_token": None, "session_id": "Guest", "authenticated": False}
 
 	csrf_token = frappe.sessions.get_csrf_token()
 
 	if not csrf_token:
 		frappe.throw(_("Failed to generate CSRF token"), frappe.ValidationError)
 
-	return {"csrf_token": csrf_token, "session_id": frappe.session.sid}
+	return {"csrf_token": csrf_token, "session_id": frappe.session.sid, "authenticated": True}
 
 
 def _parse_list_parameter(value, param_name="parameter"):

@@ -42,7 +42,16 @@ import {
 	setConfig,
 } from "frappe-ui";
 
+// MDX UI — Shared design tokens, utilities, and operational theme
+import "mdx_ui/styles/tokens.css";
+import "mdx_ui/styles/breakpoints.css";
+import "mdx_ui/styles/transitions.css";
+import "mdx_ui/styles/utilities.css";
+import "mdx_ui/themes/operational.css";
+
 import "./index.css";
+
+import { installMdxUI } from "mdx_ui";
 
 const log = logger.create("Main");
 
@@ -127,6 +136,7 @@ async function initializeApp() {
 	for (const key in globalComponents) {
 		app.component(key, globalComponents[key]);
 	}
+	installMdxUI(app);
 
 	// Disable double-tap zoom on mobile for faster touch response
 	app.directive("touch-action", {
@@ -134,34 +144,45 @@ async function initializeApp() {
 	});
 
 	// -------------------------------------------------------------------------
-	// Authentication: Always ensure a fresh CSRF token via GET first so no
-	// subsequent POST requests (get_logged_user, translations, bootstrap)
-	// trigger HTTP 400 Bad Request in Nginx / Fail2ban.
+	// Authentication: If the browser has a non-Guest user_id cookie, verify the
+	// server session and refresh CSRF token via GET first so no subsequent POST
+	// requests trigger HTTP 400/403 errors. When unauthenticated (Guest), skip
+	// all authenticated API calls until login succeeds.
 	// -------------------------------------------------------------------------
 
-	try {
-		log.debug("Fetching fresh CSRF token via GET...");
-		await ensureCSRFToken({ forceRefresh: true, silent: true });
-		await syncCSRFTokenToWorker();
-	} catch {
-		log.debug("CSRF fetch failed, will retry on first API call");
-	}
-
-	// Now that window.csrf_token is ready, initialize translations and user check
-	app.use(translationPlugin);
-
 	let user = null;
-	try {
-		if (!userResource.loading) userResource.fetch();
-		await userResource.promise;
-		user = sessionUser();
-	} catch (error) {
-		log.debug("User not logged in", error?.message || "No session");
-		user = null;
+	if (sessionUser()) {
+		let csrfReady = false;
+		try {
+			log.debug("Fetching fresh CSRF token via GET...");
+			csrfReady = await ensureCSRFToken({ forceRefresh: true, silent: true });
+			if (csrfReady) {
+				await syncCSRFTokenToWorker();
+			}
+		} catch {
+			log.debug("CSRF fetch failed, will retry on first API call");
+		}
+
+		if (csrfReady) {
+			try {
+				if (!userResource.loading) {
+					await userResource.fetch();
+				} else {
+					await userResource.promise;
+				}
+				user = sessionUser();
+			} catch (error) {
+				log.debug("User not logged in", error?.message || "No session");
+				user = null;
+			}
+		}
 	}
 
 	session.user = user;
 	log.info(`User authenticated: ${session.user}`);
+
+	// Initialize translation plugin after session state is resolved
+	app.use(translationPlugin);
 
 	// -------------------------------------------------------------------------
 	// Bootstrap Preload (non-blocking, improves perceived performance)

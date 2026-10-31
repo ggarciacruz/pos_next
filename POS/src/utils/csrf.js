@@ -15,6 +15,15 @@ function readCookie(name) {
 	return null;
 }
 
+function hasActiveSessionCookie() {
+	const userId = readCookie("user_id");
+	return Boolean(userId && userId !== "Guest");
+}
+
+function clearStaleUserCookie() {
+	document.cookie = "user_id=Guest; path=/; SameSite=Lax";
+}
+
 function normalizeToken(token) {
 	if (typeof token !== "string" || token === CSRF_PLACEHOLDER || !token) {
 		return null;
@@ -99,6 +108,10 @@ function extractTokenFromResponse(data) {
 }
 
 export async function ensureCSRFToken({ forceRefresh = false, silent = false } = {}) {
+	if (!hasActiveSessionCookie()) {
+		return false;
+	}
+
 	if (!forceRefresh) {
 		// Check if we already have a valid token in window.csrf_token
 		if (
@@ -130,7 +143,12 @@ export async function ensureCSRFToken({ forceRefresh = false, silent = false } =
 
 			const { response, data } = await fetchCSRFToken();
 
-			if (response.status === 401 || response.status === 403) {
+			if (
+				response.status === 401 ||
+				response.status === 403 ||
+				data?.message?.authenticated === false
+			) {
+				clearStaleUserCookie();
 				if (!silent && import.meta.env.DEV) {
 					console.log("User not authenticated, skipping CSRF token refresh");
 				}

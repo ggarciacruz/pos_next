@@ -4,6 +4,7 @@ import { call } from "../utils/apiWrapper";
 import { offlineState } from "../utils/offline/offlineState";
 import { logger } from "../utils/logger";
 import { useBootstrapStore } from "../stores/bootstrap";
+import { sessionUser } from "../data/session";
 
 const log = logger.create("Locale");
 
@@ -268,8 +269,8 @@ export function useLocale() {
 			allowedLocales.value = cachedAllowed;
 		}
 
-		// If online and haven't fetched from server yet, get server language
-		if (!offlineState.isOffline && !serverLanguageFetched) {
+		// If online, authenticated, and haven't fetched from server yet, get server language
+		if (!offlineState.isOffline && !serverLanguageFetched && sessionUser()) {
 			serverLanguageFetched = true;
 
 			// Fetch allowed locales from server
