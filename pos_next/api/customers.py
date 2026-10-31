@@ -7,6 +7,26 @@ import frappe
 from frappe import _
 
 
+def _ensure_customer_billing_fields():
+	"""Ensure Customer has custom_razon_social field for billing name / Razón Social."""
+	try:
+		if not frappe.get_meta("Customer").has_field("custom_razon_social"):
+			if not frappe.db.exists("Custom Field", "Customer-custom_razon_social"):
+				frappe.get_doc(
+					{
+						"doctype": "Custom Field",
+						"dt": "Customer",
+						"fieldname": "custom_razon_social",
+						"label": "Razón Social / Nombre a Facturar",
+						"fieldtype": "Data",
+						"insert_after": "tax_id",
+					}
+				).insert(ignore_permissions=True)
+				frappe.clear_cache(doctype="Customer")
+	except Exception:
+		pass
+
+
 @frappe.whitelist()
 def get_customers(search_term="", pos_profile=None, limit=20, modified_since=None):
 	"""
@@ -22,6 +42,10 @@ def get_customers(search_term="", pos_profile=None, limit=20, modified_since=Non
 	    list: List of customer dictionaries with name, customer_name, mobile_no, email_id, disabled
 	"""
 	try:
+		_ensure_customer_billing_fields()
+		customer_meta = frappe.get_meta("Customer")
+		has_razon_social = customer_meta.has_field("custom_razon_social")
+
 		frappe.logger().debug(
 			f"get_customers called with search_term={search_term}, pos_profile={pos_profile}, limit={limit}, modified_since={modified_since}"
 		)
@@ -55,13 +79,29 @@ def get_customers(search_term="", pos_profile=None, limit=20, modified_since=Non
 				["Customer", "email_id", "like", like_term],
 				["Customer", "tax_id", "like", like_term],
 			]
+			if has_razon_social:
+				or_filters.append(["Customer", "custom_razon_social", "like", like_term])
+
+		fields = [
+			"name",
+			"customer_name",
+			"mobile_no",
+			"email_id",
+			"tax_id",
+			"primary_address",
+			"customer_group",
+			"territory",
+			"disabled",
+		]
+		if has_razon_social:
+			fields.append("custom_razon_social")
 
 		customer_limit = limit if limit not in (None, 0) else frappe.db.count("Customer", filters)
 		result = frappe.get_all(
 			"Customer",
 			filters=filters,
 			or_filters=or_filters or None,
-			fields=["name", "customer_name", "mobile_no", "email_id", "tax_id", "primary_address", "disabled"],
+			fields=fields,
 			limit=customer_limit,
 			order_by="customer_name asc",
 		)
@@ -85,6 +125,8 @@ def create_customer(
 	custom_governorate=None,
 	custom_district=None,
 	tax_id=None,
+	custom_razon_social=None,
+	primary_address=None,
 ):
 	"""
 	Create a new customer from POS.
@@ -100,6 +142,8 @@ def create_customer(
 	    custom_governorate (str): Governorate (optional)
 	    custom_district (str): District (optional, must belong to the governorate)
 	    tax_id (str): Tax ID / NIT / CI (optional)
+	    custom_razon_social (str): Legal billing name / Razón Social (optional)
+	    primary_address (str): Primary delivery address / puesto (optional)
 
 	Returns:
 	    dict: Created customer document
@@ -110,6 +154,9 @@ def create_customer(
 
 	if not customer_name:
 		frappe.throw(_("Customer name is required"))
+
+	_ensure_customer_billing_fields()
+	customer_meta = frappe.get_meta("Customer")
 
 	loyalty_program = get_default_loyalty_program_from_settings(
 		company=company,
@@ -133,32 +180,102 @@ def create_customer(
 			frappe.db.get_value("Territory", {"is_group": 0}, "name", order_by="lft") or "All Territories"
 		)
 
-	customer = frappe.get_doc(
-		{
-			"doctype": "Customer",
-			"customer_name": customer_name,
-			"customer_type": "Individual",
-			"customer_group": resolved_customer_group,
-			"territory": resolved_territory,
-			"mobile_no": mobile_no or "",
-			"email_id": email_id or "",
-			"loyalty_program": loyalty_program,
-			"custom_governorate": custom_governorate or None,
-			"custom_district": custom_district or None,
-			"tax_id": tax_id or "",
-		}
-	)
+	customer_dict = {
+		"doctype": "Customer",
+		"customer_name": customer_name.strip(),
+		"customer_type": "Individual",
+		"customer_group": resolved_customer_group,
+		"territory": resolved_territory,
+		"mobile_no": (mobile_no or "").strip(),
+		"email_id": (email_id or "").strip(),
+		"loyalty_program": loyalty_program,
+		"tax_id": (tax_id or "").strip(),
+		"primary_address": (primary_address or "").strip() or None,
+	}
+	if customer_meta.has_field("custom_razon_social"):
+		customer_dict["custom_razon_social"] = (custom_razon_social or "").strip() or None
+	if customer_meta.has_field("custom_governorate") and custom_governorate:
+		customer_dict["custom_governorate"] = custom_governorate
+	if customer_meta.has_field("custom_district") and custom_district:
+		customer_dict["custom_district"] = custom_district
 
+	customer = frappe.get_doc(customer_dict)
 
 	frappe.flags.pos_next_customer_company = company
 	frappe.flags.pos_next_customer_pos_profile = pos_profile
 	try:
 		customer.insert()
+		if primary_address and primary_address.strip():
+			customer.db_set("primary_address", primary_address.strip(), update_modified=False)
+			customer.primary_address = primary_address.strip()
 	finally:
 		frappe.flags.pos_next_customer_company = None
 		frappe.flags.pos_next_customer_pos_profile = None
 
 	return customer.as_dict()
+
+
+@frappe.whitelist()
+def update_customer(
+	customer,
+	customer_name=None,
+	mobile_no=None,
+	email_id=None,
+	tax_id=None,
+	custom_razon_social=None,
+	primary_address=None,
+	customer_group=None,
+	territory=None,
+	custom_governorate=None,
+	custom_district=None,
+):
+	"""
+	Update an existing customer from POS safely.
+	"""
+	if not customer or not frappe.db.exists("Customer", customer):
+		frappe.throw(_("Customer {0} not found").format(customer or ""))
+
+	if not (frappe.has_permission("Customer", "write") or frappe.has_permission("Customer", "create")):
+		frappe.throw(_("You don't have permission to update customers"), frappe.PermissionError)
+
+	_ensure_customer_billing_fields()
+	customer_meta = frappe.get_meta("Customer")
+	doc = frappe.get_doc("Customer", customer)
+	doc.flags.ignore_permissions = True
+
+	if customer_name is not None and customer_name.strip():
+		doc.customer_name = customer_name.strip()
+	if mobile_no is not None:
+		doc.mobile_no = mobile_no.strip()
+	if email_id is not None:
+		doc.email_id = email_id.strip()
+	if tax_id is not None:
+		doc.tax_id = tax_id.strip()
+	if primary_address is not None:
+		doc.primary_address = primary_address.strip() or None
+	if customer_meta.has_field("custom_razon_social") and custom_razon_social is not None:
+		doc.custom_razon_social = custom_razon_social.strip() or None
+	if customer_group and frappe.db.exists("Customer Group", customer_group):
+		doc.customer_group = customer_group
+	if territory and frappe.db.exists("Territory", territory):
+		doc.territory = territory
+	if customer_meta.has_field("custom_governorate") and custom_governorate is not None:
+		doc.custom_governorate = custom_governorate or None
+	if customer_meta.has_field("custom_district") and custom_district is not None:
+		doc.custom_district = custom_district or None
+
+	doc.save(ignore_permissions=True)
+
+	# Ensure direct fields on Customer table stay synced even if primary contact already existed
+	if mobile_no is not None:
+		doc.db_set("mobile_no", mobile_no.strip(), update_modified=False)
+	if email_id is not None:
+		doc.db_set("email_id", email_id.strip(), update_modified=False)
+	if primary_address is not None:
+		doc.db_set("primary_address", primary_address.strip() or None, update_modified=False)
+
+	frappe.clear_document_cache("Customer", doc.name)
+	return doc.as_dict()
 
 
 def get_default_loyalty_program(company):

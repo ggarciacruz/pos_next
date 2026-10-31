@@ -799,10 +799,10 @@
 											/>
 											<CheckboxField
 												v-model="settings.enable_siat_fiscal_format"
-												:label="__('Enable SIAT Fiscal Receipt Format')"
+												:label="__('Habilitar Facturación con Impuestos (SIAT)')"
 												:description="
 													__(
-														'Print tributary details including CUF, fiscal QR code and SIN tax notices'
+														'Activa la opción ¿Emitir Factura? en el cobro, los campos de NIT / CI y Razón Social en clientes, y el formato fiscal de recibos. Desactívelo para negocios sin facturación.'
 													)
 												"
 											/>

@@ -97,39 +97,67 @@
 						</div>
 					</div>
 
-					<!-- Toggle for Official Invoice (Facturado) -->
+					<!-- Toggle for Official Invoice (Facturado) - Only shown when Tax Billing is enabled in POS Settings -->
 					<div
-						v-if="!isSalesOrder"
-						class="bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex items-center justify-between"
+						v-if="!isSalesOrder && settingsStore.enableSiatFiscalFormat"
+						class="bg-blue-50 border border-blue-200 rounded-lg p-2.5 transition-all"
 					>
-						<div class="flex items-center gap-2">
-							<svg
-								class="w-4 h-4 text-blue-600 flex-shrink-0"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<svg
+									class="w-4 h-4 text-blue-600 flex-shrink-0"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+									/>
+								</svg>
+								<span class="text-xs font-semibold text-blue-700">
+									{{ __("¿Emitir Factura? (C/ Fact.)") }}
+								</span>
+							</div>
+							<label class="relative inline-flex items-center cursor-pointer">
+								<input
+									type="checkbox"
+									v-model="emitOfficialInvoice"
+									class="sr-only peer"
 								/>
-							</svg>
-							<span class="text-xs font-semibold text-blue-700">
-								{{ __("C/ Fact.") }}
-							</span>
+								<div
+									class="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"
+								></div>
+							</label>
 						</div>
-						<label class="relative inline-flex items-center cursor-pointer">
-							<input
-								type="checkbox"
-								v-model="emitOfficialInvoice"
-								class="sr-only peer"
-							/>
-							<div
-								class="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"
-							></div>
-						</label>
+
+						<!-- Inline NIT / CI and Razón Social inputs when Emitir Factura is active -->
+						<div v-if="emitOfficialInvoice" class="mt-2.5 pt-2.5 border-t border-blue-200/80 space-y-2">
+							<div>
+								<label class="block text-[10px] font-semibold text-blue-800 uppercase tracking-wider mb-0.5">
+									{{ __("NIT / CI *") }}
+								</label>
+								<input
+									v-model="billingNit"
+									type="text"
+									:placeholder="__('Ej. 4829102015 o CI')"
+									class="w-full px-2.5 py-1.5 text-xs font-medium text-gray-900 bg-white border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+								/>
+							</div>
+							<div>
+								<label class="block text-[10px] font-semibold text-blue-800 uppercase tracking-wider mb-0.5">
+									{{ __("Razón Social / Nombre Factura *") }}
+								</label>
+								<input
+									v-model="billingRazonSocial"
+									type="text"
+									:placeholder="__('Nombre o Razón Social a facturar')"
+									class="w-full px-2.5 py-1.5 text-xs font-medium text-gray-900 bg-white border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+								/>
+							</div>
+						</div>
 					</div>
 
 					<!-- Sales Person Selection (Compact) -->
@@ -2220,6 +2248,8 @@ const driverCollectionMode = ref("");
 const today = new Date().toISOString().split("T")[0];
 const isSalesOrder = computed(() => props.targetDoctype === "Sales Order");
 const emitOfficialInvoice = ref(false);
+const billingNit = ref("");
+const billingRazonSocial = ref("");
 const customerSearchStore = useCustomerSearchStore();
 
 // Column refs for height matching
@@ -3087,15 +3117,25 @@ watch(show, (newVal) => {
 		salesPersonSearch.value = "";
 		applyWriteOff.value = false; // Reset write-off state
 
-		// Setup Delivery information for truck dispatch
+		// Setup Delivery information for truck dispatch & Tax Billing info
 		deliveryDate.value = today;
+		emitOfficialInvoice.value = false;
 		const custKey = typeof props.customer === "object" ? props.customer?.name : props.customer;
 		const matchedCustomer = customerSearchStore.allCustomers.find((c) => c.name === custKey);
 		const defaultAddr = matchedCustomer?.primary_address || (typeof props.customer === "object" ? props.customer?.primary_address : "") || "";
 		const defaultPhone = matchedCustomer?.mobile_no || (typeof props.customer === "object" ? props.customer?.mobile_no : "") || "";
+		const defaultNit = matchedCustomer?.tax_id || (typeof props.customer === "object" ? props.customer?.tax_id : "") || "";
+		const rawCustName = matchedCustomer?.customer_name || (typeof props.customer === "object" ? props.customer?.customer_name : props.customer) || "";
+		const isWalkInCust = !rawCustName || rawCustName.toLowerCase().includes("mostrador") || rawCustName.toLowerCase() === "walk-in";
+		const defaultRazonSocial =
+			matchedCustomer?.custom_razon_social ||
+			(typeof props.customer === "object" ? props.customer?.custom_razon_social : "") ||
+			(isWalkInCust ? "" : rawCustName);
 
 		deliveryAddress.value = defaultAddr;
 		deliveryPhone.value = defaultPhone;
+		billingNit.value = defaultNit;
+		billingRazonSocial.value = defaultRazonSocial;
 		requiresDelivery.value = isSalesOrder.value || Boolean(defaultAddr);
 		driverCollectionMode.value = "";
 
@@ -3464,6 +3504,62 @@ function applyCustomerCredit() {
 	log.debug("[PaymentDialog] Existing credit applied, new entries:", paymentEntries.value);
 }
 
+function validateAndSyncCustomerBillingAndDelivery() {
+	const shouldEmitInvoice = Boolean(
+		!isSalesOrder.value && settingsStore.enableSiatFiscalFormat && emitOfficialInvoice.value
+	);
+	if (shouldEmitInvoice) {
+		if (!billingNit.value.trim() || !billingRazonSocial.value.trim()) {
+			showWarning(__("Ingrese el NIT / CI y la Razón Social para emitir factura."));
+			return false;
+		}
+	}
+
+	const custKey = typeof props.customer === "object" ? props.customer?.name : props.customer;
+	const isWalkIn =
+		!custKey ||
+		String(custKey).toLowerCase().includes("mostrador") ||
+		String(custKey).toLowerCase() === "walk-in";
+
+	// Sync delivery address/phone
+	if (requiresDelivery.value && (deliveryAddress.value || deliveryPhone.value) && custKey && !isWalkIn) {
+		call("pos_next.api.invoices.update_customer_delivery_info", {
+			customer_name: custKey,
+			direccion: deliveryAddress.value,
+			telefono: deliveryPhone.value,
+		}).catch((err) => log.warn("Could not auto-save customer delivery info:", err));
+	}
+
+	// Sync NIT / Razón Social back to Customer record and local cache when billing is active
+	if (shouldEmitInvoice && custKey && !isWalkIn) {
+		const matchedCustomer = customerSearchStore.allCustomers.find((c) => c.name === custKey);
+		const cleanNit = billingNit.value.trim();
+		const cleanRazon = billingRazonSocial.value.trim();
+		if (
+			matchedCustomer &&
+			(matchedCustomer.tax_id !== cleanNit || matchedCustomer.custom_razon_social !== cleanRazon)
+		) {
+			call("pos_next.api.customers.update_customer", {
+				name: custKey,
+				customer_name: matchedCustomer.customer_name || custKey,
+				mobile_no: requiresDelivery.value && deliveryPhone.value ? deliveryPhone.value : matchedCustomer.mobile_no || null,
+				tax_id: cleanNit,
+				custom_razon_social: cleanRazon,
+				primary_address: requiresDelivery.value && deliveryAddress.value ? deliveryAddress.value : matchedCustomer.primary_address || null,
+			})
+				.then((res) => {
+					const updated = res?.message || res;
+					if (updated?.name) {
+						customerSearchStore.addCustomerToCache(updated);
+					}
+				})
+				.catch((err) => log.warn("Could not auto-save customer billing info:", err));
+		}
+	}
+
+	return true;
+}
+
 // Add "Pay on Account" - Credit Sale (invoice with outstanding amount)
 function addCreditAccountPayment() {
 	log.debug("[PaymentDialog] Add credit account payment (Pay Later):", {
@@ -3472,7 +3568,14 @@ function addCreditAccountPayment() {
 		remainingAmount: remainingAmount.value,
 	});
 
+	if (!validateAndSyncCustomerBillingAndDelivery()) {
+		return;
+	}
+
 	const receivableAccount = selectedReceivableAccount.value || null;
+	const shouldEmitInvoice = Boolean(
+		!isSalesOrder.value && settingsStore.enableSiatFiscalFormat && emitOfficialInvoice.value
+	);
 
 	// Close dialog and complete as credit sale (0 payment)
 	// The backend will create an invoice with outstanding amount
@@ -3497,20 +3600,10 @@ function addCreditAccountPayment() {
 		write_off_amount: 0,
 		is_write_off: false,
 		receivable_account: receivableAccount,
-		emit_official_invoice: emitOfficialInvoice.value,
+		emit_official_invoice: shouldEmitInvoice,
+		billing_nit: shouldEmitInvoice ? billingNit.value.trim() : null,
+		billing_razon_social: shouldEmitInvoice ? billingRazonSocial.value.trim() : null,
 	};
-
-	// Auto-update customer address/phone in background if customer is fixed
-	if (requiresDelivery.value && (deliveryAddress.value || deliveryPhone.value)) {
-		const custKey = typeof props.customer === "object" ? props.customer?.name : props.customer;
-		if (custKey) {
-			call("pos_next.api.invoices.update_customer_delivery_info", {
-				customer_name: custKey,
-				direccion: deliveryAddress.value,
-				telefono: deliveryPhone.value,
-			}).catch((err) => log.warn("Could not auto-save customer delivery info:", err));
-		}
-	}
 
 	log.debug("[PaymentDialog] Emitting credit sale payment-completed:", paymentData);
 	emit("payment-completed", paymentData);
@@ -3542,10 +3635,17 @@ function completePayment() {
 		return;
 	}
 
+	if (!validateAndSyncCustomerBillingAndDelivery()) {
+		return;
+	}
+
 	// "Pay on Receivable Account": the chosen account holds the unpaid balance (the invoice's
 	// debit_to). Tendered payments are real money; whatever is left (grand_total − tendered)
 	// stays outstanding on that account — it is NOT a payment row.
 	const receivableAccount = selectedReceivableAccount.value || null;
+	const shouldEmitInvoice = Boolean(
+		!isSalesOrder.value && settingsStore.enableSiatFiscalFormat && emitOfficialInvoice.value
+	);
 
 	// Partial when the tendered amount (plus write-off) doesn't cover the total.
 	const effectivePaid = totalPaid.value + writeOffAmount.value;
@@ -3576,20 +3676,10 @@ function completePayment() {
 		// the allow_credit_sale gate).
 		receivable_account: receivableAccount,
 		is_credit_sale: !!receivableAccount && paymentEntries.value.length === 0,
-		emit_official_invoice: emitOfficialInvoice.value,
+		emit_official_invoice: shouldEmitInvoice,
+		billing_nit: shouldEmitInvoice ? billingNit.value.trim() : null,
+		billing_razon_social: shouldEmitInvoice ? billingRazonSocial.value.trim() : null,
 	};
-
-	// Auto-update customer address/phone in background if customer is fixed
-	if (requiresDelivery.value && (deliveryAddress.value || deliveryPhone.value)) {
-		const custKey = typeof props.customer === "object" ? props.customer?.name : props.customer;
-		if (custKey) {
-			call("pos_next.api.invoices.update_customer_delivery_info", {
-				customer_name: custKey,
-				direccion: deliveryAddress.value,
-				telefono: deliveryPhone.value,
-			}).catch((err) => log.warn("Could not auto-save customer delivery info:", err));
-		}
-	}
 
 	log.debug("[PaymentDialog] Emitting payment-completed:", paymentData);
 

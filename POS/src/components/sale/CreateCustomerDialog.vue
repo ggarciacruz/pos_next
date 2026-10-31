@@ -120,8 +120,24 @@
 					</div>
 				</div>
 
-				<!-- NIT / CI & Email (2 Columns) -->
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<!-- Dirección / Puesto de Entrega (Opcional) -->
+				<div>
+					<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
+						{{ __("Dirección / Puesto de Entrega") }}
+					</label>
+					<Input
+						v-model="customerData.primary_address"
+						type="text"
+						:placeholder="__('Ej: Feria / Tienda / Calle y zona de entrega (opcional)')"
+						@keydown.enter.prevent="handleCreate"
+					/>
+				</div>
+
+				<!-- Datos de Facturación (Solo visible si la Facturación está habilitada en Configuración del POS) -->
+				<div
+					v-if="settingsStore.enableSiatFiscalFormat"
+					class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100"
+				>
 					<!-- NIT / CI -->
 					<div>
 						<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
@@ -130,104 +146,22 @@
 						<Input
 							v-model="customerData.tax_id"
 							type="text"
-							:placeholder="__('Enter NIT or CI')"
+							:placeholder="__('Número de NIT o CI')"
 							@keydown.enter.prevent="handleCreate"
 						/>
 					</div>
 
-					<!-- Email -->
+					<!-- Razón Social -->
 					<div>
 						<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
-							{{ __("Email") }}
+							{{ __("Razón Social / Nombre Factura") }}
 						</label>
 						<Input
-							v-model="customerData.email_id"
-							type="email"
-							:placeholder="__('Enter email address')"
+							v-model="customerData.custom_razon_social"
+							type="text"
+							:placeholder="customerData.customer_name || __('Nombre o Apellido para factura')"
+							@keydown.enter.prevent="handleCreate"
 						/>
-					</div>
-				</div>
-
-				<!-- Customer Group & Territory (2 Columns) -->
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-					<!-- Customer Group -->
-					<div>
-						<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
-							{{ __("Customer Group") }}
-						</label>
-						<select
-							v-model="customerData.customer_group"
-							class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-						>
-							<option value="">{{ __("Select Customer Group") }}</option>
-							<option v-for="group in customerGroups" :key="group" :value="group">
-								{{ group }}
-							</option>
-						</select>
-					</div>
-
-					<!-- Territory -->
-					<div>
-						<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
-							{{ __("Territory") }}
-						</label>
-						<select
-							v-model="customerData.territory"
-							class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-						>
-							<option value="">{{ __("Select Territory") }}</option>
-							<option
-								v-for="territory in territories"
-								:key="territory"
-								:value="territory"
-							>
-								{{ territory }}
-							</option>
-						</select>
-					</div>
-				</div>
-
-				<!-- Governorate & District (Only visible if Governorates exist in DB) -->
-				<div v-if="governorates.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-					<div>
-						<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
-							{{ __("Governorate") }}
-						</label>
-						<select
-							v-model="customerData.custom_governorate"
-							class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-						>
-							<option value="">{{ __("Select Governorate") }}</option>
-							<option v-for="gov in governorates" :key="gov" :value="gov">
-								{{ gov }}
-							</option>
-						</select>
-					</div>
-
-					<div>
-						<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
-							{{ __("District") }}
-						</label>
-						<select
-							v-model="customerData.custom_district"
-							:disabled="!customerData.custom_governorate"
-							class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-						>
-							<option value="">
-								{{
-									customerData.custom_governorate
-										? __("Select District")
-										: __("Select a governorate first")
-								}}
-							</option>
-							<option
-								v-for="district in districts"
-								:key="district.name"
-								:value="district.name"
-							>
-								{{ district.district }}
-							</option>
-						</select>
 					</div>
 				</div>
 			</div>
@@ -303,6 +237,7 @@
 import { usePOSPermissions } from "@/composables/usePermissions";
 import { useToast } from "@/composables/useToast";
 import { useCountriesStore } from "@/stores/countries";
+import { usePOSSettingsStore } from "@/stores/posSettings";
 import { logger } from "@/utils/logger";
 import { Button, Dialog, Input, createResource } from "frappe-ui";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
@@ -314,6 +249,7 @@ const log = logger.create("CreateCustomerDialog");
 // =============================================================================
 
 const countriesStore = useCountriesStore();
+const settingsStore = usePOSSettingsStore();
 const { canCreateCustomer } = usePOSPermissions();
 const { showSuccess, showError } = useToast();
 
@@ -351,6 +287,8 @@ const districts = ref([]);
 const customerData = ref({
 	customer_name: "",
 	tax_id: "",
+	custom_razon_social: "",
+	primary_address: "",
 	mobile_no: "",
 	email_id: "",
 	customer_group: "",
@@ -472,6 +410,8 @@ const createCustomerResource = createResource({
 		custom_governorate: customerData.value.custom_governorate || "",
 		custom_district: customerData.value.custom_district || "",
 		tax_id: customerData.value.tax_id || "",
+		custom_razon_social: customerData.value.custom_razon_social || "",
+		primary_address: customerData.value.primary_address || "",
 		pos_profile: props.posProfile,
 	}),
 	onSuccess: (data) => {
@@ -486,20 +426,17 @@ const createCustomerResource = createResource({
 });
 
 const updateCustomerResource = createResource({
-	url: "frappe.client.set_value",
+	url: "pos_next.api.customers.update_customer",
 	makeParams: () => ({
-		doctype: "Customer",
-		name: props.customer?.name,
-		fieldname: {
-			customer_name: customerData.value.customer_name,
-			customer_group: customerData.value.customer_group || "",
-			territory: customerData.value.territory || "",
-			mobile_no: customerData.value.mobile_no || "",
-			email_id: customerData.value.email_id || "",
-			custom_governorate: customerData.value.custom_governorate || "",
-			custom_district: customerData.value.custom_district || "",
-			tax_id: customerData.value.tax_id || "",
-		},
+		customer: props.customer?.name,
+		customer_name: customerData.value.customer_name,
+		mobile_no: customerData.value.mobile_no || "",
+		email_id: customerData.value.email_id || "",
+		tax_id: customerData.value.tax_id || "",
+		custom_razon_social: customerData.value.custom_razon_social || "",
+		primary_address: customerData.value.primary_address || "",
+		customer_group: customerData.value.customer_group || "",
+		territory: customerData.value.territory || "",
 	}),
 	onSuccess: (data) => {
 		showSuccess(__("Customer {0} updated successfully", [data.customer_name]));
@@ -637,14 +574,7 @@ const loadDialogData = async () => {
 	await Promise.all([
 		territoriesResource.reload(),
 		customerGroupsResource.reload(),
-		governoratesResource.reload(),
 	]);
-	if (isEditMode.value && props.customer?.name) {
-		await customerLocationResource.reload();
-	}
-	if (customerData.value.custom_governorate) {
-		await districtsResource.reload();
-	}
 	checkPermissions();
 
 	// Set country from POS Profile
@@ -682,6 +612,9 @@ const resetForm = () => {
 	const settings = sellingSettingsResource.data || {};
 	Object.assign(customerData.value, {
 		customer_name: "",
+		tax_id: "",
+		custom_razon_social: "",
+		primary_address: "",
 		mobile_no: "",
 		email_id: "",
 		customer_group: pickDefault(settings.customer_group, customerGroups.value),
@@ -692,7 +625,7 @@ const resetForm = () => {
 		custom_district: "",
 	});
 	districts.value = [];
-	selectedCountryCode.value = "";
+	selectedCountryCode.value = "+591";
 	phoneNumber.value = "";
 };
 
@@ -712,6 +645,8 @@ watch(
 		if (customer?.name) {
 			customerData.value.customer_name = customer.customer_name || "";
 			customerData.value.tax_id = customer.tax_id || "";
+			customerData.value.custom_razon_social = customer.custom_razon_social || "";
+			customerData.value.primary_address = customer.primary_address || "";
 			customerData.value.email_id = customer.email_id || "";
 			customerData.value.customer_group =
 				customer.customer_group || customerGroups.value[0] || "";
@@ -731,8 +666,13 @@ watch(
 					selectedCountryCode.value = code;
 					phoneNumber.value = rest.join("-");
 				} else {
+					selectedCountryCode.value = "+591";
 					phoneNumber.value = customer.mobile_no;
 				}
+			} else {
+				customerData.value.mobile_no = "";
+				selectedCountryCode.value = "+591";
+				phoneNumber.value = "";
 			}
 		}
 	},

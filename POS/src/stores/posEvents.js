@@ -274,6 +274,7 @@ export const usePOSEventsStore = defineStore("posEvents", () => {
 			"allow_partial_payment",
 			"silent_print",
 			"enable_whatsapp_send",
+			"enable_siat_fiscal_format",
 		];
 		const salesChanges = salesFields.filter((field) => field in changes);
 		if (salesChanges.length > 0) {

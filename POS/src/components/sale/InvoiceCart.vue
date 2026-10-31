@@ -100,10 +100,23 @@
 										{{ customer.customer_name || customer.name }}
 									</p>
 									<p
-										v-if="customer.mobile_no"
-										class="text-[10px] text-gray-500 truncate leading-tight"
+										v-if="
+											customer.mobile_no ||
+											(settingsStore.enableSiatFiscalFormat && customer.tax_id) ||
+											customer.primary_address
+										"
+										class="text-[10px] text-gray-500 truncate leading-tight mt-0.5"
 									>
-										{{ customer.mobile_no }}
+										<span v-if="customer.mobile_no">{{ customer.mobile_no }}</span>
+										<span
+											v-if="settingsStore.enableSiatFiscalFormat && customer.tax_id"
+											class="font-medium text-blue-600"
+										>
+											{{ customer.mobile_no ? " · " : "" }}NIT: {{ customer.tax_id }}
+										</span>
+										<span v-else-if="customer.primary_address" class="text-gray-400">
+											{{ customer.mobile_no ? " · " : "" }}{{ customer.primary_address }}
+										</span>
 									</p>
 								</div>
 							</div>
@@ -410,8 +423,29 @@
 								<p class="text-xs font-semibold text-gray-900 truncate">
 									{{ cust.customer_name }}
 								</p>
-								<p v-if="cust.mobile_no" class="text-[10px] text-gray-500">
-									{{ cust.mobile_no }}
+								<p
+									v-if="
+										cust.mobile_no ||
+										(settingsStore.enableSiatFiscalFormat && cust.tax_id) ||
+										cust.primary_address
+									"
+									class="text-[10px] text-gray-500 truncate"
+								>
+									<span v-if="cust.mobile_no">{{ cust.mobile_no }}</span>
+									<span
+										v-if="settingsStore.enableSiatFiscalFormat && cust.tax_id"
+										class="font-medium text-blue-600"
+									>
+										{{ cust.mobile_no ? " · " : "" }}NIT: {{ cust.tax_id }}
+									</span>
+									<span v-if="cust.primary_address" class="text-gray-400">
+										{{
+											cust.mobile_no ||
+											(settingsStore.enableSiatFiscalFormat && cust.tax_id)
+												? " · "
+												: ""
+										}}{{ cust.primary_address }}
+									</span>
 								</p>
 							</div>
 						</button>

@@ -1654,6 +1654,7 @@ onMounted(async () => {
 			allow_partial_payment: __("Partial Payment"),
 			silent_print: __("Silent Print"),
 			enable_whatsapp_send: __("Envío por WhatsApp"),
+			enable_siat_fiscal_format: __("Facturación con Impuestos (SIAT)"),
 		};
 
 		const changedSettings = Object.keys(changes)

@@ -37,6 +37,7 @@ export const useCustomerSearchStore = defineStore("customerSearch", () => {
 				mobile: (customer.mobile_no || "").toLowerCase(),
 				email: (customer.email_id || "").toLowerCase(),
 				taxId: (customer.tax_id || "").toLowerCase(),
+				razonSocial: (customer.custom_razon_social || "").toLowerCase(),
 				id: (customer.name || "").toLowerCase(),
 				// Pre-compute word starts for super fast word matching
 				nameWords: (customer.customer_name || "").toLowerCase().split(" "),
@@ -56,10 +57,20 @@ export const useCustomerSearchStore = defineStore("customerSearch", () => {
 
 		if (cached.name.includes(term)) return 180; // Name contains
 
-		// Phone & NIT/Tax ID checks (very important for POS)
-		if (cached.mobile === term || cached.taxId === term) return 250;
-		if (cached.mobile.startsWith(term) || cached.taxId.startsWith(term)) return 225;
-		if (cached.mobile.includes(term) || cached.taxId.includes(term)) return 150;
+		// Phone & NIT/Tax ID & Razón Social checks (very important for POS)
+		if (cached.mobile === term || cached.taxId === term || cached.razonSocial === term) return 250;
+		if (
+			cached.mobile.startsWith(term) ||
+			cached.taxId.startsWith(term) ||
+			cached.razonSocial.startsWith(term)
+		)
+			return 225;
+		if (
+			cached.mobile.includes(term) ||
+			cached.taxId.includes(term) ||
+			cached.razonSocial.includes(term)
+		)
+			return 150;
 
 		// Email checks
 		if (cached.email.startsWith(term)) return 200;
@@ -286,7 +297,19 @@ export const useCustomerSearchStore = defineStore("customerSearch", () => {
 	// Real-time Push Integration
 	const { onCustomerUpdate } = useRealtimeCustomers();
 	onCustomerUpdate(async (data) => {
-		const { name, action, customer_name, mobile_no, email_id, disabled } = data;
+		const {
+			name,
+			action,
+			customer_name,
+			mobile_no,
+			email_id,
+			tax_id,
+			custom_razon_social,
+			primary_address,
+			customer_group,
+			territory,
+			disabled,
+		} = data;
 		console.log("Customer update via real-time:", data);
 		if (action === "delete" || disabled) {
 			// Remove from memory
@@ -301,12 +324,24 @@ export const useCustomerSearchStore = defineStore("customerSearch", () => {
 
 			log.info(`Customer removed/disabled via real-time: ${name}`);
 		} else {
-			// Upsert (Create or Update)
+			// Upsert (Create or Update), preserving any existing fields if not sent in event
+			const existing = allCustomers.value.find((c) => c.name === name) || {};
 			const customer = {
+				...existing,
 				name,
-				customer_name,
-				mobile_no,
-				email_id,
+				customer_name: customer_name ?? existing.customer_name ?? name,
+				mobile_no: mobile_no !== undefined ? mobile_no : existing.mobile_no || "",
+				email_id: email_id !== undefined ? email_id : existing.email_id || "",
+				tax_id: tax_id !== undefined ? tax_id : existing.tax_id || "",
+				custom_razon_social:
+					custom_razon_social !== undefined
+						? custom_razon_social
+						: existing.custom_razon_social || "",
+				primary_address:
+					primary_address !== undefined ? primary_address : existing.primary_address || "",
+				customer_group:
+					customer_group !== undefined ? customer_group : existing.customer_group || "",
+				territory: territory !== undefined ? territory : existing.territory || "",
 				disabled: !!disabled,
 			};
 			await addCustomerToCache(customer);
