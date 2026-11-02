@@ -109,8 +109,8 @@ export default defineConfig({
 				],
 			},
 			workbox: {
-				globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
-				maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 3 MB
+				globPatterns: ["**/*.{js,css,ico,png,svg}"],
+				maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MB
 				navigateFallback: null,
 				navigateFallbackDenylist: [/^\/api/, /^\/app/],
 				runtimeCaching: [
@@ -144,12 +144,15 @@ export default defineConfig({
 					},
 					{
 						urlPattern: /\/assets\/pos_next\/pos\/.*/i,
-						handler: "CacheFirst",
+						handler: "StaleWhileRevalidate",
 						options: {
 							cacheName: "pos-assets-cache",
 							expiration: {
 								maxEntries: 500,
 								maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+							},
+							cacheableResponse: {
+								statuses: [200],
 							},
 						},
 					},
@@ -223,9 +226,13 @@ export default defineConfig({
 		},
 	},
 	resolve: {
+		dedupe: ["vue", "vue-router"],
 		alias: {
 			"@": path.resolve(__dirname, "src"),
 			"tailwind.config.js": path.resolve(__dirname, "tailwind.config.js"),
+			mdx_ui: path.resolve(__dirname, "../../../../packages/mdx_ui"),
+			"frappe-ui/style.css": path.resolve(__dirname, "node_modules/frappe-ui/src/style.css"),
+			"frappe-ui": path.resolve(__dirname, "node_modules/frappe-ui"),
 		},
 	},
 	define: {

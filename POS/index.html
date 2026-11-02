@@ -1,8 +1,74 @@
 <!doctype html>
+<!-- no-cache -->
 <html lang="en">
 
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <script>
+    // Self-healing guard against stale PWA Service Worker / cached HTML referencing old Vite chunk hashes (404)
+    (function () {
+      function recoverFromStaleChunk(targetUrl) {
+        if (!navigator.onLine) return;
+        try {
+          var lastReload = Number(sessionStorage.getItem("pos_asset_404_reload") || "0");
+          var now = Date.now();
+          if (now - lastReload < 15000) return; // Prevent reload loops
+          sessionStorage.setItem("pos_asset_404_reload", String(now));
+        } catch (e) {}
+
+        var cleanup = Promise.resolve();
+        if ("serviceWorker" in navigator && navigator.serviceWorker.getRegistrations) {
+          cleanup = navigator.serviceWorker
+            .getRegistrations()
+            .then(function (regs) {
+              return Promise.all(regs.map(function (r) { return r.unregister(); }));
+            })
+            .catch(function () {});
+        }
+        if ("caches" in window && window.caches.keys) {
+          cleanup = cleanup
+            .then(function () { return window.caches.keys(); })
+            .then(function (keys) {
+              return Promise.all(
+                keys.map(function (k) {
+                  if (k.indexOf("workbox") !== -1 || k.indexOf("pos-page") !== -1 || k.indexOf("pos-assets") !== -1) {
+                    return window.caches.delete(k);
+                  }
+                  return Promise.resolve();
+                })
+              );
+            })
+            .catch(function () {});
+        }
+        cleanup.finally(function () {
+          var url = new URL(window.location.href);
+          url.searchParams.set("_v", String(Date.now()));
+          window.location.replace(url.toString());
+        });
+      }
+
+      window.addEventListener(
+        "error",
+        function (event) {
+          var el = event && event.target;
+          if (!el) return;
+          var src = el.src || el.href || "";
+          if (src.indexOf("/assets/pos_next/pos/assets/") !== -1) {
+            recoverFromStaleChunk(src);
+          }
+        },
+        true
+      );
+
+      window.addEventListener("vite:preloadError", function (event) {
+        event.preventDefault();
+        recoverFromStaleChunk("vite:preloadError");
+      });
+    })();
+  </script>
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%234F46E5' d='M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4zm10 16H4V9h16v11z'/></svg>" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />

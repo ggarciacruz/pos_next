@@ -5,7 +5,7 @@
 			:class="{ 'pos-mdx-navbar--collapsed': navbarCollapsed }"
 			:show-hamburger="hasOpenShift"
 			logo="/assets/pos_next/pos/icon.svg"
-			app-name="MDX POS"
+			app-name="MANDOX POS"
 			:subtitle="profileName"
 			@toggle-menu="$emit('toggle-menu')"
 			@toggle-collapse="toggleNavbar"
@@ -49,105 +49,112 @@
 			</template>
 
 			<template #right>
-				<!-- Right Side: Controls -->
-				<div class="flex items-center gap-0.5 sm:gap-1 md:gap-2 flex-shrink-0">
-					<!-- WiFi/Offline Status -->
+				<!-- WiFi/Offline Status (Unified 36x36px mdx_ui .app-nav-btn) -->
+				<button
+					type="button"
+					@click="$emit('sync-click')"
+					:class="[
+						'app-nav-btn touch-manipulation',
+						isSyncing ? 'animate-pulse' : '',
+					]"
+					:title="
+						isOffline
+							? __('Offline ({0} pending)', [pendingInvoicesCount])
+							: __('Online - Click to sync')
+					"
+					:aria-label="
+						isOffline ? __('Offline mode active') : __('Online mode active')
+					"
+				>
+					<svg
+						v-if="!isOffline"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M5 12.55a11 11 0 0 1 14.08 0" />
+						<path d="M1.42 9a16 16 0 0 1 21.16 0" />
+						<path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+						<circle cx="12" cy="20" r="1.5" fill="currentColor" />
+					</svg>
+					<svg
+						v-else
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<line x1="2" y1="2" x2="22" y2="22" />
+						<path d="M8.5 16.5a5 5 0 0 1 7 0" />
+						<path d="M2 8.82a15 15 0 0 1 4.17-2.65" />
+						<path d="M10.66 5c4.01-.36 8.14.9 11.34 3.82" />
+						<path d="M5.5 12.5a10 10 0 0 1 3.5-2" />
+						<line x1="12" y1="20" x2="12.01" y2="20" />
+					</svg>
+					<span
+						v-if="pendingInvoicesCount > 0"
+						class="app-nav-badge"
+					>
+						{{ pendingInvoicesCount }}
+					</span>
+					<span
+						v-else
+						class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ring-1 ring-white"
+						:class="isOffline ? 'bg-amber-500' : 'bg-emerald-500'"
+					></span>
+				</button>
+
+				<!-- Cache Status Indicator (Unified 36x36px mdx_ui .app-nav-btn) -->
+				<div class="relative inline-flex items-center">
 					<button
-						@click="$emit('sync-click')"
-						:class="[
-							'p-1.5 sm:p-2 hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors relative group touch-manipulation',
-							isSyncing ? 'animate-pulse' : '',
-						]"
-						:title="
-							isOffline
-								? __('Offline ({0} pending)', [pendingInvoicesCount])
-								: __('Online - Click to sync')
-						"
-						:aria-label="
-							isOffline ? __('Offline mode active') : __('Online mode active')
-						"
+						type="button"
+						@click="showCacheTooltip = !showCacheTooltip"
+						@blur="handleBlur"
+						class="app-nav-btn touch-manipulation"
+						:title="getCacheAriaLabel()"
+						:aria-label="getCacheAriaLabel()"
 					>
 						<svg
-							v-if="!isOffline"
-							class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600"
-							fill="currentColor"
+							v-if="cacheSyncing || isRefreshing"
+							class="animate-spin"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
 							viewBox="0 0 24 24"
 						>
-							<path
-								d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"
-							/>
+							<path d="M21 12a9 9 0 1 1-6.219-8.56" />
 						</svg>
 						<svg
 							v-else
-							class="w-4 h-4 sm:w-5 sm:h-5 text-orange-600"
+							viewBox="0 0 24 24"
 							fill="none"
 							stroke="currentColor"
-							viewBox="0 0 24 24"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
 						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"
-							/>
+							<ellipse cx="12" cy="5" rx="9" ry="3" />
+							<path d="M3 5V19A9 3 0 0 0 21 19V5" />
+							<path d="M3 12A9 3 0 0 0 21 12" />
 						</svg>
 						<span
-							v-if="pendingInvoicesCount > 0"
-							class="absolute -top-1 -end-1 bg-orange-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md"
+							v-if="cacheSyncing && cacheStats?.items > 0"
+							class="absolute -bottom-1 -end-1 bg-amber-500 text-white text-[8px] font-bold rounded-full px-1 min-w-[18px] h-3.5 flex items-center justify-center shadow-xs animate-pulse"
+							:title="__('Syncing: {0} items', [formatNumber(cacheStats.items)])"
 						>
-							{{ pendingInvoicesCount }}
+							{{ formatCompactNumber(cacheStats.items) }}
 						</span>
+						<span
+							v-else
+							class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ring-1 ring-white"
+							:class="getCacheDotClass()"
+						></span>
 					</button>
-
-					<!-- Cache Status Indicator -->
-					<div class="relative">
-						<button
-							@click="showCacheTooltip = !showCacheTooltip"
-							@blur="handleBlur"
-							class="p-1.5 sm:p-2 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors relative touch-manipulation"
-							:aria-label="getCacheAriaLabel()"
-						>
-							<svg
-								class="w-4 h-4 sm:w-5 sm:h-5 transition-colors"
-								:class="getCacheIconColor()"
-								fill="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									d="M12 2C8.13 2 5 3.12 5 4.5V7c0 1.38 3.13 2.5 7 2.5S19 8.38 19 7V4.5C19 3.12 15.87 2 12 2zM5 9v3c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5V9c0 1.38-3.13 2.5-7 2.5S5 10.38 5 9zm0 5v3c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-3c0 1.38-3.13 2.5-7 2.5S5 15.38 5 14z"
-								/>
-							</svg>
-							<svg
-								v-if="cacheSyncing || isRefreshing"
-								class="w-4 h-4 sm:w-5 sm:h-5 absolute top-2 start-2 animate-spin opacity-70"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								:class="getCacheIconColor()"
-							>
-								<circle
-									class="opacity-25"
-									cx="12"
-									cy="12"
-									r="10"
-									stroke="currentColor"
-									stroke-width="4"
-								></circle>
-								<path
-									class="opacity-75"
-									fill="currentColor"
-									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-								></path>
-							</svg>
-							<!-- Sync progress badge (visible during sync) -->
-							<span
-								v-if="cacheSyncing && cacheStats?.items > 0"
-								class="absolute -bottom-1 -end-1 bg-orange-500 text-white text-[8px] font-bold rounded-full px-1 min-w-[20px] h-4 flex items-center justify-center shadow-md animate-pulse"
-								:title="__('Syncing: {0} items', [formatNumber(cacheStats.items)])"
-							>
-								{{ formatCompactNumber(cacheStats.items) }}
-							</span>
-						</button>
 
 						<!-- Tooltip -->
 						<div
@@ -295,21 +302,18 @@
 						</div>
 					</div>
 
-					<!-- Printer - Visible only while shift is open -->
-					<div v-if="hasOpenShift" class="hidden md:block relative">
+					<!-- Printer - Visible only when QZ Tray Silent Print is enabled -->
+					<div v-if="hasOpenShift && silentPrintEnabled" class="hidden md:block relative">
 						<ActionButton
 							:icon="printerIcon"
 							:title="
-								silentPrintEnabled
-									? qzConnected
-										? __('Silent Print: Connected')
-										: __('Silent Print: Disconnected')
-									: __('Print Invoice')
+								qzConnected
+									? __('Silent Print: Connected')
+									: __('Silent Print: Disconnected')
 							"
 							@click="$emit('printer-click')"
 						/>
 						<span
-							v-if="silentPrintEnabled"
 							class="absolute top-0.5 end-0.5 w-2 h-2 rounded-full border border-white"
 							:class="qzConnected ? 'bg-green-500' : 'bg-red-500'"
 						></span>
@@ -321,22 +325,13 @@
 						:title="isRefreshing ? __('Refreshing...') : __('Refresh')"
 						@click="$emit('refresh-click')"
 						:class="[
-							'touch-manipulation p-1 sm:p-2',
+							'touch-manipulation',
 							isRefreshing ? 'animate-spin' : '',
 						]"
 						:aria-label="
 							isRefreshing ? __('Refreshing...') : __('Refresh items and customers')
 						"
 					/>
-
-					<div class="w-px h-4 sm:h-6 bg-gray-200 hidden md:block"></div>
-
-					<!-- Language Switcher - Hidden on mobile, shown in UserMenu instead -->
-					<div class="hidden md:block">
-						<LanguageSwitcher />
-					</div>
-
-					<div class="w-px h-4 sm:h-6 bg-gray-200"></div>
 
 					<!-- User Menu -->
 					<UserMenu
@@ -354,7 +349,6 @@
 							<slot name="additional-actions"></slot>
 						</template>
 					</UserMenu>
-				</div>
 			</template>
 		</MdxNavbar>
 
@@ -389,9 +383,8 @@
 import ActionButton from "@/components/common/ActionButton.vue";
 import StatusBadge from "@/components/common/StatusBadge.vue";
 import UserMenu from "@/components/common/UserMenu.vue";
-import LanguageSwitcher from "@/components/common/LanguageSwitcher.vue";
 import { DEFAULT_LOCALE } from "@/utils/currency";
-import { MdxNavbar } from "mdx_ui";
+import MdxNavbar from "mdx_ui/components/MdxNavbar.vue";
 import { onMounted, ref } from "vue";
 
 const showCacheTooltip = ref(false);
@@ -517,14 +510,14 @@ const props = defineProps({
 });
 
 // Cache status helpers
-function getCacheIconColor() {
+function getCacheDotClass() {
 	if (!props.cacheStats || props.cacheStats.items === 0) {
-		return "text-red-600"; // Red: No cache
+		return "bg-red-500"; // Red: No cache
 	}
-	if (props.cacheSyncing) {
-		return "text-orange-600"; // Orange: Syncing in progress
+	if (props.cacheSyncing || props.isRefreshing) {
+		return "bg-amber-500"; // Amber: Syncing in progress
 	}
-	return "text-green-600"; // Green: Cache ready
+	return "bg-emerald-500"; // Emerald Green: Cache ready
 }
 
 function getCacheStatus() {
