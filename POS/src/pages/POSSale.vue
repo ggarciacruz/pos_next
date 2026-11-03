@@ -8,6 +8,20 @@
 
 		<!-- Main App -->
 		<template v-else>
+			<div class="flex flex-1 min-h-0 overflow-hidden">
+				<!-- MDX Sidebar (Desktop Left Rail + Mobile Drawer) -->
+				<ManagementSlider
+					v-if="shiftStore.hasOpenShift"
+					:active-item="activeSidebarItem"
+					v-model:mobile-menu-open="mobileSidebarOpen"
+					:user-name="userName"
+					:profile-name="shiftStore.profileName"
+					@menu-clicked="handleManagementMenuClick"
+					@logout="uiStore.showLogoutDialog = true"
+				/>
+
+				<!-- Right Main Shell: MdxNavbar (POSHeader) + POS Content + POSFooter -->
+				<div class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
 			<!-- Header -->
 			<POSHeader
 				:current-time="shiftStore.currentTime"
@@ -30,6 +44,7 @@
 				@printer-click="openHistoryDialog"
 				@refresh-click="handleRefresh"
 				@clear-cache="handleClearCache"
+				@toggle-menu="mobileSidebarOpen = true"
 				@logout="uiStore.showLogoutDialog = true"
 			>
 				<template #menu-items>
@@ -83,64 +98,6 @@
 						>
 							{{ draftsStore.draftsCount }}
 						</span>
-					</button>
-					<button
-						v-if="canAccessShiftActions"
-						@click="openHistoryDialog"
-						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-3 transition-colors"
-					>
-						<svg
-							class="w-5 h-5 text-indigo-600"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-							/>
-						</svg>
-						<span>{{ __("Sales History") }}</span>
-					</button>
-					<button
-						@click="handleManagementMenuClick('products')"
-						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 flex items-center gap-3 transition-colors"
-					>
-						<svg
-							class="w-5 h-5 text-purple-600"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-							/>
-						</svg>
-						<span>{{ __("Stock / Productos") }}</span>
-					</button>
-					<button
-						@click="handleManagementMenuClick('invoices')"
-						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-3 transition-colors"
-					>
-						<svg
-							class="w-5 h-5 text-indigo-600"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-							/>
-						</svg>
-						<span>{{ __("Facturas y Despachos") }}</span>
 					</button>
 					<button
 						v-if="offlineStore.pendingInvoicesCount > 0"
@@ -228,7 +185,7 @@
 								d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
 							/>
 						</svg>
-						<span>{{ __("Lock Screen") }}</span>
+						<span>{{ __("Bloquear Pantalla") }}</span>
 					</button>
 				</template>
 				<template #additional-actions>
@@ -259,11 +216,7 @@
 			<div
 				v-if="shiftStore.hasOpenShift"
 				class="flex-1 flex overflow-hidden relative min-h-0"
-				style="max-height: calc(100dvh - 60px - var(--header-height, 60px))"
 			>
-				<!-- Icon-Only Management Slider - Always Visible -->
-				<ManagementSlider @menu-clicked="handleManagementMenuClick" />
-
 				<!-- Main Content Container -->
 				<div
 					ref="containerRef"
@@ -589,12 +542,14 @@
 
 			<!-- Shift Opening Dialog -->
 			<ShiftOpeningDialog
+				v-if="uiStore.showOpenShiftDialog"
 				v-model="uiStore.showOpenShiftDialog"
 				@shift-opened="handleShiftOpened"
 			/>
 
 			<!-- Shift Closing Dialog -->
 			<ShiftClosingDialog
+				v-if="uiStore.showCloseShiftDialog"
 				v-model="uiStore.showCloseShiftDialog"
 				:opening-shift="shiftStore.currentShift?.name"
 				@shift-closed="handleShiftClosed"
@@ -612,6 +567,7 @@
 
 			<!-- Return Invoice Dialog -->
 			<ReturnInvoiceDialog
+				v-if="uiStore.showReturnDialog"
 				v-model="uiStore.showReturnDialog"
 				:pos-profile="shiftStore.profileName"
 				:pos-opening-shift="shiftStore.currentShift?.name"
@@ -679,6 +635,7 @@
 
 			<!-- Invoice History Dialog -->
 			<InvoiceHistoryDialog
+				v-if="uiStore.showHistoryDialog"
 				v-model="uiStore.showHistoryDialog"
 				:pos-profile="shiftStore.profileName"
 				:pos-opening-shift="shiftStore.currentShift?.name"
@@ -717,6 +674,7 @@
 
 			<!-- Promotion Management -->
 			<PromotionManagement
+				v-if="showPromotionManagement"
 				v-model="showPromotionManagement"
 				:pos-profile="shiftStore.profileName"
 				:company="shiftStore.profileCompany"
@@ -726,6 +684,7 @@
 
 			<!-- POS Settings -->
 			<POSSettings
+				v-if="showPOSSettings"
 				v-model="showPOSSettings"
 				:pos-profile="shiftStore.profileName"
 				:current-warehouse="shiftStore.profileWarehouse"
@@ -733,6 +692,7 @@
 
 			<!-- Stock Lookup Dialog (Products Menu) -->
 			<WarehouseAvailabilityDialog
+				v-if="showStockLookup"
 				v-model="showStockLookup"
 				mode="search"
 				:pos-profile="shiftStore.profileName"
@@ -741,6 +701,7 @@
 
 			<!-- Invoice Management -->
 			<InvoiceManagement
+				v-if="showInvoiceManagement"
 				v-model="showInvoiceManagement"
 				:pos-profile="shiftStore.profileName"
 				:currency="shiftStore.profileCurrency"
@@ -757,6 +718,7 @@
 
 			<!-- Invoice Detail Dialog -->
 			<InvoiceDetailDialog
+				v-if="showInvoiceDetail"
 				v-model="showInvoiceDetail"
 				:invoice-name="selectedInvoiceForView"
 				:pos-profile="shiftStore.profileName"
@@ -1273,6 +1235,8 @@
 
 			<!-- Footer -->
 			<POSFooter />
+				</div>
+			</div>
 		</template>
 
 		<!-- Session Lock Screen (outside v-if/v-else so it renders even during loading) -->
@@ -1289,32 +1253,15 @@ let _posInitPromise = null;
 </script>
 
 <script setup>
-import ShiftClosingDialog from "@/components/ShiftClosingDialog.vue";
-import ShiftOpeningDialog from "@/components/ShiftOpeningDialog.vue";
 import ClearCacheOverlay from "@/components/common/ClearCacheOverlay.vue";
 import SessionLockScreen from "@/components/common/SessionLockScreen.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import POSFooter from "@/components/common/POSFooter.vue";
 import ManagementSlider from "@/components/pos/ManagementSlider.vue";
 import POSHeader from "@/components/pos/POSHeader.vue";
-import BatchSerialDialog from "@/components/sale/BatchSerialDialog.vue";
-import CouponDialog from "@/components/sale/CouponDialog.vue";
-import CreateCustomerDialog from "@/components/sale/CreateCustomerDialog.vue";
-import CustomerDialog from "@/components/sale/CustomerDialog.vue";
-import DraftInvoicesDialog from "@/components/sale/DraftInvoicesDialog.vue";
 import InvoiceCart from "@/components/sale/InvoiceCart.vue";
-import InvoiceHistoryDialog from "@/components/sale/InvoiceHistoryDialog.vue";
-import ItemSelectionDialog from "@/components/sale/ItemSelectionDialog.vue";
 import ItemsSelector from "@/components/sale/ItemsSelector.vue";
 import OffersDialog from "@/components/sale/OffersDialog.vue";
-import OfflineInvoicesDialog from "@/components/sale/OfflineInvoicesDialog.vue";
-import PaymentDialog from "@/components/sale/PaymentDialog.vue";
-import PromotionManagement from "@/components/sale/PromotionManagement.vue";
-import ReturnInvoiceDialog from "@/components/sale/ReturnInvoiceDialog.vue";
-import WarehouseAvailabilityDialog from "@/components/sale/WarehouseAvailabilityDialog.vue";
-import POSSettings from "@/components/settings/POSSettings.vue";
-import InvoiceManagement from "@/components/invoices/InvoiceManagement.vue";
-import InvoiceDetailDialog from "@/components/invoices/InvoiceDetailDialog.vue";
 import { useRealtimeStock } from "@/composables/useRealtimeStock";
 import { useSessionLock } from "@/composables/useSessionLock";
 import { usePOSEvents } from "@/composables/usePOSEvents";
@@ -1343,7 +1290,25 @@ import { qzConnected, connect as qzConnect, disconnect as qzDisconnect } from "@
 
 import { Button, Dialog, createResource } from "frappe-ui";
 import { call } from "@/utils/apiWrapper";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from "vue";
+
+const BatchSerialDialog = defineAsyncComponent(() => import("@/components/sale/BatchSerialDialog.vue"));
+const CouponDialog = defineAsyncComponent(() => import("@/components/sale/CouponDialog.vue"));
+const CreateCustomerDialog = defineAsyncComponent(() => import("@/components/sale/CreateCustomerDialog.vue"));
+const CustomerDialog = defineAsyncComponent(() => import("@/components/sale/CustomerDialog.vue"));
+const DraftInvoicesDialog = defineAsyncComponent(() => import("@/components/sale/DraftInvoicesDialog.vue"));
+const ItemSelectionDialog = defineAsyncComponent(() => import("@/components/sale/ItemSelectionDialog.vue"));
+const OfflineInvoicesDialog = defineAsyncComponent(() => import("@/components/sale/OfflineInvoicesDialog.vue"));
+const PaymentDialog = defineAsyncComponent(() => import("@/components/sale/PaymentDialog.vue"));
+const ShiftClosingDialog = defineAsyncComponent(() => import("@/components/ShiftClosingDialog.vue"));
+const ShiftOpeningDialog = defineAsyncComponent(() => import("@/components/ShiftOpeningDialog.vue"));
+const InvoiceHistoryDialog = defineAsyncComponent(() => import("@/components/sale/InvoiceHistoryDialog.vue"));
+const PromotionManagement = defineAsyncComponent(() => import("@/components/sale/PromotionManagement.vue"));
+const ReturnInvoiceDialog = defineAsyncComponent(() => import("@/components/sale/ReturnInvoiceDialog.vue"));
+const WarehouseAvailabilityDialog = defineAsyncComponent(() => import("@/components/sale/WarehouseAvailabilityDialog.vue"));
+const POSSettings = defineAsyncComponent(() => import("@/components/settings/POSSettings.vue"));
+const InvoiceManagement = defineAsyncComponent(() => import("@/components/invoices/InvoiceManagement.vue"));
+const InvoiceDetailDialog = defineAsyncComponent(() => import("@/components/invoices/InvoiceDetailDialog.vue"));
 import { useToast } from "@/composables/useToast";
 
 import { useCustomerSearchStore } from "@/stores/customerSearch";
@@ -1467,6 +1432,16 @@ const showStockLookup = ref(false);
 // Invoice Management dialog
 const showInvoiceManagement = ref(false);
 
+// Mobile MDX Sidebar drawer state & active item tracking
+const mobileSidebarOpen = ref(false);
+const activeSidebarItem = computed(() => {
+	if (showInvoiceManagement.value) return "invoices";
+	if (showStockLookup.value) return "products";
+	if (showPromotionManagement.value) return "promotions";
+	if (showPOSSettings.value) return "settings";
+	return "pos";
+});
+
 // Invoice Detail dialog
 const showInvoiceDetail = ref(false);
 const selectedInvoiceForView = ref(null);
@@ -1539,12 +1514,30 @@ let resizeState = null;
 let bodyStyleSnapshot = null;
 
 onMounted(async () => {
-	// Window resize listeners (passive for better performance)
-	const handleResize = () => {
+	// Window & Container resize listeners (automatically adjusts catalog/cart split when MdxSidebar expands/collapses)
+	const handleWindowResize = () => {
 		uiStore.setWindowWidth(window.innerWidth);
 		updateLayoutBounds();
 	};
-	window.addEventListener("resize", handleResize, { passive: true });
+	window.addEventListener("resize", handleWindowResize, { passive: true });
+
+	let containerResizeObserver = null;
+	if (typeof ResizeObserver !== "undefined") {
+		containerResizeObserver = new ResizeObserver(() => {
+			if (!uiStore.isResizing) {
+				updateLayoutBounds();
+			}
+		});
+		if (containerRef.value) {
+			containerResizeObserver.observe(containerRef.value);
+		}
+	}
+	watch(containerRef, (el) => {
+		if (el && containerResizeObserver) {
+			containerResizeObserver.observe(el);
+			updateLayoutBounds();
+		}
+	});
 
 	// Set up real-time stock update listener
 	const cleanup = onStockUpdate(async (stockUpdates) => {
@@ -1696,6 +1689,8 @@ onMounted(async () => {
 
 	// Store cleanup function for unmount
 	onUnmounted(() => {
+		window.removeEventListener("resize", handleWindowResize);
+		containerResizeObserver?.disconnect();
 		cleanup();
 		stopActivityTracking();
 		qzDisconnect();
@@ -1764,24 +1759,10 @@ onMounted(async () => {
 			stockStore.setWarehouse(shiftStore.profileWarehouse);
 		}
 
-		// Fire independent operations in parallel while settings load.
-		// Settings must complete before tax rules, but the rest are independent.
-		const settingsPromise = posSettingsStore.loadSettings(shiftStore.profileName);
-
-		const backgroundOps = Promise.allSettled([
-			cartStore.setDefaultCustomer(),
-			customerSearchStore.loadAllCustomers(shiftStore.profileName, true),
-			offlineStore.isOffline
-				? offlineStore.checkOfflineCacheAvailability()
-				: offlineStore.preloadDataForOffline(shiftStore.currentProfile),
-			draftsStore.updateDraftsCount(),
-		]);
-
-		// Wait for settings (required for tax rules) + all background ops
-		const [settingsResult] = await Promise.allSettled([settingsPromise, backgroundOps]);
-
-		if (settingsResult.status === "rejected") {
-			log.error("Failed to load POS settings:", settingsResult.reason);
+		// Settings are preloaded by bootstrapStore (0ms synchronous when bootstrap is ready)
+		const settingsLoaded = await posSettingsStore.loadSettings(shiftStore.profileName);
+		if (!settingsLoaded) {
+			log.error("Failed to load POS settings");
 			return;
 		}
 
@@ -1795,10 +1776,23 @@ onMounted(async () => {
 			timeoutMinutes: posSettingsStore.sessionLockTimeout,
 		});
 
-		// Load tax rules (depends on settings being loaded)
-		await cartStore.loadTaxRules(shiftStore.profileName, posSettingsStore.settings);
-
 		_initializedKey = `${shiftStore.profileName}::${shiftStore.currentShift?.name}`;
+
+		// Reveal the POS shell immediately so <ItemsSelector> mounts and renders products right away
+		uiStore.setLoading(false);
+
+		// Run non-blocking background initialization (default customer, tax rules, drafts, offline cache)
+		Promise.allSettled([
+			cartStore.setDefaultCustomer(),
+			cartStore.loadTaxRules(shiftStore.profileName, posSettingsStore.settings),
+			draftsStore.updateDraftsCount(),
+			customerSearchStore.loadAllCustomers(shiftStore.profileName, true),
+			offlineStore.isOffline
+				? offlineStore.checkOfflineCacheAvailability()
+				: offlineStore.preloadDataForOffline(shiftStore.currentProfile),
+		]).catch((err) => {
+			log.warn("Background initialization task warning:", err);
+		});
 	}
 });
 
@@ -3464,6 +3458,11 @@ function restoreBodyStyles() {
 
 // Management and Promotion handlers
 function handleManagementMenuClick(menuItem) {
+	showPromotionManagement.value = false;
+	showPOSSettings.value = false;
+	showInvoiceManagement.value = false;
+	showStockLookup.value = false;
+
 	if (menuItem === "promotions") {
 		showPromotionManagement.value = true;
 	} else if (menuItem === "settings") {

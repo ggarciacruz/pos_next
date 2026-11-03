@@ -1093,7 +1093,7 @@ watch(open, async (isOpen) => {
 		}
 		eodPrintFailed.value = null;
 	}
-});
+}, { immediate: true });
 
 onBeforeUnmount(() => {
 	shiftStore.shiftTimerPaused = false;

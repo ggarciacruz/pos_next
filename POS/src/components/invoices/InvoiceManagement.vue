@@ -9,16 +9,16 @@
 			<!-- Main Container -->
 			<div class="fixed inset-0 flex items-center justify-center p-4">
 				<div
-					class="w-full h-full max-w-[95vw] max-h-[95vh] bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col"
+					class="w-full h-full max-w-[95vw] max-h-[95vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200"
 				>
 					<!-- Header -->
 					<div
-						class="flex items-center justify-between px-5 py-3 border-b bg-gradient-to-r from-indigo-50 to-purple-50"
+						class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-white shrink-0"
 					>
-						<div class="flex items-center gap-2.5">
-							<div class="p-1.5 bg-indigo-100 rounded-lg">
+						<div class="flex items-center gap-3">
+							<div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
 								<svg
-									class="w-5 h-5 text-indigo-600"
+									class="w-5 h-5 text-blue-600"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -32,10 +32,10 @@
 								</svg>
 							</div>
 							<div>
-								<h2 class="text-base font-bold text-gray-900 leading-tight">
+								<h2 class="text-base font-bold text-slate-900 leading-tight">
 									{{ __("Invoice Management") }}
 								</h2>
-								<p class="text-xs text-gray-600 flex items-center">
+								<p class="text-xs text-slate-500 flex items-center mt-0.5">
 									{{ __("Manage all your invoices in one place") }}
 								</p>
 							</div>
@@ -66,10 +66,10 @@
 							</Button>
 							<button
 								@click="handleClose"
-								class="p-1.5 hover:bg-white/50 rounded-lg transition-colors"
+								class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
 							>
 								<svg
-									class="w-5 h-5 text-gray-600"
+									class="w-5 h-5"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -1680,7 +1680,8 @@ watch(
 				emit("refresh-history");
 			}
 		}
-	}
+	},
+	{ immediate: true }
 );
 
 watch(show, (val) => {

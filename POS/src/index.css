@@ -4,6 +4,8 @@
 
 /* CSS Custom Properties for consistent z-index layering */
 :root {
+	--mdx-z-navbar: 200;
+	--mdx-z-sidebar: 210;
 	--z-dialog-overlay: 400;
 	--z-dialog-content: 500;
 	--z-dropdown: 10000;

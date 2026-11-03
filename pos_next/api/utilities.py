@@ -35,7 +35,12 @@ def get_csrf_token():
 	if not csrf_token:
 		frappe.throw(_("Failed to generate CSRF token"), frappe.ValidationError)
 
-	return {"csrf_token": csrf_token, "session_id": frappe.session.sid, "authenticated": True}
+	return {
+		"csrf_token": csrf_token,
+		"session_id": frappe.session.sid,
+		"user": frappe.session.user,
+		"authenticated": True,
+	}
 
 
 def _parse_list_parameter(value, param_name="parameter"):

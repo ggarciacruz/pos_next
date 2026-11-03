@@ -69,6 +69,7 @@ def get_initial_data():
 		"can_checkout": any(role in frappe.get_roles() for role in ["POSNext Cashier", "System Manager", "Administrator", "Nexus POS Manager"]),
 		"can_cancel_invoice": bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles()),
 		"shift": None,
+		"shift_payload": None,
 		"pos_profile": None,
 		"pos_settings": None,
 		"payment_methods": [],
@@ -89,6 +90,13 @@ def get_initial_data():
 		"status": shift["status"],
 	}
 
+	result["shift_payload"] = {
+		"pos_opening_shift": shift["shift_doc"].as_dict(),
+		"pos_profile": pos_profile.as_dict(),
+		"company": frappe.get_cached_doc("Company", pos_profile.company).as_dict(),
+		"server_now": str(frappe.utils.get_datetime()),
+	}
+
 	result["pos_profile"] = {
 		"name": pos_profile.name,
 		"company": pos_profile.company,
@@ -107,6 +115,12 @@ def get_initial_data():
 
 	result["pos_settings"] = _get_pos_settings(pos_profile)
 	result["payment_methods"] = _get_payment_methods(pos_profile_name)
+	try:
+		from pos_next.api.items import get_item_groups
+
+		result["item_groups_hierarchy"] = get_item_groups(pos_profile_name) or []
+	except Exception:
+		result["item_groups_hierarchy"] = []
 
 	return result
 
@@ -190,8 +204,9 @@ def _get_open_shift():
 	if not shift:
 		return None
 
-	# Fetch POS Profile once, reuse throughout bootstrap
-	shift["pos_profile_doc"] = frappe.get_doc("POS Profile", shift["pos_profile"])
+	# Fetch POS Opening Shift & POS Profile once, reuse throughout bootstrap
+	shift["shift_doc"] = frappe.get_doc("POS Opening Shift", shift["name"])
+	shift["pos_profile_doc"] = frappe.get_cached_doc("POS Profile", shift["pos_profile"])
 	return shift
 
 

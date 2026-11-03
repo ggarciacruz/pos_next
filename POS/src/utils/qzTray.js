@@ -1,9 +1,17 @@
-import qz from "qz-tray";
 import { ref } from "vue";
 import { call } from "@/utils/apiWrapper";
 import { logger } from "@/utils/logger";
 
 const log = logger.create("QZTray");
+
+let _qzInstance = null;
+async function getQz() {
+	if (!_qzInstance) {
+		const mod = await import("qz-tray");
+		_qzInstance = mod.default || mod;
+	}
+	return _qzInstance;
+}
 
 // ============================================================================
 // Reactive State
@@ -57,7 +65,7 @@ let _cachedCert = null;
 /** Whether the server has a valid cert to provide */
 let _certProvided = false;
 
-function setupSecurity() {
+function setupSecurity(qz) {
 	if (_securityInitialized) return;
 	_securityInitialized = true;
 
@@ -127,6 +135,7 @@ let _connectPromise = null;
  * @returns {Promise<boolean>} true if connected successfully
  */
 export async function connect() {
+	const qz = await getQz();
 	if (qz.websocket.isActive()) {
 		qzConnected.value = true;
 		return true;
@@ -135,7 +144,7 @@ export async function connect() {
 	// Deduplicate concurrent calls
 	if (_connectPromise) return _connectPromise;
 
-	_connectPromise = _doConnect();
+	_connectPromise = _doConnect(qz);
 	try {
 		return await _connectPromise;
 	} finally {
@@ -143,8 +152,8 @@ export async function connect() {
 	}
 }
 
-async function _doConnect() {
-	setupSecurity();
+async function _doConnect(qz) {
+	setupSecurity(qz);
 
 	qz.websocket.setClosedCallbacks(() => {
 		log.info("QZ Tray connection closed");
@@ -178,13 +187,13 @@ async function _doConnect() {
  * Disconnect from QZ Tray.
  */
 export async function disconnect() {
-	if (!qz.websocket.isActive()) {
+	if (!_qzInstance || !_qzInstance.websocket.isActive()) {
 		qzConnected.value = false;
 		return;
 	}
 
 	try {
-		await qz.websocket.disconnect();
+		await _qzInstance.websocket.disconnect();
 	} catch (err) {
 		log.warn("Error disconnecting from QZ Tray:", err?.message || err);
 	} finally {
@@ -202,6 +211,7 @@ export async function disconnect() {
  * @returns {Promise<string[]>} Array of printer names
  */
 export async function findPrinters() {
+	const qz = await getQz();
 	if (!qz.websocket.isActive()) {
 		const ok = await connect();
 		if (!ok) return [];
@@ -232,6 +242,7 @@ export async function findPrinters() {
  * @returns {Promise<boolean>} true if print was dispatched successfully
  */
 export async function printHTML(html, printerName, options = {}) {
+	const qz = await getQz();
 	if (!qz.websocket.isActive()) {
 		const ok = await connect();
 		if (!ok) {

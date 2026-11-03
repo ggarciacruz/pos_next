@@ -398,7 +398,8 @@ watch(
 		if (val && props.posProfile) {
 			invoicesResource.reload();
 		}
-	}
+	},
+	{ immediate: true }
 );
 
 watch(show, (val) => {

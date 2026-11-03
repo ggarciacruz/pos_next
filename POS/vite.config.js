@@ -143,6 +143,20 @@ export default defineConfig({
 						},
 					},
 					{
+						urlPattern: /\/assets\/pos_next\/pos\/assets\/.*\.(woff2|woff)$/i,
+						handler: "CacheFirst",
+						options: {
+							cacheName: "pos-fonts-cache",
+							expiration: {
+								maxEntries: 15,
+								maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+							},
+							cacheableResponse: {
+								statuses: [0, 200],
+							},
+						},
+					},
+					{
 						urlPattern: /\/assets\/pos_next\/pos\/.*/i,
 						handler: "StaleWhileRevalidate",
 						options: {
@@ -216,6 +230,29 @@ export default defineConfig({
 		emptyOutDir: true,
 		target: "es2015",
 		sourcemap: enableSourceMap,
+		rollupOptions: {
+			output: {
+				manualChunks(id) {
+					if (id.includes("node_modules")) {
+						if (
+							id.includes("/node_modules/vue/") ||
+							id.includes("/node_modules/@vue/") ||
+							id.includes("/node_modules/vue-router/") ||
+							id.includes("/node_modules/pinia/")
+						) {
+							return "vendor-vue";
+						}
+						if (
+							id.includes("/node_modules/frappe-ui/") ||
+							id.includes("/node_modules/@headlessui/") ||
+							id.includes("/node_modules/feather-icons/")
+						) {
+							return "vendor-ui";
+						}
+					}
+				},
+			},
+		},
 	},
 	worker: {
 		format: "es",

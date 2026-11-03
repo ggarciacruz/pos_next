@@ -10,6 +10,7 @@ import { computed, ref, watch } from "vue";
 import { useStockStore } from "./stock";
 import { usePOSSettingsStore } from "./posSettings";
 import { usePOSShiftStore } from "./posShift";
+import { useBootstrapStore } from "./bootstrap";
 import { useRealtimePosProfile } from "@/composables/useRealtimePosProfile";
 
 const log = logger.create("ItemSearch");
@@ -2189,8 +2190,60 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 			return;
 		}
 
+		// Fast-path 1: Use preloaded item_groups_hierarchy from bootstrapStore (0ms, no extra API call!)
 		try {
-			// Single API call returns EVERYTHING - no need for separate loadItemGroups()
+			const bootstrapStore = useBootstrapStore();
+			if (
+				bootstrapStore.loaded &&
+				bootstrapStore.data?.pos_profile?.name === profile &&
+				Array.isArray(bootstrapStore.data?.item_groups_hierarchy) &&
+				bootstrapStore.data.item_groups_hierarchy.length > 0
+			) {
+				profileItemGroups.value = bootstrapStore.data?.shift_payload?.pos_profile?.item_groups || [];
+				itemGroups.value = bootstrapStore.data.item_groups_hierarchy;
+				try {
+					sessionStorage.setItem(
+						`pos_profile_data:${profile}`,
+						JSON.stringify({
+							profileItemGroups: profileItemGroups.value,
+							itemGroups: itemGroups.value,
+						})
+					);
+				} catch {}
+				posProfileUpdateCleanup = onPosProfileUpdate(async (updateData) => {
+					await handlePosProfileUpdateWithRecovery(updateData, profile);
+				});
+				stopBackgroundCacheSync();
+				if (autoLoadItems) {
+					loadAllItems(profile);
+				}
+				return;
+			}
+		} catch {}
+
+		// Fast-path 2: Hydrate cached item groups from sessionStorage immediately (0ms)
+		// so tabs and cached items render without waiting for get_pos_profile_data
+		let hydratedFromSession = false;
+		try {
+			const cached = sessionStorage.getItem(`pos_profile_data:${profile}`);
+			if (cached) {
+				const parsed = JSON.parse(cached);
+				if (Array.isArray(parsed.itemGroups) && parsed.itemGroups.length > 0) {
+					profileItemGroups.value = parsed.profileItemGroups || [];
+					itemGroups.value = parsed.itemGroups || [];
+					hydratedFromSession = true;
+					stopBackgroundCacheSync();
+					if (autoLoadItems) {
+						loadAllItems(profile);
+					}
+				}
+			}
+		} catch (e) {
+			// Ignore sessionStorage read errors
+		}
+
+		try {
+			// Single API call returns fresh profile item groups + hierarchy
 			const data = await call("pos_next.api.pos_profile.get_pos_profile_data", {
 				pos_profile: profile,
 			});
@@ -2220,36 +2273,18 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				await handlePosProfileUpdateWithRecovery(updateData, profile);
 			});
 
-			// Stop any existing sync before loading items for new profile
-			stopBackgroundCacheSync();
-
-			// Load items in background (non-blocking)
-			if (autoLoadItems) {
-				loadAllItems(profile);
+			// Only start loadAllItems here if it wasn't already started from sessionStorage fast-path
+			if (!hydratedFromSession) {
+				stopBackgroundCacheSync();
+				if (autoLoadItems) {
+					loadAllItems(profile);
+				}
 			}
 		} catch (error) {
 			log.error("Error fetching POS Profile data", error);
 
-			// Offline fallback: restore item groups from session cache
-			// This keeps group tabs visible after language change while offline
-			try {
-				const cached = sessionStorage.getItem(`pos_profile_data:${profile}`);
-				if (cached) {
-					const parsed = JSON.parse(cached);
-					profileItemGroups.value = parsed.profileItemGroups || [];
-					itemGroups.value = parsed.itemGroups || [];
-					log.info(
-						`Restored ${itemGroups.value.length} item groups from session cache (offline)`
-					);
-
-					// Still load items from IndexedDB cache
-					if (autoLoadItems) {
-						loadAllItems(profile);
-					}
-					return;
-				}
-			} catch (e) {
-				// Cache parse failed
+			if (hydratedFromSession) {
+				return;
 			}
 
 			profileItemGroups.value = [];

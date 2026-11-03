@@ -217,7 +217,8 @@ def create_customer(
 
 @frappe.whitelist()
 def update_customer(
-	customer,
+	customer=None,
+	name=None,
 	customer_name=None,
 	mobile_no=None,
 	email_id=None,
@@ -232,6 +233,7 @@ def update_customer(
 	"""
 	Update an existing customer from POS safely.
 	"""
+	customer = customer or name
 	if not customer or not frappe.db.exists("Customer", customer):
 		frappe.throw(_("Customer {0} not found").format(customer or ""))
 

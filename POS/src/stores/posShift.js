@@ -1,7 +1,8 @@
-import { useShift, shiftState } from "@/composables/useShift";
+import { useShift, shiftState, applyShiftPayload } from "@/composables/useShift";
 import { DEFAULT_CURRENCY, DEFAULT_LOCALE } from "@/utils/currency";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import { useBootstrapStore } from "./bootstrap";
 
 export const usePOSShiftStore = defineStore("posShift", () => {
 	// Use the existing shift composable
@@ -80,6 +81,20 @@ export const usePOSShiftStore = defineStore("posShift", () => {
 	}
 
 	async function checkShift() {
+		// OPTIMIZATION: Reuse preloaded shift_payload from bootstrapStore to avoid duplicate API call
+		try {
+			const bootstrapStore = useBootstrapStore();
+			if (bootstrapStore.loading || (!bootstrapStore.loaded && !bootstrapStore.error)) {
+				await bootstrapStore.loadInitialData();
+			}
+			if (bootstrapStore.loaded && bootstrapStore.data && "shift_payload" in bootstrapStore.data) {
+				applyShiftPayload(bootstrapStore.data.shift_payload);
+				return hasOpenShift.value;
+			}
+		} catch {
+			// Fallback to direct checkOpeningShift call
+		}
+
 		await checkOpeningShift.fetch();
 		return hasOpenShift.value;
 	}

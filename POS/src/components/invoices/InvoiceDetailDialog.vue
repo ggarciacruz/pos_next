@@ -659,7 +659,8 @@ watch(
 		if (val && props.invoiceName) {
 			loadInvoiceDetails();
 		}
-	}
+	},
+	{ immediate: true }
 );
 
 watch(show, async (val) => {

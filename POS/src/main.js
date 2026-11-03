@@ -51,7 +51,8 @@ import "mdx_ui/themes/operational.css";
 
 import "./index.css";
 
-import { installMdxUI } from "mdx_ui";
+import { useBootstrapStore } from "./stores/bootstrap";
+import { initPrecision } from "./utils/currency";
 
 const log = logger.create("Main");
 
@@ -136,7 +137,6 @@ async function initializeApp() {
 	for (const key in globalComponents) {
 		app.component(key, globalComponents[key]);
 	}
-	installMdxUI(app);
 
 	// Disable double-tap zoom on mobile for faster touch response
 	app.directive("touch-action", {
@@ -144,36 +144,46 @@ async function initializeApp() {
 	});
 
 	// -------------------------------------------------------------------------
-	// Authentication: If the browser has a non-Guest user_id cookie, verify the
-	// server session and refresh CSRF token via GET first so no subsequent POST
-	// requests trigger HTTP 400/403 errors. When unauthenticated (Guest), skip
-	// all authenticated API calls until login succeeds.
+	// Authentication: Fast-path via server-injected window.csrf_token &
+	// window.session_user from pos.py (0 network round-trips before mount).
+	// Falls back to GET get_csrf_token only when cached HTML has no token.
 	// -------------------------------------------------------------------------
 
 	let user = null;
-	if (sessionUser()) {
-		let csrfReady = false;
-		try {
-			log.debug("Fetching fresh CSRF token via GET...");
-			csrfReady = await ensureCSRFToken({ forceRefresh: true, silent: true });
-			if (csrfReady) {
-				await syncCSRFTokenToWorker();
-			}
-		} catch {
-			log.debug("CSRF fetch failed, will retry on first API call");
-		}
+	const cookieUser = sessionUser();
+	const bootToken =
+		typeof window.csrf_token === "string" &&
+		window.csrf_token &&
+		window.csrf_token !== "{{ csrf_token }}"
+			? window.csrf_token
+			: null;
+	const bootUser =
+		typeof window.session_user === "string" &&
+		window.session_user &&
+		window.session_user !== "Guest" &&
+		window.session_user !== "{{ session_user }}"
+			? window.session_user
+			: null;
 
-		if (csrfReady) {
+	if (cookieUser) {
+		if (bootToken && (!bootUser || bootUser === cookieUser)) {
+			user = bootUser || cookieUser;
+			syncCSRFTokenToWorker();
+		} else {
+			let csrfReady = false;
 			try {
-				if (!userResource.loading) {
-					await userResource.fetch();
-				} else {
-					await userResource.promise;
+				log.debug("Fetching fresh CSRF token via GET...");
+				csrfReady = await ensureCSRFToken({ forceRefresh: true, silent: true });
+				if (csrfReady) {
+					user = sessionUser();
+					syncCSRFTokenToWorker();
 				}
-				user = sessionUser();
-			} catch (error) {
-				log.debug("User not logged in", error?.message || "No session");
-				user = null;
+			} catch {
+				log.debug("CSRF fetch failed, will retry on first API call");
+				// Offline fallback: trust cookieUser if browser is offline
+				if (!navigator.onLine) {
+					user = cookieUser;
+				}
 			}
 		}
 	}
@@ -185,40 +195,36 @@ async function initializeApp() {
 	app.use(translationPlugin);
 
 	// -------------------------------------------------------------------------
-	// Bootstrap Preload (non-blocking, improves perceived performance)
+	// Bootstrap Preload (started immediately before mount so POSSale reuses it)
 	// -------------------------------------------------------------------------
 
 	if (user) {
-		import("./stores/bootstrap")
-			.then(async ({ useBootstrapStore }) => {
-				const bootstrapStore = useBootstrapStore();
-				try {
-					await bootstrapStore.loadInitialData();
-					// Initialize precision settings from bootstrap data
-					const { initPrecision } = await import("./utils/currency");
-					initPrecision(bootstrapStore.getPreloadedPrecision());
-					log.debug("Precision settings initialized from bootstrap");
+		const bootstrapStore = useBootstrapStore();
+		bootstrapStore
+			.loadInitialData()
+			.then((res) => {
+				if (!res) return;
+				initPrecision(bootstrapStore.getPreloadedPrecision());
+				log.debug("Precision settings initialized from bootstrap");
 
-					// Initialize Socket.IO with correct site name from bootstrap
-					if (typeof window !== "undefined") {
-						if (!window.frappe) window.frappe = {};
-						const siteName = bootstrapStore.getSiteName();
-						window.frappe.realtime = initSocket(siteName);
+				// Initialize Socket.IO with correct site name from bootstrap
+				if (typeof window !== "undefined") {
+					if (!window.frappe) window.frappe = {};
+					const siteName = bootstrapStore.getSiteName();
+					window.frappe.realtime = initSocket(siteName);
 
-						// Ensure connection is established
-						if (
-							window.frappe.realtime &&
-							typeof window.frappe.realtime.connect === "function"
-						) {
-							window.frappe.realtime.connect();
-							log.info("Socket initialized and connecting...", { siteName });
-						}
+					if (
+						window.frappe.realtime &&
+						typeof window.frappe.realtime.connect === "function"
+					) {
+						window.frappe.realtime.connect();
+						log.info("Socket initialized and connecting...", { siteName });
 					}
-				} catch (error) {
-					log.debug("Bootstrap preload failed (non-critical)", error);
 				}
 			})
-			.catch(() => {});
+			.catch((error) => {
+				log.debug("Bootstrap preload failed (non-critical)", error);
+			});
 	}
 
 	// -------------------------------------------------------------------------

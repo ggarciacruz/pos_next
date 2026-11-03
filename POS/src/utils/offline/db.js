@@ -139,25 +139,204 @@ const schemaVersion = getSchemaVersion();
 log.debug(`Initializing database with schema version: ${schemaVersion}`);
 db.version(schemaVersion).stores(CURRENT_SCHEMA);
 
+let persistenceRequested = false;
+
+/**
+ * Requests OS-level storage persistence so the browser never evicts
+ * IndexedDB offline queues under low disk pressure.
+ */
+async function ensurePersistentStorage() {
+	if (persistenceRequested) return;
+	persistenceRequested = true;
+	try {
+		if (
+			typeof navigator !== "undefined" &&
+			navigator.storage &&
+			typeof navigator.storage.persist === "function"
+		) {
+			const isPersisted = await navigator.storage.persisted();
+			if (!isPersisted) {
+				await navigator.storage.persist();
+			}
+		}
+	} catch (err) {
+		log.debug("Storage persistence request skipped:", err);
+	}
+}
+
+/**
+ * Inspects the existing IndexedDB without specifying a version to read its
+ * true on-disk version and rescue critical transactional queues (invoice_queue,
+ * payment_queue, drafts, one_time_redemptions) before any recovery action.
+ */
+async function inspectAndRescueCriticalQueues() {
+	const rescued = {
+		diskVersion: 1,
+		invoice_queue: [],
+		payment_queue: [],
+		drafts: [],
+		one_time_redemptions: [],
+	};
+
+	if (typeof indexedDB === "undefined") {
+		return rescued;
+	}
+
+	return new Promise((resolve) => {
+		try {
+			const req = indexedDB.open("pos_next_offline");
+			req.onerror = () => resolve(rescued);
+			req.onsuccess = (event) => {
+				const nativeDb = event.target.result;
+				rescued.diskVersion = Math.max(1, Math.floor(Number(nativeDb.version) || 1));
+
+				const criticalStores = [
+					"invoice_queue",
+					"payment_queue",
+					"drafts",
+					"one_time_redemptions",
+				].filter((name) => nativeDb.objectStoreNames.contains(name));
+
+				if (criticalStores.length === 0) {
+					nativeDb.close();
+					resolve(rescued);
+					return;
+				}
+
+				try {
+					const tx = nativeDb.transaction(criticalStores, "readonly");
+					let pending = criticalStores.length;
+
+					const finish = () => {
+						try {
+							nativeDb.close();
+						} catch (_) {}
+						try {
+							if (rescued.invoice_queue.length > 0 && typeof localStorage !== "undefined") {
+								localStorage.setItem(
+									"pos_next_emergency_queue_vault",
+									JSON.stringify({
+										saved_at: Date.now(),
+										invoice_queue: rescued.invoice_queue,
+										payment_queue: rescued.payment_queue,
+									})
+								);
+							}
+						} catch (_) {}
+						resolve(rescued);
+					};
+
+					for (const storeName of criticalStores) {
+						const getAllReq = tx.objectStore(storeName).getAll();
+						getAllReq.onsuccess = () => {
+							rescued[storeName] = Array.isArray(getAllReq.result)
+								? getAllReq.result
+								: [];
+							pending--;
+							if (pending === 0) finish();
+						};
+						getAllReq.onerror = () => {
+							pending--;
+							if (pending === 0) finish();
+						};
+					}
+				} catch (_) {
+					try {
+						nativeDb.close();
+					} catch (__) {}
+					resolve(rescued);
+				}
+			};
+		} catch (_) {
+			resolve(rescued);
+		}
+	});
+}
+
+/**
+ * Recovers from VersionError or InvalidStateError without losing unsynced offline invoices.
+ * 1. Rescues critical queues via versionless native IndexedDB inspection.
+ * 2. Attempts an in-place version alignment upgrade without deleting the database.
+ * 3. Only if in-place open fails, recreates the database and immediately restores rescued queues.
+ */
+async function recoverDatabaseSafely(triggerError) {
+	log.warn("Attempting safe database recovery with queue preservation...", triggerError);
+	const rescued = await inspectAndRescueCriticalQueues();
+
+	try {
+		if (db.isOpen()) {
+			db.close();
+		}
+	} catch (_) {}
+
+	const currentLocalVersion = Number.parseInt(
+		localStorage.getItem("pos_next_schema_version") || "1"
+	);
+	const alignedVersion = Math.max(currentLocalVersion, rescued.diskVersion) + 1;
+
+	// Step 1: Try in-place version alignment (avoids deleting database on VersionError)
+	try {
+		localStorage.setItem("pos_next_schema_version", alignedVersion.toString());
+		localStorage.setItem("pos_next_schema_hash", getSchemaHash(CURRENT_SCHEMA).toString());
+		db.version(alignedVersion).stores(CURRENT_SCHEMA);
+		await db.open();
+		log.success(`Database recovered in-place at schema v${alignedVersion}`);
+		return true;
+	} catch (inPlaceError) {
+		log.warn("In-place version alignment failed, proceeding with vault-protected recreate:", inPlaceError);
+	}
+
+	// Step 2: Last resort recreate with immediate restoration of rescued queues
+	try {
+		await Dexie.delete("pos_next_offline");
+		db.version(alignedVersion).stores(CURRENT_SCHEMA);
+		await db.open();
+
+		if (rescued.invoice_queue.length > 0) {
+			await db.invoice_queue.bulkPut(rescued.invoice_queue);
+			log.success(`Restored ${rescued.invoice_queue.length} offline invoice(s) from rescue vault`);
+		}
+		if (rescued.payment_queue.length > 0) {
+			await db.payment_queue.bulkPut(rescued.payment_queue);
+		}
+		if (rescued.drafts.length > 0) {
+			await db.drafts.bulkPut(rescued.drafts);
+		}
+		if (rescued.one_time_redemptions.length > 0) {
+			await db.one_time_redemptions.bulkPut(rescued.one_time_redemptions);
+		}
+
+		log.success("Database recreated and critical queues restored");
+		return true;
+	} catch (recreateError) {
+		log.error("Failed to recreate database:", recreateError);
+		return false;
+	}
+}
+
 /**
  * Opens the database connection.
  * Called automatically on module import.
  * @returns {Promise<boolean>} True if opened successfully
  */
 export const initDB = async () => {
+	ensurePersistentStorage();
 	try {
 		await db.open();
 		log.success("POS Next offline database initialized");
 		return true;
 	} catch (error) {
 		log.error("Failed to initialize offline database:", error);
+		if (error.name === "VersionError" || error.name === "InvalidStateError") {
+			return await recoverDatabaseSafely(error);
+		}
 		return false;
 	}
 };
 
 /**
  * Verifies database health and attempts recovery if needed.
- * Handles VersionError and InvalidStateError by recreating the database.
+ * Handles VersionError and InvalidStateError while preserving unsynced queues.
  * @returns {Promise<boolean>} True if database is healthy or recovered
  */
 export const checkDBHealth = async () => {
@@ -178,18 +357,8 @@ export const checkDBHealth = async () => {
 		} catch (reopenError) {
 			log.error("Failed to reopen database:", reopenError);
 
-			// If corrupted, recreate
 			if (reopenError.name === "VersionError" || reopenError.name === "InvalidStateError") {
-				log.warn("Database appears corrupted, recreating...");
-				try {
-					await Dexie.delete("pos_next_offline");
-					await db.open();
-					log.success("Database recreated successfully");
-					return true;
-				} catch (recreateError) {
-					log.error("Failed to recreate database:", recreateError);
-					return false;
-				}
+				return await recoverDatabaseSafely(reopenError);
 			}
 			return false;
 		}

@@ -1119,7 +1119,6 @@
 
 <script setup>
 import LazyImage from "@/components/common/LazyImage.vue";
-import WarehouseAvailabilityDialog from "@/components/sale/WarehouseAvailabilityDialog.vue";
 import { useItemSearchStore } from "@/stores/itemSearch";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import { usePOSShiftStore } from "@/stores/posShift";
@@ -1129,7 +1128,9 @@ import { useSearchInput } from "@/composables/useSearchInput";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
 import { useToast } from "@/composables/useToast";
 import { storeToRefs } from "pinia";
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+
+const WarehouseAvailabilityDialog = defineAsyncComponent(() => import("@/components/sale/WarehouseAvailabilityDialog.vue"));
 import {
 	createOptimizedClickHandler,
 	throttleRAF,

@@ -69,7 +69,7 @@ defineEmits(["click"]);
 
 const buttonClasses = computed(() => {
 	const base =
-		"p-1.5 sm:p-2 hover:bg-gray-50 rounded-lg transition-colors group touch-manipulation";
+		"app-nav-btn group touch-manipulation";
 	const animation = props.animate ? "animate-pulse" : "";
 	return `${base} ${animation}`.trim();
 });
@@ -77,12 +77,12 @@ const buttonClasses = computed(() => {
 const iconClasses = computed(() => {
 	const sizes = {
 		sm: "w-3.5 h-3.5 sm:w-4 sm:h-4",
-		md: "w-4 h-4 sm:w-5 sm:h-5",
+		md: "w-[17px] h-[17px]",
 		lg: "w-5 h-5 sm:w-6 sm:h-6",
 	};
 
 	const variants = {
-		gray: "text-gray-600 group-hover:text-gray-900",
+		gray: "text-slate-700 group-hover:text-slate-900",
 		green: "text-green-600",
 		orange: "text-orange-600",
 		red: "text-red-600",

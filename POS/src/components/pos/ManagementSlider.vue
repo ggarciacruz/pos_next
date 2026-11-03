@@ -1,102 +1,168 @@
 <template>
-	<!-- Icon-Only Sidebar - Hidden on Mobile, Visible on Desktop -->
-	<div
-		class="hidden lg:flex w-16 flex-shrink-0 bg-white border-e border-gray-200 flex-col items-center py-4 flex flex-col gap-2"
-	>
-		<!-- Promotions -->
-		<button
-			@click="handleMenuClick('promotions')"
-			:class="[
-				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
-				activeMenu === 'promotions'
-					? 'bg-green-100 text-green-600'
-					: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-			]"
-			:title="__('Promotions')"
+	<!-- Desktop MDX Sidebar -->
+	<MdxSidebar
+		:items="sidebarItems"
+		:bottom-items="bottomItems"
+		:model-value="activeItem"
+		:collapsed="sidebarCollapsed"
+		logo="/assets/pos_next/pos/icon.svg"
+		app-name="MDX POS"
+		:user="userInfo"
+		@update:model-value="handleMenuClick"
+		@update:collapsed="sidebarCollapsed = $event"
+		@logout="$emit('logout')"
+	/>
+
+	<!-- Mobile Sidebar Drawer Overlay -->
+	<transition name="mdx-drawer-fade">
+		<div
+			v-if="mobileMenuOpen"
+			class="pos-mdx-drawer-backdrop"
+			@click="$emit('update:mobileMenuOpen', false)"
 		>
-			<FeatherIcon name="tag" class="w-5 h-5" />
-			<div
-				class="absolute start-full ms-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-			>
-				{{ __("Promotions") }}
+			<div class="pos-mdx-drawer" @click.stop>
+				<MdxSidebar
+					:items="mobileSidebarItems"
+					:model-value="activeItem"
+					:collapsed="false"
+					logo="/assets/pos_next/pos/icon.svg"
+					app-name="MDX POS"
+					:user="userInfo"
+					is-mobile
+					class="pos-mdx-drawer-sidebar"
+					@update:model-value="handleMobileMenuClick"
+					@update:collapsed="() => {}"
+					@logout="$emit('logout')"
+				/>
 			</div>
-		</button>
-
-		<!-- Products -->
-		<button
-			@click="handleMenuClick('products')"
-			:class="[
-				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
-				activeMenu === 'products'
-					? 'bg-purple-100 text-purple-600'
-					: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-			]"
-			:title="__('Products')"
-		>
-			<FeatherIcon name="package" class="w-5 h-5" />
-			<div
-				class="absolute start-full ms-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-			>
-				{{ __("Products") }}
-			</div>
-		</button>
-
-		<!-- Invoices -->
-		<button
-			@click="handleMenuClick('invoices')"
-			:class="[
-				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
-				activeMenu === 'invoices'
-					? 'bg-indigo-100 text-indigo-600'
-					: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-			]"
-			:title="__('Invoice Management')"
-		>
-			<FeatherIcon name="file-text" class="w-5 h-5" />
-			<div
-				class="absolute start-full ms-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-			>
-				{{ __("Invoice Management") }}
-			</div>
-		</button>
-
-		<!-- Spacer to push settings to bottom -->
-		<div class="flex-1"></div>
-
-		<!-- Divider -->
-		<div class="w-8 border-t border-gray-200 my-2"></div>
-
-		<!-- Settings -->
-		<button
-			@click="handleMenuClick('settings')"
-			:class="[
-				'w-12 h-12 rounded-lg flex items-center justify-center transition-all relative group',
-				activeMenu === 'settings'
-					? 'bg-gray-100 text-gray-900'
-					: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-			]"
-			:title="__('Settings')"
-		>
-			<FeatherIcon name="settings" class="w-5 h-5" />
-			<div
-				class="absolute start-full ms-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-			>
-				{{ __("Settings") }}
-			</div>
-		</button>
-	</div>
+		</div>
+	</transition>
 </template>
 
 <script setup>
-import { FeatherIcon } from "frappe-ui";
-import { ref } from "vue";
+import MdxSidebar from "mdx_ui/components/MdxSidebar.vue";
+import { computed, ref } from "vue";
 
-const emit = defineEmits(["menu-clicked"]);
+const props = defineProps({
+	activeItem: {
+		type: String,
+		default: "pos",
+	},
+	mobileMenuOpen: {
+		type: Boolean,
+		default: false,
+	},
+	userName: {
+		type: String,
+		default: "",
+	},
+	profileName: {
+		type: String,
+		default: "",
+	},
+});
 
-const activeMenu = ref("");
+const emit = defineEmits(["menu-clicked", "update:mobileMenuOpen", "logout"]);
+
+const sidebarCollapsed = ref(true);
+
+const userInfo = computed(() => ({
+	fullName: props.userName || "Cajero POS",
+	role: props.profileName || "Punto de Venta",
+}));
+
+const sidebarItems = computed(() => [
+	{
+		id: "pos",
+		label: __("Punto de Venta"),
+		shortLabel: __("Caja"),
+		icon: "home",
+	},
+	{
+		id: "invoices",
+		label: __("Gestión de Ventas"),
+		shortLabel: __("Ventas"),
+		icon: "ledger",
+	},
+	{
+		id: "products",
+		label: __("Stock y Productos"),
+		shortLabel: __("Stock"),
+		icon: "box",
+	},
+	{
+		id: "promotions",
+		label: __("Promociones"),
+		shortLabel: __("Promos"),
+		icon: "tag",
+	},
+]);
+
+const bottomItems = computed(() => [
+	{
+		id: "settings",
+		label: __("Configuración POS"),
+		shortLabel: __("Ajustes"),
+		icon: "settings",
+	},
+]);
+
+const mobileSidebarItems = computed(() => [
+	...sidebarItems.value,
+	...bottomItems.value,
+]);
 
 function handleMenuClick(menuItem) {
-	activeMenu.value = menuItem;
+	emit("menu-clicked", menuItem);
+}
+
+function handleMobileMenuClick(menuItem) {
+	emit("update:mobileMenuOpen", false);
 	emit("menu-clicked", menuItem);
 }
 </script>
+
+<style scoped>
+.pos-mdx-drawer-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(15, 23, 42, 0.55);
+	backdrop-filter: blur(4px);
+	-webkit-backdrop-filter: blur(4px);
+	z-index: 950;
+	display: flex;
+}
+
+.pos-mdx-drawer {
+	width: 280px;
+	max-width: 85vw;
+	height: 100%;
+	background: var(--mdx-bg-surface, #ffffff);
+	box-shadow: 20px 0 40px rgba(0, 0, 0, 0.25);
+	display: flex;
+	flex-direction: column;
+}
+
+.pos-mdx-drawer-sidebar {
+	display: flex !important;
+	width: 100% !important;
+	height: 100% !important;
+}
+
+.mdx-drawer-fade-enter-active,
+.mdx-drawer-fade-leave-active {
+	transition: opacity 0.22s ease;
+}
+.mdx-drawer-fade-enter-active .pos-mdx-drawer,
+.mdx-drawer-fade-leave-active .pos-mdx-drawer {
+	transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mdx-drawer-fade-enter-from,
+.mdx-drawer-fade-leave-to {
+	opacity: 0;
+}
+.mdx-drawer-fade-enter-from .pos-mdx-drawer,
+.mdx-drawer-fade-leave-to .pos-mdx-drawer {
+	transform: translateX(-100%);
+}
+</style>

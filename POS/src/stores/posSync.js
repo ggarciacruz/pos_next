@@ -30,6 +30,7 @@ import { offlineState } from "@/utils/offline/offlineState";
 import { offlineWorker } from "@/utils/offline/workerClient";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import { useBootstrapStore } from "./bootstrap";
 
 const log = logger.create("POSSync");
 
@@ -268,19 +269,26 @@ export const usePOSSyncStore = defineStore("posSync", () => {
 				!stats.lastSync || Date.now() - stats.lastSync > 24 * 60 * 60 * 1000;
 
 			// Always load payment methods for reliable offline support
+			// Reuse preloaded payment_methods from bootstrapStore when available to avoid duplicate HTTP call
 			log.info("Loading payment methods for offline use");
 			try {
-				const paymentMethodsData = await cachePaymentMethodsFromServer(
-					currentProfile.name
-				);
+				const bootstrapStore = useBootstrapStore();
+				const preloadedMethods =
+					bootstrapStore.loaded &&
+					bootstrapStore.data?.pos_profile?.name === currentProfile.name
+						? bootstrapStore.getPreloadedPaymentMethods()
+						: null;
 
-				if (paymentMethodsData.payment_methods?.length > 0) {
-					const methodsWithProfile = paymentMethodsData.payment_methods.map(
-						(method) => ({
-							...method,
-							pos_profile: currentProfile.name,
-						})
-					);
+				const paymentMethodsList =
+					preloadedMethods && preloadedMethods.length > 0
+						? preloadedMethods
+						: (await cachePaymentMethodsFromServer(currentProfile.name))?.payment_methods || [];
+
+				if (paymentMethodsList.length > 0) {
+					const methodsWithProfile = paymentMethodsList.map((method) => ({
+						...method,
+						pos_profile: currentProfile.name,
+					}));
 					await offlineWorker.cachePaymentMethods(methodsWithProfile);
 					log.success(`Cached ${methodsWithProfile.length} payment methods`);
 				}

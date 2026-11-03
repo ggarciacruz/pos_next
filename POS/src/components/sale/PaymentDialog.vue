@@ -3540,7 +3540,7 @@ function validateAndSyncCustomerBillingAndDelivery() {
 			(matchedCustomer.tax_id !== cleanNit || matchedCustomer.custom_razon_social !== cleanRazon)
 		) {
 			call("pos_next.api.customers.update_customer", {
-				name: custKey,
+				customer: custKey,
 				customer_name: matchedCustomer.customer_name || custKey,
 				mobile_no: requiresDelivery.value && deliveryPhone.value ? deliveryPhone.value : matchedCustomer.mobile_no || null,
 				tax_id: cleanNit,

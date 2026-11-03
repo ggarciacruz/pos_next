@@ -1556,7 +1556,8 @@ watch(
 		} else {
 			resetForm();
 		}
-	}
+	},
+	{ immediate: true }
 );
 
 // Watch for preselectedInvoice changes to handle subsequent return requests

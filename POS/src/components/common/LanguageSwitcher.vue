@@ -2,7 +2,7 @@
 	<div ref="dropdownRef" class="relative">
 		<button
 			@click="toggleDropdown"
-			class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-60 disabled:cursor-wait"
+			class="flex items-center gap-1.5 sm:gap-2 h-9 px-2.5 text-[13px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-[10px] shadow-[0_1px_2px_rgba(15,23,42,0.03)] hover:bg-slate-50 hover:border-slate-300 focus:outline-none transition-all disabled:opacity-60 disabled:cursor-wait"
 			:class="{ 'flex-row-reverse': isRTL }"
 			:disabled="isChanging"
 			:title="localeConfig.nativeName"

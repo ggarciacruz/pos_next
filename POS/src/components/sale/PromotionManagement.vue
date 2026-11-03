@@ -9,27 +9,31 @@
 			<!-- Main Container -->
 			<div class="fixed inset-0 flex items-center justify-center p-4">
 				<div
-					class="w-full h-full max-w-[95vw] max-h-[95vh] bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col"
+					class="w-full h-full max-w-[95vw] max-h-[95vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200"
 				>
 					<!-- Header -->
-					<div class="flex items-center justify-between px-6 py-4 border-b">
+					<div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white shrink-0">
 						<div class="flex items-center gap-3">
-							<FeatherIcon name="tag" class="w-5 h-5 text-gray-700" />
+							<div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+								<FeatherIcon name="tag" class="w-4.5 h-4.5 text-blue-600" />
+							</div>
 							<div>
-								<h2 class="text-lg mb-1 font-semibold text-gray-900">
+								<h2 class="text-base font-bold text-slate-900 leading-tight">
 									{{ __("Promotion & Coupon Management") }}
 								</h2>
-								<p class="text-sm text-gray-600">
+								<p class="text-xs text-slate-500 mt-0.5">
 									{{ __("Manage promotional schemes and coupons") }}
 								</p>
 							</div>
 						</div>
 						<div class="flex items-center gap-2">
-							<Button variant="ghost" @click="handleClose" icon="x">
-								<template #icon>
-									<FeatherIcon name="x" class="w-4 h-4" />
-								</template>
-							</Button>
+							<button
+								type="button"
+								@click="handleClose"
+								class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+							>
+								<FeatherIcon name="x" class="w-5 h-5" />
+							</button>
 						</div>
 					</div>
 
@@ -1377,7 +1381,8 @@ watch(
 			loadData();
 			checkPermissions();
 		}
-	}
+	},
+	{ immediate: true }
 );
 
 watch(show, (val) => {

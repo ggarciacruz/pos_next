@@ -15,27 +15,30 @@
 					]"
 				>
 					<!-- Modal Header (Compact) -->
-					<div class="px-3.5 sm:px-6 py-2 sm:py-2.5 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-slate-50 to-blue-50/40 shrink-0">
-						<div class="flex items-center gap-2.5 min-w-0">
-							<div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-								<svg class="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+					<div class="px-4 sm:px-6 py-3 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+						<div class="flex items-center gap-3 min-w-0">
+							<div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+								<svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
 								</svg>
 							</div>
 							<div class="min-w-0 text-start">
-								<h3 class="text-sm sm:text-base font-bold text-gray-900 truncate">
+								<h3 class="text-sm sm:text-base font-bold text-slate-900 truncate leading-tight">
 									{{
 										isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)
 											? __("Gestión de Productos e Inventario")
 											: __("Disponibilidad y Stock")
 									}}
 								</h3>
+								<p class="text-xs text-slate-500 truncate mt-0.5">
+									{{ __("Catálogo de productos, precios y existencias por almacén") }}
+								</p>
 							</div>
 						</div>
 						<button
 							type="button"
 							@click="closeDialog"
-							class="p-1 sm:p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 rounded-lg transition-colors shrink-0"
+							class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
 							:title="__('Cerrar')"
 						>
 							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
