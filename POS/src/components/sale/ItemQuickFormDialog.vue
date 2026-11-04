@@ -1,88 +1,81 @@
 <template>
-	<Teleport to="body">
-		<Transition name="fade">
-			<div
-				v-if="modelValue"
-				class="fixed inset-0 z-[1050] flex items-center justify-center p-3 sm:p-5 bg-black bg-opacity-50"
-				@click.self="closeDialog"
-			>
+	<MdxModal
+		:modelValue="modelValue"
+		@update:modelValue="emit('update:modelValue', $event)"
+		size="lg"
+	>
+		<!-- Header -->
+		<template #header>
+			<div class="flex items-center gap-3 min-w-0">
 				<div
-					class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden border border-gray-200"
+					class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+					:class="isEditMode ? 'bg-blue-50 border border-blue-100 text-blue-600' : 'bg-emerald-50 border border-emerald-100 text-emerald-600'"
 				>
-					<!-- Header -->
-					<div
-						class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50"
+					<svg
+						v-if="isEditMode"
+						class="w-5 h-5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						stroke-width="2"
 					>
-						<div class="flex items-center gap-3 min-w-0">
-							<div
-								class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-								:class="isEditMode ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'"
-							>
-								<svg
-									v-if="isEditMode"
-									class="w-5 h-5"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									stroke-width="2"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
-									/>
-								</svg>
-								<svg
-									v-else
-									class="w-5 h-5"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									stroke-width="2.5"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										d="M12 4.5v15m7.5-7.5h-15"
-									/>
-								</svg>
-							</div>
-							<div class="min-w-0 text-start">
-								<h2 class="text-base sm:text-lg font-bold text-gray-900 truncate">
-									{{
-										isEditMode
-											? __("Editar Producto")
-											: __("Crear Nuevo Producto")
-									}}
-								</h2>
-								<p class="text-xs text-gray-600 truncate">
-									{{
-										isEditMode
-											? `${form.item_name || itemCode} (${form.item_code})`
-											: __("Complete los datos básicos y el sistema configurará precios y almacén automáticamente")
-									}}
-								</p>
-							</div>
-						</div>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+						/>
+					</svg>
+					<svg
+						v-else
+						class="w-5 h-5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						stroke-width="2.5"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M12 4.5v15m7.5-7.5h-15"
+						/>
+					</svg>
+				</div>
+				<div class="min-w-0 text-start">
+					<h2 class="text-sm sm:text-base font-bold text-slate-900 truncate">
+						{{
+							isEditMode
+								? __("Editar Producto")
+								: __("Crear Nuevo Producto")
+						}}
+					</h2>
+					<p class="text-xs text-slate-500 truncate mt-0.5">
+						{{
+							isEditMode
+								? `${form.item_name || itemCode} (${form.item_code})`
+								: __("Complete los datos básicos y el sistema configurará precios y almacén automáticamente")
+						}}
+					</p>
+				</div>
+			</div>
 
-						<button
-							type="button"
-							@click="closeDialog"
-							class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-						>
-							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M6 18L18 6M6 6l12 12"
-								/>
-							</svg>
-						</button>
-					</div>
+			<button
+				type="button"
+				@click="closeDialog"
+				class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
+			>
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M6 18L18 6M6 6l12 12"
+					/>
+				</svg>
+			</button>
+		</template>
 
-					<!-- Body -->
-					<div class="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-3.5 sm:space-y-5 text-start">
+		<!-- Body -->
+		<div class="space-y-3.5 sm:space-y-4 text-start">
 						<!-- Loading state -->
 						<div v-if="loading" class="py-12 flex flex-col items-center justify-center">
 							<div
@@ -178,25 +171,14 @@
 												</label>
 											</div>
 
-											<select
+											<MdxSelect
 												v-model="form.item_group"
-												:class="[
-													'w-full px-3 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
-													form.item_group ? 'text-gray-900' : 'text-gray-400',
-												]"
-											>
-												<option value="" disabled>
-													{{ __("Seleccione una categoría...") }}
-												</option>
-												<option
-													v-for="grp in itemGroups"
-													:key="grp"
-													:value="grp"
-													class="text-gray-900"
-												>
-													{{ grp }}
-												</option>
-											</select>
+												:options="itemGroups.map((grp) => ({ value: grp, label: grp }))"
+												:placeholder="__('Seleccione una categoría...')"
+												size="sm"
+												:showSearch="itemGroups.length > 6"
+												:teleport="true"
+											/>
 
 											<div
 												v-if="resolvedWarehouseLabel"
@@ -235,25 +217,14 @@
 										</label>
 									</div>
 
-									<select
+									<MdxSelect
 										v-model="form.item_group"
-										:class="[
-											'w-full px-3 py-2 text-xs font-medium bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
-											form.item_group ? 'text-gray-900' : 'text-gray-400',
-										]"
-									>
-										<option value="" disabled>
-											{{ __("Seleccione una categoría...") }}
-										</option>
-										<option
-											v-for="grp in itemGroups"
-											:key="grp"
-											:value="grp"
-											class="text-gray-900"
-										>
-											{{ grp }}
-										</option>
-									</select>
+										:options="itemGroups.map((grp) => ({ value: grp, label: grp }))"
+										:placeholder="__('Seleccione una categoría...')"
+										size="sm"
+										:showSearch="itemGroups.length > 6"
+										:teleport="true"
+									/>
 
 									<div
 										v-if="resolvedWarehouseLabel"
@@ -364,20 +335,15 @@
 										<label class="block text-[11px] sm:text-xs font-semibold text-gray-700 mb-1">
 											{{ __("Plazas") }}
 										</label>
-										<select
+										<MdxSelect
 											v-model="form.custom_plazas"
-											@change="handlePlazaPresetChange"
-											class="w-full px-2.5 py-1.5 sm:py-2 text-xs font-medium text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-										>
-											<option value="">{{ __("Sin especificar") }}</option>
-											<option
-												v-for="p in plazasOptions"
-												:key="p"
-												:value="p"
-											>
-												{{ p }}
-											</option>
-										</select>
+											:options="plazasOptions.map((p) => ({ value: p, label: p }))"
+											:placeholder="__('Sin especificar')"
+											size="sm"
+											:showSearch="false"
+											:teleport="true"
+											@update:modelValue="handlePlazaPresetChange"
+										/>
 									</div>
 
 									<template v-if="hasDimensions">
@@ -537,69 +503,41 @@
 								</div>
 							</div>
 						</template>
-					</div>
+		</div>
 
-					<!-- Footer (50/50 full width buttons on mobile) -->
-					<div
-						class="px-3.5 sm:px-6 py-3 sm:py-3.5 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-2.5 shrink-0"
-					>
-						<button
-							type="button"
-							@click="closeDialog"
-							:disabled="saving"
-							class="flex-1 sm:flex-initial justify-center px-4 py-2 text-xs sm:text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg transition-colors"
-						>
-							{{ __("Cancelar") }}
-						</button>
-						<button
-							type="button"
-							@click="handleSave"
-							:disabled="saving || loading"
-							class="flex-1 sm:flex-initial justify-center px-5 py-2 text-xs sm:text-sm font-bold text-white rounded-lg shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50"
-							:class="
-								isEditMode
-									? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
-									: 'bg-green-600 hover:bg-green-700 active:bg-green-800'
-							"
-						>
-							<span
-								v-if="saving"
-								class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
-							></span>
-							<svg
-								v-else
-								class="w-4 h-4"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								stroke-width="2.5"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									d="M5 13l4 4L19 7"
-								/>
-							</svg>
-							<span>
-								{{
-									saving
-										? __("Guardando...")
-										: isEditMode
-										? __("Guardar Cambios")
-										: __("Crear Producto")
-								}}
-							</span>
-						</button>
-					</div>
-				</div>
+		<!-- Footer -->
+		<template #footer>
+			<div class="flex items-center justify-end gap-2.5 w-full">
+				<MdxButton
+					variant="secondary"
+					:disabled="saving"
+					@click="closeDialog"
+				>
+					{{ __("Cancelar") }}
+				</MdxButton>
+				<MdxButton
+					variant="primary"
+					:loading="saving"
+					:disabled="saving || loading"
+					@click="handleSave"
+				>
+					{{
+						saving
+							? __("Guardando...")
+							: isEditMode
+							? __("Guardar Cambios")
+							: __("Crear Producto")
+					}}
+				</MdxButton>
 			</div>
-		</Transition>
-	</Teleport>
+		</template>
+	</MdxModal>
 </template>
 
 <script setup>
 import { call } from "@/utils/apiWrapper";
 import { useToast } from "@/composables/useToast";
+import { MdxButton, MdxModal, MdxSelect } from "mdx_ui";
 import { computed, nextTick, ref, watch } from "vue";
 
 const props = defineProps({

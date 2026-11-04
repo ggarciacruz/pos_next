@@ -268,6 +268,7 @@ export default defineConfig({
 			"@": path.resolve(__dirname, "src"),
 			"tailwind.config.js": path.resolve(__dirname, "tailwind.config.js"),
 			mdx_ui: path.resolve(__dirname, "../../../../packages/mdx_ui"),
+			"@mdx/ui": path.resolve(__dirname, "../../../../packages/mdx_ui"),
 			"frappe-ui/style.css": path.resolve(__dirname, "node_modules/frappe-ui/src/style.css"),
 			"frappe-ui": path.resolve(__dirname, "node_modules/frappe-ui"),
 		},

@@ -1,20 +1,11 @@
 <template>
-	<Dialog v-model="open" :options="{ title: __('Close POS Shift'), size: '4xl' }">
-		<template #body-content>
-			<div class="flex flex-col gap-3 md:gap-6">
-				<div v-if="closingDataResource.loading" class="text-center py-8 md:py-12">
-					<div
-						class="inline-block animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-4 border-blue-600"
-					></div>
-					<p class="mt-3 md:mt-4 text-base md:text-lg font-medium text-gray-600">
-						{{ __("Loading shift data...") }}
-					</p>
-					<p class="text-xs md:text-sm text-gray-500">
-						{{ __("Calculating totals and reconciliation...") }}
-					</p>
-				</div>
+	<MdxModal v-model="open" :title="__('Close POS Shift')" size="4xl">
+		<div class="flex flex-col gap-3 md:gap-6">
+			<div v-if="closingDataResource.loading" class="py-8 md:py-12 flex justify-center">
+				<MdxLoadingSpinner size="lg" :label="__('Loading shift data...')" />
+			</div>
 
-				<div v-else-if="closingData" class="flex flex-col gap-3 md:gap-6">
+			<div v-else-if="closingData" class="flex flex-col gap-3 md:gap-6">
 					<!-- Idle Warning -->
 					<div
 						v-if="showIdleWarning"
@@ -492,24 +483,22 @@
 								<div
 									v-for="(payment, idx) in closingData.payment_reconciliation"
 									:key="idx"
-									class="border border-gray-200 rounded-lg p-3 md:p-4 bg-white hover:border-gray-300 transition-colors"
+									class="border border-slate-200 rounded-xl p-3 md:p-4 bg-white hover:border-slate-300 transition-colors"
 								>
 									<div class="flex items-center justify-between gap-3">
 										<!-- Payment Method Name with Icon -->
 										<div class="flex items-center gap-2 md:gap-3 flex-1">
 											<div
-												:class="[
-													'rounded-lg p-1.5 md:p-2 flex-shrink-0',
-													getPaymentIcon(payment.mode_of_payment).color,
-												]"
+												class="rounded-xl p-2 flex-shrink-0 bg-slate-100 border border-slate-200 text-slate-600"
 											>
-												<span class="text-base md:text-xl">{{
-													getPaymentIcon(payment.mode_of_payment).icon
-												}}</span>
+												<FeatherIcon
+													:name="getPaymentIcon(payment.mode_of_payment)"
+													class="w-4 h-4 md:w-5 md:h-5"
+												/>
 											</div>
 											<label
 												:for="`payment-${idx}`"
-												class="text-start text-sm md:text-base font-semibold text-gray-900 cursor-pointer"
+												class="text-start text-sm md:text-base font-semibold text-slate-900 cursor-pointer"
 											>
 												{{ payment.mode_of_payment }}
 											</label>
@@ -517,11 +506,11 @@
 
 										<!-- Simple Input with Native Arrows -->
 										<div class="w-40 md:w-48">
-											<Input
+											<input
 												:id="`payment-${idx}`"
-												:modelValue="payment.closing_amount"
-												@update:modelValue="
-													(value) => updateClosingAmount(payment, value)
+												:value="payment.closing_amount ?? ''"
+												@input="
+													(e) => updateClosingAmount(payment, e.target.value)
 												"
 												type="number"
 												step="10"
@@ -533,7 +522,7 @@
 														payment.mode_of_payment,
 													])
 												"
-												class="text-base md:text-lg text-center font-semibold"
+												class="w-full px-3 py-2 text-base md:text-lg text-center font-semibold bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
 											/>
 										</div>
 									</div>
@@ -547,7 +536,7 @@
 									v-for="(payment, idx) in closingData.payment_reconciliation"
 									:key="idx"
 									:class="[
-										'border rounded-lg p-3 md:p-5 transition-all',
+										'border rounded-xl p-3 md:p-5 transition-all',
 										payment.difference === 0
 											? 'border-green-200 bg-green-50'
 											: payment.difference > 0
@@ -561,14 +550,12 @@
 										<div class="flex items-center gap-2 md:gap-3">
 											<!-- Payment Method Icon -->
 											<div
-												:class="[
-													'rounded-lg p-1.5 md:p-2',
-													getPaymentIcon(payment.mode_of_payment).color,
-												]"
+												class="rounded-xl p-2 bg-white border border-slate-200 text-slate-700"
 											>
-												<span class="text-base md:text-xl">{{
-													getPaymentIcon(payment.mode_of_payment).icon
-												}}</span>
+												<FeatherIcon
+													:name="getPaymentIcon(payment.mode_of_payment)"
+													class="w-4 h-4 md:w-5 md:h-5"
+												/>
 											</div>
 											<div>
 												<h4
@@ -688,10 +675,10 @@
 											>
 												{{ __("Actual Amount *") }}
 											</label>
-											<Input
-												:modelValue="payment.closing_amount"
-												@update:modelValue="
-													(value) => updateClosingAmount(payment, value)
+											<input
+												:value="payment.closing_amount ?? ''"
+												@input="
+													(e) => updateClosingAmount(payment, e.target.value)
 												"
 												type="number"
 												step="0.01"
@@ -701,7 +688,7 @@
 													showSuccessReport || submitResource.loading
 												"
 												:aria-label="`Enter actual amount for ${payment.mode_of_payment}`"
-												class="text-base md:text-lg"
+												class="w-full px-3 py-1.5 text-base md:text-lg font-semibold bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
 											/>
 											<div
 												class="text-xs text-gray-500 mt-0.5 md:mt-1 hidden sm:block"
@@ -939,21 +926,20 @@
 					</div>
 				</div>
 			</div>
-		</template>
 
-		<template #actions>
+		<template #footer>
 			<div
 				class="flex flex-col sm:flex-row justify-between w-full items-stretch sm:items-center gap-2 sm:gap-0"
 			>
 				<!-- Left side - Cancel/Close button -->
-				<Button
-					variant="subtle"
+				<MdxButton
+					variant="secondary"
 					@click="closeDialog"
 					:disabled="submitResource.loading"
 					class="order-2 sm:order-1"
 				>
 					{{ showSuccessReport ? __("Close") : __("Cancel") }}
-				</Button>
+				</MdxButton>
 
 				<div
 					class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 order-1 sm:order-2"
@@ -961,7 +947,7 @@
 					<!-- Validation Warning (only in entry mode) -->
 					<div
 						v-if="!canSubmit && closingData && !showSuccessReport"
-						class="text-xs md:text-sm text-yellow-600 font-medium text-center sm:text-end"
+						class="text-xs md:text-sm text-amber-600 font-medium text-center sm:text-end"
 					>
 						{{ __("Please enter all closing amounts") }}
 					</div>
@@ -982,10 +968,9 @@
 					</div>
 
 					<!-- Submit/Close button (only shown in entry mode) -->
-					<Button
+					<MdxButton
 						v-if="!showSuccessReport"
-						variant="solid"
-						theme="blue"
+						variant="primary"
 						@click="submitClosing"
 						:loading="submitResource.loading"
 						:disabled="!canSubmit"
@@ -997,25 +982,25 @@
 									? __("Finalizar Jornada de Ventas")
 									: __("Close Shift")
 						}}
-					</Button>
+					</MdxButton>
 
-					<Button
+					<MdxButton
 						v-if="eodPrintFailed"
-						variant="solid"
-						theme="blue"
+						variant="primary"
 						@click="retryEodPrint"
 						:loading="retryPrintLoading"
 					>
 						{{ __("Print EOD Report") }}
-					</Button>
+					</MdxButton>
 				</div>
 			</div>
 		</template>
-	</Dialog>
+	</MdxModal>
 </template>
 
 <script setup>
-import { Button, Dialog, FeatherIcon, Input } from "frappe-ui";
+import { FeatherIcon } from "frappe-ui";
+import { MdxModal, MdxButton, MdxLoadingSpinner } from "mdx_ui";
 import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useShift, shiftState } from "../composables/useShift";
@@ -1067,6 +1052,13 @@ const eodPrintFailed = ref(null);
 const retryPrintLoading = ref(false);
 const showIdleWarning = ref(false);
 let _idleWarningTimer = null;
+
+// Computed properties for real-time recalculation (defined before immediate watcher)
+const invoiceCount = computed(() => {
+	if (!closingData.value) return 0;
+	const transactions = closingData.value.pos_transactions || [];
+	return transactions.length;
+});
 
 // Watch dialog open state
 watch(open, async (isOpen) => {
@@ -1264,13 +1256,6 @@ const reconciliationMessage = computed(() => {
 
 });
 
-// Computed properties for real-time recalculation
-const invoiceCount = computed(() => {
-	if (!closingData.value) return 0;
-	const transactions = closingData.value.pos_transactions || [];
-	return transactions.length;
-});
-
 // Check if there are any return invoices
 const hasReturns = computed(() => {
 	if (!closingData.value) return false;
@@ -1346,29 +1331,33 @@ function getShiftDuration() {
 }
 
 function getPaymentIcon(method) {
-	const methodLower = method.toLowerCase();
+	const methodLower = (method || "").toLowerCase();
 
-	if (methodLower.includes("cash")) {
-		return { icon: "💵", color: "bg-green-500" };
+	if (methodLower.includes("cash") || methodLower.includes("efectivo")) {
+		return "dollar-sign";
 	} else if (
 		methodLower.includes("card") ||
 		methodLower.includes("credit") ||
-		methodLower.includes("debit")
+		methodLower.includes("debit") ||
+		methodLower.includes("tarjeta")
 	) {
-		return { icon: "💳", color: "bg-blue-500" };
+		return "credit-card";
 	} else if (
 		methodLower.includes("mobile") ||
 		methodLower.includes("wallet") ||
 		methodLower.includes("upi") ||
-		methodLower.includes("phone")
+		methodLower.includes("phone") ||
+		methodLower.includes("qr")
 	) {
-		return { icon: "📱", color: "bg-purple-500" };
-	} else if (methodLower.includes("bank") || methodLower.includes("transfer")) {
-		return { icon: "🏦", color: "bg-indigo-500" };
-	} else if (methodLower.includes("cheque") || methodLower.includes("check")) {
-		return { icon: "📝", color: "bg-yellow-500" };
+		return "smartphone";
+	} else if (
+		methodLower.includes("bank") ||
+		methodLower.includes("transfer") ||
+		methodLower.includes("banco")
+	) {
+		return "briefcase";
 	} else {
-		return { icon: "💰", color: "bg-gray-500" };
+		return "file-text";
 	}
 }
 </script>

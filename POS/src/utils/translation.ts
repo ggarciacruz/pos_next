@@ -193,6 +193,10 @@ export function translate(msg: string, replace?: Record<string, string>, ctx?: s
     translated = "Esta combinación no está disponible"
   } else if (msg === "Loading options..." && translated === "Loading options...") {
     translated = "Cargando opciones..."
+  } else if (msg === "1 item" && translated === "1 item") {
+    translated = "1 artículo"
+  } else if (msg === "{0} items" && translated === "{0} items") {
+    translated = "{0} artículos"
   }
 
   // Handle any label ending with colon whose base word is translated

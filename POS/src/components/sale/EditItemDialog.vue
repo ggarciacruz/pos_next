@@ -1,475 +1,350 @@
 <template>
-	<!-- Custom Modal matching frappe-ui Dialog styling -->
-	<!-- Uses @click.self pattern to properly handle teleported SelectInput dropdowns -->
-	<Teleport to="body">
-		<Transition name="dialog">
-			<div
-				v-if="show"
-				class="fixed inset-0 bg-black/20 dark:bg-black/70 overflow-y-auto dialog-overlay outline-none z-dialog-overlay"
-				@click.self="cancel"
-			>
+	<MdxModal
+		v-model="show"
+		:title="__('Edit Item Details')"
+		size="md"
+	>
+		<!-- Body Content -->
+		<div v-if="localItem" class="flex flex-col gap-4">
+			<!-- Item Header -->
+			<div class="flex items-center gap-3 pb-3.5 border-b border-slate-200">
+				<!-- Item Image -->
 				<div
-					class="flex min-h-screen flex-col items-center justify-center px-4 py-4 text-center"
+					class="w-14 h-14 bg-slate-50 border border-slate-200 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden"
 				>
-					<Transition name="dialog-content">
-						<div
-							v-if="show"
-							class="my-8 inline-block w-full max-w-md transform overflow-hidden rounded-xl bg-white text-left align-middle shadow-xl dialog-content z-dialog-content"
-						>
-							<!-- Header - matching frappe-ui Dialog style -->
-							<div class="bg-white px-4 pb-6 pt-5 sm:px-6">
-								<div class="flex">
-									<div class="w-full flex-1">
-										<div class="mb-6 flex items-center justify-between">
-											<div class="flex items-center space-x-2">
-												<h3
-													class="text-2xl font-semibold leading-6 text-gray-900"
-												>
-													{{ __("Edit Item Details") }}
-												</h3>
-											</div>
-											<button
-												type="button"
-												@click="cancel"
-												class="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-											>
-												<FeatherIcon name="x" class="h-4 w-4" />
-											</button>
-										</div>
-
-										<!-- Body Content -->
-										<div v-if="localItem" class="flex flex-col gap-4">
-											<!-- Item Header -->
-											<div
-												class="flex items-center gap-3 pb-4 border-b border-gray-200"
-											>
-												<!-- Item Image -->
-												<div
-													class="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden"
-												>
-													<img
-														v-if="localItem.image"
-														:src="localItem.image"
-														:alt="localItem.item_name"
-														class="w-full h-full object-cover"
-													/>
-													<svg
-														v-else
-														class="h-8 w-8 text-gray-400"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-														/>
-													</svg>
-												</div>
-												<!-- Item Info -->
-												<div class="flex-1 min-w-0">
-													<h3
-														class="text-base font-semibold text-gray-900 truncate"
-													>
-														{{ localItem.item_name }}
-													</h3>
-													<p class="text-sm text-gray-500 truncate">
-														{{
-															formatCurrency(
-																localItem.price_list_rate ||
-																	localItem.rate
-															)
-														}}
-														/
-														{{
-															localItem.stock_uom ||
-															__("Nos", null, "UOM")
-														}}
-													</p>
-												</div>
-											</div>
-
-											<!-- Two Column Layout for Quantity, UOM, Rate, Warehouse -->
-											<div class="grid grid-cols-2 gap-4">
-												<!-- Left Column: Quantity and Rate -->
-												<div class="flex flex-col gap-4">
-													<!-- Quantity Control -->
-													<div>
-														<label
-															class="block text-sm font-medium text-gray-700 mb-2 text-start"
-														>
-															{{ __("Quantity") }}
-															<span
-																v-if="
-																	localItem?.is_resolved_barcode
-																"
-																class="ms-1 text-xs text-amber-600"
-																>({{ __("Locked") }})</span
-															>
-														</label>
-														<!-- For serial items, quantity is read-only (controlled by serial list) -->
-														<div
-															v-if="
-																localItem?.has_serial_no &&
-																localSerials.length > 0
-															"
-															class="w-full h-7 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center"
-														>
-															<span
-																class="text-sm font-semibold text-gray-600"
-																>{{ localSerials.length }}</span
-															>
-														</div>
-														<!-- For resolved barcode items, quantity is read-only -->
-														<div
-															v-else-if="
-																localItem?.is_resolved_barcode
-															"
-															class="w-full h-10 border border-amber-300 rounded-lg bg-amber-50 flex items-center justify-center"
-														>
-															<span
-																class="text-sm font-semibold text-amber-700"
-																>{{ localQuantity }}</span
-															>
-														</div>
-														<!-- For non-serial items, show quantity controls -->
-														<div
-															v-else
-															class="w-full h-7 border border-gray-300 rounded-lg bg-white flex items-center overflow-hidden"
-														>
-															<button
-																type="button"
-																@click="decrementQuantity"
-																class="w-7 h-7 min-w-7 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 font-bold text-base transition-colors flex items-center justify-center border-e border-gray-300"
-															>
-																−
-															</button>
-															<div
-																class="flex-1 h-full flex items-center justify-center px-2"
-															>
-																<input
-																	v-model.number="localQuantity"
-																	type="number"
-																	min="0.0001"
-																	step="any"
-																	inputmode="decimal"
-																	class="w-full text-center border-0 text-sm font-semibold focus:outline-none focus:ring-0 bg-transparent"
-																	@input="handleQuantityInput"
-																	@blur="handleQuantityBlur"
-																	@keydown.enter="
-																		$event.target.blur()
-																	"
-																/>
-															</div>
-															<button
-																type="button"
-																@click="incrementQuantity"
-																class="w-7 h-7 min-w-7 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 font-bold text-base transition-colors flex items-center justify-center border-s border-gray-300"
-															>
-																+
-															</button>
-														</div>
-													</div>
-
-													<!-- Rate -->
-													<div>
-														<label
-															class="block text-sm font-medium text-gray-700 mb-2 text-start"
-															>{{ __("Rate") }}</label
-														>
-														<div class="relative h-7">
-															<span
-																class="absolute inset-y-0 start-0 ps-3 flex items-center text-gray-500 text-sm font-medium"
-															>
-																{{ currencySymbol }}
-															</span>
-															<input
-																v-model.number="localRate"
-																type="number"
-																min="0"
-																step="0.01"
-																:readonly="!canEditRate"
-																:class="
-																	canEditRate
-																		? 'bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-																		: 'bg-gray-50 cursor-not-allowed'
-																"
-																class="w-full h-7 border border-gray-300 rounded-lg ps-12 pe-3 text-sm font-semibold"
-																:title="rateEditDisabledReason"
-																@input="calculateTotals"
-															/>
-														</div>
-														<!-- Compact warning when rate editing disabled due to pricing rules -->
-														<p
-															v-if="
-																hasPricingRules &&
-																settingsStore.allowUserToEditRate
-															"
-															class="mt-1 text-xs text-amber-600 flex items-center gap-1"
-														>
-															<FeatherIcon
-																name="lock"
-																class="w-3 h-3"
-															/>
-															{{ __("Locked (offer applied)") }}
-														</p>
-													</div>
-												</div>
-
-												<!-- Right Column: UOM and Warehouse -->
-												<div class="flex flex-col gap-4">
-													<!-- UOM Selector -->
-													<div>
-														<label
-															class="block text-sm font-medium text-gray-700 mb-2 text-start"
-														>
-															{{ __("UOM") }}
-															<span
-																v-if="
-																	localItem?.is_resolved_barcode
-																"
-																class="ms-1 text-xs text-amber-600"
-																>({{ __("Locked") }})</span
-															>
-														</label>
-														<!-- For resolved barcode items, UOM is read-only -->
-														<div
-															v-if="localItem?.is_resolved_barcode"
-															class="w-full h-10 border border-amber-300 rounded-lg bg-amber-50 flex items-center justify-center"
-														>
-															<span
-																class="text-sm font-semibold text-amber-700"
-																>{{ localUom }}</span
-															>
-														</div>
-														<SelectInput
-															v-else
-															v-model="localUom"
-															:options="uomOptions"
-														/>
-													</div>
-
-													<!-- Warehouse Selector -->
-													<div>
-														<label
-															class="block text-sm font-medium text-gray-700 mb-2 text-start"
-															>{{ __("Warehouse") }}</label
-														>
-														<SelectInput
-															v-model="localWarehouse"
-															:options="warehouseOptions"
-															@change="handleWarehouseChange"
-														/>
-													</div>
-												</div>
-											</div>
-
-											<!-- Serial Numbers Section (only for serial items) -->
-											<div
-												v-if="
-													localItem?.has_serial_no &&
-													localSerials.length > 0
-												"
-												class="border-t border-gray-200 pt-4"
-											>
-												<div
-													class="flex items-center justify-between mb-3"
-												>
-													<label
-														class="block text-sm font-medium text-gray-700 text-start"
-													>
-														{{ __("Serial Numbers") }}
-														<span
-															class="ms-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-														>
-															{{ localSerials.length }}
-														</span>
-													</label>
-												</div>
-												<div
-													class="flex flex-col gap-2 max-h-40 overflow-y-auto"
-												>
-													<div
-														v-for="(serial, index) in localSerials"
-														:key="serial"
-														class="flex items-center justify-between gap-2 p-2 bg-gray-50 rounded-lg"
-													>
-														<div class="flex items-center gap-2">
-															<span
-																class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-medium"
-															>
-																{{ index + 1 }}
-															</span>
-															<span
-																class="text-sm font-medium text-gray-900"
-																>{{ serial }}</span
-															>
-														</div>
-														<button
-															type="button"
-															@click="removeSerial(serial)"
-															:disabled="localSerials.length <= 1"
-															class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-															:title="
-																localSerials.length <= 1
-																	? __(
-																			'Cannot remove last serial'
-																	  )
-																	: __('Remove serial')
-															"
-														>
-															<svg
-																class="w-4 h-4"
-																fill="none"
-																stroke="currentColor"
-																viewBox="0 0 24 24"
-															>
-																<path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M6 18L18 6M6 6l12 12"
-																/>
-															</svg>
-														</button>
-													</div>
-												</div>
-											</div>
-
-											<!-- Item Discount Section (only if allowed by POS Profile) -->
-											<div
-												v-if="settingsStore.allowItemDiscount"
-												class="border-t border-gray-200 pt-4"
-											>
-												<label
-													class="block text-sm font-medium text-gray-700 mb-3 text-start"
-													>{{ __("Item Discount") }}</label
-												>
-												<div class="grid grid-cols-2 gap-3">
-													<!-- Discount Type -->
-													<div>
-														<label
-															class="block text-xs text-gray-600 mb-1 text-start"
-															>{{ __("Discount Type") }}</label
-														>
-														<SelectInput
-															v-model="discountType"
-															:options="discountTypeOptions"
-															@change="handleDiscountTypeChange"
-														/>
-													</div>
-													<!-- Discount Value -->
-													<div>
-														<label
-															class="block text-xs text-gray-600 mb-1 text-start"
-															>{{
-																discountType === "percentage"
-																	? __("Percentage")
-																	: __("Amount")
-															}}</label
-														>
-														<div class="relative">
-															<input
-																v-model.number="discountValue"
-																type="number"
-																min="0"
-																:max="
-																	discountType === 'percentage'
-																		? 100
-																		: undefined
-																"
-																step="0.01"
-																class="w-full h-7 border border-gray-300 rounded-lg px-3 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-																@input="calculateDiscount"
-															/>
-															<span
-																class="absolute inset-y-0 end-0 pe-3 flex items-center text-gray-500 text-sm"
-															>
-																{{
-																	discountType === "percentage"
-																		? "%"
-																		: ""
-																}}
-															</span>
-														</div>
-													</div>
-												</div>
-											</div>
-
-											<!-- Totals -->
-											<div
-												class="bg-gray-50 rounded-lg p-4 flex flex-col gap-2"
-											>
-												<div
-													class="flex items-center justify-between text-sm"
-												>
-													<span class="text-gray-600">{{
-														__("Subtotal:")
-													}}</span>
-													<span class="font-semibold text-gray-900">{{
-														formatCurrency(calculatedSubtotal)
-													}}</span>
-												</div>
-												<div
-													v-if="calculatedDiscount > 0"
-													class="flex items-center justify-between text-sm text-red-600"
-												>
-													<span>{{ __("Discount:") }}</span>
-													<span class="font-semibold"
-														>-{{
-															formatCurrency(calculatedDiscount)
-														}}</span
-													>
-												</div>
-												<div
-													class="flex items-center justify-between pt-2 border-t border-gray-200"
-												>
-													<span
-														class="text-base font-bold text-gray-900"
-														>{{ __("Total:") }}</span
-													>
-													<span
-														class="text-lg font-bold text-blue-600"
-														>{{
-															formatCurrency(calculatedTotal)
-														}}</span
-													>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<!-- Actions - matching frappe-ui Dialog style -->
-							<div class="px-4 pb-7 pt-4 sm:px-6">
-								<div class="flex items-center justify-end gap-2">
-									<Button variant="subtle" @click="cancel">{{
-										__("Cancel")
-									}}</Button>
-									<Button
-										variant="solid"
-										@click="updateItem"
-										:disabled="!hasStock || isCheckingStock"
-									>
-										<span v-if="isCheckingStock">{{
-											__("Checking Stock...")
-										}}</span>
-										<span v-else-if="!hasStock">{{
-											__("No Stock Available")
-										}}</span>
-										<span v-else>{{ __("Update Item") }}</span>
-									</Button>
-								</div>
-							</div>
-						</div>
-					</Transition>
+					<img
+						v-if="localItem.image"
+						:src="localItem.image"
+						:alt="localItem.item_name"
+						class="w-full h-full object-cover"
+					/>
+					<svg
+						v-else
+						class="h-7 w-7 text-slate-400"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+						/>
+					</svg>
+				</div>
+				<!-- Item Info -->
+				<div class="flex-1 min-w-0">
+					<h3 class="text-sm font-bold text-slate-900 truncate">
+						{{ localItem.item_name }}
+					</h3>
+					<p class="text-xs font-medium text-slate-500 truncate mt-0.5 tabular-nums">
+						{{ formatCurrency(localItem.price_list_rate || localItem.rate) }}
+						/
+						{{ localItem.stock_uom || __("Nos", null, "UOM") }}
+					</p>
 				</div>
 			</div>
-		</Transition>
-	</Teleport>
+
+			<!-- Two Column Layout for Quantity, UOM, Rate, Warehouse -->
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+				<!-- Left Column: Quantity and Rate -->
+				<div class="flex flex-col gap-3.5">
+					<!-- Quantity Control -->
+					<div>
+						<label class="block text-xs font-bold text-slate-700 mb-1.5 text-start">
+							{{ __("Quantity") }}
+							<span
+								v-if="localItem?.is_resolved_barcode"
+								class="ms-1 text-[11px] font-semibold text-amber-600"
+								>({{ __("Locked") }})</span
+							>
+						</label>
+						<!-- For serial items, quantity is read-only (controlled by serial list) -->
+						<div
+							v-if="localItem?.has_serial_no && localSerials.length > 0"
+							class="w-full h-9 border border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center"
+						>
+							<span class="text-sm font-bold text-slate-700 tabular-nums">{{
+								localSerials.length
+							}}</span>
+						</div>
+						<!-- For resolved barcode items, quantity is read-only -->
+						<div
+							v-else-if="localItem?.is_resolved_barcode"
+							class="w-full h-9 border border-amber-200 rounded-xl bg-amber-50 flex items-center justify-center"
+						>
+							<span class="text-sm font-bold text-amber-700 tabular-nums">{{
+								localQuantity
+							}}</span>
+						</div>
+						<!-- For non-serial items, show quantity controls -->
+						<div
+							v-else
+							class="w-full h-9 border border-slate-200 rounded-xl bg-white flex items-center overflow-hidden"
+						>
+							<button
+								type="button"
+								@click="decrementQuantity"
+								class="w-9 h-full bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-bold text-base transition-colors flex items-center justify-center border-e border-slate-200 touch-manipulation"
+							>
+								−
+							</button>
+							<div class="flex-1 h-full flex items-center justify-center px-2">
+								<input
+									v-model.number="localQuantity"
+									type="number"
+									min="0.0001"
+									step="any"
+									inputmode="decimal"
+									class="w-full text-center border-0 text-sm font-bold text-slate-900 focus:outline-none focus:ring-0 bg-transparent tabular-nums"
+									@input="handleQuantityInput"
+									@blur="handleQuantityBlur"
+									@keydown.enter="$event.target.blur()"
+								/>
+							</div>
+							<button
+								type="button"
+								@click="incrementQuantity"
+								class="w-9 h-full bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-bold text-base transition-colors flex items-center justify-center border-s border-slate-200 touch-manipulation"
+							>
+								+
+							</button>
+						</div>
+					</div>
+
+					<!-- Rate -->
+					<div>
+						<label class="block text-xs font-bold text-slate-700 mb-1.5 text-start">{{
+							__("Rate")
+						}}</label>
+						<div class="relative h-9">
+							<span
+								class="absolute inset-y-0 start-0 ps-3 flex items-center text-slate-400 text-xs font-bold"
+							>
+								{{ currencySymbol }}
+							</span>
+							<input
+								v-model.number="localRate"
+								type="number"
+								min="0"
+								step="0.01"
+								:readonly="!canEditRate"
+								:class="
+									canEditRate
+										? 'bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
+										: 'bg-slate-50 text-slate-500 cursor-not-allowed'
+								"
+								class="w-full h-9 border border-slate-200 rounded-xl ps-10 pe-3 text-sm font-bold text-slate-900 tabular-nums"
+								:title="rateEditDisabledReason"
+								@input="calculateTotals"
+							/>
+						</div>
+						<!-- Compact warning when rate editing disabled due to pricing rules -->
+						<p
+							v-if="hasPricingRules && settingsStore.allowUserToEditRate"
+							class="mt-1 text-[11px] text-amber-600 flex items-center gap-1"
+						>
+							<FeatherIcon name="lock" class="w-3 h-3" />
+							{{ __("Locked (offer applied)") }}
+						</p>
+					</div>
+				</div>
+
+				<!-- Right Column: UOM and Warehouse -->
+				<div class="flex flex-col gap-3.5">
+					<!-- UOM Selector -->
+					<div>
+						<label class="block text-xs font-bold text-slate-700 mb-1.5 text-start">
+							{{ __("UOM") }}
+							<span
+								v-if="localItem?.is_resolved_barcode"
+								class="ms-1 text-[11px] font-semibold text-amber-600"
+								>({{ __("Locked") }})</span
+							>
+						</label>
+						<!-- For resolved barcode items, UOM is read-only -->
+						<div
+							v-if="localItem?.is_resolved_barcode"
+							class="w-full h-9 border border-amber-200 rounded-xl bg-amber-50 flex items-center justify-center"
+						>
+							<span class="text-sm font-bold text-amber-700">{{ localUom }}</span>
+						</div>
+						<MdxSelect
+							v-else
+							v-model="localUom"
+							:options="uomOptions"
+							size="sm"
+							:showSearch="false"
+							:teleport="true"
+						/>
+					</div>
+
+					<!-- Warehouse Selector -->
+					<div>
+						<label class="block text-xs font-bold text-slate-700 mb-1.5 text-start">{{
+							__("Warehouse")
+						}}</label>
+						<MdxSelect
+							v-model="localWarehouse"
+							:options="warehouseOptions"
+							size="sm"
+							:showSearch="warehouseOptions.length > 5"
+							:teleport="true"
+							@update:modelValue="handleWarehouseChange"
+						/>
+					</div>
+				</div>
+			</div>
+
+			<!-- Serial Numbers Section (only for serial items) -->
+			<div
+				v-if="localItem?.has_serial_no && localSerials.length > 0"
+				class="border-t border-slate-200 pt-3.5"
+			>
+				<div class="flex items-center justify-between mb-2">
+					<label class="block text-xs font-bold text-slate-700 text-start">
+						{{ __("Serial Numbers") }}
+					</label>
+					<MdxBadge variant="info" size="sm">{{ localSerials.length }}</MdxBadge>
+				</div>
+				<div class="flex flex-col gap-1.5 max-h-36 overflow-y-auto">
+					<div
+						v-for="(serial, index) in localSerials"
+						:key="serial"
+						class="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200/80 rounded-xl"
+					>
+						<div class="flex items-center gap-2">
+							<span
+								class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-white text-[11px] font-bold"
+							>
+								{{ index + 1 }}
+							</span>
+							<span class="text-xs font-semibold text-slate-900 font-mono">{{
+								serial
+							}}</span>
+						</div>
+						<button
+							type="button"
+							@click="removeSerial(serial)"
+							:disabled="localSerials.length <= 1"
+							class="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+							:title="
+								localSerials.length <= 1
+									? __('Cannot remove last serial')
+									: __('Remove serial')
+							"
+						>
+							<svg
+								class="w-4 h-4"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M6 18L18 6M6 6l12 12"
+								/>
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Item Discount Section (only if allowed by POS Profile) -->
+			<div
+				v-if="settingsStore.allowItemDiscount"
+				class="border-t border-slate-200 pt-3.5"
+			>
+				<label class="block text-xs font-bold text-slate-700 mb-2 text-start">{{
+					__("Item Discount")
+				}}</label>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<!-- Discount Type -->
+					<div>
+						<label class="block text-[11px] font-semibold text-slate-600 mb-1 text-start">{{
+							__("Discount Type")
+						}}</label>
+						<MdxSelect
+							v-model="discountType"
+							:options="discountTypeOptions"
+							size="sm"
+							:showSearch="false"
+							:teleport="true"
+							@update:modelValue="handleDiscountTypeChange"
+						/>
+					</div>
+					<!-- Discount Value -->
+					<div>
+						<label class="block text-[11px] font-semibold text-slate-600 mb-1 text-start">{{
+							discountType === "percentage" ? __("Percentage") : __("Amount")
+						}}</label>
+						<div class="relative">
+							<input
+								v-model.number="discountValue"
+								type="number"
+								min="0"
+								:max="discountType === 'percentage' ? 100 : undefined"
+								step="0.01"
+								class="w-full h-9 border border-slate-200 rounded-xl px-3 pe-8 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 tabular-nums"
+								@input="calculateDiscount"
+							/>
+							<span
+								class="absolute inset-y-0 end-0 pe-3 flex items-center text-slate-400 text-xs font-bold"
+							>
+								{{ discountType === "percentage" ? "%" : currencySymbol }}
+							</span>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Totals -->
+			<div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col gap-1.5">
+				<div class="flex items-center justify-between text-xs">
+					<span class="text-slate-500 font-medium">{{ __("Subtotal:") }}</span>
+					<span class="font-bold text-slate-800 tabular-nums">{{
+						formatCurrency(calculatedSubtotal)
+					}}</span>
+				</div>
+				<div
+					v-if="calculatedDiscount > 0"
+					class="flex items-center justify-between text-xs text-red-600"
+				>
+					<span class="font-medium">{{ __("Discount:") }}</span>
+					<span class="font-bold tabular-nums">-{{ formatCurrency(calculatedDiscount) }}</span>
+				</div>
+				<div
+					class="flex items-center justify-between pt-2 mt-0.5 border-t border-slate-200"
+				>
+					<span class="text-sm font-extrabold text-slate-900">{{ __("Total:") }}</span>
+					<span class="text-base font-black text-slate-900 tabular-nums">{{
+						formatCurrency(calculatedTotal)
+					}}</span>
+				</div>
+			</div>
+		</div>
+
+		<template #footer>
+			<div class="flex items-center justify-end gap-2 w-full">
+				<MdxButton variant="secondary" @click="cancel">
+					{{ __("Cancel") }}
+				</MdxButton>
+				<MdxButton
+					variant="primary"
+					:loading="isCheckingStock"
+					:disabled="!hasStock || isCheckingStock"
+					@click="updateItem"
+				>
+					<span v-if="isCheckingStock">{{ __("Checking Stock...") }}</span>
+					<span v-else-if="!hasStock">{{ __("No Stock Available") }}</span>
+					<span v-else>{{ __("Update Item") }}</span>
+				</MdxButton>
+			</div>
+		</template>
+	</MdxModal>
 </template>
 
 <script setup>
@@ -482,9 +357,9 @@ import {
 	getCurrencySymbol,
 	roundCurrency,
 } from "@/utils/currency";
-import { Button, FeatherIcon, createResource } from "frappe-ui";
+import { FeatherIcon, createResource } from "frappe-ui";
+import { MdxBadge, MdxButton, MdxModal, MdxSelect } from "mdx_ui";
 import { computed, ref, watch } from "vue";
-import SelectInput from "@/components/common/SelectInput.vue";
 
 const { showSuccess, showError, showWarning } = useToast();
 const settingsStore = usePOSSettingsStore();

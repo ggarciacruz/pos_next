@@ -1,255 +1,251 @@
 <template>
-	<Dialog v-model="open" :options="{ title: isContinuousMode ? __('Seleccionar Punto de Venta') : __('Open POS Shift'), size: 'xl' }">
-		<template #body-content>
-			<div class="flex flex-col gap-6">
-				<!-- Step 1: Select POS Profile -->
-				<div v-if="step === 1" class="flex flex-col gap-4">
-					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-2 text-start">
-							{{ __("Select POS Profile") }}
-						</label>
-						<div v-if="profilesResource.loading" class="text-center py-4">
-							<div
-								class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
-							></div>
-						</div>
+	<MdxModal
+		v-model="open"
+		:title="isContinuousMode ? __('Seleccionar Punto de Venta') : __('Open POS Shift')"
+		size="xl"
+	>
+		<div class="flex flex-col gap-6">
+			<!-- Step 1: Select POS Profile -->
+			<div v-if="step === 1" class="flex flex-col gap-4">
+				<div>
+					<label class="block text-sm font-medium text-slate-700 mb-2 text-start">
+						{{ __("Select POS Profile") }}
+					</label>
+					<div v-if="profilesResource.loading" class="py-6 flex justify-center">
+						<MdxLoadingSpinner size="md" />
+					</div>
+					<div
+						v-else-if="profilesResource.data && profilesResource.data.length > 0"
+						class="grid grid-cols-1 gap-3"
+					>
 						<div
-							v-else-if="profilesResource.data && profilesResource.data.length > 0"
-							class="grid grid-cols-1 gap-3"
+							v-for="profile in profilesResource.data"
+							:key="profile.name"
+							@click="selectPosProfile(profile)"
+							:class="[
+								'p-4 border rounded-xl cursor-pointer transition-all',
+								selectedProfile?.name === profile.name
+									? 'border-blue-500 bg-blue-50/70 ring-2 ring-blue-500/20'
+									: 'border-slate-200 hover:border-blue-300 hover:bg-slate-50',
+							]"
 						>
-							<div
-								v-for="profile in profilesResource.data"
-								:key="profile.name"
-								@click="selectPosProfile(profile)"
-								:class="[
-									'p-4 border rounded-lg cursor-pointer transition-all',
-									selectedProfile?.name === profile.name
-										? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
-										: 'border-gray-200 hover:border-blue-300 hover:bg-gray-50',
-								]"
-							>
-								<div class="flex justify-between items-start">
-									<div class="text-start">
-										<h3 class="font-medium text-gray-900">
-											{{ profile.name }}
-										</h3>
-										<p class="text-sm text-gray-500 mt-1">
-											{{ profile.company }}
-										</p>
-									</div>
-									<span
-										class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded"
-									>
-										{{ profile.currency }}
-									</span>
+							<div class="flex justify-between items-start">
+								<div class="text-start">
+									<h3 class="font-semibold text-slate-900">
+										{{ profile.name }}
+									</h3>
+									<p class="text-sm text-slate-500 mt-1">
+										{{ profile.company }}
+									</p>
 								</div>
+								<span
+									class="text-xs font-medium text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg"
+								>
+									{{ profile.currency }}
+								</span>
 							</div>
 						</div>
-						<div v-else class="text-center py-8 text-gray-500">
-							<p>
-								{{
-									__(
-										"No POS Profiles available. Please contact your administrator."
-									)
-								}}
-							</p>
-						</div>
 					</div>
-
-					<div v-if="profilesResource.error" class="rounded-md bg-red-50 p-4">
-						<p class="text-sm text-red-800">{{ profilesResource.error }}</p>
-					</div>
-				</div>
-
-				<!-- Step 2: Enter Opening Balances -->
-				<div v-if="step === 2" class="flex flex-col gap-4">
-					<div class="mb-4">
-						<div class="flex items-center justify-between">
-							<div class="text-start">
-								<h3 class="font-medium text-gray-900">
-									{{ selectedProfile?.name }}
-								</h3>
-								<p class="text-sm text-gray-500">{{ selectedProfile?.company }}</p>
-							</div>
-							<Button variant="subtle" @click="step = 1">{{
-								__("Change Profile")
-							}}</Button>
-						</div>
-					</div>
-
-					<div>
-						<div v-if="!canCheckout" class="mb-4 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-start">
-							<div class="flex items-center gap-2 text-blue-800 font-bold text-xs mb-1">
-								<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
-								<span>{{ __("Modo Vendedor (Preventa & Cotizaciones)") }}</span>
-							</div>
-							<p class="text-xs text-blue-700">
-								{{ __("Operación comercial sin arqueo de efectivo. Las ventas se cobran en la caja principal por un cajero autorizaciones.") }}
-							</p>
-						</div>
-
-						<label v-else class="block text-sm font-medium text-gray-700 mb-3 text-start">
-							{{ __("Opening Balance (Optional)") }}
-						</label>
-
-						<div v-if="dialogDataResource.loading" class="text-center py-4">
-							<div
-								class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-							></div>
-						</div>
-
-						<div v-else-if="paymentMethods.length > 0" class="flex flex-col gap-3">
-							<div
-								v-for="method in paymentMethods"
-								:key="method.name"
-								class="flex items-center gap-3 p-3 border rounded-lg"
-							>
-								<div class="flex-1 text-start">
-									<label class="text-sm font-medium text-gray-700">
-										{{ method.mode_of_payment }}
-									</label>
-								</div>
-								<div class="w-32">
-									<Input
-										v-model="openingBalances[method.mode_of_payment]"
-										type="number"
-										placeholder="0.00"
-										step="0.01"
-										min="0"
-									/>
-								</div>
-							</div>
-						</div>
-
-						<div v-else class="text-center py-4 text-gray-500">
-							<p class="text-sm">
-								{{ __("No payment methods configured for this POS Profile") }}
-							</p>
-						</div>
-					</div>
-
-					<div v-if="dialogDataResource.error" class="rounded-md bg-red-50 p-4">
-						<p class="text-sm text-red-800">{{ dialogDataResource.error }}</p>
-					</div>
-
-					<div v-if="createShiftResource.error" class="rounded-md bg-red-50 p-4">
-						<p class="text-sm text-red-800">{{ createShiftResource.error }}</p>
-					</div>
-				</div>
-
-				<!-- Step 3: Resume or Open New -->
-				<div v-if="step === 3" class="flex flex-col gap-4">
-					<div class="text-center">
-						<div
-							class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4"
-						>
-							<svg
-								class="h-6 w-6 text-blue-600"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-								/>
-							</svg>
-						</div>
-						<h3 class="text-lg font-medium text-gray-900 mb-2">
-							{{ __("Existing Shift Found") }}
-						</h3>
-						<p class="text-sm text-gray-500 mb-6">
+					<div v-else class="text-center py-8 text-slate-500">
+						<p>
 							{{
 								__(
-									"You have an open shift. Would you like to resume it or close it and open a new one?"
+									"No POS Profiles available. Please contact your administrator."
 								)
 							}}
 						</p>
+					</div>
+				</div>
 
-						<div v-if="existingShift" class="bg-gray-50 rounded-lg p-4 mb-6">
-							<div class="text-sm text-gray-600">
-								<TranslatedHTML
-									:tag="'p'"
-									:inner="
-										__('&lt;strong&gt;POS Profile:&lt;/strong&gt; {0}', [
-											existingShift.pos_profile?.name,
-										])
-									"
-								/>
-								<div class="h-2"></div>
-								<TranslatedHTML
-									:tag="'p'"
-									:inner="
-										__('&lt;strong&gt;Opened:&lt;/strong&gt; {0}', [
-											formatDateTime(
-												existingShift.pos_opening_shift?.period_start_date
-											),
-										])
-									"
+				<div v-if="profilesResource.error" class="rounded-xl bg-red-50 border border-red-200 p-4">
+					<p class="text-sm text-red-800">{{ profilesResource.error }}</p>
+				</div>
+			</div>
+
+			<!-- Step 2: Enter Opening Balances -->
+			<div v-if="step === 2" class="flex flex-col gap-4">
+				<div class="mb-2">
+					<div class="flex items-center justify-between">
+						<div class="text-start">
+							<h3 class="font-semibold text-slate-900">
+								{{ selectedProfile?.name }}
+							</h3>
+							<p class="text-sm text-slate-500">{{ selectedProfile?.company }}</p>
+						</div>
+						<MdxButton variant="secondary" size="sm" @click="step = 1">{{
+							__("Change Profile")
+						}}</MdxButton>
+					</div>
+				</div>
+
+				<div>
+					<div v-if="!canCheckout" class="mb-4 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-start">
+						<div class="flex items-center gap-2 text-blue-800 font-bold text-xs mb-1">
+							<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+							<span>{{ __("Modo Vendedor (Preventa & Cotizaciones)") }}</span>
+						</div>
+						<p class="text-xs text-blue-700">
+							{{ __("Operación comercial sin arqueo de efectivo. Las ventas se cobran en la caja principal por un cajero autorizaciones.") }}
+						</p>
+					</div>
+
+					<label v-else class="block text-sm font-medium text-slate-700 mb-3 text-start">
+						{{ __("Opening Balance (Optional)") }}
+					</label>
+
+					<div v-if="dialogDataResource.loading" class="py-4 flex justify-center">
+						<MdxLoadingSpinner size="sm" />
+					</div>
+
+					<div v-else-if="paymentMethods.length > 0" class="flex flex-col gap-3">
+						<div
+							v-for="method in paymentMethods"
+							:key="method.name"
+							class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl bg-white"
+						>
+							<div class="flex-1 text-start">
+								<label class="text-sm font-medium text-slate-700">
+									{{ method.mode_of_payment }}
+								</label>
+							</div>
+							<div class="w-32">
+								<input
+									v-model="openingBalances[method.mode_of_payment]"
+									type="number"
+									placeholder="0.00"
+									step="0.01"
+									min="0"
+									class="w-full px-3 py-2 text-sm text-end font-semibold bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
 								/>
 							</div>
 						</div>
+					</div>
 
-						<div class="flex gap-3 justify-center">
-							<Button variant="solid" theme="blue" @click="resumeShift">
-								{{ __("Resume Shift") }}
-							</Button>
-							<Button
-								variant="subtle"
-								theme="gray"
-								@click="closeAndOpenNew"
-								:disabled="closingExistingShift"
-							>
-								{{ __("Close & Open New") }}
-							</Button>
+					<div v-else class="text-center py-4 text-slate-500">
+						<p class="text-sm">
+							{{ __("No payment methods configured for this POS Profile") }}
+						</p>
+					</div>
+				</div>
+
+				<div v-if="dialogDataResource.error" class="rounded-xl bg-red-50 border border-red-200 p-4">
+					<p class="text-sm text-red-800">{{ dialogDataResource.error }}</p>
+				</div>
+
+				<div v-if="createShiftResource.error" class="rounded-xl bg-red-50 border border-red-200 p-4">
+					<p class="text-sm text-red-800">{{ createShiftResource.error }}</p>
+				</div>
+			</div>
+
+			<!-- Step 3: Resume or Open New -->
+			<div v-if="step === 3" class="flex flex-col gap-4">
+				<div class="text-center">
+					<div
+						class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4"
+					>
+						<svg
+							class="h-6 w-6 text-blue-600"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+							/>
+						</svg>
+					</div>
+					<h3 class="text-lg font-semibold text-slate-900 mb-2">
+						{{ __("Existing Shift Found") }}
+					</h3>
+					<p class="text-sm text-slate-500 mb-6">
+						{{
+							__(
+								"You have an open shift. Would you like to resume it or close it and open a new one?"
+							)
+						}}
+					</p>
+
+					<div v-if="existingShift" class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+						<div class="text-sm text-slate-600">
+							<TranslatedHTML
+								:tag="'p'"
+								:inner="
+									__('&lt;strong&gt;POS Profile:&lt;/strong&gt; {0}', [
+										existingShift.pos_profile?.name,
+									])
+								"
+							/>
+							<div class="h-2"></div>
+							<TranslatedHTML
+								:tag="'p'"
+								:inner="
+									__('&lt;strong&gt;Opened:&lt;/strong&gt; {0}', [
+										formatDateTime(
+											existingShift.pos_opening_shift?.period_start_date
+										),
+									])
+								"
+							/>
 						</div>
+					</div>
+
+					<div class="flex gap-3 justify-center">
+						<MdxButton variant="primary" @click="resumeShift">
+							{{ __("Resume Shift") }}
+						</MdxButton>
+						<MdxButton
+							variant="secondary"
+							@click="closeAndOpenNew"
+							:disabled="closingExistingShift"
+						>
+							{{ __("Close & Open New") }}
+						</MdxButton>
 					</div>
 				</div>
 			</div>
-		</template>
+		</div>
 
-		<template #actions>
+		<template #footer>
 			<div class="flex justify-between w-full">
-				<Button v-if="step > 1 && step !== 3" variant="subtle" @click="step--">
+				<MdxButton v-if="step > 1 && step !== 3" variant="secondary" @click="step--">
 					{{ __("Back") }}
-				</Button>
+				</MdxButton>
 				<div v-else></div>
 
 				<div class="flex gap-2">
-					<Button
-						variant="subtle"
+					<MdxButton
+						variant="secondary"
 						@click="closeDialog('cancelled')"
 						:disabled="createShiftResource.loading"
 					>
 						{{ __("Cancel") }}
-					</Button>
-					<Button
+					</MdxButton>
+					<MdxButton
 						v-if="step === 1"
-						variant="solid"
-						theme="blue"
+						variant="primary"
 						@click="nextStep"
 						:disabled="!selectedProfile || createShiftResource.loading"
 						:loading="createShiftResource.loading"
 					>
 						{{ isContinuousMode ? __("Ingresar") : __("Next") }}
-					</Button>
-					<Button
+					</MdxButton>
+					<MdxButton
 						v-if="step === 2"
-						variant="solid"
-						theme="blue"
+						variant="primary"
 						@click="openShift"
 						:loading="createShiftResource.loading"
 					>
 						{{ __("Open Shift") }}
-					</Button>
+					</MdxButton>
 				</div>
 			</div>
 		</template>
-	</Dialog>
+	</MdxModal>
 
 	<ShiftClosingDialog
 		v-if="existingShift"
@@ -260,8 +256,8 @@
 </template>
 
 <script setup>
-import { Button, Dialog, Input } from "frappe-ui";
 import { createResource } from "frappe-ui";
+import { MdxModal, MdxButton, MdxLoadingSpinner } from "mdx_ui";
 import { computed, ref, watch } from "vue";
 import { useShift } from "../composables/useShift";
 import { useFormatters } from "../composables/useFormatters";

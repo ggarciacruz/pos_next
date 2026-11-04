@@ -708,6 +708,15 @@
 												"
 											/>
 											<CheckboxField
+												v-model="settings.enable_promotions"
+												:label="__('Habilitar Menú de Promociones y Ofertas (Promos)')"
+												:description="
+													__(
+														'Mostrar el módulo de Promociones (Promos) en el menú lateral del POS y los botones de ofertas/cupones. Desactívelo si su negocio no maneja reglas promocionales.'
+													)
+												"
+											/>
+											<CheckboxField
 												v-model="settings.disable_rounded_total"
 												:label="__('Disable Rounded Total')"
 												:description="
@@ -1299,6 +1308,7 @@ const settings = ref({
 	allow_user_to_edit_additional_discount: 0,
 	allow_user_to_edit_item_discount: 1,
 	allow_user_to_edit_rate: 0,
+	enable_promotions: 0,
 	disable_rounded_total: 1,
 	allow_credit_sale: 0,
 	allow_return: 0,

@@ -194,7 +194,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					draft_id: serverDoc.name,
 					doctype: serverDoc.doctype || doctype,
 					owner: serverDoc.owner || session.user,
-					customer: serverDoc.customer,
+					customer: customer || serverDoc.customer || serverDoc.party_name,
 					created_at: serverDoc.creation,
 					items: invoiceItems,
 					applied_offers: appliedOffers,

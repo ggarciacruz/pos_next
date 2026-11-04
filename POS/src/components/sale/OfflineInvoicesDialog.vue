@@ -1,73 +1,13 @@
 <template>
-	<Dialog v-model="show" :options="{ title: __('Offline Invoices'), size: 'xl' }">
-		<template #body-content>
-			<div class="flex flex-col gap-3 sm:flex flex-col gap-4">
-				<!-- Header Info -->
-				<div
-					class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 bg-orange-50 rounded-lg border border-orange-200"
-				>
-					<div class="flex items-center gap-2 sm:gap-3">
-						<svg
-							class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 flex-shrink-0"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
-						<div class="min-w-0">
-							<h3 class="font-semibold text-gray-900 text-sm sm:text-base">
-								{{ __("{0} Pending Invoice(s)", [invoices.length]) }}
-							</h3>
-							<p class="text-xs sm:text-sm text-gray-600 truncate">
-								{{
-									__("These invoices will be submitted when you're back online")
-								}}
-							</p>
-						</div>
-					</div>
-					<Button
-						v-if="!isOffline && invoices.length > 0"
-						@click="syncAll"
-						:loading="isSyncing"
-						variant="solid"
-						class="flex-shrink-0 whitespace-nowrap w-full sm:w-auto text-sm"
-					>
-						<template #prefix>
-							<svg
-								class="w-4 h-4"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-								/>
-							</svg>
-						</template>
-						{{ __("Sync All") }}
-					</Button>
-				</div>
-
-				<!-- Loading State -->
-				<div v-if="loading" class="flex items-center justify-center py-12">
-					<div
-						class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"
-					></div>
-				</div>
-
-				<!-- Empty State -->
-				<div v-else-if="invoices.length === 0" class="text-center py-12">
+	<MdxModal v-model="show" :title="__('Offline Invoices')" size="xl">
+		<div class="flex flex-col gap-3 sm:gap-4">
+			<!-- Header Info -->
+			<div
+				class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 bg-orange-50 rounded-xl border border-orange-200"
+			>
+				<div class="flex items-center gap-2 sm:gap-3">
 					<svg
-						class="w-16 h-16 mx-auto text-gray-300"
+						class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 flex-shrink-0"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
@@ -76,366 +16,372 @@
 							stroke-linecap="round"
 							stroke-linejoin="round"
 							stroke-width="2"
-							d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+							d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 						/>
 					</svg>
-					<p class="mt-4 text-gray-500">{{ __("No pending offline invoices") }}</p>
+					<div class="min-w-0">
+						<h3 class="font-semibold text-slate-900 text-sm sm:text-base">
+							{{ __("{0} Pending Invoice(s)", [invoices.length]) }}
+						</h3>
+						<p class="text-xs sm:text-sm text-slate-600 truncate">
+							{{
+								__("These invoices will be submitted when you're back online")
+							}}
+						</p>
+					</div>
 				</div>
+				<MdxButton
+					v-if="!isOffline && invoices.length > 0"
+					@click="syncAll"
+					:loading="isSyncing"
+					variant="primary"
+					class="flex-shrink-0 whitespace-nowrap w-full sm:w-auto"
+				>
+					<svg
+						class="w-4 h-4 me-1.5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+						/>
+					</svg>
+					{{ __("Sync All") }}
+				</MdxButton>
+			</div>
 
-				<!-- Invoices List -->
+			<!-- Loading State -->
+			<div v-if="loading" class="py-12 flex justify-center">
+				<MdxLoadingSpinner size="md" />
+			</div>
+
+			<!-- Empty State -->
+			<div v-else-if="invoices.length === 0" class="text-center py-12">
+				<svg
+					class="w-16 h-16 mx-auto text-slate-300"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+					/>
+				</svg>
+				<p class="mt-4 text-slate-500">{{ __("No pending offline invoices") }}</p>
+			</div>
+
+			<!-- Invoices List -->
+			<div
+				v-else
+				class="flex flex-col gap-2 sm:gap-3 max-h-[60vh] sm:max-h-96 overflow-y-auto"
+			>
 				<div
-					v-else
-					class="flex flex-col gap-2 sm:flex flex-col gap-3 max-h-[60vh] sm:max-h-96 overflow-y-auto"
+					v-for="invoice in invoices"
+					:key="invoice.id"
+					class="border border-slate-200 rounded-xl p-3 sm:p-4 hover:bg-slate-50 transition-colors"
 				>
 					<div
-						v-for="invoice in invoices"
-						:key="invoice.id"
-						class="border border-gray-200 rounded-lg p-3 sm:p-4 hover:bg-gray-50 transition-colors"
+						class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3"
 					>
-						<div
-							class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3"
-						>
-							<div class="flex-1 min-w-0">
-								<div class="flex flex-wrap items-center gap-2">
-									<h4
-										class="font-semibold text-gray-900 text-sm sm:text-base truncate"
-									>
-										{{ invoice.data.customer || __("Walk-in Customer") }}
-									</h4>
-									<span
-										v-if="invoice.retry_count > 0"
-										class="text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 bg-red-100 text-red-700 rounded-full flex-shrink-0"
-									>
-										{{ __("{0} failed", [invoice.retry_count]) }}
+						<div class="flex-1 min-w-0">
+							<div class="flex flex-wrap items-center gap-2">
+								<h4
+									class="font-semibold text-slate-900 text-sm sm:text-base truncate"
+								>
+									{{ invoice.data.customer || __("Walk-in Customer") }}
+								</h4>
+								<span
+									v-if="invoice.retry_count > 0"
+									class="text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 bg-red-100 text-red-700 rounded-full flex-shrink-0"
+								>
+									{{ __("{0} failed", [invoice.retry_count]) }}
+								</span>
+								<span
+									v-if="invoice.data?.was_printed"
+									class="text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 bg-amber-100 text-amber-800 rounded-full flex-shrink-0"
+									:title="
+										__(
+											'Receipt was printed — customer may hold a physical copy'
+										)
+									"
+								>
+									{{ __("Printed") }}
+								</span>
+							</div>
+							<div
+								class="mt-2 flex flex-col gap-1 text-xs sm:text-sm text-slate-600"
+							>
+								<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+									<span>{{
+										__("{0} items", [invoice.data.items?.length || 0])
+									}}</span>
+									<span class="font-semibold text-slate-900">
+										{{ formatCurrency(invoice.data.grand_total || 0) }}
 									</span>
-									<span
-										v-if="invoice.data?.was_printed"
-										class="text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 bg-amber-100 text-amber-800 rounded-full flex-shrink-0"
-										:title="
-											__(
-												'Receipt was printed — customer may hold a physical copy'
-											)
-										"
-									>
-										{{ __("Printed") }}
+									<span class="text-[10px] sm:text-xs text-slate-500">
+										{{ formatDate(invoice.timestamp) }}
 									</span>
 								</div>
 								<div
-									class="mt-2 flex flex-col gap-1 text-xs sm:text-sm text-gray-600"
+									v-if="invoice.data.payments?.length > 0"
+									class="flex flex-wrap items-center gap-2"
 								>
-									<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-										<span>{{
-											__("{0} items", [invoice.data.items?.length || 0])
-										}}</span>
-										<span class="font-semibold text-gray-900">
-											{{ formatCurrency(invoice.data.grand_total || 0) }}
-										</span>
-										<span class="text-[10px] sm:text-xs text-gray-500">
-											{{ formatDate(invoice.timestamp) }}
-										</span>
-									</div>
-									<div
-										v-if="invoice.data.payments?.length > 0"
-										class="flex flex-wrap items-center gap-2"
+									<span class="text-[10px] sm:text-xs text-slate-500">{{
+										__("Payments:")
+									}}</span>
+									<span
+										v-for="(payment, idx) in invoice.data.payments"
+										:key="idx"
+										class="text-[10px] sm:text-xs px-2 py-0.5 bg-slate-100 rounded"
 									>
-										<span class="text-[10px] sm:text-xs text-gray-500">{{
-											__("Payments:")
-										}}</span>
-										<span
-											v-for="(payment, idx) in invoice.data.payments"
-											:key="idx"
-											class="text-[10px] sm:text-xs px-2 py-0.5 bg-gray-100 rounded"
-										>
-											{{ payment.mode_of_payment }}:
-											{{ formatCurrency(payment.amount) }}
-										</span>
-									</div>
+										{{ payment.mode_of_payment }}:
+										{{ formatCurrency(payment.amount) }}
+									</span>
 								</div>
 							</div>
-							<div
-								class="flex items-center justify-end sm:justify-start gap-1 sm:gap-2"
+						</div>
+						<div
+							class="flex items-center justify-end sm:justify-start gap-1 sm:gap-2"
+						>
+							<button
+								@click="editInvoice(invoice)"
+								:disabled="isSyncing || invoice.data?.was_printed"
+								class="p-1.5 sm:p-2 hover:bg-blue-50 rounded-lg transition-colors touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+								:title="
+									invoice.data?.was_printed
+										? __(
+												'Printed invoices cannot be edited — use Return to issue a credit note'
+										  )
+										: isSyncing
+										? __('Sync in progress — editing disabled')
+										: __('Edit Invoice')
+								"
 							>
-								<button
-									@click="editInvoice(invoice)"
-									:disabled="isSyncing || invoice.data?.was_printed"
-									class="p-1.5 sm:p-2 hover:bg-blue-50 rounded-lg transition-colors touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-									:title="
-										invoice.data?.was_printed
-											? __(
-													'Printed invoices cannot be edited — use Return to issue a credit note'
-											  )
-											: isSyncing
-											? __('Sync in progress — editing disabled')
-											: __('Edit Invoice')
-									"
+								<svg
+									class="w-4 h-4 sm:w-5 sm:h-5 text-blue-600"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
 								>
-									<svg
-										class="w-4 h-4 sm:w-5 sm:h-5 text-blue-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-										/>
-									</svg>
-								</button>
-								<button
-									@click="viewDetails(invoice)"
-									class="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
-									:title="__('View Details')"
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+									/>
+								</svg>
+							</button>
+							<button
+								@click="viewDetails(invoice)"
+								class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-colors touch-manipulation"
+								:title="__('View Details')"
+							>
+								<svg
+									class="w-4 h-4 sm:w-5 sm:h-5 text-slate-600"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
 								>
-									<svg
-										class="w-4 h-4 sm:w-5 sm:h-5 text-gray-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-										/>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-										/>
-									</svg>
-								</button>
-								<button
-									@click="printInvoice(invoice)"
-									class="p-1.5 sm:p-2 hover:bg-green-50 rounded-lg transition-colors touch-manipulation"
-									:title="
-										invoice.data?.was_printed
-											? __('Reprint receipt (already printed once)')
-											: __('Print receipt')
-									"
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+									/>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+									/>
+								</svg>
+							</button>
+							<button
+								@click="printInvoice(invoice)"
+								class="p-1.5 sm:p-2 hover:bg-green-50 rounded-lg transition-colors touch-manipulation"
+								:title="
+									invoice.data?.was_printed
+										? __('Reprint receipt (already printed once)')
+										: __('Print receipt')
+								"
+							>
+								<svg
+									class="w-4 h-4 sm:w-5 sm:h-5 text-green-600"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
 								>
-									<svg
-										class="w-4 h-4 sm:w-5 sm:h-5 text-green-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-										/>
-									</svg>
-								</button>
-								<button
-									v-if="posSettingsStore.enableWhatsappSend"
-									type="button"
-									@click="whatsappInvoice(invoice)"
-									class="p-1.5 sm:p-2 hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors touch-manipulation"
-									:title="__('Enviar por WhatsApp')"
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+									/>
+								</svg>
+							</button>
+							<button
+								v-if="posSettingsStore.enableWhatsappSend"
+								type="button"
+								@click="whatsappInvoice(invoice)"
+								class="p-1.5 sm:p-2 hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors touch-manipulation"
+								:title="__('Enviar por WhatsApp')"
+							>
+								<svg class="w-4 h-4 sm:w-5 sm:h-5 fill-current" viewBox="0 0 24 24">
+									<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+								</svg>
+							</button>
+							<button
+								@click="deleteInvoice(invoice)"
+								:disabled="isSyncing"
+								class="p-1.5 sm:p-2 hover:bg-red-50 rounded-lg transition-colors touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+								:title="
+									isSyncing
+										? __('Sync in progress — deletion disabled')
+										: __('Delete')
+								"
+							>
+								<svg
+									class="w-4 h-4 sm:w-5 sm:h-5 text-red-600"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
 								>
-									<svg class="w-4 h-4 sm:w-5 sm:h-5 fill-current" viewBox="0 0 24 24">
-										<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-									</svg>
-								</button>
-								<button
-									@click="deleteInvoice(invoice)"
-									:disabled="isSyncing"
-									class="p-1.5 sm:p-2 hover:bg-red-50 rounded-lg transition-colors touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-									:title="
-										isSyncing
-											? __('Sync in progress — deletion disabled')
-											: __('Delete')
-									"
-								>
-									<svg
-										class="w-4 h-4 sm:w-5 sm:h-5 text-red-600"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-										/>
-									</svg>
-								</button>
-							</div>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+									/>
+								</svg>
+							</button>
 						</div>
 					</div>
 				</div>
 			</div>
-		</template>
-	</Dialog>
+		</div>
+	</MdxModal>
 
 	<!-- Details Dialog -->
-	<Dialog v-model="showDetails" :options="{ title: __('Invoice Details'), size: 'lg' }">
-		<template #body-content>
-			<div
-				v-if="selectedInvoice"
-				class="flex flex-col gap-3 sm:gap-4 max-h-[calc(100vh-16rem)] overflow-y-auto px-1 pe-2 -me-2"
-			>
-				<div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
-					<h4 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">
-						{{ __("Customer") }}
-					</h4>
-					<p class="text-sm sm:text-base">
-						{{ selectedInvoice.data.customer || __("Walk-in Customer") }}
-					</p>
-				</div>
+	<MdxModal v-model="showDetails" :title="__('Invoice Details')" size="lg">
+		<div
+			v-if="selectedInvoice"
+			class="flex flex-col gap-3 sm:gap-4 max-h-[calc(100vh-16rem)] overflow-y-auto px-1 pe-2 -me-2"
+		>
+			<div class="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200">
+				<h4 class="font-semibold text-slate-900 mb-2 text-sm sm:text-base">
+					{{ __("Customer") }}
+				</h4>
+				<p class="text-sm sm:text-base text-slate-700">
+					{{ selectedInvoice.data.customer || __("Walk-in Customer") }}
+				</p>
+			</div>
 
-				<div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
-					<h4 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">
-						{{ __("Items") }}
-					</h4>
-					<div class="flex flex-col gap-2">
-						<div
-							v-for="(item, idx) in selectedInvoice.data.items"
-							:key="idx"
-							class="flex justify-between text-xs sm:text-sm gap-2"
-						>
-							<span class="truncate"
-								>{{ item.item_name || item.item_code }} ×
-								{{ item.quantity || item.qty }}</span
-							>
-							<span class="font-semibold flex-shrink-0">{{
-								formatCurrency(item.amount || 0)
-							}}</span>
-						</div>
-					</div>
-				</div>
-
-				<div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
-					<div class="flex justify-between mb-1 text-xs sm:text-sm">
-						<span class="text-gray-600">{{ __("Subtotal") }}</span>
-						<span>{{ formatCurrency(selectedInvoice.data.total || 0) }}</span>
-					</div>
+			<div class="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200">
+				<h4 class="font-semibold text-slate-900 mb-2 text-sm sm:text-base">
+					{{ __("Items") }}
+				</h4>
+				<div class="flex flex-col gap-2">
 					<div
-						v-if="selectedInvoice.data.total_tax"
-						class="flex justify-between mb-1 text-xs sm:text-sm"
+						v-for="(item, idx) in selectedInvoice.data.items"
+						:key="idx"
+						class="flex justify-between text-xs sm:text-sm gap-2"
 					>
-						<span class="text-gray-600">{{ __("Tax") }}</span>
-						<span>{{ formatCurrency(selectedInvoice.data.total_tax) }}</span>
-					</div>
-					<div
-						v-if="selectedInvoice.data.total_discount"
-						class="flex justify-between mb-1 text-xs sm:text-sm"
-					>
-						<span class="text-gray-600">{{ __("Discount") }}</span>
-						<span class="text-red-600"
-							>-{{ formatCurrency(selectedInvoice.data.total_discount) }}</span
+						<span class="truncate text-slate-700"
+							>{{ item.item_name || item.item_code }} ×
+							{{ item.quantity || item.qty }}</span
 						>
-					</div>
-					<div
-						class="flex justify-between font-semibold text-base sm:text-lg pt-2 border-t"
-					>
-						<span>{{ __("Grand Total") }}</span>
-						<span>{{ formatCurrency(selectedInvoice.data.grand_total || 0) }}</span>
-					</div>
-				</div>
-
-				<div
-					v-if="selectedInvoice.data.payments?.length > 0"
-					class="bg-gray-50 p-3 sm:p-4 rounded-lg"
-				>
-					<h4 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">
-						{{ __("Payments") }}
-					</h4>
-					<div class="flex flex-col gap-1">
-						<div
-							v-for="(payment, idx) in selectedInvoice.data.payments"
-							:key="idx"
-							class="flex justify-between text-xs sm:text-sm"
-						>
-							<span>{{ payment.mode_of_payment }}</span>
-							<span class="font-semibold">{{ formatCurrency(payment.amount) }}</span>
-						</div>
+						<span class="font-semibold flex-shrink-0 text-slate-900">{{
+							formatCurrency(item.amount || 0)
+						}}</span>
 					</div>
 				</div>
 			</div>
+
+			<div class="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200">
+				<div class="flex justify-between mb-1 text-xs sm:text-sm">
+					<span class="text-slate-600">{{ __("Subtotal") }}</span>
+					<span class="text-slate-900">{{ formatCurrency(selectedInvoice.data.total || 0) }}</span>
+				</div>
+				<div
+					v-if="selectedInvoice.data.total_tax"
+					class="flex justify-between mb-1 text-xs sm:text-sm"
+				>
+					<span class="text-slate-600">{{ __("Tax") }}</span>
+					<span class="text-slate-900">{{ formatCurrency(selectedInvoice.data.total_tax) }}</span>
+				</div>
+				<div
+					v-if="selectedInvoice.data.total_discount"
+					class="flex justify-between mb-1 text-xs sm:text-sm"
+				>
+					<span class="text-slate-600">{{ __("Discount") }}</span>
+					<span class="text-red-600"
+						>-{{ formatCurrency(selectedInvoice.data.total_discount) }}</span
+					>
+				</div>
+				<div
+					class="flex justify-between font-semibold text-base sm:text-lg pt-2 border-t border-slate-200 text-slate-900"
+				>
+					<span>{{ __("Grand Total") }}</span>
+					<span>{{ formatCurrency(selectedInvoice.data.grand_total || 0) }}</span>
+				</div>
+			</div>
+
+			<div
+				v-if="selectedInvoice.data.payments?.length > 0"
+				class="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200"
+			>
+				<h4 class="font-semibold text-slate-900 mb-2 text-sm sm:text-base">
+					{{ __("Payments") }}
+				</h4>
+				<div class="flex flex-col gap-1">
+					<div
+						v-for="(payment, idx) in selectedInvoice.data.payments"
+						:key="idx"
+						class="flex justify-between text-xs sm:text-sm"
+					>
+						<span class="text-slate-700">{{ payment.mode_of_payment }}</span>
+						<span class="font-semibold text-slate-900">{{ formatCurrency(payment.amount) }}</span>
+					</div>
+				</div>
+			</div>
+		</div>
+		<template #footer>
+			<div class="flex justify-end w-full">
+				<MdxButton variant="secondary" @click="showDetails = false" class="w-full sm:w-auto">{{
+					__("Close")
+				}}</MdxButton>
+			</div>
 		</template>
-		<template #actions>
-			<Button variant="subtle" @click="showDetails = false" class="w-full sm:w-auto">{{
-				__("Close")
-			}}</Button>
-		</template>
-	</Dialog>
+	</MdxModal>
 
 	<!-- Delete Confirmation Dialog -->
-	<Dialog
+	<MdxConfirmDialog
 		v-model="showDeleteConfirm"
-		:options="{ title: __('Delete Offline Invoice'), size: 'md' }"
-	>
-		<template #body-content>
-			<div v-if="invoiceToDelete" class="flex flex-col gap-3 sm:flex flex-col gap-4">
-				<div class="flex items-start gap-2 sm:gap-3">
-					<svg
-						class="w-5 h-5 sm:w-6 sm:h-6 text-red-600 flex-shrink-0 mt-0.5"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-						/>
-					</svg>
-					<div class="min-w-0 flex-1">
-						<p class="text-gray-900 font-medium mb-2 text-sm sm:text-base">
-							{{ __("Are you sure you want to delete this offline invoice?") }}
-						</p>
-						<div
-							class="bg-gray-50 rounded-lg p-2.5 sm:p-3 flex flex-col gap-1 text-xs sm:text-sm"
-						>
-							<div class="flex justify-between gap-2">
-								<span class="text-gray-600">{{ __("Customer:") }}</span>
-								<span class="font-semibold truncate">{{
-									invoiceToDelete.data.customer || __("Walk-in Customer")
-								}}</span>
-							</div>
-							<div class="flex justify-between gap-2">
-								<span class="text-gray-600">{{ __("Amount:") }}</span>
-								<span class="font-semibold">{{
-									formatCurrency(invoiceToDelete.data.grand_total)
-								}}</span>
-							</div>
-							<div class="flex justify-between gap-2">
-								<span class="text-gray-600">{{ __("Items:") }}</span>
-								<span class="font-semibold">{{
-									invoiceToDelete.data.items?.length || 0
-								}}</span>
-							</div>
-						</div>
-						<p class="text-red-600 text-xs sm:text-sm mt-3">
-							{{ __("This action cannot be undone.") }}
-						</p>
-					</div>
-				</div>
-			</div>
-		</template>
-		<template #actions>
-			<Button variant="subtle" @click="showDeleteConfirm = false" class="w-full sm:w-auto">{{
-				__("Cancel")
-			}}</Button>
-			<Button variant="solid" theme="red" @click="confirmDelete" class="w-full sm:w-auto">{{
-				__("Delete Invoice")
-			}}</Button>
-		</template>
-	</Dialog>
+		variant="danger"
+		:title="__('Delete Offline Invoice')"
+		:message="
+			invoiceToDelete
+				? `${__('Are you sure you want to delete this offline invoice?')} (${invoiceToDelete.data.customer || __('Walk-in Customer')} · ${formatCurrency(invoiceToDelete.data.grand_total)})`
+				: __('Are you sure you want to delete this offline invoice?')
+		"
+		:confirmText="__('Delete Invoice')"
+		:cancelText="__('Cancel')"
+		@confirm="confirmDelete"
+		@cancel="showDeleteConfirm = false"
+	/>
 </template>
 
 <script setup>
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
 import { usePOSSettingsStore } from "@/stores/posSettings";
-import { Button, Dialog } from "frappe-ui";
+import { MdxModal, MdxConfirmDialog, MdxButton, MdxLoadingSpinner } from "mdx_ui";
 import { computed, ref, watch } from "vue";
 
 const posSettingsStore = usePOSSettingsStore();

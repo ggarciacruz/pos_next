@@ -215,79 +215,48 @@
 			</div>
 		</main>
 
-		<!-- Logout Confirmation Dialog -->
-		<Dialog
+		<!-- Logout Confirmation Dialog (mdx_ui) -->
+		<MdxConfirmDialog
+			v-if="hasOpenShift"
 			v-model="showLogoutDialog"
-			:options="{ title: __('Confirm Sign Out') }"
+			variant="warning"
+			icon="warning"
 			:dismissable="!session.logout.loading"
+			:keep-open-on-confirm="true"
+			:loading="session.logout.loading"
+			:loading-text="__('Signing Out...')"
+			:title="__('Active Shift Detected')"
+			:message="__('You have an active shift open. Would you like to:')"
+			:cancel-text="__('Cancel')"
+			:confirm-text="__('Close Shift & Sign Out')"
+			@confirm="logoutWithCloseShift"
 		>
-			<template #body-content>
-				<div class="space-y-4">
-					<div v-if="hasOpenShift" class="rounded-md bg-yellow-50 p-4">
-						<div class="flex">
-							<div class="flex-shrink-0">
-								<svg
-									class="h-5 w-5 text-yellow-400"
-									viewBox="0 0 20 20"
-									fill="currentColor"
-								>
-									<path
-										fill-rule="evenodd"
-										d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-										clip-rule="evenodd"
-									/>
-								</svg>
-							</div>
-							<div class="ml-3">
-								<h3 class="text-sm font-medium text-yellow-800">
-									{{ __("Active Shift Detected") }}
-								</h3>
-								<div class="mt-2 text-sm text-yellow-700">
-									<p>
-										{{
-											__("You have an active shift open. Would you like to:")
-										}}
-									</p>
-								</div>
-							</div>
-						</div>
-					</div>
-
-					<p v-else class="text-sm text-gray-500">
-						{{ __("Are you sure you want to sign out of MDX POS?") }}
-					</p>
-				</div>
+			<template #extra-actions>
+				<button
+					type="button"
+					:disabled="session.logout.loading"
+					class="mdx-confirm__btn mdx-confirm__btn--danger mdx-pressable"
+					@click="handleLogout"
+				>
+					{{ session.logout.loading ? __("Signing Out...") : __("Sign Out Only") }}
+				</button>
 			</template>
-
-			<template #actions>
-				<div class="flex space-x-2">
-					<Button
-						theme="gray"
-						variant="subtle"
-						@click="showLogoutDialog = false"
-						:disabled="session.logout.loading"
-					>
-						{{ __("Cancel") }}
-					</Button>
-					<Button
-						v-if="hasOpenShift"
-						theme="blue"
-						variant="solid"
-						@click="logoutWithCloseShift"
-					>
-						{{ __("Close Shift & Sign Out") }}
-					</Button>
-					<Button
-						theme="red"
-						variant="solid"
-						@click="handleLogout"
-						:loading="session.logout.loading"
-					>
-						{{ hasOpenShift ? __("Sign Out Only") : __("Sign Out") }}
-					</Button>
-				</div>
-			</template>
-		</Dialog>
+		</MdxConfirmDialog>
+		<MdxConfirmDialog
+			v-else
+			v-model="showLogoutDialog"
+			variant="danger"
+			icon="logout"
+			:dismissable="!session.logout.loading"
+			:keep-open-on-confirm="true"
+			:loading="session.logout.loading"
+			:loading-text="__('Signing Out...')"
+			:title="__('Confirm Sign Out')"
+			:message="__('Are you sure you want to sign out of MDX POS?')"
+			:cancel-text="__('Cancel')"
+			:confirm-text="__('Sign Out')"
+			@confirm="handleLogout"
+		/>
 
 		<!-- Shift Opening Dialog -->
 		<ShiftOpeningDialog v-model="showOpenShiftDialog" @shift-opened="handleShiftOpened" />
@@ -303,8 +272,8 @@
 </template>
 
 <script setup>
-import { Dialog } from "frappe-ui";
 import { createResource } from "frappe-ui";
+import { MdxConfirmDialog } from "mdx_ui";
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import ShiftClosingDialog from "../components/ShiftClosingDialog.vue";

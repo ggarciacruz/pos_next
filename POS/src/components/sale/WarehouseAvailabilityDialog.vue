@@ -1,54 +1,44 @@
 <template>
-	<Teleport to="body">
-		<Transition name="fade">
-			<div
-				v-if="show"
-				class="fixed inset-0 z-[300] bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-5 md:p-7"
-				@click.self="closeDialog"
+	<MdxModal
+		v-model="show"
+		:size="isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems) ? '6xl' : '3xl'"
+		:noPadding="true"
+	>
+		<!-- Modal Header (Compact) -->
+		<template #header>
+			<div class="flex items-center gap-3 min-w-0">
+				<div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+					<svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+					</svg>
+				</div>
+				<div class="min-w-0 text-start">
+					<h3 class="text-sm sm:text-base font-bold text-slate-900 truncate leading-tight">
+						{{
+							isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)
+								? __("Gestión de Productos e Inventario")
+								: __("Disponibilidad y Stock")
+						}}
+					</h3>
+					<p class="text-xs text-slate-500 truncate mt-0.5">
+						{{ __("Catálogo de productos, precios y existencias por almacén") }}
+					</p>
+				</div>
+			</div>
+			<button
+				type="button"
+				@click="closeDialog"
+				class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
+				:title="__('Cerrar')"
 			>
-				<div
-					:class="[
-						'bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden border border-gray-200',
-						isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)
-							? 'max-w-[96vw] xl:max-w-7xl h-[90vh] max-h-[90vh]'
-							: 'max-w-4xl max-h-[88vh]',
-					]"
-				>
-					<!-- Modal Header (Compact) -->
-					<div class="px-4 sm:px-6 py-3 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
-						<div class="flex items-center gap-3 min-w-0">
-							<div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-								<svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-								</svg>
-							</div>
-							<div class="min-w-0 text-start">
-								<h3 class="text-sm sm:text-base font-bold text-slate-900 truncate leading-tight">
-									{{
-										isSearchMode && (settingsStore.canManageStock || settingsStore.canManageItems)
-											? __("Gestión de Productos e Inventario")
-											: __("Disponibilidad y Stock")
-									}}
-								</h3>
-								<p class="text-xs text-slate-500 truncate mt-0.5">
-									{{ __("Catálogo de productos, precios y existencias por almacén") }}
-								</p>
-							</div>
-						</div>
-						<button
-							type="button"
-							@click="closeDialog"
-							class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
-							:title="__('Cerrar')"
-						>
-							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-							</svg>
-						</button>
-					</div>
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+				</svg>
+			</button>
+		</template>
 
-					<!-- Modal Body (Scrollable) -->
-					<div class="flex-1 overflow-y-auto px-3 sm:px-5 py-1.5 sm:py-2">
+		<!-- Modal Body (Scrollable) -->
+		<div class="flex-1 overflow-y-auto px-3 sm:px-5 py-1.5 sm:py-2">
 						<!-- Initial Loading State - shown before any content is ready -->
 						<div
 							v-if="!isReady && loading"
@@ -739,33 +729,19 @@
 
 								<!-- Warehouse Filter & Category Filter (Side-by-side on mobile & desktop) -->
 								<div class="grid grid-cols-2 gap-1.5 sm:col-span-5">
-									<select
+									<MdxSelect
 										v-model="invWarehouseFilter"
-										class="w-full px-2 py-1 text-[11px] sm:text-xs font-semibold text-gray-800 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
-									>
-										<option value="">{{ __("Almacén: Todos") }}</option>
-										<option
-											v-for="wh in inventoryWarehouses"
-											:key="wh.warehouse"
-											:value="wh.warehouse"
-										>
-											{{ wh.warehouse_name }}
-										</option>
-									</select>
+										:options="invWarehouseOptions"
+										:placeholder="''"
+										:teleport="true"
+									/>
 
-									<select
+									<MdxSelect
 										v-model="invGroupFilter"
-										class="w-full px-2 py-1 text-[11px] sm:text-xs font-semibold text-gray-800 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
-									>
-										<option value="">{{ __("Categoría: Todas") }}</option>
-										<option
-											v-for="grp in inventoryGroups"
-											:key="grp"
-											:value="grp"
-										>
-											{{ grp }}
-										</option>
-									</select>
+										:options="invGroupOptions"
+										:placeholder="''"
+										:teleport="true"
+									/>
 								</div>
 
 								<!-- Desktop Refresh + Export PDF -->
@@ -1573,18 +1549,12 @@
 							<label class="block text-xs font-bold text-gray-700 mb-1">
 								{{ __("Almacén donde entra la mercadería") }}
 							</label>
-							<select
+							<MdxSelect
 								v-model="batchWarehouse"
-								class="w-full px-3 py-2 text-xs font-semibold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-							>
-								<option
-									v-for="wh in availableCompanyWarehouses"
-									:key="wh.warehouse || wh.name"
-									:value="wh.warehouse || wh.name"
-								>
-									{{ wh.warehouse_name || wh.warehouse || wh.name }}
-								</option>
-							</select>
+								:options="batchWarehouseOptions"
+								:placeholder="__('Seleccionar almacén...')"
+								:teleport="true"
+							/>
 						</div>
 						<div>
 							<label class="block text-xs font-bold text-gray-700 mb-1">
@@ -2108,10 +2078,7 @@
 							</button>
 						</div>
 					</div>
-				</div>
-			</div>
-		</Transition>
-	</Teleport>
+	</MdxModal>
 
 	<!-- Quick Create / Edit Product Modal -->
 	<ItemQuickFormDialog
@@ -2137,6 +2104,7 @@
  */
 import { ref, computed, watch, nextTick } from "vue";
 import { call } from "frappe-ui";
+import { MdxModal, MdxSelect } from "mdx_ui";
 import ItemQuickFormDialog from "@/components/sale/ItemQuickFormDialog.vue";
 import { __ } from "@/utils/translation";
 import { usePOSCartStore } from "@/stores/posCart";
@@ -2249,6 +2217,27 @@ const stockEntriesHistory = ref([]);
 const loadingHistory = ref(false);
 const cancellingEntryName = ref(null);
 const cancelReason = ref("");
+
+// Current Inventory Overview & Catalog State (must be declared before immediate watchers)
+const loadingInventoryReport = ref(false);
+const inventoryReportItems = ref([]);
+const inventoryWarehouses = ref([]);
+const inventoryGroups = ref([]);
+const inventoryCompany = ref("");
+const inventoryDefaultThreshold = ref(10);
+
+const invWarehouseFilter = ref("");
+const invGroupFilter = ref("");
+const invStatusFilter = ref("");
+const showCostPrice = ref(false); // Unchecked by default for privacy
+
+// Default sort: 'status_grouped' (Optimal Stock on top -> Low Stock in middle -> Out of Stock at bottom)
+const invSortKey = ref("status_grouped");
+const invSortDir = ref("desc");
+
+const catalogSearchQuery = ref("");
+const showItemQuickForm = ref(false);
+const editingCatalogItemCode = ref("");
 
 // Computed display values
 const displayItemName = computed(() => {
@@ -2814,22 +2803,6 @@ async function switchTab(tab) {
 // ============================================================================
 // CURRENT INVENTORY OVERVIEW & PDF EXPORT
 // ============================================================================
-const loadingInventoryReport = ref(false);
-const inventoryReportItems = ref([]);
-const inventoryWarehouses = ref([]);
-const inventoryGroups = ref([]);
-const inventoryCompany = ref("");
-const inventoryDefaultThreshold = ref(10);
-
-const invWarehouseFilter = ref("");
-const invGroupFilter = ref("");
-const invStatusFilter = ref("");
-const showCostPrice = ref(false); // Unchecked by default for privacy
-
-// Default sort: 'status_grouped' (Optimal Stock on top -> Low Stock in middle -> Out of Stock at bottom)
-const invSortKey = ref("status_grouped");
-const invSortDir = ref("desc");
-
 function toggleInvSort(key) {
 	if (key === "display_qty") {
 		if (invSortKey.value === "status_grouped") {
@@ -2870,6 +2843,29 @@ function shouldShowExtraMedida(row) {
 function cleanWarehouseName(name) {
 	return (name || "").replace(/\s*-\s*[A-Z0-9]+$/i, "");
 }
+
+const invWarehouseOptions = computed(() => [
+	{ label: __("Almacén: Todos"), value: "" },
+	...(inventoryWarehouses.value || []).map((wh) => ({
+		label: wh.warehouse_name || wh.warehouse,
+		value: wh.warehouse,
+	})),
+]);
+
+const invGroupOptions = computed(() => [
+	{ label: __("Categoría: Todas"), value: "" },
+	...(inventoryGroups.value || []).map((grp) => ({
+		label: grp,
+		value: grp,
+	})),
+]);
+
+const batchWarehouseOptions = computed(() =>
+	(availableCompanyWarehouses.value || []).map((wh) => ({
+		label: wh.warehouse_name || wh.warehouse || wh.name,
+		value: wh.warehouse || wh.name,
+	}))
+);
 
 async function loadInventoryReport() {
 	const activeProfile = props.posProfile || shiftStore.profileName;
@@ -3190,10 +3186,6 @@ function exportInventoryPDF() {
 // ============================================================================
 // PRODUCT CATALOG (CREATE / EDIT) INSIDE INVENTORY DIALOG
 // ============================================================================
-const catalogSearchQuery = ref("");
-const showItemQuickForm = ref(false);
-const editingCatalogItemCode = ref("");
-
 const filteredCatalogItems = computed(() => {
 	const list = itemSearchStore.allItems || [];
 	const q = (catalogSearchQuery.value || "").trim().toLowerCase();

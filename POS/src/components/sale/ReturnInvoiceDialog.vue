@@ -1,7 +1,6 @@
 <template>
-	<Dialog v-model="showDialog" :options="{ title: __('Create Return Sale'), size: '5xl' }">
-		<template #body-content>
-			<div class="flex flex-col gap-4">
+	<MdxModal v-model="showDialog" :title="__('Create Return Sale')" size="5xl">
+		<div class="flex flex-col gap-4">
 				<!-- Offline Mode Warning -->
 				<div
 					v-if="isOffline"
@@ -161,15 +160,15 @@
 								</div>
 							</div>
 						</div>
-						<Button
-							variant="subtle"
+						<MdxButton
+							variant="secondary"
 							@click="loadInvoicesResource.reload()"
 							:loading="loadInvoicesResource.loading"
 							:disabled="isOffline"
 							:title="isOffline ? __('Refresh unavailable offline') : __('Refresh')"
 						>
 							<FeatherIcon name="refresh-cw" class="w-4 h-4" />
-						</Button>
+						</MdxButton>
 					</div>
 
 					<!-- Loading State - Skeleton Loader -->
@@ -315,18 +314,18 @@
 					</div>
 				</div>
 			</div>
+		<template #footer>
+			<div class="flex justify-end w-full">
+				<MdxButton variant="secondary" @click="showDialog = false">
+					{{ __("Close") }}
+				</MdxButton>
+			</div>
 		</template>
-		<template #actions>
-			<Button variant="subtle" @click="showDialog = false">
-				{{ __("Close") }}
-			</Button>
-		</template>
-	</Dialog>
+	</MdxModal>
 
 	<!-- Return Process Modal -->
-	<Dialog v-model="returnModal.visible" :options="{ title: __('Process Return'), size: '5xl' }">
-		<template #body-content>
-			<div class="flex flex-col gap-4">
+	<MdxModal v-model="returnModal.visible" :title="__('Process Return')" size="5xl">
+		<div class="flex flex-col gap-4">
 				<!-- Invoice Details -->
 				<div
 					v-if="originalInvoice"
@@ -427,16 +426,16 @@
 							{{ __("Select Items to Return") }}
 						</label>
 						<div class="flex gap-2 self-end sm:self-auto">
-							<Button size="sm" variant="subtle" @click="selectAllFilteredItems">
+							<MdxButton size="sm" variant="secondary" @click="selectAllFilteredItems">
 								<span class="text-xs whitespace-nowrap">{{
 									__("Select All")
 								}}</span>
-							</Button>
-							<Button size="sm" variant="subtle" @click="deselectAllItems">
+							</MdxButton>
+							<MdxButton size="sm" variant="secondary" @click="deselectAllItems">
 								<span class="text-xs whitespace-nowrap">{{
 									__("Clear All")
 								}}</span>
-							</Button>
+							</MdxButton>
 						</div>
 					</div>
 
@@ -486,10 +485,11 @@
 									</p>
 									<p
 										v-if="item.already_returned > 0"
-										class="text-xs text-amber-600 mt-0.5"
+										class="text-xs text-amber-600 mt-0.5 flex items-center gap-1"
 									>
+										<FeatherIcon name="alert-triangle" class="w-3.5 h-3.5 shrink-0" />
 										{{
-											__("⚠️ {0} already returned", [item.already_returned])
+											__("{0} already returned", [item.already_returned])
 										}}
 									</p>
 								</div>
@@ -602,10 +602,11 @@
 										</p>
 										<p
 											v-if="item.already_returned > 0"
-											class="text-xs text-amber-600 mt-1"
+											class="text-xs text-amber-600 mt-1 flex items-center gap-1"
 										>
+											<FeatherIcon name="alert-triangle" class="w-3.5 h-3.5 shrink-0" />
 											{{
-												__("⚠️ {0} already returned", [
+												__("{0} already returned", [
 													item.already_returned,
 												])
 											}}
@@ -830,14 +831,14 @@
 							<label class="text-sm font-medium text-gray-700 text-start">
 								{{ __("Refund Payment Methods") }}
 							</label>
-							<Button
+							<MdxButton
 								size="sm"
-								variant="subtle"
+								variant="secondary"
 								@click="addPaymentRow"
 								class="self-end sm:self-auto"
 							>
 								<span class="text-xs">{{ __("+ Add Payment") }}</span>
-							</Button>
+							</MdxButton>
 						</div>
 
 						<div class="flex flex-col gap-3">
@@ -850,29 +851,14 @@
 								<div class="flex flex-col sm:flex-row sm:items-center gap-3">
 									<!-- Payment Method -->
 									<div class="flex items-center gap-2 flex-1">
-										<div
-											class="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center text-xl border border-blue-200"
-										>
-											{{
-												payment.mode_of_payment
-													? getPaymentIcon(payment.mode_of_payment)
-													: "💰"
-											}}
+										<div class="flex-1 min-w-0">
+											<MdxSelect
+												v-model="payment.mode_of_payment"
+												:options="paymentMethodOptions"
+												:placeholder="__('Select method...')"
+												:teleport="true"
+											/>
 										</div>
-										<select
-											v-model="payment.mode_of_payment"
-											:style="paymentSelectStyle"
-											class="payment-select flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none cursor-pointer hover:border-gray-400 transition-colors ps-3 pe-10"
-										>
-											<option value="">{{ __("Select method...") }}</option>
-											<option
-												v-for="method in paymentMethods"
-												:key="method.mode_of_payment"
-												:value="method.mode_of_payment"
-											>
-												{{ method.mode_of_payment }}
-											</option>
-										</select>
 									</div>
 									<!-- Amount with Counter -->
 									<div class="flex items-center gap-2 flex-1">
@@ -969,12 +955,13 @@
 											(isPartiallyPaid ? maxRefundableAmount : returnTotal)
 									) >= 0.01
 								"
-								class="mt-2 text-xs text-amber-600 text-start"
+								class="mt-2 text-xs text-amber-600 text-start flex items-center gap-1"
 							>
+								<FeatherIcon name="alert-triangle" class="w-3.5 h-3.5 shrink-0" />
 								{{
 									isPartiallyPaid
-										? __("⚠️ Payment total must equal refundable amount")
-										: __("⚠️ Payment total must equal refund amount")
+										? __("Payment total must equal refundable amount")
+										: __("Payment total must equal refund amount")
 								}}
 							</p>
 						</div>
@@ -1050,8 +1037,7 @@
 					></textarea>
 				</div>
 			</div>
-		</template>
-		<template #actions>
+		<template #footer>
 			<div class="flex flex-col w-full gap-2">
 				<p v-if="submitError" class="text-xs text-red-600">{{ submitError }}</p>
 				<div
@@ -1059,23 +1045,22 @@
 				>
 					<p
 						v-if="selectedItems.length > 0"
-						class="text-xs text-gray-500 flex-shrink-0 order-2 sm:order-1"
+						class="text-xs text-slate-500 flex-shrink-0 order-2 sm:order-1"
 					>
 						{{ __("{0} item(s) selected", [selectedItems.length]) }}
 					</p>
 					<div
 						class="flex gap-2 w-full sm:w-auto sm:ms-auto flex-shrink-0 order-1 sm:order-2"
 					>
-						<Button
-							variant="subtle"
+						<MdxButton
+							variant="secondary"
 							@click="closeReturnModal"
 							class="flex-1 sm:flex-initial"
 						>
 							<span class="text-sm">{{ __("Cancel") }}</span>
-						</Button>
-						<Button
-							variant="solid"
-							theme="red"
+						</MdxButton>
+						<MdxButton
+							variant="danger"
 							@click="handleCreateReturn"
 							:disabled="!canCreateReturn || isSubmitting"
 							:loading="isSubmitting"
@@ -1084,104 +1069,100 @@
 							<span class="text-sm whitespace-nowrap">{{
 								__("Create Return")
 							}}</span>
-						</Button>
+						</MdxButton>
 					</div>
 				</div>
 			</div>
 		</template>
-	</Dialog>
+	</MdxModal>
 
 	<!-- Error Dialog -->
-	<Dialog v-model="errorDialog.visible" :options="{ title: errorDialog.title, size: 'sm' }">
-		<template #body-content>
-			<div
-				class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3"
-			>
-				<FeatherIcon name="alert-triangle" class="h-5 w-5 flex-shrink-0 text-red-600" />
-				<div>
-					<p class="text-sm font-semibold text-red-700">{{ errorDialog.title }}</p>
-					<p class="mt-1 text-sm text-red-600 whitespace-pre-line">
-						{{ errorDialog.message }}
-					</p>
-				</div>
+	<MdxModal v-model="errorDialog.visible" :title="errorDialog.title" size="sm">
+		<div
+			class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
+		>
+			<FeatherIcon name="alert-triangle" class="h-5 w-5 flex-shrink-0 text-red-600" />
+			<div>
+				<p class="text-sm font-semibold text-red-700">{{ errorDialog.title }}</p>
+				<p class="mt-1 text-sm text-red-600 whitespace-pre-line">
+					{{ errorDialog.message }}
+				</p>
 			</div>
-		</template>
-		<template #actions>
+		</div>
+		<template #footer>
 			<div class="flex justify-end w-full">
-				<Button variant="solid" theme="red" @click="closeErrorDialog">{{
+				<MdxButton variant="danger" @click="closeErrorDialog">{{
 					__("OK")
-				}}</Button>
+				}}</MdxButton>
 			</div>
 		</template>
-	</Dialog>
+	</MdxModal>
 
 	<!-- Return Period Expired Dialog -->
-	<Dialog
+	<MdxModal
 		v-model="returnExpiredDialog.visible"
-		:options="{ title: __('Return Period Expired'), size: 'md' }"
+		:title="__('Return Period Expired')"
+		size="md"
 	>
-		<template #body-content>
-			<div class="flex flex-col items-center text-center py-4">
-				<!-- Clock/Calendar Icon -->
-				<div
-					class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mb-4"
-				>
-					<FeatherIcon name="clock" class="w-8 h-8 text-orange-600" />
-				</div>
-
-				<!-- Invoice Number -->
-				<h3 class="text-lg font-bold text-gray-900 mb-2">
-					{{ returnExpiredDialog.invoiceName }}
-				</h3>
-
-				<!-- Main Message -->
-				<p class="text-gray-600 mb-4">
-					{{
-						__(
-							"This invoice cannot be returned because the return period has expired."
-						)
-					}}
-				</p>
-
-				<!-- Details Box -->
-				<div class="w-full bg-gray-50 rounded-lg p-4 space-y-2">
-					<div class="flex justify-between text-sm">
-						<span class="text-start text-gray-500">{{ __("Invoice Date") }}</span>
-						<span class="text-end font-medium text-gray-900">{{
-							returnExpiredDialog.invoiceDate
-						}}</span>
-					</div>
-					<div class="flex justify-between text-sm">
-						<span class="text-start text-gray-500">{{
-							__("Days Since Purchase")
-						}}</span>
-						<span class="text-end font-medium text-red-600"
-							>{{ returnExpiredDialog.daysSince }} {{ __("days") }}</span
-						>
-					</div>
-					<div class="flex justify-between text-sm">
-						<span class="text-start text-gray-500">{{
-							__("Return Allowed Within")
-						}}</span>
-						<span class="text-end font-medium text-gray-900"
-							>{{ returnExpiredDialog.allowedDays }} {{ __("days") }}</span
-						>
-					</div>
-				</div>
-
-				<!-- Help Text -->
-				<p class="text-xs text-gray-500 mt-4">
-					{{ __("Please contact your manager if you need to process this return.") }}
-				</p>
+		<div class="flex flex-col items-center text-center py-4">
+			<!-- Clock/Calendar Icon -->
+			<div
+				class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mb-4"
+			>
+				<FeatherIcon name="clock" class="w-8 h-8 text-orange-600" />
 			</div>
-		</template>
-	</Dialog>
+
+			<!-- Invoice Number -->
+			<h3 class="text-lg font-bold text-slate-900 mb-2">
+				{{ returnExpiredDialog.invoiceName }}
+			</h3>
+
+			<!-- Main Message -->
+			<p class="text-slate-600 mb-4">
+				{{
+					__(
+						"This invoice cannot be returned because the return period has expired."
+					)
+				}}
+			</p>
+
+			<!-- Details Box -->
+			<div class="w-full bg-slate-50 rounded-xl p-4 space-y-2">
+				<div class="flex justify-between text-sm">
+					<span class="text-start text-slate-500">{{ __("Invoice Date") }}</span>
+					<span class="text-end font-medium text-slate-900">{{
+						returnExpiredDialog.invoiceDate
+					}}</span>
+				</div>
+				<div class="flex justify-between text-sm">
+					<span class="text-start text-slate-500">{{
+						__("Days Since Purchase")
+					}}</span>
+					<span class="text-end font-medium text-red-600"
+						>{{ returnExpiredDialog.daysSince }} {{ __("days") }}</span
+					>
+				</div>
+				<div class="flex justify-between text-sm">
+					<span class="text-start text-slate-500">{{
+						__("Return Allowed Within")
+					}}</span>
+					<span class="text-end font-medium text-slate-900"
+						>{{ returnExpiredDialog.allowedDays }} {{ __("days") }}</span
+					>
+				</div>
+			</div>
+
+			<!-- Help Text -->
+			<p class="text-xs text-slate-500 mt-4">
+				{{ __("Please contact your manager if you need to process this return.") }}
+			</p>
+		</div>
+	</MdxModal>
 </template>
 
 <script setup>
 import { useOfflineStatus } from "@/composables/useOfflineStatus";
 import { useToast } from "@/composables/useToast";
-import { getPaymentIcon } from "@/utils/payment";
 import {
 	DEFAULT_CURRENCY,
 	DEFAULT_LOCALE,
@@ -1189,7 +1170,8 @@ import {
 	roundCurrency,
 } from "@/utils/currency";
 import { getInvoiceStatusColor } from "@/utils/invoice";
-import { Button, Dialog, FeatherIcon, createResource } from "frappe-ui";
+import { FeatherIcon, createResource } from "frappe-ui";
+import { MdxModal, MdxButton, MdxSelect } from "mdx_ui";
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 
 const { showSuccess, showError, showWarning } = useToast();
@@ -1521,6 +1503,12 @@ const createReturnResource = createResource({
 	},
 });
 
+// Resource for checking invoice return validity (defined before immediate watchers)
+const checkInvoiceValidityResource = createResource({
+	url: "pos_next.api.invoices.check_invoice_return_validity",
+	auto: false,
+});
+
 // Lifecycle hooks
 onMounted(() => {
 	if (props.posProfile) {
@@ -1642,11 +1630,12 @@ const summaryRefundAmount = computed(() =>
 	showPartialBreakdown.value ? maxRefundableAmount.value : returnTotal.value
 );
 
-// Cache RTL direction check (only needs to run once per session)
-const isRTL = document.documentElement.dir === "rtl";
-const paymentSelectStyle = {
-	backgroundPosition: isRTL ? "left 12px center" : "right 12px center",
-};
+const paymentMethodOptions = computed(() =>
+	paymentMethods.value.map((m) => ({
+		label: m.mode_of_payment,
+		value: m.mode_of_payment,
+	}))
+);
 
 const canCreateReturn = computed(() => {
 	const hasSelectedItems = selectedItems.value.length > 0;
@@ -1856,12 +1845,6 @@ function initializePaymentsFromInvoice() {
 		];
 	}
 }
-
-// Resource for checking invoice return validity (defined early for use in helpers)
-const checkInvoiceValidityResource = createResource({
-	url: "pos_next.api.invoices.check_invoice_return_validity",
-	auto: false,
-});
 
 /**
  * Shared validity handler - processes validity response and shows appropriate UI

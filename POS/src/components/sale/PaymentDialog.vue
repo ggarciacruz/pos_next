@@ -1,164 +1,161 @@
 <template>
-	<Dialog
+	<MdxModal
 		v-model="show"
-		:options="{
-			title: isSalesOrder ? __('Complete Sales Order') : __('Complete Payment'),
-			size: dynamicDialogSize,
-		}"
+		:title="isSalesOrder ? __('Complete Sales Order') : __('Complete Payment')"
+		:size="dynamicDialogSize"
+		:bodyClass="isMobileView ? '!p-2.5' : '!p-3.5'"
 	>
-		<template #body-content>
-			<!-- Two Column Layout - auto-sized on mobile, constrained on desktop -->
+		<!-- Two Column Layout - responsive on mobile (6.5"+) and desktop -->
+		<div
+			:class="[
+				'grid grid-cols-1 lg:grid-cols-5 items-start lg:items-stretch',
+				dynamicGap,
+			]"
+		>
+			<!-- Left Column (2/5): Delivery + Sales Person + Invoice Summary -->
 			<div
 				:class="[
-					'grid grid-cols-1 lg:grid-cols-5 items-stretch',
-					dynamicGap,
-					isMobileView ? '' : 'overflow-hidden',
+					'lg:col-span-2 flex flex-col min-h-0',
+					isSmallMobile ? 'gap-1.5' : 'gap-2',
 				]"
-				:style="isMobileView ? {} : { maxHeight: dialogContentMaxHeight }"
 			>
-				<!-- Left Column (2/5): Sales Person + Invoice Summary -->
-				<div
-					:class="[
-						'lg:col-span-2 flex flex-col min-h-0',
-						isSmallMobile ? 'gap-1' : 'gap-1.5',
-						isMobileView ? 'overflow-visible' : 'overflow-hidden',
-					]"
-					:style="{ maxHeight: isMobileView ? 'none' : dynamicLeftColumnHeight }"
-				>
-					<!-- Despacho / Entrega en Camión -->
-					<div class="bg-amber-50/80 border border-amber-200 rounded-lg p-2 flex flex-col gap-1.5">
-						<div class="flex items-center justify-between">
-							<label class="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-amber-900">
-								<input
-									type="checkbox"
-									v-model="requiresDelivery"
-									class="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-amber-300"
-								/>
-								<span class="flex items-center gap-1.5">
-									<svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-									</svg>
-									{{ __("Despacho en Camión") }}
-								</span>
-							</label>
-							<span v-if="requiresDelivery" class="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full font-medium">
-								{{ isSalesOrder ? __('Pedido') : __('Venta con Envío') }}
+				<!-- Despacho / Entrega en Camión (Compacto & Sobrio) -->
+				<div class="bg-slate-50 border border-slate-200 rounded-xl p-2 flex flex-col gap-1.5 shrink-0">
+					<div class="flex items-center justify-between">
+						<label class="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-800">
+							<input
+								type="checkbox"
+								v-model="requiresDelivery"
+								class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+							/>
+							<span class="flex items-center gap-1.5">
+								<svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+								</svg>
+								{{ __("Despacho en Camión") }}
 							</span>
-						</div>
+						</label>
+						<MdxBadge v-if="requiresDelivery" variant="info" size="sm">
+							{{ isSalesOrder ? __('Pedido') : __('Venta con Envío') }}
+						</MdxBadge>
+					</div>
 
-						<!-- Campos de Despacho (visibles cuando requiresDelivery está activo) -->
-						<div v-if="requiresDelivery" class="flex flex-col gap-1.5 pt-1.5 border-t border-amber-200/70 text-xs">
+					<!-- Campos de Despacho Compactos (Fecha + Teléfono en 1 fila, sin saltos de línea en etiquetas) -->
+					<div v-if="requiresDelivery" class="flex flex-col gap-1.5 pt-1.5 border-t border-slate-200/80 text-xs">
+						<div class="grid grid-cols-2 gap-1.5">
 							<!-- Fecha de Entrega -->
-							<div class="flex items-center gap-2">
-								<label class="text-[11px] text-gray-600 w-20 flex-shrink-0">{{ __("Fecha:") }}</label>
+							<div class="flex items-center gap-1.5 min-w-0">
+								<label class="text-[11px] font-semibold text-slate-600 whitespace-nowrap shrink-0">{{ __("Fecha:") }}</label>
 								<input
 									type="date"
 									v-model="deliveryDate"
 									:min="today"
-									class="flex-1 h-7 border border-amber-300 rounded px-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
-								/>
-							</div>
-
-							<!-- Dirección o Puesto de Entrega -->
-							<div class="flex items-center gap-2">
-								<label class="text-[11px] text-gray-600 w-20 flex-shrink-0">{{ __("Puesto / Dir:") }}</label>
-								<input
-									type="text"
-									v-model="deliveryAddress"
-									:placeholder="__('Ej: La Ramada, Pasillo 4, Puesto 18')"
-									class="flex-1 h-7 border border-amber-300 rounded px-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+									class="flex-1 min-w-0 h-7 border border-slate-200 rounded-lg px-1.5 text-[11px] font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
 								/>
 							</div>
 
 							<!-- Teléfono de Contacto -->
-							<div class="flex items-center gap-2">
-								<label class="text-[11px] text-gray-600 w-20 flex-shrink-0">{{ __("Teléfono:") }}</label>
+							<div class="flex items-center gap-1.5 min-w-0">
+								<label class="text-[11px] font-semibold text-slate-600 whitespace-nowrap shrink-0">{{ __("Tel:") }}</label>
 								<input
 									type="text"
 									v-model="deliveryPhone"
 									:placeholder="__('Ej: 77012345')"
-									class="flex-1 h-7 border border-amber-300 rounded px-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+									class="flex-1 min-w-0 h-7 border border-slate-200 rounded-lg px-2 text-[11px] font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
 								/>
 							</div>
+						</div>
 
-							<!-- Modalidad de Cobro al Chofer -->
-							<div class="flex items-center gap-2">
-								<label class="text-[11px] text-gray-600 w-20 flex-shrink-0">{{ __("Cobro Chofer:") }}</label>
-								<select
+						<!-- Dirección o Puesto de Entrega -->
+						<div class="flex items-center gap-1.5">
+							<label class="text-[11px] font-semibold text-slate-600 w-14 whitespace-nowrap shrink-0">{{ __("Dirección:") }}</label>
+							<input
+								type="text"
+								v-model="deliveryAddress"
+								:placeholder="__('Ej: La Ramada, Pasillo 4, Puesto 18')"
+								class="flex-1 min-w-0 h-7 border border-slate-200 rounded-lg px-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+							/>
+						</div>
+
+						<!-- Modalidad de Cobro al Chofer (MdxSelect) -->
+						<div class="flex items-center gap-1.5">
+							<label class="text-[11px] font-semibold text-slate-600 w-14 whitespace-nowrap shrink-0">{{ __("Cobro:") }}</label>
+							<div class="flex-1 min-w-0">
+								<MdxSelect
 									v-model="driverCollectionMode"
-									class="flex-1 h-7 border border-amber-300 rounded px-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
-								>
-									<option value="">{{ __("— Sin especificar (En blanco) —") }}</option>
-									<option value="Pagar al Chofer Contra Entrega">{{ __("Pagar al Chofer Contra Entrega") }}</option>
-									<option value="Ya Pagado en Fábrica / Transferencia">{{ __("Ya Pagado (Solo Entregar)") }}</option>
-									<option value="A Crédito / Con Saldo">{{ __("A Crédito / Con Saldo (Recabar Firma)") }}</option>
-								</select>
+									:options="driverCollectionOptions"
+									:placeholder="''"
+									size="sm"
+									:showSearch="false"
+									:teleport="true"
+								/>
 							</div>
 						</div>
 					</div>
+				</div>
 
-					<!-- Toggle for Official Invoice (Facturado) - Only shown when Tax Billing is enabled in POS Settings -->
-					<div
-						v-if="!isSalesOrder && settingsStore.enableSiatFiscalFormat"
-						class="bg-blue-50 border border-blue-200 rounded-lg p-2.5 transition-all"
-					>
-						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-2">
-								<svg
-									class="w-4 h-4 text-blue-600 flex-shrink-0"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-									/>
-								</svg>
-								<span class="text-xs font-semibold text-blue-700">
-									{{ __("¿Emitir Factura? (C/ Fact.)") }}
-								</span>
-							</div>
-							<label class="relative inline-flex items-center cursor-pointer">
-								<input
-									type="checkbox"
-									v-model="emitOfficialInvoice"
-									class="sr-only peer"
+				<!-- Toggle for Official Invoice (Facturado) -->
+				<div
+					v-if="!isSalesOrder && settingsStore.enableSiatFiscalFormat"
+					class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 transition-all"
+				>
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<svg
+								class="w-4 h-4 text-slate-600 flex-shrink-0"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 								/>
-								<div
-									class="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"
-								></div>
+							</svg>
+							<span class="text-xs font-bold text-slate-800">
+								{{ __("¿Emitir Factura? (C/ Fact.)") }}
+							</span>
+						</div>
+						<label class="relative inline-flex items-center cursor-pointer">
+							<input
+								type="checkbox"
+								v-model="emitOfficialInvoice"
+								class="sr-only peer"
+							/>
+							<div
+								class="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"
+							></div>
+						</label>
+					</div>
+
+					<!-- Inline NIT / CI and Razón Social inputs when Emitir Factura is active -->
+					<div v-if="emitOfficialInvoice" class="mt-2.5 pt-2.5 border-t border-slate-200/80 space-y-2">
+						<div>
+							<label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">
+								{{ __("NIT / CI *") }}
 							</label>
+							<input
+								v-model="billingNit"
+								type="text"
+								:placeholder="__('Ej. 4829102015 o CI')"
+								class="w-full px-2.5 py-1.5 text-xs font-medium text-slate-900 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+							/>
 						</div>
-
-						<!-- Inline NIT / CI and Razón Social inputs when Emitir Factura is active -->
-						<div v-if="emitOfficialInvoice" class="mt-2.5 pt-2.5 border-t border-blue-200/80 space-y-2">
-							<div>
-								<label class="block text-[10px] font-semibold text-blue-800 uppercase tracking-wider mb-0.5">
-									{{ __("NIT / CI *") }}
-								</label>
-								<input
-									v-model="billingNit"
-									type="text"
-									:placeholder="__('Ej. 4829102015 o CI')"
-									class="w-full px-2.5 py-1.5 text-xs font-medium text-gray-900 bg-white border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-								/>
-							</div>
-							<div>
-								<label class="block text-[10px] font-semibold text-blue-800 uppercase tracking-wider mb-0.5">
-									{{ __("Razón Social / Nombre Factura *") }}
-								</label>
-								<input
-									v-model="billingRazonSocial"
-									type="text"
-									:placeholder="__('Nombre o Razón Social a facturar')"
-									class="w-full px-2.5 py-1.5 text-xs font-medium text-gray-900 bg-white border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-								/>
-							</div>
+						<div>
+							<label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">
+								{{ __("Razón Social / Nombre Factura *") }}
+							</label>
+							<input
+								v-model="billingRazonSocial"
+								type="text"
+								:placeholder="__('Nombre o Razón Social a facturar')"
+								class="w-full px-2.5 py-1.5 text-xs font-medium text-slate-900 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+							/>
 						</div>
 					</div>
+				</div>
 
 					<!-- Sales Person Selection (Compact) -->
 					<div
@@ -553,7 +550,7 @@
 					<div
 						v-if="customerCreditEnabled && totalAvailableCredit !== 0"
 						:class="[
-							'rounded-lg border p-2 flex items-center justify-between',
+							'rounded-lg border px-2.5 py-1.5 flex items-center justify-between shrink-0',
 							totalAvailableCredit < 0
 								? 'bg-red-50 border-red-200'
 								: 'bg-emerald-50 border-emerald-200',
@@ -574,7 +571,7 @@
 						<!-- Show remaining credit (after used amount is deducted) for positive balance -->
 						<span
 							:class="[
-								'text-base font-bold',
+								'text-sm font-bold tabular-nums',
 								totalAvailableCredit < 0 ? 'text-red-600' : 'text-emerald-600',
 							]"
 						>
@@ -588,46 +585,49 @@
 
 					<!-- Invoice Summary -->
 					<div
-						class="bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col flex-1 min-h-0"
+						class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col flex-1 min-h-0"
 					>
-						<!-- Header -->
-						<div
-							:class="[
-								'px-3 border-b border-gray-200 bg-gray-50',
-								isCompactMode ? 'py-1.5' : 'py-2',
-							]"
-						>
-							<div class="flex items-center justify-between">
-								<h3
-									:class="[
-										'text-gray-900 font-semibold text-start',
-										dynamicTextSize.header,
-									]"
-								>
-									{{ __("Resumen de la confirmación de la Venta") }}
-								</h3>
-								<span class="text-gray-500 text-xs text-end">{{
-									items.length === 1
-										? __("1 item")
-										: __("{0} items", [items.length])
-								}}</span>
-							</div>
-							<div v-if="customer" class="text-gray-600 text-xs mt-0.5 text-start">
-								{{ customer?.customer_name || customer?.name || customer }}
+						<!-- Header (compact 1-line layout with customer name) -->
+						<div class="px-3 py-1.5 border-b border-slate-200 bg-slate-50 shrink-0">
+							<div class="flex items-center justify-between gap-2">
+								<div class="flex items-center gap-1.5 min-w-0">
+									<h3
+										:class="[
+											'text-slate-900 font-bold text-start shrink-0',
+											dynamicTextSize.header,
+										]"
+									>
+										{{ __("Resumen de Venta") }}
+									</h3>
+									<span v-if="customer" class="text-slate-300 select-none">·</span>
+									<span
+										v-if="customer"
+										class="text-slate-600 text-xs font-semibold truncate"
+									>
+										{{ customer?.customer_name || customer?.name || customer }}
+									</span>
+								</div>
+								<MdxBadge variant="neutral" size="sm">
+									{{
+										items.length === 1
+											? __("1 item")
+											: __("{0} items", [items.length])
+									}}
+								</MdxBadge>
 							</div>
 						</div>
 
 						<!-- Promotional offers & coupons (same entry points as cart — usable while paying) -->
-						<div v-if="showPromoButtons" class="px-3 py-2 border-b border-gray-100 bg-gray-50/80 shrink-0">
+						<div v-if="showPromoButtons" class="px-3 py-2 border-b border-slate-100 bg-slate-50/80 shrink-0">
 							<div class="flex gap-2">
 								<button
 									type="button"
 									@click="emit('show-offers')"
-									class="relative flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 hover:border-green-400 hover:from-green-100 hover:to-emerald-100 hover:shadow-sm transition-all min-w-0 touch-manipulation active:scale-[0.98]"
+									class="relative flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition-all min-w-0 touch-manipulation active:scale-[0.98]"
 									:aria-label="__('View all available offers')"
 								>
 									<svg
-										class="w-3.5 h-3.5 text-green-600 flex-shrink-0"
+										class="w-3.5 h-3.5 text-slate-600 flex-shrink-0"
 										fill="none"
 										stroke="currentColor"
 										viewBox="0 0 24 24"
@@ -639,12 +639,12 @@
 											d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
 										/>
 									</svg>
-									<span class="text-[11px] font-bold text-green-700">{{
+									<span class="text-[11px] font-bold text-slate-700">{{
 										__("Offers")
 									}}</span>
 									<span
 										v-if="appliedOfferCount > 0"
-										class="bg-green-600 text-white text-[9px] font-bold rounded-full px-1.5 py-0.5 flex-shrink-0 min-w-[16px] text-center"
+										class="bg-slate-800 text-white text-[9px] font-bold rounded-full px-1.5 py-0.5 flex-shrink-0 min-w-[16px] text-center"
 									>
 										{{ appliedOfferCount }}
 									</span>
@@ -652,11 +652,11 @@
 								<button
 									type="button"
 									@click="emit('show-coupon')"
-									class="relative flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200 hover:border-purple-400 hover:from-purple-100 hover:to-violet-100 hover:shadow-sm transition-all min-w-0 touch-manipulation active:scale-[0.98]"
+									class="relative flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition-all min-w-0 touch-manipulation active:scale-[0.98]"
 									:aria-label="__('Apply coupon or gift card')"
 								>
 									<svg
-										class="w-3.5 h-3.5 text-purple-600 flex-shrink-0"
+										class="w-3.5 h-3.5 text-slate-600 flex-shrink-0"
 										fill="currentColor"
 										viewBox="0 0 20 20"
 									>
@@ -666,24 +666,24 @@
 											clip-rule="evenodd"
 										/>
 									</svg>
-									<span class="text-[11px] font-bold text-purple-700">{{
+									<span class="text-[11px] font-bold text-slate-700">{{
 										__("Coupon")
 									}}</span>
 								</button>
 							</div>
 						</div>
 
-						<!-- Items List (scrollable, takes available space) -->
+						<!-- Items List (scrollable, compact so all controls fit without clipping) -->
 						<div
 							v-if="items.length > 0"
-							class="flex-1 overflow-y-auto divide-y divide-gray-100 min-h-0 max-h-36 lg:max-h-none"
+							class="flex-1 overflow-y-auto divide-y divide-slate-100 min-h-[52px] max-h-28 lg:max-h-36"
 						>
 							<div
 								v-for="(item, index) in items"
 								:key="index"
 								:class="[
-									'px-3 py-2 flex flex-col gap-1',
-									item.is_free_item ? 'bg-green-50' : 'hover:bg-gray-50',
+									'px-3 py-1.5 flex flex-col gap-0.5',
+									item.is_free_item ? 'bg-emerald-50/60' : 'hover:bg-slate-50/70',
 								]"
 							>
 								<!-- Main Item -->
@@ -691,29 +691,27 @@
 									<div class="flex-1 min-w-0 text-start">
 										<div
 											:class="[
-												'font-extrabold text-sm truncate',
+												'font-bold text-xs lg:text-sm truncate',
 												item.is_free_item
-													? 'text-green-700'
-													: 'text-gray-900',
+													? 'text-emerald-700'
+													: 'text-slate-900',
 											]"
 											:title="getItemTitle(item)"
 										>
-											{{ getItemTitle(item) }}<span v-if="item.custom_medida || item.medida" class="text-gray-500 font-semibold text-xs ml-1">({{ item.custom_medida || item.medida }})</span><span
+											{{ getItemTitle(item) }}<span v-if="item.custom_medida || item.medida" class="text-slate-500 font-semibold text-xs ml-1">({{ item.custom_medida || item.medida }})</span><span
 												v-if="item.is_free_item"
 												class="text-xs font-bold"
 											>
 												({{ __("Free") }})</span>
 										</div>
-										<!-- Subtitle: Item Group -->
-										<div class="text-[10px] text-gray-400 font-semibold truncate mb-1 select-none leading-tight">
-											{{ item.item_group || '-' }}
-										</div>
-										<div class="text-xs text-gray-500 mt-0.5">
-											{{ formatCurrency(item.rate || item.price_list_rate) }}
-											× {{ item.qty || item.quantity }}
+										<!-- Subtitle: Item Group + Price × Qty -->
+										<div class="flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
+											<span class="text-slate-400 font-semibold truncate max-w-[120px]">{{ item.item_group || '-' }}</span>
+											<span>·</span>
+											<span>{{ formatCurrency(item.rate || item.price_list_rate) }} × {{ item.qty || item.quantity }}</span>
 										</div>
 									</div>
-									<div class="text-sm font-semibold text-gray-900 text-end">
+									<div class="text-xs lg:text-sm font-bold text-slate-900 text-end tabular-nums">
 										{{
 											formatCurrency(
 												item.amount ||
@@ -727,11 +725,11 @@
 								<!-- Free Item (same-item case: free qty attached to a paid item) -->
 								<div
 									v-if="!item.is_free_item && item?.free_qty > 0"
-									class="flex justify-between items-center gap-2 bg-green-50 px-2 py-1 rounded border border-green-100"
+									class="flex justify-between items-center gap-2 bg-emerald-50/60 px-2 py-1 rounded border border-emerald-100"
 								>
 									<div class="flex-1 min-w-0 text-start">
 										<div
-											class="font-medium text-xs text-green-700 truncate flex items-center gap-1"
+											class="font-medium text-xs text-emerald-700 truncate flex items-center gap-1"
 											:title="getItemTitle(item)"
 										>
 											<svg
@@ -745,22 +743,22 @@
 													clip-rule="evenodd"
 												/>
 											</svg>
-											{{ getItemTitle(item) }}<span v-if="item.custom_medida || item.medida" class="text-green-600 font-semibold text-[10px] ml-1">({{ item.custom_medida || item.medida }})</span> ({{
+											{{ getItemTitle(item) }}<span v-if="item.custom_medida || item.medida" class="text-emerald-600 font-semibold text-[10px] ml-1">({{ item.custom_medida || item.medida }})</span> ({{
 												__("Free")
 											}})
 										</div>
 										<div
-											class="text-[10px] text-green-600 font-semibold mt-0.5 opacity-80 ps-4"
+											class="text-[10px] text-emerald-600 font-semibold mt-0.5 opacity-80 ps-4"
 										>
 											{{ item.item_group || '-' }}
 										</div>
 										<div
-											class="text-[10px] text-green-600 mt-0.5 opacity-80 ps-4"
+											class="text-[10px] text-emerald-600 mt-0.5 opacity-80 ps-4"
 										>
 											{{ item.free_qty }} {{ item.uom || item.stock_uom }}
 										</div>
 									</div>
-									<div class="text-xs font-bold text-green-700 text-end">
+									<div class="text-xs font-bold text-emerald-700 text-end tabular-nums">
 										{{ formatCurrency(0) }}
 									</div>
 								</div>
@@ -768,23 +766,23 @@
 						</div>
 						<div
 							v-else
-							class="flex-1 px-3 py-4 text-center text-gray-400 text-sm flex items-center justify-center"
+							class="flex-1 px-3 py-4 text-center text-slate-400 text-sm flex items-center justify-center"
 						>
 							{{ __("No items") }}
 						</div>
 
 						<!-- Amounts Breakdown -->
-						<div class="border-t border-gray-200 bg-gray-50 px-3 py-2 space-y-1">
-							<!-- Additional Discount Row -->
+						<div class="border-t border-slate-200 bg-slate-50 px-3 py-2 space-y-1 shrink-0">
+							<!-- Additional Discount Row (1 sola fila compacta: MdxSegmentedControl + Stepper) -->
 							<div
 								v-if="settingsStore.allowAdditionalDiscount"
-								class="pb-1.5 mb-1 border-b border-dashed border-orange-200"
+								class="pb-1.5 mb-1 border-b border-dashed border-slate-200"
 							>
 								<!-- Label with calculated amount -->
-								<div class="flex items-center justify-between gap-2 mb-1.5">
+								<div class="flex items-center justify-between gap-2 mb-1">
 									<div class="flex items-center gap-1.5 min-w-0">
 										<svg
-											class="w-3.5 h-3.5 text-orange-600 flex-shrink-0"
+											class="w-3.5 h-3.5 text-slate-500 flex-shrink-0"
 											fill="none"
 											stroke="currentColor"
 											viewBox="0 0 24 24"
@@ -796,74 +794,50 @@
 												d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
 											/>
 										</svg>
-										<span class="text-xs font-medium text-orange-700">{{
+										<span class="text-xs font-bold text-slate-700">{{
 											__("Additional Discount")
 										}}</span>
-										<span v-if="calculatedPercentEquivalent > 0" class="text-[10px] font-semibold text-gray-400 ml-1 select-none">
+										<span v-if="calculatedPercentEquivalent > 0" class="text-[10px] font-semibold text-slate-400 ml-1 select-none">
 											(~{{ calculatedPercentEquivalent.toFixed(1) }}%)
 										</span>
 										<button
 											v-if="localAdditionalDiscount > 0"
 											type="button"
 											@click="resetAdditionalDiscount"
-											class="text-[10px] font-semibold text-gray-400 hover:text-red-500 transition-colors ml-1.5 underline select-none"
+											class="text-[10px] font-semibold text-slate-400 hover:text-red-600 transition-colors ml-1.5 underline select-none"
 										>
 											{{ __("Quitar") }}
 										</button>
 									</div>
 									<span
 										v-if="localAdditionalDiscount > 0"
-										class="text-xs font-bold text-red-600"
+										class="text-xs font-bold text-red-600 tabular-nums"
 									>
 										-{{ formatCurrency(calculatedAdditionalDiscount) }}
 									</span>
 								</div>
-								<!-- Form Controls -->
-								<div class="space-y-2.5">
-									<!-- Unit Selectors (percentage vs amount) -->
-									<div class="flex gap-2">
-										<button
-											type="button"
-											@click="
-												additionalDiscountType = 'percentage';
-												handleAdditionalDiscountTypeChange();
-											"
-											:class="[
-												'flex-1 py-1.5 rounded-lg text-xs font-bold transition-all border',
-												additionalDiscountType === 'percentage'
-													? 'bg-orange-600 border-orange-600 text-white shadow-sm'
-													: 'bg-white text-orange-600 border-orange-300 hover:bg-orange-50',
-											]"
-										>
-											{{ __("Porcentaje (%)") }}
-										</button>
-										<button
-											type="button"
-											@click="
-												additionalDiscountType = 'amount';
-												handleAdditionalDiscountTypeChange();
-											"
-											:class="[
-												'flex-1 py-1.5 rounded-lg text-xs font-bold transition-all border',
-												additionalDiscountType === 'amount'
-													? 'bg-orange-600 border-orange-600 text-white shadow-sm'
-													: 'bg-white text-orange-600 border-orange-300 hover:bg-orange-50',
-											]"
-										>
-											{{ __("Monto Fijo (Bs.)") }}
-										</button>
+								<!-- Form Controls en 1 sola línea horizontal -->
+								<div class="grid grid-cols-12 gap-1.5 items-center">
+									<!-- Unit Selectors (MdxSegmentedControl) -->
+									<div class="col-span-5">
+										<MdxSegmentedControl
+											v-model="additionalDiscountType"
+											:options="discountTypeOptions"
+											size="sm"
+											@change="handleAdditionalDiscountTypeChange"
+										/>
 									</div>
 
-									<!-- Input Field with symmetric buttons -->
-									<div class="flex items-center border border-orange-300 rounded-lg bg-white overflow-hidden w-full">
+									<!-- Input Field with symmetric Slate buttons -->
+									<div class="col-span-7 flex items-center border border-slate-200 rounded-lg bg-white overflow-hidden h-[34px]">
 										<!-- Decrement Button -->
 										<button
 											type="button"
 											@click="decrementDiscount"
 											:disabled="localAdditionalDiscount <= 0"
-											class="h-9 w-12 flex items-center justify-center text-orange-600 hover:bg-orange-50 disabled:text-gray-300 disabled:hover:bg-transparent transition-colors flex-shrink-0 border-r border-gray-100"
+											class="h-full w-9 flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:text-slate-300 disabled:hover:bg-transparent transition-colors flex-shrink-0 border-r border-slate-200 touch-manipulation"
 										>
-											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
 											</svg>
 										</button>
@@ -875,19 +849,19 @@
 											@keypress="preventDecimalInput"
 											@blur="finalizeDiscountRounding"
 											@keydown.enter="finalizeDiscountRounding"
-											:placeholder="additionalDiscountType === 'percentage' ? '0' : '0'"
+											placeholder="0"
 											min="0"
 											:max="additionalDiscountType === 'percentage' ? 100 : subtotal"
 											step="1"
-											class="flex-1 h-9 px-3 text-sm font-bold text-center bg-transparent border-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+											class="flex-1 min-w-0 h-full px-1.5 text-xs font-bold text-slate-900 text-center bg-transparent border-none focus:outline-none focus:ring-0 tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 										/>
 										<!-- Increment Button -->
 										<button
 											type="button"
 											@click="incrementDiscount"
-											class="h-9 w-12 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition-colors flex-shrink-0 border-l border-gray-100"
+											class="h-full w-9 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors flex-shrink-0 border-l border-slate-200 touch-manipulation"
 										>
-											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 											</svg>
 										</button>
@@ -895,47 +869,47 @@
 								</div>
 							</div>
 							<!-- Subtotal -->
-							<div class="flex items-center justify-between text-sm">
-								<span class="text-gray-600 text-start">{{ __("Subtotal") }}</span>
-								<span class="font-medium text-gray-900 text-end">{{
+							<div class="flex items-center justify-between text-xs">
+								<span class="text-slate-500 font-medium text-start">{{ __("Subtotal") }}</span>
+								<span class="font-semibold text-slate-800 text-end tabular-nums">{{
 									formatCurrency(subtotal)
 								}}</span>
 							</div>
 							<!-- Tax -->
 							<div
 								v-if="taxAmount > 0"
-								class="flex items-center justify-between text-sm"
+								class="flex items-center justify-between text-xs"
 							>
-								<span class="text-gray-600 text-start">{{ __("Tax") }}</span>
-								<span class="font-medium text-gray-900 text-end">{{
+								<span class="text-slate-500 font-medium text-start">{{ __("Tax") }}</span>
+								<span class="font-semibold text-slate-800 text-end tabular-nums">{{
 									formatCurrency(taxAmount)
 								}}</span>
 							</div>
 							<!-- Discount (shows the calculated additional discount amount) -->
 							<div
 								v-if="discountAmount > 0"
-								class="flex items-center justify-between text-sm"
+								class="flex items-center justify-between text-xs"
 							>
-								<span class="text-gray-600 text-start">
+								<span class="text-slate-500 font-medium text-start">
 									{{ __("Discount") }}
-									<span v-if="subtotal > 0" class="text-[9px] font-semibold text-gray-400 ml-1 select-none">(~{{ ((discountAmount / subtotal) * 100).toFixed(1) }}%)</span>
+									<span v-if="subtotal > 0" class="text-[9px] font-semibold text-slate-400 ml-1 select-none">(~{{ ((discountAmount / subtotal) * 100).toFixed(1) }}%)</span>
 								</span>
-								<span class="font-medium text-red-600 text-end">-{{ formatCurrency(discountAmount) }}</span>
+								<span class="font-bold text-red-600 text-end tabular-nums">-{{ formatCurrency(discountAmount) }}</span>
 							</div>
 							<!-- Grand Total -->
 							<div
-								class="flex items-center justify-between pt-2 mt-1 border-t border-gray-300"
+								class="flex items-center justify-between pt-2 mt-1 border-t border-slate-200"
 							>
 								<span
 									:class="[
-										'font-bold text-gray-900 text-start',
+										'font-extrabold text-slate-900 text-start',
 										isCompactMode ? 'text-sm' : 'text-base',
 									]"
 									>{{ __("Grand Total") }}</span
 								>
 								<span
 									:class="[
-										'font-bold text-gray-900 text-end',
+										'font-black text-slate-900 text-end tabular-nums',
 										dynamicTextSize.grandTotal,
 									]"
 									>{{ formatCurrency(grandTotal) }}</span
@@ -943,24 +917,24 @@
 							</div>
 						</div>
 
-						<!-- Payment Status - Two Equal Halves -->
-						<div class="border-t border-gray-200">
-							<div class="grid grid-cols-2 divide-x divide-gray-200">
+						<!-- Payment Status - Two Equal Halves (Sobriedad Corporativa Slate) -->
+						<div class="border-t border-slate-200">
+							<div class="grid grid-cols-2 divide-x divide-slate-200">
 								<!-- Paid (Left Half) -->
 								<div
 									:class="[
-										'bg-blue-50 text-center',
-										isCompactMode ? 'p-2' : 'p-3',
+										'bg-white text-center',
+										isCompactMode ? 'p-2' : 'p-2.5',
 									]"
 								>
 									<div
-										class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1"
+										class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5"
 									>
 										{{ __("Paid") }}
 									</div>
 									<div
 										:class="[
-											'font-bold text-blue-600',
+											'font-black text-slate-900 tabular-nums',
 											dynamicTextSize.amount,
 										]"
 									>
@@ -971,18 +945,18 @@
 								<div
 									v-if="remainingAmount > 0 && !applyWriteOff"
 									:class="[
-										'bg-orange-50 text-center',
-										isCompactMode ? 'p-2' : 'p-3',
+										'bg-white text-center',
+										isCompactMode ? 'p-2' : 'p-2.5',
 									]"
 								>
 									<div
-										class="text-xs font-medium text-orange-600 uppercase tracking-wide mb-1"
+										class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5"
 									>
 										{{ __("Remaining") }}
 									</div>
 									<div
 										:class="[
-											'font-bold text-orange-600',
+											'font-black text-amber-600 tabular-nums',
 											dynamicTextSize.amount,
 										]"
 									>
@@ -993,18 +967,18 @@
 								<div
 									v-else-if="applyWriteOff && canWriteOff"
 									:class="[
-										'bg-purple-50 text-center',
-										isCompactMode ? 'p-2' : 'p-3',
+										'bg-white text-center',
+										isCompactMode ? 'p-2' : 'p-2.5',
 									]"
 								>
 									<div
-										class="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1"
+										class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5"
 									>
 										{{ __("Write Off") }}
 									</div>
 									<div
 										:class="[
-											'font-bold text-purple-600',
+											'font-black text-slate-700 tabular-nums',
 											dynamicTextSize.amount,
 										]"
 									>
@@ -1014,18 +988,18 @@
 								<div
 									v-else-if="changeAmount > 0 && allowsOverpayment"
 									:class="[
-										'bg-green-50 text-center',
-										isCompactMode ? 'p-2' : 'p-3',
+										'bg-emerald-50/50 text-center',
+										isCompactMode ? 'p-2' : 'p-2.5',
 									]"
 								>
 									<div
-										class="text-xs font-medium text-green-600 uppercase tracking-wide mb-1"
+										class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-0.5"
 									>
 										{{ __("Change Due") }}
 									</div>
 									<div
 										:class="[
-											'font-bold text-green-600',
+											'font-black text-emerald-600 tabular-nums',
 											dynamicTextSize.amount,
 										]"
 									>
@@ -1036,17 +1010,17 @@
 								<div
 									v-else-if="changeAmount > 0 && !allowsOverpayment"
 									:class="[
-										'bg-red-50 text-center',
-										isCompactMode ? 'p-2' : 'p-3',
+										'bg-red-50/50 text-center',
+										isCompactMode ? 'p-2' : 'p-2.5',
 									]"
 								>
 									<div
-										class="text-xs font-medium text-red-600 uppercase tracking-wide mb-1"
+										class="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-0.5"
 									>
 										{{ __("Overpayment") }}
 									</div>
 									<div
-										:class="['font-bold text-red-600', dynamicTextSize.amount]"
+										:class="['font-black text-red-600 tabular-nums', dynamicTextSize.amount]"
 									>
 										{{ formatCurrency(changeAmount) }}
 									</div>
@@ -1054,12 +1028,12 @@
 								<div
 									v-else
 									:class="[
-										'bg-green-50 flex flex-col items-center justify-center',
-										isCompactMode ? 'p-2' : 'p-3',
+										'bg-emerald-50/50 flex flex-col items-center justify-center',
+										isCompactMode ? 'p-2' : 'p-2.5',
 									]"
 								>
 									<svg
-										class="w-5 h-5 text-green-600 mb-1"
+										class="w-4 h-4 text-emerald-600 mb-0.5"
 										fill="currentColor"
 										viewBox="0 0 20 20"
 									>
@@ -1070,7 +1044,7 @@
 										/>
 									</svg>
 									<span
-										:class="['font-bold text-green-600', dynamicTextSize.body]"
+										:class="['font-bold text-emerald-600', dynamicTextSize.body]"
 										>{{ __("Fully Paid") }}</span
 									>
 								</div>
@@ -1159,39 +1133,48 @@
 				<div
 					ref="rightColumnRef"
 					:class="[
-						'lg:col-span-3 bg-gray-50 rounded-lg border border-gray-200 flex flex-col',
-						isSmallMobile ? 'p-1.5' : 'p-2 lg:p-3',
+						'lg:col-span-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col justify-between',
+						isSmallMobile ? 'p-2' : 'p-2.5 lg:p-3',
 					]"
-					:style="isMobileView ? {} : { minHeight: rightColumnMinHeight }"
 				>
 					<!-- Payment Methods -->
-					<div :class="isSmallMobile ? 'mb-1' : 'mb-1.5 lg:mb-3'">
+					<div :class="isSmallMobile ? 'mb-1.5' : 'mb-2 lg:mb-3'">
 						<div
 							:class="[
-								'flex items-center justify-between',
-								isSmallMobile ? 'mb-0.5' : 'mb-1 lg:mb-2',
+								'flex items-center justify-between gap-2',
+								isSmallMobile ? 'mb-1' : 'mb-1.5 lg:mb-2',
 							]"
 						>
-							<div
-								:class="[
-									'text-start font-semibold text-gray-500 uppercase tracking-wide',
-									isSmallMobile ? 'text-[10px]' : 'text-xs',
-								]"
-							>
-								{{ __("Payment Method") }}
+							<div class="flex items-center gap-2 min-w-0">
+								<span
+									:class="[
+										'text-start font-bold text-slate-500 uppercase tracking-wider',
+										isSmallMobile ? 'text-[10px]' : 'text-[11px]',
+									]"
+								>
+									{{ __("Payment Method") }}
+								</span>
+								<MdxBadge
+									v-if="lastSelectedMethod && getSelectedMethodAccountName(lastSelectedMethod)"
+									variant="neutral"
+									size="sm"
+								>
+									{{ getSelectedMethodAccountName(lastSelectedMethod) }}
+								</MdxBadge>
 							</div>
 							<!-- Clear All Payments Button -->
 							<button
 								v-if="paymentEntries.length > 0"
+								type="button"
 								@click="clearAll"
 								:class="[
-									'text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors',
+									'text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors',
 									isSmallMobile ? 'p-1' : 'p-1.5',
 								]"
 								:title="__('Clear all payments')"
 							>
 								<svg
-									:class="isSmallMobile ? 'w-4 h-4' : 'w-5 h-5'"
+									:class="isSmallMobile ? 'w-4 h-4' : 'w-4 h-4'"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -1205,28 +1188,20 @@
 								</svg>
 							</button>
 						</div>
-						<div v-if="loadingPaymentMethods" class="flex items-center gap-2">
-							<div
-								:class="[
-									'animate-spin rounded-full border-b-2 border-blue-500',
-									isSmallMobile ? 'h-4 w-4' : 'h-5 w-5',
-								]"
-							></div>
-							<span
-								:class="['text-gray-500', isSmallMobile ? 'text-xs' : 'text-sm']"
-								>{{ __("Loading...") }}</span
-							>
+						<div v-if="loadingPaymentMethods" class="py-2">
+							<MdxLoadingSpinner size="sm" :text="__('Loading...')" />
 						</div>
 						<div
 							v-else-if="filteredPaymentMethods.length > 0"
 							:class="[
 								'flex flex-wrap',
-								isSmallMobile ? 'gap-1' : 'gap-1.5 lg:gap-2',
+								isSmallMobile ? 'gap-1.5' : 'gap-2',
 							]"
 						>
 							<button
 								v-for="method in filteredPaymentMethods"
 								:key="method.mode_of_payment"
+								type="button"
 								@pointerdown="onPaymentMethodDown(method, $event)"
 								@pointerup="onPaymentMethodUp(method)"
 								@pointerleave="onPaymentMethodCancel"
@@ -1237,27 +1212,67 @@
 									getMethodTotal(method.mode_of_payment) === 0
 								"
 								:class="[
-									'inline-flex items-center rounded-lg border-2 transition-all font-medium select-none touch-manipulation',
+									'inline-flex items-center rounded-xl border transition-all font-bold select-none touch-manipulation',
 									isSmallMobile
-										? 'gap-0.5 px-1.5 h-7 text-[10px]'
-										: 'gap-1 lg:gap-2 px-2.5 lg:px-4 h-8 text-xs lg:h-11 lg:text-sm',
+										? 'gap-1.5 px-2.5 h-8 text-xs'
+										: 'gap-2 px-3 lg:px-4 h-9 text-xs lg:h-10 lg:text-sm',
 									lastSelectedMethod?.mode_of_payment === method.mode_of_payment
-										? isWalletPaymentMethod(method.mode_of_payment)
-											? 'border-amber-500 bg-amber-50 text-amber-700'
-											: 'border-blue-500 bg-blue-50 text-blue-700'
-										: isWalletPaymentMethod(method.mode_of_payment)
-										? availableWalletBalance > 0
-											? 'border-amber-300 bg-amber-50 hover:border-amber-500 hover:bg-amber-100 text-amber-700'
-											: 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60'
-										: 'border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50 text-gray-700',
+										? 'border-blue-600 bg-blue-600 text-white shadow-sm'
+										: isWalletPaymentMethod(method.mode_of_payment) && availableWalletBalance <= 0
+										? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
+										: 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700',
 								]"
 							>
-								<span :class="isSmallMobile ? 'text-xs' : 'text-sm lg:text-lg'">{{
-									isWalletPaymentMethod(method.mode_of_payment)
-										? "🎁"
-										: getPaymentIcon(method.type)
-								}}</span>
-								<span class="truncate max-w-[80px] lg:max-w-none">{{
+								<!-- Icono Vectorial SVG por Tipo de Pago (Cero Emojis) -->
+								<svg
+									v-if="String(method.mode_of_payment || '').toLowerCase().includes('qr')"
+									class="w-4 h-4 flex-shrink-0"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									viewBox="0 0 24 24"
+								>
+									<rect x="3" y="3" width="7" height="7" rx="1" />
+									<rect x="14" y="3" width="7" height="7" rx="1" />
+									<rect x="3" y="14" width="7" height="7" rx="1" />
+									<path d="M14 14h3v3h-3zM18 18h3v3h-3zM14 19h2M19 14v2" />
+								</svg>
+								<svg
+									v-else-if="isCashPaymentMethod(method)"
+									class="w-4 h-4 flex-shrink-0"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									viewBox="0 0 24 24"
+								>
+									<rect x="2" y="6" width="20" height="12" rx="2" />
+									<circle cx="12" cy="12" r="2" />
+									<path d="M6 12h.01M18 12h.01" />
+								</svg>
+								<svg
+									v-else-if="isWalletPaymentMethod(method.mode_of_payment)"
+									class="w-4 h-4 flex-shrink-0"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									viewBox="0 0 24 24"
+								>
+									<path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" />
+									<path d="M4 6v12c0 1.1.9 2 2 2h14v-4" />
+									<path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z" />
+								</svg>
+								<svg
+									v-else
+									class="w-4 h-4 flex-shrink-0"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									viewBox="0 0 24 24"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+								</svg>
+
+								<span class="truncate max-w-[110px] lg:max-w-none">{{
 									__(method.mode_of_payment)
 								}}</span>
 								<!-- Wallet Balance Badge -->
@@ -1267,13 +1282,10 @@
 										walletInfo.wallet_enabled
 									"
 									:class="[
-										'font-bold rounded',
-										isSmallMobile
-											? 'text-[8px] px-1 py-0.5'
-											: 'text-[10px] px-1.5 py-0.5',
-										availableWalletBalance > 0
-											? 'text-amber-700 bg-amber-100'
-											: 'text-gray-500 bg-gray-200',
+										'font-bold rounded px-1.5 py-0.5 text-[10px]',
+										lastSelectedMethod?.mode_of_payment === method.mode_of_payment
+											? 'bg-white/20 text-white'
+											: 'bg-slate-100 text-slate-600',
 									]"
 								>
 									{{ formatCurrency(availableWalletBalance) }}
@@ -1282,13 +1294,10 @@
 								<span
 									v-if="getMethodTotal(method.mode_of_payment) > 0"
 									:class="[
-										'font-bold rounded',
-										isSmallMobile
-											? 'text-[8px] px-0.5 py-0.5'
-											: 'text-xs px-1 py-0.5',
-										isWalletPaymentMethod(method.mode_of_payment)
-											? 'text-amber-600 bg-amber-200'
-											: 'text-blue-600 bg-blue-100',
+										'font-bold rounded px-1.5 py-0.5 text-[11px] tabular-nums',
+										lastSelectedMethod?.mode_of_payment === method.mode_of_payment
+											? 'bg-white/20 text-white'
+											: 'bg-blue-50 text-blue-700',
 									]"
 								>
 									{{ formatCurrency(getMethodTotal(method.mode_of_payment)) }}
@@ -1301,33 +1310,30 @@
 									(remainingAvailableCredit > 0 ||
 										getMethodTotal('Customer Credit') > 0)
 								"
+								type="button"
 								@click="applyCustomerCredit"
 								:disabled="remainingAmount === 0 || remainingAvailableCredit === 0"
 								:class="[
-									'inline-flex items-center rounded-lg border-2 transition-all font-medium',
+									'inline-flex items-center rounded-xl border transition-all font-bold',
 									isSmallMobile
-										? 'gap-0.5 px-1.5 h-7 text-[10px]'
-										: 'gap-1 lg:gap-2 px-2.5 lg:px-4 h-8 text-xs lg:h-11 lg:text-sm',
+										? 'gap-1.5 px-2.5 h-8 text-xs'
+										: 'gap-2 px-3 lg:px-4 h-9 text-xs lg:h-10 lg:text-sm',
 									remainingAmount === 0 || remainingAvailableCredit === 0
 										? 'opacity-50 cursor-not-allowed'
 										: 'cursor-pointer',
 									getMethodTotal('Customer Credit') > 0
-										? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-										: 'border-emerald-300 bg-emerald-50 hover:border-emerald-500 hover:bg-emerald-100 text-emerald-700',
+										? 'border-blue-600 bg-blue-600 text-white'
+										: 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700',
 								]"
 							>
-								<span :class="isSmallMobile ? 'text-xs' : 'text-sm lg:text-lg'"
-									>💳</span
-								>
+								<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+									<rect x="2" y="5" width="20" height="14" rx="2" />
+									<line x1="2" y1="10" x2="22" y2="10" />
+								</svg>
 								<span class="truncate">{{ __("Credit Balance") }}</span>
 								<span
 									v-if="getMethodTotal('Customer Credit') > 0"
-									:class="[
-										'font-bold text-emerald-600 bg-emerald-100 rounded',
-										isSmallMobile
-											? 'text-[8px] px-0.5 py-0.5'
-											: 'text-xs px-1 py-0.5',
-									]"
+									class="font-bold bg-white/20 text-white rounded px-1.5 py-0.5 text-[11px] tabular-nums"
 								>
 									{{ formatCurrency(getMethodTotal("Customer Credit")) }}
 								</span>
@@ -1335,7 +1341,7 @@
 						</div>
 						<div
 							v-else
-							:class="['text-gray-500', isSmallMobile ? 'text-xs' : 'text-sm']"
+							:class="['text-slate-500', isSmallMobile ? 'text-xs' : 'text-sm']"
 						>
 							{{ __("No payment methods available") }}
 						</div>
@@ -1347,100 +1353,46 @@
 								paymentEntries.length > 0 &&
 								hasNonCashPayment
 							"
-							:class="[
-								'mt-2 p-2 rounded-lg border',
-								!isExactAmountValid
-									? 'bg-red-50 border-red-200'
-									: 'bg-green-50 border-green-200',
-							]"
+							class="mt-2"
 						>
-							<div class="flex items-center gap-2">
-								<svg
-									v-if="!isExactAmountValid"
-									class="w-4 h-4 flex-shrink-0 text-red-500"
-									fill="currentColor"
-									viewBox="0 0 20 20"
-								>
-									<path
-										fill-rule="evenodd"
-										d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-										clip-rule="evenodd"
-									/>
-								</svg>
-								<svg
-									v-else
-									class="w-4 h-4 flex-shrink-0 text-green-500"
-									fill="currentColor"
-									viewBox="0 0 20 20"
-								>
-									<path
-										fill-rule="evenodd"
-										d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-										clip-rule="evenodd"
-									/>
-								</svg>
-								<span
-									:class="[
-										'text-xs font-medium',
-										!isExactAmountValid ? 'text-red-700' : 'text-green-700',
-									]"
-								>
-									{{
-										!isExactAmountValid
-											? __("Total must equal invoice amount")
-											: __("Payment amount is correct")
-									}}
-								</span>
-							</div>
+							<MdxBadge :variant="!isExactAmountValid ? 'danger' : 'success'" size="md">
+								{{
+									!isExactAmountValid
+										? __("Total must equal invoice amount")
+										: __("Payment amount is correct")
+								}}
+							</MdxBadge>
 						</div>
 					</div>
 
-					<!-- Quick Amounts Area (Desktop) - Consistent layout for all payment methods -->
+					<!-- Quick Amounts Area (Desktop) -->
 					<div
 						v-if="lastSelectedMethod && remainingAmount > 0"
 						class="hidden lg:block"
 						:class="isCompactMode ? 'mb-2' : 'mb-3'"
 					>
-						<div
-							v-if="getSelectedMethodAccountName(lastSelectedMethod)"
-							class="mb-2 px-2.5 py-1 bg-blue-50/90 border border-blue-200/80 rounded-lg flex items-center gap-1.5 text-xs text-blue-800"
-						>
-							<svg class="w-3.5 h-3.5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-							</svg>
-							<span class="font-medium">{{ __("Cuenta:") }}</span>
-							<span class="font-semibold">{{ getSelectedMethodAccountName(lastSelectedMethod) }}</span>
-						</div>
-						<div class="text-start text-xs font-medium text-gray-600 mb-1.5">
-							{{
-								isExactAmountModeActive && !isCashPaymentMethod(lastSelectedMethod)
-									? __("Solo monto exacto")
-									: __("Cobro rápido para {0}", [
-											__(lastSelectedMethod.mode_of_payment),
-									  ])
-							}}
-						</div>
 						<div class="w-full">
 							<button
 								v-for="amount in quickAmounts"
 								:key="amount"
+								type="button"
 								@click="addCustomPayment(lastSelectedMethod, amount)"
 								:disabled="isQuickAmountDisabled(amount)"
 								:class="[
-									'w-full font-bold rounded-lg border-2 transition-all flex items-center justify-between shadow-sm',
-									isCompactMode ? 'px-3 py-2 text-sm' : 'px-4 py-2.5 text-sm',
+									'w-full font-bold rounded-xl border transition-all flex items-center justify-between shadow-sm',
+									isCompactMode ? 'px-3.5 py-2 text-sm' : 'px-4 py-2.5 text-sm',
 									isQuickAmountDisabled(amount)
-										? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-										: 'bg-blue-50/90 border-blue-400 hover:border-blue-600 hover:bg-blue-100 text-blue-900',
+										? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'
+										: 'bg-white border-slate-300 hover:border-blue-600 hover:bg-blue-50/40 text-slate-900',
 								]"
 							>
-								<span class="flex items-center gap-2 text-xs font-bold text-blue-700">
+								<span class="flex items-center gap-2 text-xs font-bold text-slate-700">
 									<svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
 										<path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
 									</svg>
 									<span>{{ __("Cobrar Monto Exacto") }}</span>
 								</span>
-								<span class="text-base font-extrabold text-blue-900 tracking-tight">
+								<span class="text-base font-black text-slate-900 tabular-nums tracking-tight">
 									{{ formatCurrency(amount) }}
 								</span>
 							</button>
@@ -1454,63 +1406,64 @@
 						"
 						class="hidden lg:block"
 						:class="[
-							'bg-blue-50 rounded-lg text-center',
-							isCompactMode ? 'mb-2 p-2' : 'mb-3 p-3 lg:p-2',
+							'bg-white border border-slate-200 rounded-xl text-center',
+							isCompactMode ? 'mb-2 p-2' : 'mb-3 p-2.5',
 						]"
 					>
-						<p class="text-xs text-blue-600">
+						<p class="text-xs font-medium text-slate-500">
 							{{ __("Select a payment method to start") }}
 						</p>
 					</div>
 
-					<!-- Mobile Payment Section - Dynamic & Responsive -->
+					<!-- Mobile Payment Section (6.5"+ Screens) -->
 					<div
 						class="lg:hidden flex flex-col"
-						:class="isSmallMobile ? 'gap-1' : 'gap-1.5'"
+						:class="isSmallMobile ? 'gap-1.5' : 'gap-2'"
 					>
-						<!-- Mobile Quick Amounts + Custom Input (consistent layout for all payment methods) -->
+						<!-- Mobile Quick Amounts + Custom Input -->
 						<div
 							v-if="lastSelectedMethod && remainingAmount > 0"
-							:class="['space-y-1 flex-shrink-0', isSmallMobile ? 'mb-1' : 'mb-1.5']"
+							:class="['space-y-1.5 flex-shrink-0', isSmallMobile ? 'mb-1' : 'mb-1.5']"
 						>
 							<!-- Quick Amounts Row (Monto Exacto) -->
 							<div class="w-full">
 								<button
 									v-for="amount in quickAmounts"
 									:key="amount"
+									type="button"
 									@click="addCustomPayment(lastSelectedMethod, amount)"
 									:disabled="isQuickAmountDisabled(amount)"
 									:class="[
-										'w-full font-bold rounded border-2 transition-colors flex items-center justify-between shadow-sm',
-										isSmallMobile ? 'py-1 px-2 text-[11px]' : 'py-1.5 px-3 text-xs',
+										'w-full font-bold rounded-xl border transition-colors flex items-center justify-between shadow-sm touch-manipulation',
+										isSmallMobile ? 'py-2 px-3 text-xs' : 'py-2.5 px-3.5 text-xs',
 										isQuickAmountDisabled(amount)
-											? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-											: 'bg-blue-50/90 border-blue-400 active:bg-blue-100 text-blue-900',
+											? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'
+											: 'bg-white border-slate-300 active:bg-slate-50 text-slate-900',
 									]"
 								>
-									<span class="flex items-center gap-1.5 font-bold text-blue-700">
+									<span class="flex items-center gap-1.5 font-bold text-slate-700">
 										<svg class="w-3.5 h-3.5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
 											<path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
 										</svg>
 										<span>{{ __("Cobrar Monto Exacto") }}</span>
 									</span>
-									<span class="font-extrabold text-blue-900">
+									<span class="font-black text-slate-900 tabular-nums">
 										{{ formatCurrency(amount) }}
 									</span>
 								</button>
 							</div>
 
-							<!-- Custom Amount Row (disabled for non-cash when exact amount mode is active) -->
-							<div :class="['flex', isSmallMobile ? 'gap-0.5' : 'gap-1']">
+							<!-- Custom Amount Row -->
+							<div class="flex gap-1.5">
 								<div class="relative flex-1">
 									<span
 										:class="[
-											'absolute start-2 top-1/2 -translate-y-1/2',
-											isSmallMobile ? 'text-[10px]' : 'text-xs',
+											'absolute start-3 top-1/2 -translate-y-1/2 font-semibold',
+											isSmallMobile ? 'text-xs' : 'text-xs',
 											isExactAmountModeActive &&
 											!isCashPaymentMethod(lastSelectedMethod)
-												? 'text-gray-300'
-												: 'text-gray-400',
+												? 'text-slate-300'
+												: 'text-slate-400',
 										]"
 										>{{ currencySymbol }}</span
 									>
@@ -1531,40 +1484,30 @@
 											!isCashPaymentMethod(lastSelectedMethod)
 										"
 										:class="[
-											'w-full border rounded focus:outline-none font-semibold',
+											'w-full border rounded-xl focus:outline-none font-bold tabular-nums',
 											isSmallMobile
-												? 'h-7 ps-5 pe-1.5 text-xs'
-												: 'h-8 ps-6 pe-2 text-sm',
+												? 'h-9 ps-8 pe-2.5 text-xs'
+												: 'h-10 ps-8 pe-3 text-sm',
 											isExactAmountModeActive &&
 											!isCashPaymentMethod(lastSelectedMethod)
-												? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-												: 'bg-white border-gray-200 focus:ring-1 focus:ring-blue-500',
+												? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'
+												: 'bg-white border-slate-200 text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500',
 										]"
 									/>
 								</div>
-								<button
-									@click="addMobileCustomPayment"
+								<MdxButton
+									variant="primary"
+									:size="isSmallMobile ? 'sm' : 'md'"
 									:disabled="
 										(isExactAmountModeActive &&
 											!isCashPaymentMethod(lastSelectedMethod)) ||
 										!mobileCustomAmount ||
 										mobileCustomAmount <= 0
 									"
-									:class="[
-										'font-semibold rounded transition-all flex-shrink-0',
-										isSmallMobile
-											? 'h-7 px-2 text-[10px]'
-											: 'h-8 px-3 text-xs',
-										(isExactAmountModeActive &&
-											!isCashPaymentMethod(lastSelectedMethod)) ||
-										!mobileCustomAmount ||
-										mobileCustomAmount <= 0
-											? 'bg-gray-100 text-gray-400'
-											: 'bg-blue-500 text-white active:bg-blue-600',
-									]"
+									@click="addMobileCustomPayment"
 								>
 									{{ __("Add") }}
-								</button>
+								</MdxButton>
 							</div>
 						</div>
 
@@ -1576,21 +1519,21 @@
 								!selectedReceivableAccount
 							"
 							:class="[
-								'bg-blue-50 rounded text-center',
-								isSmallMobile ? 'p-1.5 mb-1' : 'p-2 mb-1.5',
+								'bg-white border border-slate-200 rounded-xl text-center',
+								isSmallMobile ? 'p-2 mb-1' : 'p-2.5 mb-1.5',
 							]"
 						>
 							<p
-								:class="isSmallMobile ? 'text-[10px]' : 'text-xs'"
-								class="text-blue-600"
+								:class="isSmallMobile ? 'text-xs' : 'text-xs'"
+								class="text-slate-500 font-medium"
 							>
 								{{ __("Select a payment method") }}
 							</p>
 						</div>
 
-						<!-- Mobile Action Buttons - Always visible at bottom -->
+						<!-- Mobile Action Buttons - Always visible at bottom (MdxButton) -->
 						<div
-							:class="['flex-shrink-0', isSmallMobile ? 'space-y-1' : 'space-y-1.5']"
+							:class="['flex-shrink-0', isSmallMobile ? 'space-y-1.5' : 'space-y-2']"
 						>
 							<!-- Two buttons side by side when both needed -->
 							<div
@@ -1600,228 +1543,108 @@
 									allowCreditSale &&
 									paymentEntries.length === 0
 								"
-								class="grid grid-cols-2"
-								:class="isSmallMobile ? 'gap-1' : 'gap-1.5'"
+								class="grid grid-cols-2 gap-2"
 							>
-								<!-- Pay Full Amount Button -->
-								<button
-									@click="addCustomPayment(lastSelectedMethod, remainingAmount)"
-									:class="[
-										'font-bold rounded-lg bg-green-500 text-white active:bg-green-600 flex items-center justify-center',
-										mobileButtonSize.height,
-										mobileButtonSize.text,
-										mobileButtonSize.gap,
-									]"
-								>
-									<svg
-										:class="mobileButtonSize.icon"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-										/>
-									</svg>
-									<span class="truncate">{{
-										formatCurrency(remainingAmount)
-									}}</span>
-								</button>
-								<!-- Pay on Account Button -->
-								<button
-									@click="addCreditAccountPayment"
+								<MdxButton
+									variant="secondary"
+									:size="isSmallMobile ? 'sm' : 'md'"
+									:loading="isSubmitting"
 									:disabled="isSubmitting"
-									:class="[
-										'font-semibold rounded-lg flex items-center justify-center',
-										isSubmitting
-											? 'bg-orange-300 text-white cursor-not-allowed'
-											: 'bg-orange-500 text-white active:bg-orange-600',
-										mobileButtonSize.height,
-										mobileButtonSize.text,
-										mobileButtonSize.gap,
-									]"
+									fullWidth
+									@click="addCreditAccountPayment"
 								>
-									<svg
-										v-if="isSubmitting"
-										:class="mobileButtonSize.icon"
-										class="animate-spin"
-										fill="none"
-										viewBox="0 0 24 24"
-									>
-										<circle
-											class="opacity-25"
-											cx="12"
-											cy="12"
-											r="10"
-											stroke="currentColor"
-											stroke-width="4"
-										></circle>
-										<path
-											class="opacity-75"
-											fill="currentColor"
-											d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-										></path>
-									</svg>
-									<svg
-										v-else
-										:class="mobileButtonSize.icon"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-										/>
-									</svg>
-									<span class="truncate">{{
-										isSubmitting ? __("Processing...") : __("On Account")
-									}}</span>
-								</button>
+									{{ isSubmitting ? __("Processing...") : __("Pago a Cuenta") }}
+								</MdxButton>
+								<MdxButton
+									variant="primary"
+									:size="isSmallMobile ? 'sm' : 'md'"
+									fullWidth
+									@click="addCustomPayment(lastSelectedMethod, remainingAmount)"
+								>
+									{{ __("Pay") }} {{ formatCurrency(remainingAmount) }}
+								</MdxButton>
 							</div>
 
 							<!-- Single Pay button (when no credit sale option) -->
-							<button
+							<MdxButton
 								v-else-if="lastSelectedMethod && remainingAmount > 0"
-								@click="addCustomPayment(lastSelectedMethod, remainingAmount)"
+								variant="primary"
+								:size="isSmallMobile ? 'sm' : 'md'"
 								:disabled="isSubmitting"
-								:class="[
-									'w-full font-bold rounded-lg flex items-center justify-center',
-									isSubmitting
-										? 'bg-green-300 text-white cursor-not-allowed'
-										: 'bg-green-500 text-white active:bg-green-600',
-									mobileButtonSize.height,
-									mobileButtonSize.text,
-									mobileButtonSize.gap,
-								]"
+								fullWidth
+								@click="addCustomPayment(lastSelectedMethod, remainingAmount)"
 							>
-								<svg
-									:class="mobileButtonSize.icon"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-									/>
-								</svg>
-								<span>{{ __("Pay") }} {{ formatCurrency(remainingAmount) }}</span>
-							</button>
+								{{ __("Pay") }} {{ formatCurrency(remainingAmount) }}
+							</MdxButton>
 
 							<!-- Complete / Partial Payment Button -->
-							<button
+							<MdxButton
 								v-if="
 									(remainingAmount === 0 || (applyWriteOff && canWriteOff) || (allowPartialPayment && totalPaid > 0)) &&
 									totalPaid > 0
 								"
-								@click="completePayment"
+								variant="primary"
+								:size="isSmallMobile ? 'sm' : 'md'"
+								:loading="isSubmitting"
 								:disabled="isSubmitting || !canComplete"
-								:class="[
-									'w-full font-bold rounded-lg flex items-center justify-center',
-									isSubmitting
-										? 'bg-blue-300 text-white cursor-not-allowed'
-										: 'bg-blue-600 text-white active:bg-blue-700',
-									mobileButtonSize.height,
-									mobileButtonSize.text,
-									mobileButtonSize.gap,
-								]"
+								fullWidth
+								@click="completePayment"
 							>
-								<svg
-									v-if="isSubmitting"
-									:class="mobileButtonSize.icon"
-									class="animate-spin"
-									fill="none"
-									viewBox="0 0 24 24"
-								>
-									<circle
-										class="opacity-25"
-										cx="12"
-										cy="12"
-										r="10"
-										stroke="currentColor"
-										stroke-width="4"
-									></circle>
-									<path
-										class="opacity-75"
-										fill="currentColor"
-										d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-									></path>
-								</svg>
-								<svg
-									v-else
-									:class="mobileButtonSize.icon"
-									fill="currentColor"
-									viewBox="0 0 20 20"
-								>
-									<path
-										fill-rule="evenodd"
-										d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-										clip-rule="evenodd"
-									/>
-								</svg>
-								<span>{{
-									isSubmitting ? __("Processing...") : paymentButtonText
-								}}</span>
-							</button>
+								{{ isSubmitting ? __("Processing...") : paymentButtonText }}
+							</MdxButton>
 						</div>
 					</div>
 					<!-- End Mobile Payment Section -->
 
-					<!-- Numeric Keypad (Desktop only) -->
+					<!-- Numeric Keypad (Desktop only — Sobriedad Corporativa Slate) -->
 					<div
 						:class="[
-							'hidden lg:block bg-white rounded-lg border border-gray-200',
-							isCompactMode ? 'p-2' : 'p-3',
+							'hidden lg:block bg-white rounded-xl border border-slate-200',
+							isCompactMode ? 'p-2.5' : 'p-3',
 						]"
 					>
 						<!-- Amount Display -->
 						<div
 							:class="[
-								'bg-gray-100 rounded-lg',
-								isCompactMode ? 'p-2 mb-2' : 'p-3 mb-3',
+								'bg-slate-50 border border-slate-200/80 rounded-xl',
+								isCompactMode ? 'p-2 mb-2' : 'p-3 mb-2.5',
 							]"
 						>
 							<div
 								dir="ltr"
 								:class="[
-									'font-bold text-gray-900 text-center flex items-center justify-center gap-2',
+									'font-black text-slate-900 text-center flex items-center justify-center gap-2',
 									isCompactMode ? 'text-xl' : 'text-2xl',
 								]"
 							>
-								<span>{{ currencySymbol }}</span>
-								<span class="font-mono tracking-wider">{{
+								<span class="text-slate-500 font-bold text-lg">{{ currencySymbol }}</span>
+								<span class="font-mono tracking-wider tabular-nums">{{
 									numpadDisplay || "0.00"
 								}}</span>
 							</div>
 						</div>
 
 						<!-- Keypad Grid (4 columns) -->
-						<div :class="['grid grid-cols-4', isCompactMode ? 'gap-1' : 'gap-1.5']">
+						<div :class="['grid grid-cols-4', isCompactMode ? 'gap-1.5' : 'gap-2']">
 							<!-- Row 1: 7, 8, 9, Backspace -->
 							<button
 								v-for="num in ['7', '8', '9']"
 								:key="num"
+								type="button"
 								@click="numpadInput(num)"
 								:class="[
 									dynamicNumpadSize.key,
-									'text-xl font-semibold rounded-lg bg-gray-50 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-800 transition-all active:scale-95',
+									'text-xl font-bold rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 transition-all active:scale-95',
 								]"
 							>
 								{{ num }}
 							</button>
 							<button
+								type="button"
 								@click="numpadBackspace"
 								:class="[
 									dynamicNumpadSize.key,
-									'text-lg font-semibold rounded-lg bg-red-50 border-2 border-red-200 hover:border-red-400 hover:bg-red-100 text-red-600 transition-all active:scale-95 flex items-center justify-center',
+									'text-lg font-bold rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-600 transition-all active:scale-95 flex items-center justify-center',
 								]"
 							>
 								<svg
@@ -1843,19 +1666,21 @@
 							<button
 								v-for="num in ['4', '5', '6']"
 								:key="num"
+								type="button"
 								@click="numpadInput(num)"
 								:class="[
 									dynamicNumpadSize.key,
-									'text-xl font-semibold rounded-lg bg-gray-50 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-800 transition-all active:scale-95',
+									'text-xl font-bold rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 transition-all active:scale-95',
 								]"
 							>
 								{{ num }}
 							</button>
 							<button
+								type="button"
 								@click="numpadClear"
 								:class="[
 									dynamicNumpadSize.key,
-									'text-lg font-semibold rounded-lg bg-orange-50 border-2 border-orange-200 hover:border-orange-400 hover:bg-orange-100 text-orange-600 transition-all active:scale-95',
+									'text-base font-bold rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-600 transition-all active:scale-95',
 								]"
 							>
 								C
@@ -1865,23 +1690,25 @@
 							<button
 								v-for="num in ['1', '2', '3']"
 								:key="num"
+								type="button"
 								@click="numpadInput(num)"
 								:class="[
 									dynamicNumpadSize.key,
-									'text-xl font-semibold rounded-lg bg-gray-50 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-800 transition-all active:scale-95',
+									'text-xl font-bold rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 transition-all active:scale-95',
 								]"
 							>
 								{{ num }}
 							</button>
 							<button
+								type="button"
 								@click="numpadAddPayment"
 								:disabled="!numpadValue || numpadValue <= 0 || !lastSelectedMethod"
 								:class="[
 									dynamicNumpadSize.addBtn,
-									'row-span-2 text-xl font-bold rounded-xl transition-all active:scale-95',
+									'row-span-2 text-base font-bold rounded-xl transition-all active:scale-95',
 									!numpadValue || numpadValue <= 0 || !lastSelectedMethod
-										? 'bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed'
-										: 'bg-blue-600 border-2 border-blue-600 hover:bg-blue-700 text-white',
+										? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
+										: 'bg-blue-600 border border-blue-600 hover:bg-blue-700 text-white shadow-sm',
 								]"
 							>
 								{{ __("Add") }}
@@ -1889,32 +1716,35 @@
 
 							<!-- Row 4: 00, 0, . -->
 							<button
+								type="button"
 								@click="numpadInput('00')"
 								:class="[
-									isCompactMode ? 'h-12' : 'h-16',
-									'text-2xl font-semibold rounded-xl bg-gray-50 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-800 transition-all active:scale-95',
+									dynamicNumpadSize.key,
+									'text-xl font-bold rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 transition-all active:scale-95',
 								]"
 							>
 								00
 							</button>
 							<button
+								type="button"
 								@click="numpadInput('0')"
 								:class="[
-									isCompactMode ? 'h-12' : 'h-16',
-									'text-2xl font-semibold rounded-xl bg-gray-50 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-800 transition-all active:scale-95',
+									dynamicNumpadSize.key,
+									'text-xl font-bold rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 transition-all active:scale-95',
 								]"
 							>
 								0
 							</button>
 							<button
+								type="button"
 								@click="numpadInput('.')"
 								:disabled="numpadDisplay.includes('.')"
 								:class="[
-									isCompactMode ? 'h-12' : 'h-16',
-									'text-2xl font-semibold rounded-xl transition-all active:scale-95',
+									dynamicNumpadSize.key,
+									'text-xl font-bold rounded-xl transition-all active:scale-95',
 									numpadDisplay.includes('.')
-										? 'bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed'
-										: 'bg-gray-50 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-800',
+										? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
+										: 'bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800',
 								]"
 							>
 								.
@@ -1922,166 +1752,56 @@
 						</div>
 					</div>
 
-					<!-- Action Buttons - Below Keypad (Desktop only) -->
+					<!-- Action Buttons - Below Keypad (Desktop only — MdxButton) -->
 					<div
 						:class="[
-							'hidden lg:flex items-center gap-2',
-							isCompactMode ? 'mt-2' : 'mt-4',
+							'hidden lg:flex items-center gap-2.5',
+							isCompactMode ? 'mt-2' : 'mt-3',
 						]"
 					>
-						<!-- Pay on Account Button (if credit sales enabled) -->
-						<button
+						<!-- Pay on Account Button (Secondary MdxButton) -->
+						<MdxButton
 							v-if="allowCreditSale"
-							@click="addCreditAccountPayment"
+							class="flex-1"
+							variant="secondary"
+							:size="isCompactMode ? 'md' : 'lg'"
+							:loading="isSubmitting"
 							:disabled="paymentEntries.length > 0 || isSubmitting"
-							:class="[
-								'flex-1 inline-flex items-center justify-center gap-2 transition-colors focus:outline-none',
-								dynamicButtonHeight,
-								'text-sm font-semibold px-4 rounded-lg',
-								paymentEntries.length > 0 || isSubmitting
-									? 'bg-orange-300 text-white cursor-not-allowed'
-									: 'bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 focus-visible:ring-2 focus-visible:ring-orange-400',
-							]"
+							@click="addCreditAccountPayment"
 						>
-							<svg
-								v-if="isSubmitting"
-								class="w-4 h-4 animate-spin"
-								fill="none"
-								viewBox="0 0 24 24"
-							>
-								<circle
-									class="opacity-25"
-									cx="12"
-									cy="12"
-									r="10"
-									stroke="currentColor"
-									stroke-width="4"
-								></circle>
-								<path
-									class="opacity-75"
-									fill="currentColor"
-									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-								></path>
-							</svg>
-							<svg
-								v-else
-								class="w-4 h-4"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-								/>
-							</svg>
-							<span>{{
-								isSubmitting ? __("Processing...") : __("Pago a Cuenta")
-							}}</span>
-						</button>
+							{{ isSubmitting ? __("Processing...") : __("Pago a Cuenta") }}
+						</MdxButton>
 
-						<!-- Complete/Partial Payment Button -->
-						<button
-							@click="completePayment"
+						<!-- Complete/Partial Payment Button (Primary MdxButton) -->
+						<MdxButton
+							class="flex-1"
+							variant="primary"
+							:size="isCompactMode ? 'md' : 'lg'"
+							:loading="isSubmitting"
 							:disabled="!canComplete || isSubmitting"
-							:class="[
-								'flex-1 inline-flex items-center justify-center gap-2 transition-colors focus:outline-none',
-								dynamicButtonHeight,
-								'text-sm font-semibold px-5 rounded-lg',
-								!canComplete || isSubmitting
-									? 'bg-blue-300 text-white cursor-not-allowed'
-									: 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 focus-visible:ring-2 focus-visible:ring-blue-400',
-							]"
+							@click="completePayment"
 						>
-							<svg
-								v-if="isSubmitting"
-								class="w-4 h-4 animate-spin"
-								fill="none"
-								viewBox="0 0 24 24"
-							>
-								<circle
-									class="opacity-25"
-									cx="12"
-									cy="12"
-									r="10"
-									stroke="currentColor"
-									stroke-width="4"
-								></circle>
-								<path
-									class="opacity-75"
-									fill="currentColor"
-									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-								></path>
-							</svg>
-							<svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-								<path
-									fill-rule="evenodd"
-									d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-									clip-rule="evenodd"
-								/>
-							</svg>
-							<span>{{
-								isSubmitting ? __("Processing...") : paymentButtonText
-							}}</span>
-						</button>
+							{{ isSubmitting ? __("Processing...") : paymentButtonText }}
+						</MdxButton>
 					</div>
 				</div>
 				<!-- End Right Column -->
 			</div>
 			<!-- End Two Column Layout -->
-		</template>
-	</Dialog>
+	</MdxModal>
 
-	<!-- Nested Radix Dialog for overpayment confirmation -->
-	<Dialog v-model="overpayConfirmVisible" :options="{ size: 'xs' }">
-		<template #body>
-			<div class="p-5">
-				<div class="flex items-start gap-3 mb-4">
-					<div
-						class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-amber-50 border border-amber-200"
-					>
-						<svg
-							class="w-5 h-5 text-amber-500"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
-							/>
-						</svg>
-					</div>
-					<div class="min-w-0">
-						<h3 class="text-sm font-semibold text-gray-900">
-							{{ overpayConfirmTitle }}
-						</h3>
-						<p class="text-sm text-gray-500 mt-1 leading-relaxed">
-							{{ overpayConfirmMessage }}
-						</p>
-					</div>
-				</div>
-				<div class="flex gap-2.5 justify-end">
-					<button
-						@click="resolveOverpayConfirm(false)"
-						class="px-4 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors"
-					>
-						{{ __("Cancel") }}
-					</button>
-					<button
-						@click="resolveOverpayConfirm(true)"
-						class="px-4 py-1.5 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-colors"
-					>
-						{{ __("Continue") }}
-					</button>
-				</div>
-			</div>
-		</template>
-	</Dialog>
+	<!-- Confirmación de sobrepago estandarizada con MdxConfirmDialog -->
+	<MdxConfirmDialog
+		v-model="overpayConfirmVisible"
+		:title="overpayConfirmTitle"
+		:message="overpayConfirmMessage"
+		icon="warning"
+		variant="primary"
+		:confirmText="__('Continue')"
+		:cancelText="__('Cancel')"
+		@confirm="resolveOverpayConfirm(true)"
+		@cancel="resolveOverpayConfirm(false)"
+	/>
 </template>
 
 <script setup>
@@ -2093,10 +1813,18 @@ import {
 	getCurrencySymbol,
 	roundCurrency,
 } from "@/utils/currency";
-import { getPaymentIcon } from "@/utils/payment";
 import { offlineWorker } from "@/utils/offline/workerClient";
 import { logger } from "@/utils/logger";
-import { Dialog, createResource, call } from "frappe-ui";
+import { createResource, call } from "frappe-ui";
+import {
+	MdxBadge,
+	MdxButton,
+	MdxConfirmDialog,
+	MdxLoadingSpinner,
+	MdxModal,
+	MdxSegmentedControl,
+	MdxSelect,
+} from "mdx_ui";
 import { computed, ref, watch, nextTick } from "vue";
 import { useToast } from "@/composables/useToast";
 import { useLongPress } from "@/composables/useLongPress";
@@ -2107,6 +1835,18 @@ import { useQuickAmounts } from "@/composables/useQuickAmounts";
 const log = logger.create("PaymentDialog");
 const settingsStore = usePOSSettingsStore();
 const { showWarning, showInfo } = useToast();
+
+const driverCollectionOptions = computed(() => [
+	{ value: "", label: __("— Sin especificar (En blanco) —") },
+	{ value: "Pagar al Chofer Contra Entrega", label: __("Pagar al Chofer Contra Entrega") },
+	{ value: "Ya Pagado en Fábrica / Transferencia", label: __("Ya Pagado (Solo Entregar)") },
+	{ value: "A Crédito / Con Saldo", label: __("A Crédito / Con Saldo (Recabar Firma)") },
+]);
+
+const discountTypeOptions = computed(() => [
+	{ value: "percentage", label: "%" },
+	{ value: "amount", label: getCurrencySymbol(props.currency || DEFAULT_CURRENCY) },
+]);
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -2271,7 +2011,7 @@ const {
 	dynamicNumpadSize,
 } = useResponsivePayment();
 
-const showPromoButtons = ref(false); // Cambiar a true si el cliente desea habilitar Ofertas y Cupones en el futuro.
+const showPromoButtons = computed(() => settingsStore.enablePromotions);
 
 // Calculate and sync column heights when dialog opens
 function syncColumnHeights() {

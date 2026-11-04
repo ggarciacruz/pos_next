@@ -40,8 +40,11 @@
 </template>
 
 <script setup>
+import { usePOSSettingsStore } from "@/stores/posSettings";
 import MdxSidebar from "mdx_ui/components/MdxSidebar.vue";
 import { computed, ref } from "vue";
+
+const posSettingsStore = usePOSSettingsStore();
 
 const props = defineProps({
 	activeItem: {
@@ -71,32 +74,37 @@ const userInfo = computed(() => ({
 	role: props.profileName || "Punto de Venta",
 }));
 
-const sidebarItems = computed(() => [
-	{
-		id: "pos",
-		label: __("Punto de Venta"),
-		shortLabel: __("Caja"),
-		icon: "home",
-	},
-	{
-		id: "invoices",
-		label: __("Gestión de Ventas"),
-		shortLabel: __("Ventas"),
-		icon: "ledger",
-	},
-	{
-		id: "products",
-		label: __("Stock y Productos"),
-		shortLabel: __("Stock"),
-		icon: "box",
-	},
-	{
-		id: "promotions",
-		label: __("Promociones"),
-		shortLabel: __("Promos"),
-		icon: "tag",
-	},
-]);
+const sidebarItems = computed(() => {
+	const items = [
+		{
+			id: "pos",
+			label: __("Punto de Venta"),
+			shortLabel: __("Caja"),
+			icon: "home",
+		},
+		{
+			id: "invoices",
+			label: __("Gestión de Ventas"),
+			shortLabel: __("Ventas"),
+			icon: "ledger",
+		},
+		{
+			id: "products",
+			label: __("Stock y Productos"),
+			shortLabel: __("Stock"),
+			icon: "box",
+		},
+	];
+	if (posSettingsStore.enablePromotions) {
+		items.push({
+			id: "promotions",
+			label: __("Promociones"),
+			shortLabel: __("Promos"),
+			icon: "tag",
+		});
+	}
+	return items;
+});
 
 const bottomItems = computed(() => [
 	{

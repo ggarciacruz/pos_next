@@ -24,14 +24,11 @@ export function useResponsivePayment() {
 		window.removeEventListener("resize", updateViewportDimensions);
 	});
 
-	// Dynamic dialog size based on viewport
+	// Dynamic dialog size based on viewport (mapped to MdxModal sizes)
 	const dynamicDialogSize = computed(() => {
 		const width = viewportWidth.value;
-		if (width < 640) return "full"; // Mobile: full screen
-		if (width < 768) return "full"; // Small tablet: full screen for better usability
-		if (width < 1024) return "4xl"; // Tablet
-		if (width < 1280) return "5xl"; // Small desktop
-		return "6xl"; // Large desktop
+		if (width < 1024) return "full"; // Mobile (6.5"+) & tablet portrait: full screen modal
+		return "xl"; // Desktop (1000px max-width in MdxModal)
 	});
 
 	// Check if we're on a mobile device (for mobile-specific behavior)
@@ -63,8 +60,8 @@ export function useResponsivePayment() {
 		return `${Math.max(400, Math.min(availableHeight, height - 120))}px`;
 	});
 
-	// Check if we're in compact mode (small screens)
-	const isCompactMode = computed(() => viewportHeight.value < 700 || viewportWidth.value < 1024);
+	// Check if we're in compact mode (small screens or standard laptops < 820px height)
+	const isCompactMode = computed(() => viewportHeight.value < 820 || viewportWidth.value < 1024);
 
 	// Check if we're on a very small mobile screen
 	const isSmallMobile = computed(() => viewportWidth.value < 360 || viewportHeight.value < 600);
@@ -161,11 +158,10 @@ export function useResponsivePayment() {
 		};
 	});
 
-	// Dynamic numpad key size
+	// Dynamic numpad key size (uses h-full for row-span-2 add button to match CSS Grid rows)
 	const dynamicNumpadSize = computed(() => {
-		if (viewportHeight.value < 600) return { key: "h-10", addBtn: "h-[6.5rem]" };
-		if (viewportHeight.value < 700) return { key: "h-10", addBtn: "h-[7rem]" };
-		return { key: "h-12", addBtn: "h-[8.5rem]" };
+		if (viewportHeight.value < 800) return { key: "h-10", addBtn: "h-full" };
+		return { key: "h-11", addBtn: "h-full" };
 	});
 
 	return {

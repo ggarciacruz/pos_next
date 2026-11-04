@@ -1,226 +1,224 @@
 <template>
-	<Dialog
+	<MdxModal
 		v-model="show"
-		:options="{
-			title: isEditMode ? __('Edit Customer') : __('Create New Customer'),
-			size: 'md',
-		}"
+		:title="isEditMode ? __('Edit Customer') : __('Create New Customer')"
+		size="md"
 	>
-		<template #body-content>
-			<div class="flex flex-col gap-3.5 max-h-[65vh] overflow-y-auto px-0.5">
-				<!-- Customer Name (Required) -->
-				<div>
-					<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
-						{{ __("Customer Name") }} <span class="text-red-500">*</span>
-					</label>
-					<Input
-						v-model="customerData.customer_name"
-						type="text"
-						:placeholder="__('Enter customer name')"
-						required
-						@keydown.enter.prevent="handleCreate"
-					/>
-				</div>
+		<div class="flex flex-col gap-3.5 px-0.5">
+			<!-- Customer Name (Required) -->
+			<div>
+				<label class="block text-start text-xs font-bold text-slate-700 mb-1">
+					{{ __("Customer Name") }} <span class="text-red-500">*</span>
+				</label>
+				<input
+					v-model="customerData.customer_name"
+					type="text"
+					:placeholder="__('Enter customer name')"
+					required
+					class="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-start"
+					@keydown.enter.prevent="handleCreate"
+				/>
+			</div>
 
-				<!-- Mobile Number with Country Code Selector -->
-				<div>
-					<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
-						{{ __("Mobile Number") }}
-					</label>
-					<div class="flex gap-2">
-						<!-- Country Code Dropdown -->
-						<div class="relative" ref="dropdownRef">
-							<button
-								type="button"
-								@click="showCountryDropdown = !showCountryDropdown"
-								class="flex items-center gap-1 w-24 ps-2 pe-1 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white hover:bg-gray-50"
+			<!-- Mobile Number with Country Code Selector -->
+			<div>
+				<label class="block text-start text-xs font-bold text-slate-700 mb-1">
+					{{ __("Mobile Number") }}
+				</label>
+				<div class="flex gap-2">
+					<!-- Country Code Dropdown -->
+					<div class="relative" ref="dropdownRef">
+						<button
+							type="button"
+							@click="showCountryDropdown = !showCountryDropdown"
+							class="flex items-center gap-1.5 w-24 h-9 ps-2.5 pe-1.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:bg-slate-50"
+						>
+							<img
+								:src="`https://flagcdn.com/h24/${currentCountryCode}.png`"
+								:alt="currentCountryCode"
+								class="w-5 h-auto rounded-sm"
+								@error="handleFlagError"
+							/>
+							<span class="flex-1 text-start tabular-nums">{{
+								selectedCountryCode || "+591"
+							}}</span>
+							<svg
+								class="w-4 h-4 text-slate-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
 							>
-								<img
-									:src="`https://flagcdn.com/h24/${currentCountryCode}.png`"
-									:alt="currentCountryCode"
-									class="w-5 h-auto rounded-sm"
-									@error="handleFlagError"
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M19 9l-7 7-7-7"
 								/>
-								<span class="flex-1 text-start">{{
-									selectedCountryCode || "+591"
-								}}</span>
-								<svg
-									class="w-4 h-4 text-gray-400"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M19 9l-7 7-7-7"
-									/>
-								</svg>
-							</button>
+							</svg>
+						</button>
 
-							<!-- Country Search Dropdown -->
-							<div
-								v-if="showCountryDropdown"
-								class="absolute start-0 z-50 mt-1 w-80 max-h-72 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden"
-							>
-								<div class="sticky top-0 bg-white border-b border-gray-200 p-2">
-									<input
-										ref="countrySearchRef"
-										v-model="countrySearchQuery"
-										type="text"
-										:placeholder="__('Search country or code...')"
-										class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-										@keydown.escape="showCountryDropdown = false"
+						<!-- Country Search Dropdown -->
+						<div
+							v-if="showCountryDropdown"
+							class="absolute start-0 z-50 mt-1 w-72 sm:w-80 max-h-72 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden"
+						>
+							<div class="sticky top-0 bg-white border-b border-slate-200 p-2">
+								<input
+									ref="countrySearchRef"
+									v-model="countrySearchQuery"
+									type="text"
+									:placeholder="__('Search country or code...')"
+									class="w-full h-8 px-3 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+									@keydown.escape="showCountryDropdown = false"
+								/>
+							</div>
+							<div class="overflow-y-auto max-h-56">
+								<button
+									v-for="country in filteredCountries"
+									:key="country.code"
+									type="button"
+									@click="selectCountry(country)"
+									class="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 transition-colors text-start"
+									:class="{
+										'bg-blue-50/60': selectedCountryCode === country.isd,
+									}"
+								>
+									<img
+										:src="`https://flagcdn.com/h24/${country.code.toLowerCase()}.png`"
+										:alt="country.name"
+										class="w-5 h-auto rounded-sm shadow-sm"
+										@error="(e) => (e.target.style.display = 'none')"
 									/>
-								</div>
-								<div class="overflow-y-auto max-h-56">
-									<button
-										v-for="country in filteredCountries"
-										:key="country.code"
-										type="button"
-										@click="selectCountry(country)"
-										class="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 transition-colors text-start"
-										:class="{
-											'bg-blue-50': selectedCountryCode === country.isd,
-										}"
-									>
-										<img
-											:src="`https://flagcdn.com/h24/${country.code.toLowerCase()}.png`"
-											:alt="country.name"
-											class="w-5 h-auto rounded-sm shadow-sm"
-											@error="(e) => (e.target.style.display = 'none')"
-										/>
-										<span class="flex-1 text-sm font-medium text-gray-700">{{
-											country.name
-										}}</span>
-										<span class="text-sm text-gray-500">{{
-											country.isd
-										}}</span>
-									</button>
-									<div
-										v-if="filteredCountries.length === 0"
-										class="px-4 py-6 text-center text-sm text-gray-500"
-									>
-										{{ __("No countries found") }}
-									</div>
+									<span class="flex-1 text-xs font-semibold text-slate-700">{{
+										country.name
+									}}</span>
+									<span class="text-xs font-medium text-slate-500 tabular-nums">{{
+										country.isd
+									}}</span>
+								</button>
+								<div
+									v-if="filteredCountries.length === 0"
+									class="px-4 py-6 text-center text-xs text-slate-500"
+								>
+									{{ __("No countries found") }}
 								</div>
 							</div>
 						</div>
-
-						<!-- Phone Number Input -->
-						<input
-							v-model="phoneNumber"
-							type="tel"
-							:placeholder="__('Enter phone number')"
-							class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-start"
-							@input="updateMobileNumber"
-							@keydown.enter.prevent="handleCreate"
-						/>
 					</div>
-				</div>
 
-				<!-- Dirección / Puesto de Entrega (Opcional) -->
+					<!-- Phone Number Input -->
+					<input
+						v-model="phoneNumber"
+						type="tel"
+						:placeholder="__('Enter phone number')"
+						class="flex-1 h-9 px-3 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-start tabular-nums"
+						@input="updateMobileNumber"
+						@keydown.enter.prevent="handleCreate"
+					/>
+				</div>
+			</div>
+
+			<!-- Dirección / Puesto de Entrega (Opcional) -->
+			<div>
+				<label class="block text-start text-xs font-bold text-slate-700 mb-1">
+					{{ __("Dirección / Puesto de Entrega") }}
+				</label>
+				<input
+					v-model="customerData.primary_address"
+					type="text"
+					:placeholder="__('Ej: Feria / Tienda / Calle y zona de entrega (opcional)')"
+					class="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-start"
+					@keydown.enter.prevent="handleCreate"
+				/>
+			</div>
+
+			<!-- Datos de Facturación (Solo visible si la Facturación está habilitada en Configuración del POS) -->
+			<div
+				v-if="settingsStore.enableSiatFiscalFormat"
+				class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-slate-200"
+			>
+				<!-- NIT / CI -->
 				<div>
-					<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
-						{{ __("Dirección / Puesto de Entrega") }}
+					<label class="block text-start text-xs font-bold text-slate-700 mb-1">
+						{{ __("NIT / CI") }}
 					</label>
-					<Input
-						v-model="customerData.primary_address"
+					<input
+						v-model="customerData.tax_id"
 						type="text"
-						:placeholder="__('Ej: Feria / Tienda / Calle y zona de entrega (opcional)')"
+						:placeholder="__('Número de NIT o CI')"
+						class="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-start tabular-nums"
 						@keydown.enter.prevent="handleCreate"
 					/>
 				</div>
 
-				<!-- Datos de Facturación (Solo visible si la Facturación está habilitada en Configuración del POS) -->
-				<div
-					v-if="settingsStore.enableSiatFiscalFormat"
-					class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100"
-				>
-					<!-- NIT / CI -->
-					<div>
-						<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
-							{{ __("NIT / CI") }}
-						</label>
-						<Input
-							v-model="customerData.tax_id"
-							type="text"
-							:placeholder="__('Número de NIT o CI')"
-							@keydown.enter.prevent="handleCreate"
-						/>
-					</div>
-
-					<!-- Razón Social -->
-					<div>
-						<label class="block text-start text-xs font-semibold text-gray-700 mb-1">
-							{{ __("Razón Social / Nombre Factura") }}
-						</label>
-						<Input
-							v-model="customerData.custom_razon_social"
-							type="text"
-							:placeholder="customerData.customer_name || __('Nombre o Apellido para factura')"
-							@keydown.enter.prevent="handleCreate"
-						/>
-					</div>
+				<!-- Razón Social -->
+				<div>
+					<label class="block text-start text-xs font-bold text-slate-700 mb-1">
+						{{ __("Razón Social / Nombre Factura") }}
+					</label>
+					<input
+						v-model="customerData.custom_razon_social"
+						type="text"
+						:placeholder="customerData.customer_name || __('Nombre o Apellido para factura')"
+						class="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-start"
+						@keydown.enter.prevent="handleCreate"
+					/>
 				</div>
 			</div>
-		</template>
 
-		<template #actions>
-			<div class="flex flex-col gap-2 w-full">
-				<!-- Permission Warning -->
-				<div
-					v-if="!hasPermission"
-					class="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg"
-				>
-					<div class="flex items-start gap-2">
-						<svg
-							class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5"
-							fill="currentColor"
-							viewBox="0 0 20 20"
-						>
-							<path
-								fill-rule="evenodd"
-								d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-								clip-rule="evenodd"
-							/>
-						</svg>
-						<div class="flex-1">
-							<p class="text-sm font-medium text-amber-900">
-								{{ __("Permission Required") }}
-							</p>
-							<p class="text-xs text-amber-700 mt-0.5">
-								{{
-									__(
-										"You don't have permission to create customers. Contact your administrator."
-									)
-								}}
-							</p>
-						</div>
-					</div>
-				</div>
-
-				<div class="flex items-center justify-end gap-2 w-full">
-					<Button variant="subtle" @click="show = false">
-						{{ __("Cancel") }}
-					</Button>
-					<Button
-						variant="solid"
-						@click="handleCreate"
-						:loading="
-							createCustomerResource.loading ||
-							updateCustomerResource.loading ||
-							checkingPermission
-						"
-						:disabled="!customerData.customer_name || !hasPermission"
+			<!-- Permission Warning -->
+			<div
+				v-if="!hasPermission"
+				class="px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl"
+			>
+				<div class="flex items-start gap-2">
+					<svg
+						class="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5"
+						fill="currentColor"
+						viewBox="0 0 20 20"
 					>
-						{{ isEditMode ? __("Save Changes") : __("Create Customer") }}
-					</Button>
+						<path
+							fill-rule="evenodd"
+							d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+							clip-rule="evenodd"
+						/>
+					</svg>
+					<div class="flex-1">
+						<p class="text-xs font-bold text-amber-900">
+							{{ __("Permission Required") }}
+						</p>
+						<p class="text-[11px] text-amber-700 mt-0.5">
+							{{
+								__(
+									"You don't have permission to create customers. Contact your administrator."
+								)
+							}}
+						</p>
+					</div>
 				</div>
 			</div>
+		</div>
+
+		<template #footer>
+			<div class="flex items-center justify-end gap-2 w-full">
+				<MdxButton variant="secondary" @click="show = false">
+					{{ __("Cancel") }}
+				</MdxButton>
+				<MdxButton
+					variant="primary"
+					:loading="
+						createCustomerResource.loading ||
+						updateCustomerResource.loading ||
+						checkingPermission
+					"
+					:disabled="!customerData.customer_name || !hasPermission"
+					@click="handleCreate"
+				>
+					{{ isEditMode ? __("Save Changes") : __("Create Customer") }}
+				</MdxButton>
+			</div>
 		</template>
-	</Dialog>
+	</MdxModal>
 </template>
 
 <script setup>
@@ -239,7 +237,8 @@ import { useToast } from "@/composables/useToast";
 import { useCountriesStore } from "@/stores/countries";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import { logger } from "@/utils/logger";
-import { Button, Dialog, Input, createResource } from "frappe-ui";
+import { createResource } from "frappe-ui";
+import { MdxButton, MdxModal } from "mdx_ui";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 const log = logger.create("CreateCustomerDialog");

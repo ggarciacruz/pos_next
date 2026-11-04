@@ -66,8 +66,13 @@ export async function resolveWhatsAppDocument(inputDoc, fallbackCompany = "Muebl
 		!isQuotation &&
 		(doc.doctype === "Sales Order" ||
 			name.includes("-ORD-") ||
+			name.includes("-PV-") ||
 			name.startsWith("SAL-ORD-") ||
-			name.startsWith("SO-"));
+			name.startsWith("SO-") ||
+			name.startsWith("PV-"));
+
+	const initialPaidAmount = doc.paid_amount;
+	const initialOutstandingAmount = doc.outstanding_amount;
 
 	// Hydrate items if missing
 	if (!Array.isArray(doc.items) || doc.items.length === 0) {
@@ -80,30 +85,40 @@ export async function resolveWhatsAppDocument(inputDoc, fallbackCompany = "Muebl
 			} catch (e) {
 				console.warn("Could not hydrate local invoice for WhatsApp:", e);
 			}
-		} else if (name) {
+		} else if (name && !name.startsWith("DRAFT-")) {
 			try {
 				if (isQuotation) {
-					const fullQtn = await call("frappe.client.get", {
+					const resQtn = await call("frappe.client.get", {
 						doctype: "Quotation",
 						name,
 					});
+					const fullQtn = resQtn?.message || resQtn;
 					if (fullQtn) doc = { ...doc, ...fullQtn, doctype: "Quotation" };
 				} else if (isSalesOrder) {
-					const fullSo = await call("frappe.client.get", {
+					const resSo = await call("frappe.client.get", {
 						doctype: "Sales Order",
 						name,
 					});
+					const fullSo = resSo?.message || resSo;
 					if (fullSo) doc = { ...doc, ...fullSo, doctype: "Sales Order" };
 				} else {
-					const fullInv = await call("pos_next.api.invoices.get_invoice", {
+					const resInv = await call("pos_next.api.invoices.get_invoice", {
 						invoice_name: name,
 					});
+					const fullInv = resInv?.message || resInv;
 					if (fullInv) doc = { ...doc, ...fullInv, doctype: "Sales Invoice" };
 				}
 			} catch (e) {
 				console.warn("Could not fetch server document for WhatsApp:", e);
 			}
 		}
+	}
+
+	if (initialOutstandingAmount != null && doc.outstanding_amount == null) {
+		doc.outstanding_amount = initialOutstandingAmount;
+	}
+	if (initialPaidAmount != null && (doc.paid_amount == null || Number(initialPaidAmount) > Number(doc.paid_amount))) {
+		doc.paid_amount = initialPaidAmount;
 	}
 
 	// Resolve customer name & phone
@@ -231,7 +246,7 @@ export function buildWhatsAppReceiptMessage(doc) {
 
 	const itemLines = items.map((it) => {
 		const qty = Number.parseFloat(it.qty ?? it.quantity ?? 1) || 1;
-		const rate = Number.parseFloat(it.rate ?? it.price_list_rate ?? 0) || 0;
+		const rate = Number.parseFloat(it.rate ?? it.price ?? it.price_list_rate ?? 0) || 0;
 		const lineAmt = Number.parseFloat(it.amount ?? qty * rate) || qty * rate;
 		calculatedTotal += lineAmt;
 		const qtyStr = Number.isInteger(qty) ? String(qty) : qty.toFixed(2);
@@ -258,6 +273,10 @@ export function buildWhatsAppReceiptMessage(doc) {
 		doc.outstanding_amount != null
 			? Number.parseFloat(doc.outstanding_amount) || 0
 			: Math.max(0, grandTotal - paidAmount);
+
+	if (doc.outstanding_amount != null && grandTotal > outstanding) {
+		paidAmount = Math.max(paidAmount, grandTotal - outstanding);
+	}
 
 	const headerLines = [
 		`*${company}*`,

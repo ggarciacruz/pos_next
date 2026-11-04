@@ -1,98 +1,88 @@
 <template>
-	<!-- Full Page Overlay -->
-	<Transition name="fade">
-		<div
-			v-if="show"
-			class="fixed inset-0 bg-black bg-opacity-50 z-[300]"
-			@click.self="show = false"
-		>
-			<!-- Main Container -->
-			<div class="fixed inset-0 flex items-center justify-center p-4">
-				<div
-					class="w-full h-full max-w-[95vw] max-h-[95vh] bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col"
-				>
-					<!-- Header -->
-					<div
-						class="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-gray-50 to-blue-50 flex-shrink-0"
+	<MdxModal
+		v-model="show"
+		size="6xl"
+		:noPadding="true"
+	>
+		<!-- Header -->
+		<template #header>
+			<div class="flex items-center gap-3 min-w-0">
+				<div class="w-9 h-9 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center shrink-0">
+					<svg
+						class="w-5 h-5 text-blue-600"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
 					>
-						<div class="flex items-center gap-3">
-							<div class="p-2 bg-blue-100 rounded-lg">
-								<svg
-									class="w-6 h-6 text-blue-600"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-									/>
-								</svg>
-							</div>
-							<div>
-								<h2 class="text-lg font-bold text-gray-900 leading-tight">
-									{{ __("Cargar Venta / Cotización") }}
-								</h2>
-								<p class="text-xs text-gray-600 mt-0.5">
-									{{ __("Gestione e importe sus documentos directamente a la caja") }}
-								</p>
-							</div>
-						</div>
-						<div class="flex items-center gap-3">
-							<!-- Refresh Button -->
-							<Button
-								@click="refreshData"
-								:loading="isRefreshing"
-								variant="ghost"
-								size="sm"
-								class="text-gray-600 hover:text-blue-600 flex items-center gap-1.5 font-semibold"
-							>
-								<template #prefix>
-									<svg
-										class="w-4 h-4"
-										:class="{ 'animate-spin': isRefreshing }"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-										stroke-width="2"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-										/>
-									</svg>
-								</template>
-								{{ __("Actualizar") }}
-							</Button>
-							
-							<!-- Close Button -->
-							<button
-								type="button"
-								@click="show = false"
-								class="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all cursor-pointer focus:outline-none"
-							>
-								<svg
-									class="w-5 h-5"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									stroke-width="2"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										d="M6 18L18 6M6 6l12 12"
-									/>
-								</svg>
-							</button>
-						</div>
-					</div>
-					
-					<!-- Body Content (Scrollable) -->
-					<div class="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+						/>
+					</svg>
+				</div>
+				<div class="min-w-0 text-start">
+					<h2 class="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">
+						{{ __("Cargar Venta / Cotización") }}
+					</h2>
+					<p class="text-xs text-slate-500 mt-0.5 truncate">
+						{{ __("Gestione e importe sus documentos directamente a la caja") }}
+					</p>
+				</div>
+			</div>
+			<div class="flex items-center gap-2 shrink-0">
+				<!-- Refresh Button -->
+				<MdxButton
+					variant="secondary"
+					size="sm"
+					:loading="isRefreshing"
+					@click="refreshData"
+				>
+					<template #icon>
+						<svg
+							class="w-4 h-4"
+							:class="{ 'animate-spin': isRefreshing }"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							stroke-width="2"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+							/>
+						</svg>
+					</template>
+					{{ __("Actualizar") }}
+				</MdxButton>
+
+				<!-- Close Button -->
+				<button
+					type="button"
+					@click="show = false"
+					class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer focus:outline-none"
+				>
+					<svg
+						class="w-5 h-5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						stroke-width="2"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M6 18L18 6M6 6l12 12"
+						/>
+					</svg>
+				</button>
+			</div>
+		</template>
+
+		<!-- Body Content (Scrollable) -->
+		<div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
 						<div class="flex flex-col gap-3">
 							<!-- Search and Tabs Header -->
 							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-3">
@@ -444,99 +434,80 @@
 							</div>
 						</div>
 					</div>
-					
-					<!-- Footer (Actions & Pagination) -->
-					<div class="px-6 py-4 border-t flex justify-between items-center bg-gray-50 flex-shrink-0">
-						<!-- Left: Clear All Button -->
-						<Button
-							v-if="drafts.length > 0"
-							variant="subtle"
-							theme="red"
-							@click="showClearAllDialog = true"
-							class="text-xs uppercase font-extrabold tracking-wider bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-lg py-1 px-3"
-						>
-							{{ __("Limpiar Todo") }}
-						</Button>
-						<div v-else></div>
 
-						<!-- Center: Pagination Controls -->
-						<div v-if="totalPages > 1" class="flex items-center gap-3">
-							<button
-								type="button"
-								@click="currentPage--"
-								:disabled="currentPage === 1"
-								class="p-1 rounded-md border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer focus:outline-none"
-							>
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-								</svg>
-							</button>
-							<span class="text-xs font-semibold text-gray-600">
-								{{ __("Página {0} de {1}", [currentPage, totalPages]) }} <span class="text-gray-400 font-normal">({{ __("Total: {0}", [filteredDrafts.length]) }})</span>
-							</span>
-							<button
-								type="button"
-								@click="currentPage++"
-								:disabled="currentPage === totalPages"
-								class="p-1 rounded-md border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer focus:outline-none"
-							>
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-								</svg>
-							</button>
-						</div>
+		<!-- Footer (Actions & Pagination) -->
+		<template #footer>
+			<div class="flex justify-between items-center w-full gap-3">
+				<!-- Left: Clear All Button -->
+				<MdxButton
+					v-if="drafts.length > 0"
+					variant="danger"
+					size="sm"
+					@click="showClearAllDialog = true"
+				>
+					{{ __("Limpiar Todo") }}
+				</MdxButton>
+				<div v-else></div>
 
-						<!-- Right: Close Button -->
-						<Button variant="subtle" @click="show = false">
-							{{ __("Cerrar") }}
-						</Button>
-					</div>
+				<!-- Center: Pagination Controls -->
+				<div v-if="totalPages > 1" class="flex items-center gap-3">
+					<button
+						type="button"
+						@click="currentPage--"
+						:disabled="currentPage === 1"
+						class="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer focus:outline-none"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+						</svg>
+					</button>
+					<span class="text-xs font-bold text-slate-700 tabular-nums">
+						{{ __("Página {0} de {1}", [currentPage, totalPages]) }}
+						<span class="text-slate-400 font-medium">({{ __("Total: {0}", [filteredDrafts.length]) }})</span>
+					</span>
+					<button
+						type="button"
+						@click="currentPage++"
+						:disabled="currentPage === totalPages"
+						class="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer focus:outline-none"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+						</svg>
+					</button>
 				</div>
-			</div>
-		</div>
-	</Transition>
 
-	<!-- Delete Single Draft Confirmation -->
-	<Dialog v-model="showDeleteDialog" :options="{ title: __('Delete Draft?'), size: 'xs' }">
-		<template #body-content>
-			<div class="py-3">
-				<p class="text-sm text-gray-600">
-					{{ __("Permanently delete this draft invoice?") }}
-				</p>
+				<!-- Right: Close Button -->
+				<MdxButton variant="secondary" @click="show = false">
+					{{ __("Cerrar") }}
+				</MdxButton>
 			</div>
 		</template>
-		<template #actions>
-			<div class="flex gap-2 w-full">
-				<Button class="flex-1" variant="subtle" @click="showDeleteDialog = false">
-					{{ __("Cancel") }}
-				</Button>
-				<Button class="flex-1" variant="solid" theme="red" @click="confirmDeleteDraft">
-					{{ __("Delete") }}
-				</Button>
-			</div>
-		</template>
-	</Dialog>
+	</MdxModal>
 
-	<!-- Clear All Drafts Confirmation -->
-	<Dialog v-model="showClearAllDialog" :options="{ title: __('Clear All Drafts?'), size: 'xs' }">
-		<template #body-content>
-			<div class="py-3">
-				<p class="text-sm text-gray-600">
-					{{ __("Permanently delete all {0} draft invoices?", [drafts.length]) }}
-				</p>
-			</div>
-		</template>
-		<template #actions>
-			<div class="flex gap-2 w-full">
-				<Button class="flex-1" variant="subtle" @click="showClearAllDialog = false">
-					{{ __("Cancel") }}
-				</Button>
-				<Button class="flex-1" variant="solid" theme="red" @click="confirmClearAll">
-					{{ __("Clear All") }}
-				</Button>
-			</div>
-		</template>
-	</Dialog>
+	<!-- Delete Single Draft Confirmation (mdx_ui) -->
+	<MdxConfirmDialog
+		v-model="showDeleteDialog"
+		variant="danger"
+		icon="trash"
+		:title="__('Delete Draft?')"
+		:message="__('Permanently delete this draft invoice?')"
+		:cancel-text="__('Cancel')"
+		:confirm-text="__('Delete')"
+		@confirm="confirmDeleteDraft"
+	/>
+
+	<!-- Clear All Drafts Confirmation (mdx_ui) -->
+	<MdxConfirmDialog
+		v-model="showClearAllDialog"
+		variant="danger"
+		icon="trash"
+		:title="__('Clear All Drafts?')"
+		:message="__('Permanently delete all {0} draft invoices?', [drafts.length])"
+		:cancel-text="__('Cancel')"
+		:confirm-text="__('Clear All')"
+		@confirm="confirmClearAll"
+	/>
 </template>
 
 <script setup>
@@ -552,7 +523,8 @@ import { useToast } from "@/composables/useToast";
 import { usePOSShiftStore } from "@/stores/posShift";
 import { usePOSDraftsStore } from "@/stores/posDrafts";
 import { usePOSSettingsStore } from "@/stores/posSettings";
-import { Button, Dialog, call } from "frappe-ui";
+import { call } from "frappe-ui";
+import { MdxButton, MdxConfirmDialog, MdxModal } from "mdx_ui";
 import { db } from "@/utils/offline/db";
 import { onMounted, ref, watch, computed } from "vue";
 

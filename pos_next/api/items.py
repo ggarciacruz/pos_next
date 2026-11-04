@@ -2079,7 +2079,23 @@ def get_item_groups(pos_profile):
 		)
 
 		if not configured_groups:
-			result = (
+			boilerplate_groups = {
+				"all item groups",
+				"todos los grupos de artículos",
+				"materia prima",
+				"raw material",
+				"servicios",
+				"services",
+				"sub-ensambles",
+				"sub-ensamblajes",
+				"sub assemblies",
+				"consumibles",
+				"consumible",
+				"consumable",
+				"productos",
+				"products",
+			}
+			raw_groups = (
 				frappe.qb.from_(ItemGroup)
 				.select(ItemGroup.name.as_("item_group"))
 				.where(ItemGroup.is_group == 0)
@@ -2087,6 +2103,9 @@ def get_item_groups(pos_profile):
 				.limit(50)
 				.run(as_dict=True)
 			)
+			result = [
+				g for g in raw_groups if (g.get("item_group") or "").strip().lower() not in boilerplate_groups
+			] or raw_groups
 			frappe.cache().set_value(cache_key, result, expires_in_sec=300)
 			return result
 

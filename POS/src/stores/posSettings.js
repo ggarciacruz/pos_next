@@ -20,6 +20,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allow_user_to_edit_additional_discount: 0,
 		allow_user_to_edit_item_discount: 1, // Allow item-level discounts
 		allow_user_to_edit_rate: 0, // Allow rate editing in edit dialog
+		enable_promotions: 0, // Enable Promotions menu & offers in POS
 		disable_rounded_total: 1, // Disable rounding for accurate totals
 		allow_credit_sale: 0,
 		allow_customer_credit_payment: 0,
@@ -106,6 +107,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		Boolean(settings.value.allow_user_to_edit_item_discount)
 	);
 	const allowUserToEditRate = computed(() => Boolean(settings.value.allow_user_to_edit_rate));
+	const enablePromotions = computed(() => Boolean(settings.value.enable_promotions));
 	const disableRoundedTotal = computed(() => Boolean(settings.value.disable_rounded_total));
 	const allowCreditSale = computed(() => Boolean(settings.value.allow_credit_sale));
 	const allowCustomerCreditPayment = computed(() =>
@@ -300,6 +302,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			allow_user_to_edit_additional_discount: 0,
 			allow_user_to_edit_item_discount: 1,
 			allow_user_to_edit_rate: 0,
+			enable_promotions: 0,
 			disable_rounded_total: 1,
 			allow_credit_sale: 0,
 			allow_customer_credit_payment: 0,
@@ -424,6 +427,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allowAdditionalDiscount,
 		allowItemDiscount,
 		allowUserToEditRate,
+		enablePromotions,
 		disableRoundedTotal,
 		allowCreditSale,
 		allowCustomerCreditPayment,

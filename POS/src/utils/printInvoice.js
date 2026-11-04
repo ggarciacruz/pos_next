@@ -9,6 +9,11 @@ import { db } from "@/utils/offline/db";
 import { session } from "@/data/session";
 import { userData } from "@/data/user";
 import { usePOSSettingsStore } from "@/stores/posSettings";
+import {
+	buildWhatsAppPhoneDigits,
+	buildWhatsAppReceiptMessage,
+	resolveWhatsAppDocument,
+} from "@/utils/whatsappInvoice";
 
 const log = logger.create("PrintInvoice");
 
@@ -698,22 +703,15 @@ export function buildReceiptHTML(invoiceData) {
 }
 
 function buildReceiptDocumentHTML(invoiceData, { includeControls = false } = {}) {
-	const rawPhone = String(
-		invoiceData?.custom_telefono_contacto ||
+	const waPhone = buildWhatsAppPhoneDigits(
+		invoiceData?.resolved_phone ||
+			invoiceData?.custom_telefono_contacto ||
 			invoiceData?.contact_mobile ||
 			invoiceData?.mobile_no ||
+			invoiceData?.phone ||
 			""
-	).replace(/\D/g, "");
-	const waPhone =
-		rawPhone.length === 8 && (rawPhone.startsWith("6") || rawPhone.startsWith("7"))
-			? `591${rawPhone}`
-			: rawPhone;
-	const publicPdfLine = invoiceData?.public_pdf_url
-		? `\nDescargar Comprobante en PDF:\n${invoiceData.public_pdf_url.startsWith("http") ? invoiceData.public_pdf_url : window.location.origin + invoiceData.public_pdf_url}`
-		: "";
-	const waSummary = encodeURIComponent(
-		`*${(invoiceData?.company || "Muebles Ruffino").toUpperCase()}*\n*Comprobante: ${invoiceData?.name || ""}*\nCliente: ${invoiceData?.customer_name || invoiceData?.customer || "Cliente Mostrador"}\nTotal: Bs. ${formatCurrency(invoiceData?.grand_total || 0)}${publicPdfLine}\n¡Gracias por su preferencia!`
 	);
+	const waSummary = encodeURIComponent(buildWhatsAppReceiptMessage(invoiceData));
 	const waHref = waPhone ? `https://wa.me/${waPhone}?text=${waSummary}` : `https://wa.me/?text=${waSummary}`;
 
 	const { headerTitle, enableWhatsappSend } = getPOSPrintSettings(invoiceData);
@@ -789,6 +787,7 @@ export async function printInvoice(invoiceData, printFormat = null, letterhead =
 		if (!invoiceData?.name) throw new Error("Invalid invoice data");
 
 		invoiceData = await hydrateLocalOnlyInvoice(invoiceData);
+		invoiceData = await resolveWhatsAppDocument(invoiceData, invoiceData?.company);
 		invoiceData = await hydrateInvoiceItemsWithMedidas(invoiceData);
 
 		// Always use the unified short, simple thermal receipt layout
@@ -903,6 +902,7 @@ export async function silentPrintInvoiceFromDoc(invoiceData) {
  */
 export async function printWithSilentFallback(invoiceData, printFormat = null) {
 	invoiceData = await hydrateLocalOnlyInvoice(invoiceData);
+	invoiceData = await resolveWhatsAppDocument(invoiceData, invoiceData?.company);
 	invoiceData = await hydrateInvoiceItemsWithMedidas(invoiceData);
 	const invoiceName = invoiceData?.name;
 	if (!invoiceName) throw new Error("Invalid invoice data — missing name");

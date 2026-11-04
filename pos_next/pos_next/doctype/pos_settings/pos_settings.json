@@ -19,6 +19,7 @@
   "allow_user_to_edit_additional_discount",
   "allow_user_to_edit_item_discount",
   "allow_user_to_edit_rate",
+  "enable_promotions",
   "use_percentage_discount",
   "max_discount_allowed",
   "column_break_general",
@@ -191,6 +192,13 @@
    "fieldname": "allow_user_to_edit_rate",
    "fieldtype": "Check",
    "label": "Permitir Modificar Precio Unitario"
+  },
+  {
+   "default": "0",
+   "description": "Mostrar el módulo de Promociones (Promos) en el menú lateral del POS y los botones de ofertas y cupones",
+   "fieldname": "enable_promotions",
+   "fieldtype": "Check",
+   "label": "Habilitar Promociones y Ofertas (Promos)"
   },
   {
    "default": "0",

@@ -1,17 +1,13 @@
 <template>
-	<Dialog v-model="show" :options="{ title: __('Invoice Details'), size: '5xl' }">
-		<template #body-content>
-			<div v-if="loading" class="text-center py-12">
-				<div
-					class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto"
-				></div>
-				<p class="mt-3 text-sm text-gray-500">{{ __("Loading invoice details...") }}</p>
-			</div>
+	<MdxModal v-model="show" :title="__('Invoice Details')" size="5xl">
+		<div v-if="loading" class="py-12 flex justify-center">
+			<MdxLoadingSpinner size="md" :label="__('Loading invoice details...')" />
+		</div>
 
-			<div
-				v-else-if="invoiceData"
-				class="flex flex-col gap-4 max-h-[calc(100vh-17rem)] sm:max-h-[calc(100vh-15rem)] overflow-y-auto px-1 pe-2 -me-2"
-			>
+		<div
+			v-else-if="invoiceData"
+			class="flex flex-col gap-4 max-h-[calc(100vh-17rem)] sm:max-h-[calc(100vh-15rem)] overflow-y-auto px-1 pe-2 -me-2"
+		>
 				<!-- Invoice Header -->
 				<div
 					class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-3.5 sm:p-4 border border-indigo-100"
@@ -498,7 +494,7 @@
 
 			<div v-else class="text-center py-12">
 				<svg
-					class="mx-auto h-12 w-12 text-gray-400"
+					class="mx-auto h-12 w-12 text-slate-400"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -510,24 +506,23 @@
 						d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 					/>
 				</svg>
-				<p class="mt-2 text-sm text-gray-500">
+				<p class="mt-2 text-sm text-slate-500">
 					{{ __("Failed to load invoice details") }}
 				</p>
 			</div>
-		</template>
-		<template #actions>
+		<template #footer>
 			<div
 				class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-4 w-full"
 			>
 				<div class="flex items-center gap-2">
-					<Button variant="subtle" @click="show = false">
+					<MdxButton variant="secondary" @click="show = false">
 						{{ __("Close") }}
-					</Button>
+					</MdxButton>
 					<button
 						v-if="canCancelCurrentInvoice && !showCancelConfirm"
 						type="button"
 						@click="showCancelConfirm = true"
-						class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
+						class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
 					>
 						<svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -536,27 +531,25 @@
 					</button>
 				</div>
 				<div class="flex flex-wrap sm:flex-nowrap gap-2 justify-end">
-					<Button variant="outline" @click="handlePrint">
-						<template #prefix>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-								/>
-							</svg>
-						</template>
+					<MdxButton variant="secondary" @click="handlePrint">
+						<svg class="w-4 h-4 me-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+							/>
+						</svg>
 						{{ __("Print Ticket (Thermal)") }}
-					</Button>
-					<Button variant="solid" theme="blue" @click="handlePrintPDF">
+					</MdxButton>
+					<MdxButton variant="primary" @click="handlePrintPDF">
 						{{ __("Print PDF (Letter Size)") }}
-					</Button>
+					</MdxButton>
 					<button
 						v-if="posSettingsStore.enableWhatsappSend"
 						type="button"
 						@click="handleWhatsApp"
-						class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-xs cursor-pointer"
+						class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-xs cursor-pointer"
 						style="background-color: #16a34a; color: #ffffff;"
 					>
 						<svg class="w-4 h-4 fill-current flex-shrink-0" viewBox="0 0 24 24">
@@ -567,7 +560,7 @@
 				</div>
 			</div>
 		</template>
-	</Dialog>
+	</MdxModal>
 </template>
 
 <script setup>
@@ -578,10 +571,11 @@ import { getInvoiceStatusColor } from "@/utils/invoice";
 import { logger } from "@/utils/logger";
 import { hydrateLocalOnlyInvoice, isLocalOnlyInvoiceName } from "@/utils/printInvoice";
 import { isOffline } from "@/utils/offline/offlineState";
-import { Button, Dialog, call } from "frappe-ui";
+import { call } from "frappe-ui";
+import { MdxModal, MdxButton, MdxLoadingSpinner } from "mdx_ui";
 import { db } from "@/utils/offline/db";
 import { usePOSSettingsStore } from "@/stores/posSettings";
-import { ref, watch, nextTick, computed } from "vue";
+import { ref, watch, computed } from "vue";
 
 const log = logger.create("InvoiceDetailDialog");
 const { formatDate, formatTime } = useFormatters();
@@ -663,23 +657,13 @@ watch(
 	{ immediate: true }
 );
 
-watch(show, async (val) => {
+watch(show, (val) => {
 	emit("update:modelValue", val);
 	if (!val) {
 		// Clear data when closing
 		invoiceData.value = null;
 		showCancelConfirm.value = false;
 		cancelReason.value = "";
-	} else {
-		// Ensure dialog appears above other dialogs
-		await nextTick();
-		const dialogs = document.querySelectorAll(".modal-container, .modal-backdrop");
-		dialogs.forEach((dialog) => {
-			const title = dialog.querySelector('[class*="title"]');
-			if (title && title.textContent?.includes("Invoice Details")) {
-				dialog.style.zIndex = "400";
-			}
-		});
 	}
 });
 
