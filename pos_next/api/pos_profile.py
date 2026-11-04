@@ -14,12 +14,17 @@ def get_pos_profiles():
 	"""Get all POS Profiles accessible by current user"""
 	pos_profiles = frappe.db.sql(
 		"""
-		SELECT DISTINCT p.name, p.company, p.currency, p.warehouse,
-			p.selling_price_list, p.write_off_account, p.write_off_cost_center
+		SELECT p.name, p.company, p.currency, p.warehouse,
+			p.selling_price_list, p.write_off_account, p.write_off_cost_center,
+			MAX(u.`default`) AS is_default,
+			COALESCE(MAX(s.enable_shift_management), 1) AS enable_shift_management
 		FROM `tabPOS Profile` p
 		INNER JOIN `tabPOS Profile User` u ON u.parent = p.name
+		LEFT JOIN `tabPOS Settings` s ON s.pos_profile = p.name AND s.enabled = 1
 		WHERE p.disabled = 0 AND u.user = %s
-		ORDER BY p.name
+		GROUP BY p.name, p.company, p.currency, p.warehouse,
+			p.selling_price_list, p.write_off_account, p.write_off_cost_center
+		ORDER BY is_default DESC, p.name ASC
 		""",
 		frappe.session.user,
 		as_dict=1,

@@ -481,7 +481,7 @@
 					>
 						<!-- Stock Badge - Click to view warehouse availability -->
 						<div
-							v-if="(item.is_stock_item || item.is_bundle) && !item.has_variants"
+							v-if="item.is_stock_item || item.is_bundle || item.has_variants"
 							@click.stop="showWarehouseAvailability(item)"
 							:class="[
 								'absolute -top-1.5 -end-1.5 sm:-top-2 sm:-end-2 rounded-md shadow-lg z-10',
@@ -628,7 +628,7 @@
 
 							<!-- Double Stock Display -->
 							<div
-								v-if="item.is_stock_item || item.is_bundle"
+								v-if="item.is_stock_item || item.is_bundle || item.has_variants"
 								class="text-[8px] sm:text-[9px] text-gray-500 mt-1 flex flex-wrap gap-x-2 gap-y-0.5 leading-tight select-none cursor-pointer"
 								@click.stop="showWarehouseAvailability(item)"
 								:title="__('Click to view all warehouses')"
@@ -936,8 +936,7 @@
 									<!-- Stock Badge - Click to view warehouse availability -->
 									<div
 										v-if="
-											(item.is_stock_item || item.is_bundle) &&
-											!item.has_variants
+											item.is_stock_item || item.is_bundle || item.has_variants
 										"
 										@click.stop="showWarehouseAvailability(item)"
 										:class="[

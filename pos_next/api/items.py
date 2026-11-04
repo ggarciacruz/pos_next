@@ -596,55 +596,79 @@ def get_item_variants(template_item, pos_profile):
 
 		# Get all variant attributes in a single query (performance optimization)
 		attributes_map = {}
+		attr_order_map = {}
 		if variant_codes:
 			attributes = frappe.get_all(
 				"Item Variant Attribute",
 				filters={"parent": ["in", variant_codes]},
 				fields=["parent", "attribute", "attribute_value"],
 			)
+			attr_names = list({a["attribute"] for a in attributes if a.get("attribute")})
+			if attr_names:
+				attr_val_rows = frappe.get_all(
+					"Item Attribute Value",
+					filters={"parent": ["in", attr_names]},
+					fields=["parent", "attribute_value", "idx"],
+				)
+				for avr in attr_val_rows:
+					attr_order_map[(avr["parent"], avr["attribute_value"])] = avr["idx"] or 999
+
 			for attr in attributes:
 				if attr["parent"] not in attributes_map:
 					attributes_map[attr["parent"]] = {}
 				attributes_map[attr["parent"]][attr["attribute"]] = attr["attribute_value"]
 
-		# Batch query stock for all variants at once using Query Builder
-		stock_map = {}
-		if variant_codes and pos_profile_doc.warehouse:
-			Bin = DocType("Bin")
-			stocks = (
-				frappe.qb.from_(Bin)
-				.select(Bin.item_code, Bin.actual_qty)
-				.where(Bin.item_code.isin(variant_codes))
-				.where(Bin.warehouse == pos_profile_doc.warehouse)
-				.run(as_dict=True)
+		# Batch resolve warehouse and stock per variant (respects Item Default / Item Group Default)
+		item_wh_map, wh_name_map, stock_map, other_stock_map, _reserved_map = (
+			_resolve_item_warehouses_and_stock(
+				variants,
+				company=pos_profile_doc.company,
+				default_warehouse=pos_profile_doc.warehouse,
 			)
-			stock_map = {s["item_code"]: s["actual_qty"] for s in stocks}
+		)
 
 		# Enrich each variant with attributes, price, stock, and UOMs
 		for variant in variants:
+			v_code = variant["item_code"]
 			# Get variant attributes from preloaded map
-			variant["attributes"] = attributes_map.get(variant["item_code"], {})
+			variant["attributes"] = attributes_map.get(v_code, {})
 
 			# Get price from preloaded map (check stock UOM first, then any UOM)
-			variant_prices = uom_prices_map.get(variant["item_code"], {})
+			variant_prices = uom_prices_map.get(v_code, {})
 			price = variant_prices.get(variant["stock_uom"])
 			if not price and variant_prices:
 				# Fallback to first available price if stock UOM price not found
 				price = next(iter(variant_prices.values()), None)
-			variant["rate"] = price or 0
+			variant["rate"] = flt(price or 0)
+			variant["price_list_rate"] = variant["rate"]
+			variant["uom"] = variant["stock_uom"]
+			variant["price_uom"] = variant["stock_uom"]
+			variant["conversion_factor"] = 1
 
-			# Get stock from pre-loaded stock map (performance optimization)
-			variant["actual_qty"] = stock_map.get(variant["item_code"], 0)
+			# Get stock from resolved stock map
+			variant["actual_qty"] = stock_map.get(v_code, 0)
+			variant["other_qty"] = other_stock_map.get(v_code, 0)
 
-			# Add warehouse
-			variant["warehouse"] = pos_profile_doc.warehouse
+			# Add effective warehouse
+			eff_wh = item_wh_map.get(v_code) or pos_profile_doc.warehouse
+			variant["warehouse"] = eff_wh
+			variant["warehouse_name"] = wh_name_map.get(eff_wh, eff_wh)
 
 			# Add UOMs (exclude stock UOM to avoid duplicates)
-			all_uoms = uom_map.get(variant["item_code"], [])
+			all_uoms = uom_map.get(v_code, [])
 			variant["item_uoms"] = [uom for uom in all_uoms if uom["uom"] != variant["stock_uom"]]
 
 			# Add UOM-specific prices
-			variant["uom_prices"] = uom_prices_map.get(variant["item_code"], {})
+			variant["uom_prices"] = variant_prices
+
+		# Sort variants by Item Attribute Value idx so attributes appear in configured order
+		if attr_order_map:
+			def _variant_sort_key(v):
+				attrs = v.get("attributes") or {}
+				orders = [attr_order_map.get((k, val), 999) for k, val in attrs.items()]
+				return (orders or [999], v.get("item_code") or "")
+
+			variants.sort(key=_variant_sort_key)
 
 		return variants
 	except Exception as e:
@@ -1303,6 +1327,41 @@ def _resolve_item_warehouses_and_stock(items_or_codes, company=None, default_war
 			elif wh in active_wh_set:
 				other_stock_map[ic] += flt(row["actual_qty"])
 
+		# Aggregate variant stock into parent template items (has_variants=1)
+		template_codes = []
+		if isinstance(items_or_codes[0], dict):
+			template_codes = [
+				i["item_code"] for i in items_or_codes if i.get("item_code") and i.get("has_variants")
+			]
+		if template_codes:
+			variant_rows = frappe.get_all(
+				"Item",
+				filters={"variant_of": ["in", template_codes], "disabled": 0},
+				fields=["name", "variant_of"],
+			)
+			if variant_rows:
+				v_to_tpl = {r["name"]: r["variant_of"] for r in variant_rows}
+				v_codes = list(v_to_tpl.keys())
+				v_bins = (
+					frappe.qb.from_(Bin)
+					.select(Bin.item_code, Bin.warehouse, Bin.actual_qty, Bin.reserved_qty)
+					.where(Bin.item_code.isin(v_codes))
+					.where(Bin.warehouse.isin(list(query_wh_names)))
+					.run(as_dict=True)
+				)
+				for row in v_bins:
+					tpl_code = v_to_tpl.get(row["item_code"])
+					if not tpl_code:
+						continue
+					wh = row["warehouse"]
+					eff_wh = item_wh_map.get(tpl_code) or default_warehouse
+					eff_set = expanded_wh_map.get(eff_wh, {eff_wh} if eff_wh else set())
+					if wh in eff_set:
+						stock_map[tpl_code] += flt(row["actual_qty"])
+						reserved_map[tpl_code] += flt(row["reserved_qty"])
+					elif wh in active_wh_set:
+						other_stock_map[tpl_code] += flt(row["actual_qty"])
+
 	return item_wh_map, wh_name_map, dict(stock_map), dict(other_stock_map), dict(reserved_map)
 
 
@@ -1415,11 +1474,11 @@ def get_items(
 				prefix_pattern,
 				prefix_pattern,
 			]
-			order_by = f"{relevance} DESC, i.item_group ASC, i.name ASC{medida_order}"
+			order_by = f"{relevance} DESC, i.item_group ASC, i.item_name ASC, i.name ASC{medida_order}"
 		else:
 			# No search term - simple ordering
 			score_params = []
-			order_by = f"i.item_group ASC, i.name ASC{medida_order}"
+			order_by = f"i.item_group ASC, i.item_name ASC, i.name ASC{medida_order}"
 
 		where_clause = " AND ".join(conditions)
 
@@ -1624,12 +1683,12 @@ def get_items(
 			#   actual_qty = 0 (not a bundle, no stock tracking)
 			item["actual_qty"] = (
 				stock_map.get(item["item_code"], 0)
-				if item.get("is_stock_item")
+				if (item.get("is_stock_item") or item.get("has_variants"))
 				else bundle_availability_map.get(item["item_code"], 0)
 			)
 			item["other_qty"] = (
 				other_stock_map.get(item["item_code"], 0)
-				if item.get("is_stock_item")
+				if (item.get("is_stock_item") or item.get("has_variants"))
 				else 0
 			)
 
@@ -1752,7 +1811,7 @@ def get_items_bulk(
 			{extra_joins}
 			WHERE {where_clause}
 			GROUP BY {group_by_columns}
-			ORDER BY i.item_group ASC, i.name ASC{medida_order}
+			ORDER BY i.item_group ASC, i.item_name ASC, i.name ASC{medida_order}
 			LIMIT %s OFFSET %s
 		"""
 		all_params = [*params, int(limit), int(start)]
@@ -1829,22 +1888,38 @@ def get_items_bulk(
 
 			# Price: prefer stock_uom, then None/empty UOM (Item Price without UOM)
 			prices = uom_prices_map.get(item_code, {})
-			item["rate"] = flt(prices.get(stock_uom) or prices.get(None) or prices.get("") or 0)
+			rate_val = flt(prices.get(stock_uom) or prices.get(None) or prices.get("") or 0)
+			if not rate_val and item.get("has_variants") and price_list:
+				ItemPrice = DocType("Item Price")
+				Item = DocType("Item")
+				vp = (
+					frappe.qb.from_(ItemPrice)
+					.inner_join(Item)
+					.on(Item.name == ItemPrice.item_code)
+					.select(fn.Min(ItemPrice.price_list_rate).as_("min_price"))
+					.where(Item.variant_of == item_code)
+					.where(ItemPrice.price_list == price_list)
+					.where(Item.disabled == 0)
+					.run(as_dict=True)
+				)
+				if vp and vp[0].get("min_price"):
+					rate_val = flt(vp[0]["min_price"])
+			item["rate"] = rate_val
 			item["price_list_rate"] = item["rate"]
 			item["uom"] = stock_uom
 			item["price_uom"] = stock_uom
 			item["conversion_factor"] = 1
 			item["price_list_rate_price_uom"] = item["rate"]
 
-			# Stock: stock items use Bin, bundles use component-based availability
+			# Stock: stock items and templates use Bin, bundles use component-based availability
 			item["actual_qty"] = (
 				stock_map.get(item_code, 0)
-				if item.get("is_stock_item")
+				if (item.get("is_stock_item") or item.get("has_variants"))
 				else bundle_availability_map.get(item_code, 0)
 			)
 			item["other_qty"] = (
 				other_stock_map.get(item_code, 0)
-				if item.get("is_stock_item")
+				if (item.get("is_stock_item") or item.get("has_variants"))
 				else 0
 			)
 			eff_wh = item_wh_map.get(item_code) or warehouse

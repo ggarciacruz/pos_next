@@ -102,6 +102,8 @@ export default function translationPlugin(app: App) {
  * __('Save', null, 'button')  // Uses key "Save:button"
  */
 export function translate(msg: string, replace?: Record<string, string>, ctx?: string | null): string {
+  // Track translationVersion reactively so templates update in-place without unmounting <router-view>
+  void translationVersion.value
   const messages = window.translatedMessages || {}
   const key = ctx ? `${msg}:${ctx}` : msg
   let translated = messages[key] || messages[msg] || msg
@@ -173,6 +175,24 @@ export function translate(msg: string, replace?: Record<string, string>, ctx?: s
     translated = "Saldo Pendiente"
   } else if (msg === "Total Outstanding" || translated === "Total Excepcional") {
     translated = "Total Saldo Pendiente"
+  } else if (msg === "Signing Out..." || translated === "Cerrando sesión...") {
+    translated = "Saliendo..."
+  } else if (msg === "Sign Out?" && translated === "Sign Out?") {
+    translated = "¿Cerrar Sesión?"
+  } else if (msg === "Sign Out" && translated === "Sign Out") {
+    translated = "Cerrar Sesión"
+  } else if (msg === "Select Item Variant" && translated === "Select Item Variant") {
+    translated = "Seleccionar Variante"
+  } else if (msg === "Choose a variant of this item:" && translated === "Choose a variant of this item:") {
+    translated = "Seleccione una variante de este producto:"
+  } else if (msg === "Select Unit of Measure" && translated === "Select Unit of Measure") {
+    translated = "Seleccionar Unidad de Medida"
+  } else if (msg === "Add to Cart" || translated === "Añadir a la Cesta") {
+    translated = "Agregar al Carrito"
+  } else if (msg === "This combination is not available" && translated === "This combination is not available") {
+    translated = "Esta combinación no está disponible"
+  } else if (msg === "Loading options..." && translated === "Loading options...") {
+    translated = "Cargando opciones..."
   }
 
   // Handle any label ending with colon whose base word is translated

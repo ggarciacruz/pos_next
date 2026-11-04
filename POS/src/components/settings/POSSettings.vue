@@ -739,6 +739,15 @@
 										</div>
 										<div class="flex flex-col gap-3">
 											<CheckboxField
+												v-model="settings.enable_shift_management"
+												:label="__('Habilitar Arqueo y Cierre de Turno de Caja')"
+												:description="
+													__(
+														'Habilitar la apertura manual de caja, el indicador de turno abierto y el cierre de turno con rendición y conciliación de efectivo. Desactívelo para operar de forma continua y transparente sin cierres de turno.'
+													)
+												"
+											/>
+											<CheckboxField
 												v-model="settings.allow_credit_sale"
 												:label="__('Allow Credit Sale')"
 												:description="__('Enable sales on credit')"
@@ -1296,6 +1305,7 @@ const settings = ref({
 	allow_cancel_invoice: 0,
 	allow_write_off_change: 0,
 	allow_partial_payment: 0,
+	enable_shift_management: 1,
 	allow_sales_order: 0,
 	allow_quotation: 0,
 	silent_print: 0,

@@ -40,6 +40,7 @@
   "display_discount_amount",
   "show_variants_as_items",
   "section_break_operations",
+  "enable_shift_management",
   "allow_sales_order",
   "allow_quotation",
   "allow_select_sales_order",
@@ -332,6 +333,13 @@
    "fieldname": "section_break_operations",
    "fieldtype": "Section Break",
    "label": "Operaciones y Pre-ventas"
+  },
+  {
+   "default": "1",
+   "description": "Habilitar la apertura manual de caja, el contador de duración de turno y el cierre de turno con arqueo/rendición de efectivo. Desactívelo para operar de forma continua y transparente sin cierres de turno.",
+   "fieldname": "enable_shift_management",
+   "fieldtype": "Check",
+   "label": "Habilitar Arqueo y Cierre de Turno de Caja"
   },
   {
    "default": "0",

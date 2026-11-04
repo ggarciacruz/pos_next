@@ -39,6 +39,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		display_discount_amount: 0,
 		show_variants_as_items: 0,
 		// Operations
+		enable_shift_management: 1,
 		allow_sales_order: 0,
 		allow_quotation: 0,
 		allow_select_sales_order: 0,
@@ -136,6 +137,11 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	const showVariantsAsItems = computed(() => Boolean(settings.value.show_variants_as_items));
 
 	// Computed - Operations
+	const enableShiftManagement = computed(() =>
+		settings.value.enable_shift_management === undefined
+			? true
+			: Boolean(settings.value.enable_shift_management)
+	);
 	const allowSalesOrder = computed(() => Boolean(settings.value.allow_sales_order));
 	const allowQuotation = computed(() => Boolean(settings.value.allow_quotation));
 	const allowSelectSalesOrder = computed(() => Boolean(settings.value.allow_select_sales_order));
@@ -250,11 +256,16 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		isLoading.value = true;
 		settings.value.pos_profile = posProfile;
 
-		// OPTIMIZATION: Check if bootstrap has preloaded the settings
+		// OPTIMIZATION: Check if bootstrap has preloaded the settings for this profile
 		try {
 			const bootstrapStore = useBootstrapStore();
 			const preloadedSettings = bootstrapStore.getPreloadedPOSSettings();
-			if (preloadedSettings && Object.keys(preloadedSettings).length > 0) {
+			const preloadedProfile = bootstrapStore.getPreloadedPOSProfile();
+			if (
+				preloadedSettings &&
+				Object.keys(preloadedSettings).length > 0 &&
+				(!preloadedProfile || preloadedProfile.name === posProfile)
+			) {
 				Object.assign(settings.value, preloadedSettings);
 				isLoaded.value = true;
 				isLoading.value = false;
@@ -306,6 +317,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			display_discount_percentage: 0,
 			display_discount_amount: 0,
 			show_variants_as_items: 0,
+			enable_shift_management: 1,
 			allow_sales_order: 0,
 			allow_quotation: 0,
 			allow_select_sales_order: 0,
@@ -433,6 +445,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		showVariantsAsItems,
 
 		// Computed - Operations
+		enableShiftManagement,
 		allowSalesOrder,
 		allowQuotation,
 		allowSelectSalesOrder,

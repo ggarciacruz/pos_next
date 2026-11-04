@@ -67,6 +67,82 @@ def get_opening_dialog_data():
 	return data
 
 
+def _is_shift_management_enabled(pos_profile):
+	"""Check whether shift management (opening/closing cash count) is enabled for a POS Profile."""
+	if not pos_profile:
+		return True
+	try:
+		val = frappe.db.get_value(
+			"POS Settings",
+			{"pos_profile": pos_profile, "enabled": 1},
+			"enable_shift_management",
+		)
+		if val is None:
+			return True
+		return bool(int(val))
+	except Exception:
+		return True
+
+
+def ensure_auto_open_shift_for_user(user=None):
+	"""
+	If the user has no open POS Opening Shift and their default/first accessible
+	POS Profile has enable_shift_management = 0, automatically create and submit
+	an open shift in the background so they enter the POS transparently.
+	"""
+	if not user:
+		user = frappe.session.user
+	if not user or user == "Guest":
+		return None
+
+	profiles = frappe.db.sql(
+		"""
+		SELECT p.name, p.company, u.`default` as is_default
+		FROM `tabPOS Profile` p
+		INNER JOIN `tabPOS Profile User` u ON u.parent = p.name
+		WHERE p.disabled = 0 AND u.user = %s
+		ORDER BY u.`default` DESC, p.name ASC
+		""",
+		(user,),
+		as_dict=True,
+	)
+	if not profiles:
+		return None
+
+	target_profile = profiles[0]
+	if _is_shift_management_enabled(target_profile.name):
+		return None
+
+	payment_methods = frappe.get_all(
+		"POS Payment Method",
+		filters={"parent": target_profile.name},
+		fields=["mode_of_payment"],
+		order_by="idx asc",
+	)
+	balance_details = [
+		{"mode_of_payment": m.mode_of_payment, "amount": 0}
+		for m in payment_methods
+	]
+
+	new_pos_opening = frappe.get_doc(
+		{
+			"doctype": "POS Opening Shift",
+			"period_start_date": get_datetime(),
+			"posting_date": nowdate(),
+			"posting_time": nowtime(),
+			"user": user,
+			"pos_profile": target_profile.name,
+			"company": target_profile.company,
+			"status": "Open",
+			"balance_details": balance_details,
+		}
+	)
+	new_pos_opening.insert(ignore_permissions=True)
+	new_pos_opening.submit()
+	frappe.db.commit()
+	return new_pos_opening
+
+
 @frappe.whitelist()
 def check_opening_shift(user=None):
 	"""Check if user has an open shift"""
@@ -86,7 +162,16 @@ def check_opening_shift(user=None):
 	)
 
 	if not open_shifts:
-		return None
+		auto_shift = ensure_auto_open_shift_for_user(user)
+		if not auto_shift:
+			return None
+		open_shifts = [
+			{
+				"name": auto_shift.name,
+				"pos_profile": auto_shift.pos_profile,
+				"period_start_date": auto_shift.period_start_date,
+			}
+		]
 
 	# Get the latest open shift
 	shift_data = open_shifts[0]
@@ -106,12 +191,43 @@ def create_opening_shift(pos_profile, company, balance_details):
 	"""Create a new POS Opening Shift"""
 	balance_details = json.loads(balance_details) if isinstance(balance_details, str) else balance_details
 
-	# Check if user already has an open shift
-	existing_shift = check_opening_shift(frappe.session.user)
-	if existing_shift:
-		frappe.throw(
-			_("You already have an open shift: {0}").format(existing_shift["pos_opening_shift"].name)
+	shift_mgmt_enabled = _is_shift_management_enabled(pos_profile)
+
+	if not shift_mgmt_enabled:
+		# Continuous mode (no shift closing/reconciliation):
+		# Reuse existing open shift for this profile (updating period_start_date to make it active),
+		# or create a new open shift if the user has never opened this profile before.
+		existing_for_profile = frappe.db.get_all(
+			"POS Opening Shift",
+			filters={
+				"user": frappe.session.user,
+				"pos_profile": pos_profile,
+				"pos_closing_shift": ["is", "not set"],
+				"docstatus": 1,
+				"status": "Open",
+			},
+			fields=["name"],
+			order_by="period_start_date desc",
+			limit=1,
 		)
+		if existing_for_profile:
+			shift_name = existing_for_profile[0]["name"]
+			frappe.db.set_value("POS Opening Shift", shift_name, "period_start_date", get_datetime())
+			frappe.db.commit()
+			shift_doc = frappe.get_doc("POS Opening Shift", shift_name)
+			return {
+				"pos_opening_shift": shift_doc.as_dict(),
+				"pos_profile": frappe.get_doc("POS Profile", pos_profile),
+				"company": frappe.get_doc("Company", company),
+				"server_now": str(get_datetime()),
+			}
+	else:
+		# Standard retail mode: check if user already has an open shift
+		existing_shift = check_opening_shift(frappe.session.user)
+		if existing_shift:
+			frappe.throw(
+				_("You already have an open shift: {0}").format(existing_shift["pos_opening_shift"].name)
+			)
 
 	new_pos_opening = frappe.get_doc(
 		{

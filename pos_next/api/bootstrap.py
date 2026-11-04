@@ -60,6 +60,18 @@ def get_initial_data():
 	if frappe.session.user == "Guest":
 		frappe.throw(_("Authentication required"), frappe.AuthenticationError)
 
+	accessible_profiles_count = cint(
+		frappe.db.sql(
+			"""
+			SELECT COUNT(DISTINCT p.name)
+			FROM `tabPOS Profile` p
+			INNER JOIN `tabPOS Profile User` u ON u.parent = p.name
+			WHERE p.disabled = 0 AND u.user = %s
+			""",
+			(frappe.session.user,),
+		)[0][0]
+	)
+
 	result = {
 		"success": True,
 		"site_name": frappe.local.site,
@@ -68,6 +80,7 @@ def get_initial_data():
 		"can_switch_to_desk": "Nexus POS Manager" in frappe.get_roles(),
 		"can_checkout": any(role in frappe.get_roles() for role in ["POSNext Cashier", "System Manager", "Administrator", "Nexus POS Manager"]),
 		"can_cancel_invoice": bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles()),
+		"accessible_profiles_count": accessible_profiles_count,
 		"shift": None,
 		"shift_payload": None,
 		"pos_profile": None,
@@ -202,7 +215,20 @@ def _get_open_shift():
 	)
 
 	if not shift:
-		return None
+		from pos_next.api.shifts import ensure_auto_open_shift_for_user
+
+		auto_shift = ensure_auto_open_shift_for_user(frappe.session.user)
+		if not auto_shift:
+			return None
+		shift = {
+			"name": auto_shift.name,
+			"pos_profile": auto_shift.pos_profile,
+			"period_start_date": auto_shift.period_start_date,
+			"status": auto_shift.status,
+			"shift_doc": auto_shift,
+			"pos_profile_doc": frappe.get_cached_doc("POS Profile", auto_shift.pos_profile),
+		}
+		return shift
 
 	# Fetch POS Opening Shift & POS Profile once, reuse throughout bootstrap
 	shift["shift_doc"] = frappe.get_doc("POS Opening Shift", shift["name"])

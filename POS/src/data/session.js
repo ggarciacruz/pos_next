@@ -5,6 +5,7 @@ import { computed, reactive } from "vue";
 import { ensureCSRFToken } from "@/utils/csrf";
 import { cleanupUserSession } from "@/utils/sessionCleanup";
 import { initTranslations } from "@/utils/translation";
+import { useBootstrapStore } from "@/stores/bootstrap";
 import { userResource, userData } from "./user";
 
 export function sessionUser() {
@@ -26,6 +27,9 @@ export const session = reactive({
 			};
 		},
 		async onSuccess(data) {
+			const bootstrapStore = useBootstrapStore();
+			bootstrapStore.reset();
+
 			// Initialize CSRF token immediately after successful login
 			await ensureCSRFToken({ forceRefresh: true });
 
@@ -35,13 +39,16 @@ export const session = reactive({
 			// The auto-refresh interval will also pick this up, but we do it immediately for responsiveness
 			userData.refresh();
 
-			session.user = sessionUser();
-			session.login.reset();
+			// Load server translations and fresh bootstrap BEFORE flipping session.user
+			// so <router-view :key="translationVersion" /> does not destroy Login.vue
+			// while ShiftOpeningDialog is opening.
+			await Promise.allSettled([
+				initTranslations(),
+				bootstrapStore.loadInitialData(),
+			]);
 
-			// Load server translations now that user is authenticated
-			initTranslations().catch(() => {});
-			// Don't redirect here - let the Login page watcher handle navigation
-			// This prevents conflicts with the shift opening dialog flow
+			session.user = sessionUser() || userResource.data || null;
+			session.login.reset();
 		},
 		onError(error) {
 			console.error("Login error:", error);
@@ -50,18 +57,18 @@ export const session = reactive({
 	logout: createResource({
 		url: "logout",
 		async onSuccess() {
-			await cleanupUserSession();
 			userResource.reset();
-			session.user = sessionUser();
-			router.replace({ name: "Login" });
+			session.user = null;
+			await router.replace({ name: "Login" });
+			await cleanupUserSession();
 		},
 		async onError(error) {
 			console.error("Logout error:", error);
 			// Even if logout fails on server, clear local session
-			await cleanupUserSession();
 			userResource.reset();
 			session.user = null;
-			router.replace({ name: "Login" });
+			await router.replace({ name: "Login" });
+			await cleanupUserSession();
 		},
 	}),
 	user: sessionUser(),

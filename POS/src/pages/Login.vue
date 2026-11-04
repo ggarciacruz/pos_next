@@ -60,7 +60,7 @@
 						type="text"
 						autocomplete="username"
 						:placeholder="__('Usuario o correo electrónico')"
-						:disabled="session.login.loading"
+						:disabled="isBusy"
 					/>
 				</div>
 
@@ -88,14 +88,14 @@
 						:type="showPassword ? 'text' : 'password'"
 						autocomplete="current-password"
 						:placeholder="__('Contraseña')"
-						:disabled="session.login.loading"
+						:disabled="isBusy"
 						class="mdx-login__input-password"
 					/>
 					<button
 						type="button"
 						@click="showPassword = !showPassword"
 						class="mdx-login__eye-btn"
-						:disabled="session.login.loading"
+						:disabled="isBusy"
 						tabindex="-1"
 						:aria-label="
 							showPassword ? __('Ocultar contraseña') : __('Mostrar contraseña')
@@ -142,11 +142,11 @@
 				<!-- Submit button -->
 				<button
 					type="submit"
-					:disabled="session.login.loading"
+					:disabled="isBusy"
 					class="mdx-login__submit mdx-pressable"
 				>
 					<svg
-						v-if="session.login.loading"
+						v-if="isBusy"
 						width="20"
 						height="20"
 						class="mdx-login__spinner"
@@ -158,10 +158,10 @@
 						<path d="M21 12a9 9 0 1 1-6.219-8.56" />
 					</svg>
 					<span>{{
-						session.login.loading ? __("Iniciando sesión...") : __("Iniciar Sesión")
+						isBusy ? __("Iniciando sesión...") : __("Iniciar Sesión")
 					}}</span>
 					<svg
-						v-if="!session.login.loading"
+						v-if="!isBusy"
 						width="20"
 						height="20"
 						class="mdx-login__arrow"
@@ -195,10 +195,11 @@
 
 <script setup>
 import { FeatherIcon } from "frappe-ui";
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import ShiftOpeningDialog from "../components/ShiftOpeningDialog.vue";
 import { session } from "../data/session";
+import { useBootstrapStore } from "../stores/bootstrap";
 import { useSessionLock } from "../composables/useSessionLock";
 import { cleanupUserSession } from "../utils/sessionCleanup";
 import { ensureCSRFToken } from "../utils/csrf";
@@ -208,6 +209,7 @@ import { logger } from "@/utils/logger";
 const log = logger.create("Login");
 
 const router = useRouter();
+const bootstrapStore = useBootstrapStore();
 const { cachePasswordHashFromLogin } = useSessionLock();
 
 const loginForm = reactive({
@@ -218,16 +220,25 @@ const loginForm = reactive({
 const showShiftDialog = ref(false);
 const showPassword = ref(false);
 const mounted = ref(false);
+const isRedirecting = ref(false);
+const isBusy = computed(() => session.login.loading || isRedirecting.value);
+
+function proceedAfterAuth() {
+	const preloadedShift = bootstrapStore.getPreloadedShift();
+	const preloadedSettings = bootstrapStore.getPreloadedPOSSettings();
+	if (preloadedShift && preloadedSettings && Number(preloadedSettings.enable_shift_management ?? 1) === 0) {
+		router.push({ name: "POSSale" });
+		return;
+	}
+	isRedirecting.value = false;
+	showShiftDialog.value = true;
+}
 
 // Reset state when login page mounts
 onMounted(async () => {
 	setTimeout(() => {
 		mounted.value = true;
 	}, 100);
-	// Clear login form
-	loginForm.email = "";
-	loginForm.password = "";
-	showPassword.value = false;
 
 	// Clear any login errors
 	if (session.login.error) {
@@ -235,23 +246,40 @@ onMounted(async () => {
 	}
 
 	// Only clear state if user is NOT logged in
-	// If user is already logged in (e.g., after successful login), don't clear their session
+	// If user is already logged in (e.g., after successful login or remount), open shift dialog
 	if (!session.isLoggedIn) {
+		loginForm.email = "";
+		loginForm.password = "";
+		showPassword.value = false;
+		isRedirecting.value = false;
 		showShiftDialog.value = false;
 		await cleanupUserSession();
+	} else {
+		proceedAfterAuth();
 	}
 });
 
 function submit() {
-	if (!loginForm.email || !loginForm.password) {
+	if (!loginForm.email || !loginForm.password || isBusy.value) {
 		return;
 	}
 
+	isRedirecting.value = true;
 	session.login.submit({
 		email: loginForm.email.trim(),
 		password: loginForm.password,
 	});
 }
+
+// Reset redirecting flag if login fails
+watch(
+	() => session.login.error,
+	(err) => {
+		if (err) {
+			isRedirecting.value = false;
+		}
+	}
+);
 
 // Watch for successful login
 watch(
@@ -274,8 +302,8 @@ watch(
 			// Cache password hash for offline session unlock
 			await cachePasswordHashFromLogin(loginForm.password);
 
-			// Show shift opening dialog after successful login
-			showShiftDialog.value = true;
+			// Enter POS directly if shift management is disabled and shift is ready, otherwise open shift dialog
+			proceedAfterAuth();
 		}
 	}
 );

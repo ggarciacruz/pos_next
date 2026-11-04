@@ -2,6 +2,8 @@ import { clearAllDrafts } from "@/utils/draftManager";
 import { clearAllOfflineReceiptPayloads } from "@/utils/offline/offlineReceiptCache";
 import { usePOSCartStore } from "@/stores/posCart";
 import { usePOSUIStore } from "@/stores/posUI";
+import { useBootstrapStore } from "@/stores/bootstrap";
+import { useItemSearchStore } from "@/stores/itemSearch";
 import { useSessionLock } from "@/composables/useSessionLock";
 import { shiftState } from "@/composables/useShift";
 
@@ -39,12 +41,26 @@ export async function cleanupUserSession() {
 	// 2. Clear Pinia stores
 	const cartStore = usePOSCartStore();
 	const uiStore = usePOSUIStore();
+	const bootstrapStore = useBootstrapStore();
+	const itemSearchStore = useItemSearchStore();
 	cartStore.clearCart();
 	// Reset shift/profile refs that persist in the useInvoice singleton
 	// (clearCart intentionally does NOT reset these since it's also called between transactions)
 	cartStore.posOpeningShift = null;
 	cartStore.posProfile = null;
 	uiStore.resetAllDialogs();
+	bootstrapStore.reset();
+	try {
+		itemSearchStore.invalidateCache?.();
+		itemSearchStore.allItems = [];
+		itemSearchStore.selectedItemGroup = null;
+	} catch {
+		// Ignore if store not ready
+	}
+	if (typeof window !== "undefined") {
+		window.csrf_token = "";
+		window.session_user = "Guest";
+	}
 
 	// 3. Reset composable singletons
 	const { clearLock, stopActivityTracking } = useSessionLock();

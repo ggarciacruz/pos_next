@@ -27,6 +27,7 @@
 				:current-time="shiftStore.currentTime"
 				:shift-duration="shiftStore.shiftDuration"
 				:has-open-shift="shiftStore.hasOpenShift"
+				:show-shift-badge="posSettingsStore.enableShiftManagement"
 				:profile-name="shiftStore.profileName"
 				:user-name="userName"
 				:user-image="userImage"
@@ -49,7 +50,7 @@
 			>
 				<template #menu-items>
 					<button
-						v-if="shiftStore.hasOpenShift"
+						v-if="shiftStore.hasOpenShift && posSettingsStore.enableShiftManagement"
 						@click="uiStore.showOpenShiftDialog = true"
 						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-3 transition-colors"
 					>
@@ -67,6 +68,30 @@
 							/>
 						</svg>
 						<span>{{ __("View Shift") }}</span>
+					</button>
+					<button
+						v-else-if="
+							shiftStore.hasOpenShift &&
+							!posSettingsStore.enableShiftManagement &&
+							bootstrapStore.hasMultipleProfiles()
+						"
+						@click="uiStore.showOpenShiftDialog = true"
+						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-3 transition-colors"
+					>
+						<svg
+							class="w-5 h-5 text-blue-600"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+							/>
+						</svg>
+						<span>{{ __("Cambiar Punto de Venta") }}</span>
 					</button>
 					<button
 						v-if="
@@ -190,7 +215,7 @@
 				</template>
 				<template #additional-actions>
 					<button
-						v-if="canAccessShiftActions"
+						v-if="canAccessShiftActions && posSettingsStore.enableShiftManagement"
 						@click="handleCloseShift()"
 						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 flex items-center gap-3 transition-colors"
 					>
@@ -464,9 +489,9 @@
 				</div>
 			</div>
 
-			<!-- No Shift Placeholder -->
+			<!-- No Shift Placeholder (Only shown when Shift Management is enabled and not logging out) -->
 			<div
-				v-else
+				v-else-if="posSettingsStore.enableShiftManagement && !session.logout.loading"
 				class="flex-1 flex items-center justify-center bg-gray-50"
 				style="max-height: calc(100vh - 60px - var(--header-height, 60px))"
 			>
@@ -504,6 +529,7 @@
 					</Button>
 				</div>
 			</div>
+			<div v-else class="flex-1 bg-gray-50"></div>
 
 			<!-- Payment Dialog -->
 			<PaymentDialog
@@ -728,189 +754,58 @@
 				@invoice-cancelled="handleInvoiceCancelled"
 			/>
 
-			<!-- Clear Cart Confirmation Dialog -->
-			<Dialog
+			<!-- Clear Cart Confirmation Dialog (mdx_ui) -->
+			<MdxConfirmDialog
 				v-model="uiStore.showClearCartDialog"
-				:options="{ title: __('Clear Cart?'), size: 'xs' }"
-			>
-				<template #body-content>
-					<div class="py-3">
-						<p class="text-sm text-gray-600">
-							{{ __("Remove all {0} items from cart?", [cartStore.itemCount]) }}
-						</p>
-					</div>
-				</template>
-				<template #actions>
-					<div class="flex gap-2 w-full">
-						<Button
-							class="flex-1"
-							variant="subtle"
-							@click="uiStore.showClearCartDialog = false"
-						>
-							{{ __("Cancel") }}
-						</Button>
-						<Button
-							class="flex-1"
-							variant="solid"
-							theme="red"
-							@click="confirmClearCart"
-						>
-							{{ __("Clear All") }}
-						</Button>
-					</div>
-				</template>
-			</Dialog>
+				icon="trash"
+				:is-dangerous="true"
+				:title="__('Clear Cart?')"
+				:message="__('Remove all {0} items from cart?', [cartStore.itemCount])"
+				:cancel-text="__('Cancel')"
+				:confirm-text="__('Clear All')"
+				@confirm="confirmClearCart"
+			/>
 
-			<!-- Logout Confirmation Dialog -->
-			<Dialog
+			<!-- Logout Confirmation Dialog (mdx_ui) -->
+			<MdxConfirmDialog
+				v-if="shiftStore.hasOpenShift && posSettingsStore.enableShiftManagement"
 				v-model="uiStore.showLogoutDialog"
-				:options="{ title: __('Sign Out Confirmation'), size: 'md' }"
-				:dismissable="!session.logout.loading"
+				icon="warning"
+				:is-dangerous="false"
+				:keep-open-on-confirm="false"
+				:loading="session.logout.loading"
+				:loading-text="__('Signing Out...')"
+				:title="__('Your Shift is Still Open!')"
+				:message="__('Close your shift first to save all transactions properly')"
+				:cancel-text="__('Cancel')"
+				:confirm-text="__('Close Shift & Sign Out')"
+				@confirm="logoutWithCloseShift"
 			>
-				<template #body-content>
-					<!-- WITH SHIFT OPEN -->
-					<div v-if="shiftStore.hasOpenShift" class="px-4 py-5">
-						<div class="text-center mb-6">
-							<div
-								class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-br from-red-100 to-red-200 shadow-md mb-4"
-							>
-								<svg
-									class="h-8 w-8 text-red-600"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-									/>
-								</svg>
-							</div>
-							<h3 class="text-lg font-bold text-red-600 mb-2">
-								{{ __("Your Shift is Still Open!") }}
-							</h3>
-							<p class="text-sm text-gray-600 max-w-sm mx-auto">
-								{{
-									__("Close your shift first to save all transactions properly")
-								}}
-							</p>
-						</div>
-
-						<!-- Action Buttons -->
-						<div class="space-y-3 max-w-md mx-auto">
-							<!-- Recommended Action - BLUE -->
-							<button
-								@click="logoutWithCloseShift"
-								:disabled="session.logout.loading"
-								class="w-full flex items-center justify-center px-5 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-blue-500/30 transition-[background,box-shadow,opacity,transform] duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
-							>
-								<svg
-									class="w-5 h-5 me-2"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-									/>
-								</svg>
-								{{ __("Close Shift & Sign Out") }}
-							</button>
-
-							<!-- Alternative Actions -->
-							<div class="grid grid-cols-2 gap-2">
-								<button
-									@click="confirmLogout"
-									:disabled="session.logout.loading"
-									class="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold text-sm rounded-lg shadow-md hover:shadow-red-500/30 transition-[background,box-shadow,opacity] duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-								>
-									{{ __("Skip & Sign Out") }}
-								</button>
-								<button
-									@click="uiStore.showLogoutDialog = false"
-									:disabled="session.logout.loading"
-									class="px-4 py-3 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-sm rounded-lg transition-[background-color,border-color,opacity] duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300 hover:border-gray-400"
-								>
-									{{ __("Cancel") }}
-								</button>
-							</div>
-						</div>
-					</div>
-
-					<!-- WITHOUT SHIFT (Simple confirmation) -->
-					<div v-else class="px-4 py-5">
-						<div class="text-center mb-6">
-							<div
-								class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-br from-red-100 to-red-200 shadow-md mb-4"
-							>
-								<svg
-									class="h-8 w-8 text-red-600"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-									/>
-								</svg>
-							</div>
-							<h3 class="text-lg font-bold text-red-600 mb-2">
-								{{ __("Sign Out?") }}
-							</h3>
-							<p class="text-sm text-gray-600">
-								{{ __("You will be logged out of MDX POS") }}
-							</p>
-						</div>
-
-						<div class="grid grid-cols-2 gap-3 max-w-sm mx-auto">
-							<button
-								@click="uiStore.showLogoutDialog = false"
-								:disabled="session.logout.loading"
-								class="px-5 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-blue-500/30 transition-[background-color,box-shadow,opacity,transform] duration-200 disabled:opacity-50 transform hover:scale-[1.02] active:scale-[0.98]"
-							>
-								{{ __("Cancel") }}
-							</button>
-							<button
-								@click="confirmLogout"
-								:disabled="session.logout.loading"
-								class="px-5 py-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-red-500/30 transition-[background,box-shadow,opacity,transform] duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
-							>
-								<span v-if="!session.logout.loading">{{ __("Sign Out") }}</span>
-								<span v-else class="flex items-center justify-center">
-									<svg
-										class="animate-spin h-5 w-5 me-2"
-										fill="none"
-										viewBox="0 0 24 24"
-									>
-										<circle
-											class="opacity-25"
-											cx="12"
-											cy="12"
-											r="10"
-											stroke="currentColor"
-											stroke-width="4"
-										></circle>
-										<path
-											class="opacity-75"
-											fill="currentColor"
-											d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-										></path>
-									</svg>
-									{{ __("Signing Out...") }}
-								</span>
-							</button>
-						</div>
-					</div>
-				</template>
-			</Dialog>
+				<div class="mt-4 pt-3 border-t border-slate-100">
+					<button
+						type="button"
+						:disabled="session.logout.loading"
+						class="text-xs font-bold text-red-600 hover:text-red-700 hover:underline transition-colors cursor-pointer disabled:opacity-50"
+						@click="confirmLogout"
+					>
+						{{ __("Skip & Sign Out") }}
+					</button>
+				</div>
+			</MdxConfirmDialog>
+			<MdxConfirmDialog
+				v-else
+				v-model="uiStore.showLogoutDialog"
+				icon="logout"
+				:is-dangerous="true"
+				:keep-open-on-confirm="true"
+				:loading="session.logout.loading"
+				:loading-text="__('Signing Out...')"
+				:title="__('Sign Out?')"
+				:message="__('You will be logged out of MDX POS')"
+				:cancel-text="__('Cancel')"
+				:confirm-text="__('Sign Out')"
+				@confirm="confirmLogout"
+			/>
 
 			<!-- Print Pre-ticket / Quotation Confirmation Dialog -->
 			<Dialog
@@ -1289,6 +1184,7 @@ import {
 import { qzConnected, connect as qzConnect, disconnect as qzDisconnect } from "@/utils/qzTray";
 
 import { Button, Dialog, createResource } from "frappe-ui";
+import MdxConfirmDialog from "mdx_ui/components/MdxConfirmDialog.vue";
 import { call } from "@/utils/apiWrapper";
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from "vue";
 
@@ -2125,7 +2021,7 @@ async function handleShiftOpened() {
 	// Load tax rules (depends on settings being loaded)
 	await cartStore.loadTaxRules(shiftStore.profileName, posSettingsStore.settings);
 
-	_initializedProfile = shiftStore.profileName;
+	_initializedKey = `${shiftStore.profileName}::${shiftStore.currentShift?.name}`;
 
 	// Start session lock tracking now that a shift is open and POS is ready
 	startActivityTracking();
@@ -2626,6 +2522,7 @@ async function handleOptionSelected(option) {
 	try {
 		if (option.type === "variant") {
 			const variant = option.data;
+			const variantQty = option.quantity || cartStore.pendingItemQty || 1;
 
 			// Early out-of-stock guard for variants
 			// Full qty validation happens in cartStore.addItem()
@@ -2645,19 +2542,19 @@ async function handleOptionSelected(option) {
 			}
 
 			if (variant.item_uoms && variant.item_uoms.length > 0) {
-				cartStore.setPendingItem(variant, cartStore.pendingItemQty, "uom");
+				cartStore.setPendingItem(variant, variantQty, "uom");
 				return;
 			}
 
 			if (variant.has_batch_no || variant.has_serial_no) {
-				cartStore.setPendingItem(variant, cartStore.pendingItemQty);
+				cartStore.setPendingItem(variant, variantQty);
 				uiStore.showItemSelectionDialog = false;
 				uiStore.showBatchSerialDialog = true;
 			} else {
 				try {
 					cartStore.addItem(
 						variant,
-						cartStore.pendingItemQty,
+						variantQty,
 						false,
 						shiftStore.currentProfile
 					);
@@ -2753,7 +2650,6 @@ function formatCurrency(amount) {
 async function confirmLogout() {
 	logoutAfterClose.value = false;
 	_initializedKey = null;
-	await cleanupUserSession();
 	session.logout.submit();
 }
 

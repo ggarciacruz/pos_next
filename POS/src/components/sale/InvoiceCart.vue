@@ -844,6 +844,7 @@
 				<div class="grid grid-cols-2 gap-2 sm:gap-2.5 w-full max-w-lg">
 					<!-- View Shift -->
 					<button
+						v-if="settingsStore.enableShiftManagement"
 						type="button"
 						@click="$emit('view-shift')"
 						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 active:bg-blue-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
@@ -989,6 +990,7 @@
 
 					<!-- Close Shift (Enabled for all roles: Cashier physical reconciliation & Vendor commercial summary) -->
 					<button
+						v-if="settingsStore.enableShiftManagement"
 						type="button"
 						@click="handleCloseShift"
 						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group hover:border-orange-300 hover:bg-orange-50 cursor-pointer"

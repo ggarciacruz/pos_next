@@ -25,7 +25,7 @@
 
 						<!-- Shift Duration -->
 						<StatusBadge
-							v-if="hasOpenShift && shiftDuration"
+							v-if="hasOpenShift && shiftDuration && showShiftBadge"
 							variant="green"
 							size="xs"
 							:icon="shiftIcon"
@@ -454,6 +454,10 @@ const props = defineProps({
 	hasOpenShift: {
 		type: Boolean,
 		default: false,
+	},
+	showShiftBadge: {
+		type: Boolean,
+		default: true,
 	},
 	profileName: {
 		type: String,

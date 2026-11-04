@@ -155,6 +155,10 @@ export const useBootstrapStore = defineStore("bootstrap", () => {
 		return data.value?.can_checkout !== false;
 	}
 
+	function hasMultipleProfiles() {
+		return (data.value?.accessible_profiles_count || 0) > 1;
+	}
+
 	return {
 		// State
 		loaded,
@@ -174,5 +178,6 @@ export const useBootstrapStore = defineStore("bootstrap", () => {
 		reset,
 		getSiteName,
 		canCheckout,
+		hasMultipleProfiles,
 	};
 });

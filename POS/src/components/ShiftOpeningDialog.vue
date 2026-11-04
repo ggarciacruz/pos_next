@@ -1,5 +1,5 @@
 <template>
-	<Dialog v-model="open" :options="{ title: __('Open POS Shift'), size: 'xl' }">
+	<Dialog v-model="open" :options="{ title: isContinuousMode ? __('Seleccionar Punto de Venta') : __('Open POS Shift'), size: 'xl' }">
 		<template #body-content>
 			<div class="flex flex-col gap-6">
 				<!-- Step 1: Select POS Profile -->
@@ -232,9 +232,10 @@
 						variant="solid"
 						theme="blue"
 						@click="nextStep"
-						:disabled="!selectedProfile"
+						:disabled="!selectedProfile || createShiftResource.loading"
+						:loading="createShiftResource.loading"
 					>
-						{{ __("Next") }}
+						{{ isContinuousMode ? __("Ingresar") : __("Next") }}
 					</Button>
 					<Button
 						v-if="step === 2"
@@ -317,6 +318,16 @@ const paymentMethods = computed(() => {
 	);
 });
 
+const isContinuousMode = computed(() => {
+	if (selectedProfile.value && selectedProfile.value.enable_shift_management !== undefined) {
+		return Number(selectedProfile.value.enable_shift_management) === 0;
+	}
+	if (profilesResource.data && profilesResource.data.length > 0) {
+		return profilesResource.data.every((p) => Number(p.enable_shift_management ?? 1) === 0);
+	}
+	return false;
+});
+
 // Watch dialog open state
 // Use { immediate: true } to ensure initDialog runs even when
 // the component mounts with open already true (e.g., after logout with dialog open)
@@ -352,9 +363,23 @@ async function initDialog() {
 
 		// Check if user already has an open shift
 		const checkResult = await checkOpeningShift.fetch();
-		if (checkResult) {
+		const allProfilesContinuous =
+			profilesResource.data &&
+			profilesResource.data.length > 0 &&
+			profilesResource.data.every((p) => Number(p.enable_shift_management ?? 1) === 0);
+
+		if (checkResult && !allProfilesContinuous) {
 			existingShift.value = checkResult;
 			step.value = 3;
+		} else if (checkResult && allProfilesContinuous) {
+			existingShift.value = checkResult;
+			step.value = 1;
+			const activeName = checkResult.pos_profile?.name;
+			selectedProfile.value =
+				profilesResource.data.find((p) => p.name === activeName) ||
+				profilesResource.data[0];
+		} else if (profilesResource.data && profilesResource.data.length === 1) {
+			selectedProfile.value = profilesResource.data[0];
 		}
 	} catch (error) {
 		console.error("Error initializing shift dialog:", error);
@@ -379,8 +404,8 @@ function selectPosProfile(profile) {
 async function nextStep() {
 	if (step.value === 1 && selectedProfile.value) {
 		await dialogDataResource.fetch();
-		if (!canCheckout.value) {
-			// Vendor role: bypass cash balances step and open shift immediately
+		if (!canCheckout.value || isContinuousMode.value) {
+			// Continuous mode or vendor role: bypass cash balances step and open/activate shift immediately
 			await openShift();
 		} else {
 			step.value = 2;
