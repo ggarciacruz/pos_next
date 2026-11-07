@@ -2929,20 +2929,26 @@ def create_pos_stock_entry(pos_profile, warehouse, items, entry_mode="add", rema
 	full_remarks = f"[POS {mode_label}] {clean_remarks}" if clean_remarks else f"[POS {mode_label}] Registrado desde Punto de Venta ({pos_profile})"
 
 	created_entries = []
-
-	for purpose, rows in (("Material Receipt", receipt_rows), ("Material Issue", issue_rows)):
-		if not rows:
-			continue
-		se = frappe.new_doc("Stock Entry")
-		se.company = company
-		se.purpose = purpose
-		se.stock_entry_type = _resolve_stock_entry_type(purpose)
-		se.remarks = full_remarks
-		for r in rows:
-			se.append("items", r)
-		se.insert(ignore_permissions=True)
-		se.submit()
-		created_entries.append(se.name)
+	prev_ignore = getattr(frappe.flags, "ignore_permissions", False)
+	frappe.flags.ignore_permissions = True
+	try:
+		for purpose, rows in (("Material Receipt", receipt_rows), ("Material Issue", issue_rows)):
+			if not rows:
+				continue
+			se = frappe.new_doc("Stock Entry")
+			se.company = company
+			se.purpose = purpose
+			se.stock_entry_type = _resolve_stock_entry_type(purpose)
+			se.remarks = full_remarks
+			for r in rows:
+				se.append("items", r)
+			se.flags.ignore_permissions = True
+			se.insert(ignore_permissions=True)
+			se.flags.ignore_permissions = True
+			se.submit()
+			created_entries.append(se.name)
+	finally:
+		frappe.flags.ignore_permissions = prev_ignore
 
 	# Fetch updated stock quantities from Bin for all affected items
 	updated_stock = []
@@ -3286,6 +3292,11 @@ def get_pos_item_form_data(pos_profile, item_code=None):
 		"products",
 	}
 	clean_groups = [g for g in groups if g.name.strip().lower() not in boilerplate_groups]
+	allowed_profile_groups = set(_get_pos_profile_allowed_item_groups(pos_profile_doc) or [])
+	if allowed_profile_groups:
+		filtered_groups = [g for g in clean_groups if g.name in allowed_profile_groups]
+		if filtered_groups:
+			clean_groups = filtered_groups
 
 	# Resolve default warehouse per Item Group
 	group_names = [g.name for g in clean_groups]
@@ -3569,137 +3580,149 @@ def save_pos_item(pos_profile, item_data):
 		elif item_data.get("custom_medida") is not None:
 			item.custom_medida = (item_data.get("custom_medida") or "").strip()
 
-	if is_new:
-		item.insert(ignore_permissions=True)
-	else:
-		item.save(ignore_permissions=True)
+	prev_ignore = getattr(frappe.flags, "ignore_permissions", False)
+	frappe.flags.ignore_permissions = True
+	try:
+		if is_new:
+			item.flags.ignore_permissions = True
+			item.insert(ignore_permissions=True)
+		else:
+			item.flags.ignore_permissions = True
+			item.save(ignore_permissions=True)
 
-	# Resolve Item Default from Item Group (or parent group) so warehouse & accounts match automatically
-	group_default = frappe.db.get_value(
-		"Item Default",
-		{"parent": item_group, "parenttype": "Item Group", "company": company},
-		["default_warehouse", "income_account", "expense_account", "buying_cost_center", "selling_cost_center"],
-		as_dict=True,
-	)
-	if not group_default:
-		parent_ig = frappe.db.get_value("Item Group", item_group, "parent_item_group")
-		if parent_ig:
-			group_default = frappe.db.get_value(
-				"Item Default",
-				{"parent": parent_ig, "parenttype": "Item Group", "company": company},
-				["default_warehouse", "income_account", "expense_account", "buying_cost_center", "selling_cost_center"],
-				as_dict=True,
-			)
+		# Resolve Item Default from Item Group (or parent group) so warehouse & accounts match automatically
+		group_default = frappe.db.get_value(
+			"Item Default",
+			{"parent": item_group, "parenttype": "Item Group", "company": company},
+			["default_warehouse", "income_account", "expense_account", "buying_cost_center", "selling_cost_center"],
+			as_dict=True,
+		)
+		if not group_default:
+			parent_ig = frappe.db.get_value("Item Group", item_group, "parent_item_group")
+			if parent_ig:
+				group_default = frappe.db.get_value(
+					"Item Default",
+					{"parent": parent_ig, "parenttype": "Item Group", "company": company},
+					["default_warehouse", "income_account", "expense_account", "buying_cost_center", "selling_cost_center"],
+					as_dict=True,
+				)
 
-	target_warehouse = (
-		(group_default.get("default_warehouse") if group_default else None)
-		or pos_profile_doc.warehouse
-	)
+		target_warehouse = (
+			(group_default.get("default_warehouse") if group_default else None)
+			or pos_profile_doc.warehouse
+		)
 
-	existing_id = frappe.db.get_value(
-		"Item Default",
-		{"parent": item.name, "parenttype": "Item", "company": company},
-		"name",
-	)
-	id_values = {"default_warehouse": target_warehouse}
-	if group_default:
-		for k in ("income_account", "expense_account", "buying_cost_center", "selling_cost_center"):
-			if group_default.get(k):
-				id_values[k] = group_default.get(k)
-
-	if existing_id:
-		frappe.db.set_value("Item Default", existing_id, id_values)
-	else:
-		item_reload = frappe.get_doc("Item", item.name)
-		row_dict = {"company": company, **id_values}
-		item_reload.append("item_defaults", row_dict)
-		item_reload.save(ignore_permissions=True)
-
-	# Upsert Item Prices (Selling & Cost)
-	def _upsert_price(pl_name, rate_val, is_selling=1):
-		if not pl_name or not frappe.db.exists("Price List", pl_name):
-			return
-		existing_price = frappe.db.get_value(
-			"Item Price",
-			{"item_code": item.name, "price_list": pl_name},
+		existing_id = frappe.db.get_value(
+			"Item Default",
+			{"parent": item.name, "parenttype": "Item", "company": company},
 			"name",
 		)
-		if existing_price:
-			frappe.db.set_value("Item Price", existing_price, "price_list_rate", rate_val)
+		id_values = {"default_warehouse": target_warehouse}
+		if group_default:
+			for k in ("income_account", "expense_account", "buying_cost_center", "selling_cost_center"):
+				if group_default.get(k):
+					id_values[k] = group_default.get(k)
+
+		if existing_id:
+			frappe.db.set_value("Item Default", existing_id, id_values)
 		else:
-			ip = frappe.new_doc("Item Price")
-			ip.item_code = item.name
-			ip.price_list = pl_name
-			ip.price_list_rate = rate_val
-			ip.selling = 1 if is_selling else 0
-			ip.buying = 0 if is_selling else 1
-			ip.currency = pos_profile_doc.currency or "BOB"
-			ip.insert(ignore_permissions=True)
+			item_reload = frappe.get_doc("Item", item.name)
+			row_dict = {"company": company, **id_values}
+			item_reload.append("item_defaults", row_dict)
+			item_reload.flags.ignore_permissions = True
+			item_reload.save(ignore_permissions=True)
 
-	_upsert_price(selling_price_list, selling_rate, is_selling=1)
-	if selling_price_list != "Standard Selling":
-		_upsert_price("Standard Selling", selling_rate, is_selling=1)
-	_upsert_price("Precio Mayoreo Ruffino", selling_rate, is_selling=1)
-	if cost_rate > 0:
-		_upsert_price("Precio Fábrica (Costo)", cost_rate, is_selling=0)
+		# Upsert Item Prices (Selling & Cost)
+		def _upsert_price(pl_name, rate_val, is_selling=1):
+			if not pl_name or not frappe.db.exists("Price List", pl_name):
+				return
+			existing_price = frappe.db.get_value(
+				"Item Price",
+				{"item_code": item.name, "price_list": pl_name},
+				"name",
+			)
+			if existing_price:
+				frappe.db.set_value("Item Price", existing_price, "price_list_rate", rate_val)
+			else:
+				ip = frappe.new_doc("Item Price")
+				ip.item_code = item.name
+				ip.price_list = pl_name
+				ip.price_list_rate = rate_val
+				ip.selling = 1 if is_selling else 0
+				ip.buying = 0 if is_selling else 1
+				ip.currency = pos_profile_doc.currency or "BOB"
+				ip.flags.ignore_permissions = True
+				ip.insert(ignore_permissions=True)
 
-	# Propagate price and cost updates to all variants if this item is a template
-	if cint(item.has_variants):
-		variant_codes = frappe.get_all("Item", filters={"variant_of": item.name}, pluck="name")
-		for v_code in variant_codes:
-			v_updates = {"standard_rate": selling_rate}
-			if cost_rate > 0:
-				v_updates["valuation_rate"] = cost_rate
-			if frappe.db.has_column("Item", "custom_precio_venta"):
-				v_updates["custom_precio_venta"] = selling_rate
-			if frappe.db.has_column("Item", "custom_costo_fabricacion") and cost_rate > 0:
-				v_updates["custom_costo_fabricacion"] = cost_rate
-			if frappe.db.has_column("Item", "custom_margen_mayoreo"):
-				v_updates["custom_margen_mayoreo"] = max(0.0, selling_rate - cost_rate)
-			frappe.db.set_value("Item", v_code, v_updates, update_modified=False)
-			for pl_target in {selling_price_list, "Standard Selling", "Precio Mayoreo Ruffino"}:
-				if pl_target and frappe.db.exists("Price List", pl_target):
-					vp_name = frappe.db.get_value("Item Price", {"item_code": v_code, "price_list": pl_target}, "name")
-					if vp_name:
-						frappe.db.set_value("Item Price", vp_name, "price_list_rate", selling_rate, update_modified=False)
-					else:
-						vp = frappe.new_doc("Item Price")
-						vp.item_code = v_code
-						vp.price_list = pl_target
-						vp.price_list_rate = selling_rate
-						vp.selling = 1
-						vp.buying = 0
-						vp.currency = pos_profile_doc.currency or "BOB"
-						vp.insert(ignore_permissions=True)
-			if cost_rate > 0 and frappe.db.exists("Price List", "Precio Fábrica (Costo)"):
-				vp_cost = frappe.db.get_value("Item Price", {"item_code": v_code, "price_list": "Precio Fábrica (Costo)"}, "name")
-				if vp_cost:
-					frappe.db.set_value("Item Price", vp_cost, "price_list_rate", cost_rate, update_modified=False)
-			frappe.clear_document_cache("Item", v_code)
+		_upsert_price(selling_price_list, selling_rate, is_selling=1)
+		if selling_price_list != "Standard Selling":
+			_upsert_price("Standard Selling", selling_rate, is_selling=1)
+		_upsert_price("Precio Mayoreo Ruffino", selling_rate, is_selling=1)
+		if cost_rate > 0:
+			_upsert_price("Precio Fábrica (Costo)", cost_rate, is_selling=0)
 
-	# Optional initial stock when creating a new item
-	opening_stock = flt(item_data.get("opening_stock"))
-	if is_new and opening_stock > 0 and target_warehouse:
-		se = frappe.new_doc("Stock Entry")
-		se.company = company
-		se.purpose = "Material Receipt"
-		se.stock_entry_type = _resolve_stock_entry_type("Material Receipt")
-		se.remarks = f"[POS Stock Inicial] Creación de producto {item.item_name} ({item.name})"
-		se.append(
-			"items",
-			{
-				"item_code": item.name,
-				"qty": opening_stock,
-				"uom": item.stock_uom,
-				"stock_uom": item.stock_uom,
-				"conversion_factor": 1,
-				"t_warehouse": target_warehouse,
-				"basic_rate": cost_rate if cost_rate > 0 else selling_rate,
-				"allow_zero_valuation_rate": 1 if (cost_rate <= 0 and selling_rate <= 0) else 0,
-			},
-		)
-		se.insert(ignore_permissions=True)
-		se.submit()
+		# Propagate price and cost updates to all variants if this item is a template
+		if cint(item.has_variants):
+			variant_codes = frappe.get_all("Item", filters={"variant_of": item.name}, pluck="name")
+			for v_code in variant_codes:
+				v_updates = {"standard_rate": selling_rate}
+				if cost_rate > 0:
+					v_updates["valuation_rate"] = cost_rate
+				if frappe.db.has_column("Item", "custom_precio_venta"):
+					v_updates["custom_precio_venta"] = selling_rate
+				if frappe.db.has_column("Item", "custom_costo_fabricacion") and cost_rate > 0:
+					v_updates["custom_costo_fabricacion"] = cost_rate
+				if frappe.db.has_column("Item", "custom_margen_mayoreo"):
+					v_updates["custom_margen_mayoreo"] = max(0.0, selling_rate - cost_rate)
+				frappe.db.set_value("Item", v_code, v_updates, update_modified=False)
+				for pl_target in {selling_price_list, "Standard Selling", "Precio Mayoreo Ruffino"}:
+					if pl_target and frappe.db.exists("Price List", pl_target):
+						vp_name = frappe.db.get_value("Item Price", {"item_code": v_code, "price_list": pl_target}, "name")
+						if vp_name:
+							frappe.db.set_value("Item Price", vp_name, "price_list_rate", selling_rate, update_modified=False)
+						else:
+							vp = frappe.new_doc("Item Price")
+							vp.item_code = v_code
+							vp.price_list = pl_target
+							vp.price_list_rate = selling_rate
+							vp.selling = 1
+							vp.buying = 0
+							vp.currency = pos_profile_doc.currency or "BOB"
+							vp.flags.ignore_permissions = True
+							vp.insert(ignore_permissions=True)
+				if cost_rate > 0 and frappe.db.exists("Price List", "Precio Fábrica (Costo)"):
+					vp_cost = frappe.db.get_value("Item Price", {"item_code": v_code, "price_list": "Precio Fábrica (Costo)"}, "name")
+					if vp_cost:
+						frappe.db.set_value("Item Price", vp_cost, "price_list_rate", cost_rate, update_modified=False)
+				frappe.clear_document_cache("Item", v_code)
+
+		# Optional initial stock when creating a new item
+		opening_stock = flt(item_data.get("opening_stock"))
+		if is_new and opening_stock > 0 and target_warehouse:
+			se = frappe.new_doc("Stock Entry")
+			se.company = company
+			se.purpose = "Material Receipt"
+			se.stock_entry_type = _resolve_stock_entry_type("Material Receipt")
+			se.remarks = f"[POS Stock Inicial] Creación de producto {item.item_name} ({item.name})"
+			se.append(
+				"items",
+				{
+					"item_code": item.name,
+					"qty": opening_stock,
+					"uom": item.stock_uom,
+					"stock_uom": item.stock_uom,
+					"conversion_factor": 1,
+					"t_warehouse": target_warehouse,
+					"basic_rate": cost_rate if cost_rate > 0 else selling_rate,
+					"allow_zero_valuation_rate": 1 if (cost_rate <= 0 and selling_rate <= 0) else 0,
+				},
+			)
+			se.flags.ignore_permissions = True
+			se.insert(ignore_permissions=True)
+			se.flags.ignore_permissions = True
+			se.submit()
+	finally:
+		frappe.flags.ignore_permissions = prev_ignore
 
 	frappe.clear_document_cache("Item", item.name)
 	frappe.cache().delete_value(f"pos_item_groups:{pos_profile}")
