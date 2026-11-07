@@ -222,3 +222,112 @@ def emit_customer_event(doc, method=None):
 			title=_("Real-time Customer Update Event Error"),
 			message=f"Failed to emit customer update event for {doc.name}: {e!s}",
 		)
+
+
+def emit_item_event(doc, method=None):
+	"""
+	Emit real-time item / price update event when an Item or Item Price is created, updated, or deleted.
+	Notifies all connected POS terminals so they update their in-memory and IndexedDB item prices immediately.
+	"""
+	try:
+		doctype = getattr(doc, "doctype", None)
+		if doctype == "Item Price":
+			item_code = getattr(doc, "item_code", None)
+		else:
+			item_code = getattr(doc, "name", None) or getattr(doc, "item_code", None)
+
+		if not item_code:
+			return
+
+		if method == "on_trash" and doctype == "Item":
+			frappe.publish_realtime(
+				event="pos_item_updated",
+				message={
+					"item_code": item_code,
+					"action": "delete",
+					"disabled": 1,
+					"timestamp": frappe.utils.now(),
+				},
+				user=None,
+				after_commit=True,
+			)
+			return
+
+		if not frappe.db.exists("Item", item_code):
+			return
+
+		item_doc = frappe.get_doc("Item", item_code)
+
+		# Collect selling prices across all selling price lists for this item
+		price_rows = frappe.get_all(
+			"Item Price",
+			filters={"item_code": item_code, "selling": 1},
+			fields=["price_list", "price_list_rate", "uom"],
+		)
+		prices_by_list = {}
+		for r in price_rows:
+			if r.price_list and r.price_list not in prices_by_list:
+				prices_by_list[r.price_list] = frappe.utils.flt(r.price_list_rate)
+
+		custom_price = frappe.utils.flt(getattr(doc if doctype == "Item" else item_doc, "custom_precio_venta", 0))
+		if doctype == "Item" and custom_price > 0:
+			prices_by_list["Standard Selling"] = custom_price
+			prices_by_list["Precio Mayoreo Ruffino"] = custom_price
+
+		selling_rate = (
+			(custom_price if (doctype == "Item" and custom_price > 0) else 0.0)
+			or prices_by_list.get("Standard Selling")
+			or (next(iter(prices_by_list.values())) if prices_by_list else 0.0)
+			or custom_price
+			or frappe.utils.flt(item_doc.standard_rate)
+			or 0.0
+		)
+
+		ancho = frappe.utils.flt(getattr(item_doc, "custom_ancho_cm", 0))
+		largo = frappe.utils.flt(getattr(item_doc, "custom_largo_cm", 0))
+		alto = frappe.utils.flt(getattr(item_doc, "custom_alto_cm", 0))
+		medida = getattr(item_doc, "custom_medida", "") or (
+			f"{int(ancho)}x{int(largo)}" + (f"x{int(alto)}cm" if alto > 0 else "cm")
+			if ancho > 0 and largo > 0
+			else ""
+		)
+
+		event_data = {
+			"action": "delete" if int(item_doc.disabled or 0) else "update",
+			"item_code": item_doc.name,
+			"name": item_doc.name,
+			"item_name": item_doc.item_name,
+			"item_group": item_doc.item_group,
+			"stock_uom": item_doc.stock_uom or "Unidad(es)",
+			"uom": item_doc.stock_uom or "Unidad(es)",
+			"price_uom": item_doc.stock_uom or "Unidad(es)",
+			"image": item_doc.image or "",
+			"disabled": int(item_doc.disabled or 0),
+			"has_variants": int(item_doc.has_variants or 0),
+			"variant_of": item_doc.variant_of or "",
+			"rate": selling_rate,
+			"price_list_rate": selling_rate,
+			"price_list_rate_price_uom": selling_rate,
+			"standard_rate": selling_rate,
+			"prices_by_list": prices_by_list,
+			"uom_prices": {item_doc.stock_uom or "Unidad(es)": selling_rate},
+			"custom_medida": medida,
+			"custom_ancho_cm": ancho,
+			"custom_largo_cm": largo,
+			"custom_alto_cm": alto,
+			"custom_plazas": getattr(item_doc, "custom_plazas", "") or "",
+			"safety_stock": frappe.utils.flt(getattr(item_doc, "safety_stock", 0)),
+			"timestamp": frappe.utils.now(),
+		}
+
+		frappe.publish_realtime(
+			event="pos_item_updated",
+			message=event_data,
+			user=None,
+			after_commit=True,
+		)
+	except Exception as e:
+		frappe.log_error(
+			title=_("Real-time Item Update Event Error"),
+			message=f"Failed to emit item update event: {e!s}",
+		)

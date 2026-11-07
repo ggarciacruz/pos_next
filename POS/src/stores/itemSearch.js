@@ -2361,6 +2361,121 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		}
 	}
 
+	// Real-time Item & Price updates across all connected POS sessions
+	let itemRealtimeAttached = false;
+	let itemRealtimeRetries = 0;
+
+	async function handleRealtimeItemUpdate(data) {
+		if (!data || !data.item_code) return;
+
+		const code = data.item_code;
+		const isDisabled = data.action === "delete" || !!data.disabled;
+
+		if (isDisabled) {
+			const removeInPlace = (arr) => {
+				if (!Array.isArray(arr)) return;
+				const idx = arr.findIndex((i) => i.item_code === code);
+				if (idx !== -1) arr.splice(idx, 1);
+			};
+			removeInPlace(allItems.value);
+			removeInPlace(searchResults.value);
+			allItemsVersion.value += 1;
+			searchResultsVersion.value += 1;
+			clearBaseCache();
+			try {
+				await offlineWorker.clearItemsCache();
+			} catch {}
+			return;
+		}
+
+		const activePriceList = shiftStore.currentProfile?.selling_price_list || "Standard Selling";
+		const resolvedRate = Number(
+			data.prices_by_list?.[activePriceList] ??
+				data.prices_by_list?.["Standard Selling"] ??
+				data.rate ??
+				data.price_list_rate ??
+				0
+		);
+		const uomKey = data.stock_uom || data.uom || "Unidad(es)";
+
+		let foundInCatalog = false;
+		let mergedSnapshot = null;
+
+		const mergeIntoArray = (arr) => {
+			if (!Array.isArray(arr)) return;
+			const idx = arr.findIndex((i) => i.item_code === code);
+			if (idx !== -1) {
+				foundInCatalog = true;
+				const prev = arr[idx];
+				const updated = {
+					...prev,
+					item_name: data.item_name ?? prev.item_name,
+					item_group: data.item_group ?? prev.item_group,
+					image: data.image !== undefined ? data.image : prev.image,
+					has_variants: data.has_variants !== undefined ? data.has_variants : prev.has_variants,
+					custom_medida: data.custom_medida !== undefined ? data.custom_medida : prev.custom_medida,
+					custom_ancho_cm: data.custom_ancho_cm ?? prev.custom_ancho_cm,
+					custom_largo_cm: data.custom_largo_cm ?? prev.custom_largo_cm,
+					custom_alto_cm: data.custom_alto_cm ?? prev.custom_alto_cm,
+					custom_plazas: data.custom_plazas ?? prev.custom_plazas,
+					safety_stock: data.safety_stock ?? prev.safety_stock,
+					rate: resolvedRate,
+					price_list_rate: resolvedRate,
+					price_list_rate_price_uom: resolvedRate,
+					standard_rate: resolvedRate,
+					uom_prices: { ...(prev.uom_prices || {}), [uomKey]: resolvedRate },
+				};
+				arr.splice(idx, 1, updated);
+				if (!mergedSnapshot) mergedSnapshot = updated;
+			}
+		};
+
+		mergeIntoArray(allItems.value);
+		mergeIntoArray(searchResults.value);
+
+		if (foundInCatalog && mergedSnapshot) {
+			allItemsVersion.value += 1;
+			searchResultsVersion.value += 1;
+			clearBaseCache();
+			try {
+				await offlineWorker.cacheItems([mergedSnapshot]);
+			} catch {}
+		} else if (!data.variant_of && posProfile.value) {
+			// New item created in another session — check if its group is allowed in this POS Profile
+			const allowedGroups = (itemGroups.value || []).map((g) => g.item_group);
+			if (allowedGroups.length === 0 || allowedGroups.includes(data.item_group)) {
+				await loadAllItems(posProfile.value, true);
+			}
+		} else if (data.variant_of) {
+			// Variant price updated — refresh its cached entry in IndexedDB if present
+			try {
+				await offlineWorker.cacheItems([
+					{
+						...data,
+						rate: resolvedRate,
+						price_list_rate: resolvedRate,
+						price_list_rate_price_uom: resolvedRate,
+						standard_rate: resolvedRate,
+					},
+				]);
+			} catch {}
+		}
+	}
+
+	function attachRealtimeItemListener() {
+		if (itemRealtimeAttached) return;
+		if (typeof window !== "undefined" && window.frappe?.realtime) {
+			window.frappe.realtime.on("pos_item_updated", handleRealtimeItemUpdate);
+			itemRealtimeAttached = true;
+			log.info("Subscribed to real-time item & price updates (pos_item_updated)");
+		} else if (itemRealtimeRetries < 10) {
+			itemRealtimeRetries += 1;
+			setTimeout(attachRealtimeItemListener, 1000);
+		}
+	}
+
+	attachRealtimeItemListener();
+
 	// Stock delegates - Smart & minimal!
 	const applyStockUpdates = (updates) => stockStore.update(updates);
 	const refreshStockFromServer = (codes, wh) => stockStore.refresh(codes, wh);

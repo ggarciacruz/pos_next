@@ -3643,6 +3643,40 @@ def save_pos_item(pos_profile, item_data):
 	if cost_rate > 0:
 		_upsert_price("Precio Fábrica (Costo)", cost_rate, is_selling=0)
 
+	# Propagate price and cost updates to all variants if this item is a template
+	if cint(item.has_variants):
+		variant_codes = frappe.get_all("Item", filters={"variant_of": item.name}, pluck="name")
+		for v_code in variant_codes:
+			v_updates = {"standard_rate": selling_rate}
+			if cost_rate > 0:
+				v_updates["valuation_rate"] = cost_rate
+			if frappe.db.has_column("Item", "custom_precio_venta"):
+				v_updates["custom_precio_venta"] = selling_rate
+			if frappe.db.has_column("Item", "custom_costo_fabricacion") and cost_rate > 0:
+				v_updates["custom_costo_fabricacion"] = cost_rate
+			if frappe.db.has_column("Item", "custom_margen_mayoreo"):
+				v_updates["custom_margen_mayoreo"] = max(0.0, selling_rate - cost_rate)
+			frappe.db.set_value("Item", v_code, v_updates, update_modified=False)
+			for pl_target in {selling_price_list, "Standard Selling", "Precio Mayoreo Ruffino"}:
+				if pl_target and frappe.db.exists("Price List", pl_target):
+					vp_name = frappe.db.get_value("Item Price", {"item_code": v_code, "price_list": pl_target}, "name")
+					if vp_name:
+						frappe.db.set_value("Item Price", vp_name, "price_list_rate", selling_rate, update_modified=False)
+					else:
+						vp = frappe.new_doc("Item Price")
+						vp.item_code = v_code
+						vp.price_list = pl_target
+						vp.price_list_rate = selling_rate
+						vp.selling = 1
+						vp.buying = 0
+						vp.currency = pos_profile_doc.currency or "BOB"
+						vp.insert(ignore_permissions=True)
+			if cost_rate > 0 and frappe.db.exists("Price List", "Precio Fábrica (Costo)"):
+				vp_cost = frappe.db.get_value("Item Price", {"item_code": v_code, "price_list": "Precio Fábrica (Costo)"}, "name")
+				if vp_cost:
+					frappe.db.set_value("Item Price", vp_cost, "price_list_rate", cost_rate, update_modified=False)
+			frappe.clear_document_cache("Item", v_code)
+
 	# Optional initial stock when creating a new item
 	opening_stock = flt(item_data.get("opening_stock"))
 	if is_new and opening_stock > 0 and target_warehouse:
@@ -3669,6 +3703,10 @@ def save_pos_item(pos_profile, item_data):
 
 	frappe.clear_document_cache("Item", item.name)
 	frappe.cache().delete_value(f"pos_item_groups:{pos_profile}")
+
+	from pos_next.realtime_events import emit_item_event
+
+	emit_item_event(item, "after_insert" if is_new else "on_update")
 
 	item_wh_map, wh_name_map, stock_map, other_stock_map, _reserved_map = _resolve_item_warehouses_and_stock(
 		[item.name],
@@ -3699,7 +3737,7 @@ def save_pos_item(pos_profile, item_data):
 			"disabled": cint(item.disabled),
 			"is_stock_item": 1,
 			"is_sales_item": 1,
-			"has_variants": 0,
+			"has_variants": cint(item.has_variants),
 			"rate": selling_rate,
 			"price_list_rate": selling_rate,
 			"price_list_rate_price_uom": selling_rate,

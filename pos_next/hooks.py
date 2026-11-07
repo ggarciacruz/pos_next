@@ -164,6 +164,16 @@ doc_events = {
 		"after_insert": "pos_next.realtime_events.emit_invoice_created_event",
 	},
 	"POS Profile": {"on_update": "pos_next.realtime_events.emit_pos_profile_updated_event"},
+	"Item": {
+		"after_insert": "pos_next.realtime_events.emit_item_event",
+		"on_update": "pos_next.realtime_events.emit_item_event",
+		"on_trash": "pos_next.realtime_events.emit_item_event",
+	},
+	"Item Price": {
+		"after_insert": "pos_next.realtime_events.emit_item_event",
+		"on_update": "pos_next.realtime_events.emit_item_event",
+		"on_trash": "pos_next.realtime_events.emit_item_event",
+	},
 	"Promotional Scheme": {"on_update": "pos_next.overrides.pricing_rule.sync_pos_only_to_pricing_rules"},
 	"Payment Entry": {
 		"on_submit": "pos_next.api.partial_payments.sync_payment_entry_references",
