@@ -106,14 +106,19 @@ const sidebarItems = computed(() => {
 	return items;
 });
 
-const bottomItems = computed(() => [
-	{
-		id: "settings",
-		label: __("Configuración POS"),
-		shortLabel: __("Ajustes"),
-		icon: "settings",
-	},
-]);
+const bottomItems = computed(() => {
+	if (!posSettingsStore.canManagePOSSettings) {
+		return [];
+	}
+	return [
+		{
+			id: "settings",
+			label: __("Configuración POS"),
+			shortLabel: __("Ajustes"),
+			icon: "settings",
+		},
+	];
+});
 
 const mobileSidebarItems = computed(() => [
 	...sidebarItems.value,

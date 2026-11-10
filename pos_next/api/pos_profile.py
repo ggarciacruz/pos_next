@@ -6,7 +6,12 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
-from pos_next.api.utilities import _parse_list_parameter, check_user_company
+from pos_next.api.utilities import (
+	_parse_list_parameter,
+	check_user_company,
+	user_can_view_cost_price,
+	user_is_pos_manager,
+)
 
 
 @frappe.whitelist()
@@ -109,6 +114,11 @@ def get_pos_settings(pos_profile):
 					for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
 				)
 			)
+		)
+		pos_settings["cost_price_visibility"] = pos_settings.get("cost_price_visibility") or "Managers Only"
+		pos_settings["user_can_manage_pos_settings"] = cint(user_is_pos_manager())
+		pos_settings["user_can_view_cost_price"] = cint(
+			user_can_view_cost_price(pos_profile, pos_settings.get("cost_price_visibility"))
 		)
 		return pos_settings
 	except Exception:
@@ -276,13 +286,11 @@ def update_warehouse(pos_profile, warehouse):
 		if not warehouse:
 			frappe.throw(_("Warehouse is required"))
 
-		# Check if user has access to this POS Profile
-		has_access = frappe.db.exists(
-			"POS Profile User", {"parent": pos_profile, "user": frappe.session.user}
-		)
-
-		if not has_access and not frappe.has_permission("POS Profile", "write"):
-			frappe.throw(_("You don't have permission to update this POS Profile"))
+		if not user_is_pos_manager():
+			frappe.throw(
+				_("You don't have permission to update this POS Profile"),
+				frappe.PermissionError,
+			)
 
 		# Get POS Profile to check company
 		profile_doc = frappe.get_doc("POS Profile", pos_profile)

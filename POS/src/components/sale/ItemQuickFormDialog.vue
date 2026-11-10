@@ -253,14 +253,18 @@
 								</div>
 							</div>
 
-							<!-- Section 2: Selling Price & Cost (2 columns on both mobile and desktop) -->
+							<!-- Section 2: Selling Price & Cost -->
 							<div class="p-3 sm:p-4 bg-blue-50 rounded-xl border border-blue-200 space-y-2.5 sm:space-y-3">
 								<div class="flex flex-wrap items-center justify-between gap-1.5">
 									<h3 class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-blue-900">
-										{{ __("Precio de Venta y Costo") }}
+										{{
+											canViewCostPrice
+												? __("Precio de Venta y Costo")
+												: __("Precio de Venta")
+										}}
 									</h3>
 									<span
-										v-if="Number(form.selling_rate) > 0 && Number(form.cost_rate) > 0"
+										v-if="canViewCostPrice && Number(form.selling_rate) > 0 && Number(form.cost_rate) > 0"
 										class="text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-full"
 										:class="
 											estimatedProfit >= 0
@@ -272,7 +276,13 @@
 									</span>
 								</div>
 
-								<div class="grid grid-cols-2 gap-2.5 sm:gap-3">
+								<div
+									:class="
+										canViewCostPrice
+											? 'grid grid-cols-2 gap-2.5 sm:gap-3'
+											: 'grid grid-cols-1'
+									"
+								>
 									<div>
 										<label class="block text-[11px] sm:text-xs font-bold text-gray-800 mb-1 truncate">
 											{{ __("Precio de Venta (Bs.)") }}
@@ -295,7 +305,7 @@
 										</div>
 									</div>
 
-									<div>
+									<div v-if="canViewCostPrice">
 										<label class="block text-[11px] sm:text-xs font-bold text-gray-700 mb-1 truncate">
 											{{ __("Costo Fábrica") }}
 											<span class="text-gray-400 font-normal"
@@ -537,6 +547,7 @@
 <script setup>
 import { call } from "@/utils/apiWrapper";
 import { useToast } from "@/composables/useToast";
+import { usePOSSettingsStore } from "@/stores/posSettings";
 import { MdxButton, MdxModal, MdxSelect } from "mdx_ui";
 import { computed, nextTick, ref, watch } from "vue";
 
@@ -562,6 +573,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const { showSuccess, showError } = useToast();
+const settingsStore = usePOSSettingsStore();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -572,6 +584,12 @@ const groupWarehouses = ref({});
 const hasDimensions = ref(true);
 const hasPlazas = ref(true);
 const defaultLowStockThreshold = ref(10);
+const serverCanViewCost = ref(null);
+const canViewCostPrice = computed(() =>
+	serverCanViewCost.value !== null
+		? Boolean(serverCanViewCost.value)
+		: settingsStore.canViewCostPrice
+);
 const plazasOptions = ref([
 	"1 Plaza",
 	"1.5 Plazas",
@@ -751,6 +769,9 @@ async function loadFormData() {
 		hasDimensions.value = Boolean(data.has_dimensions);
 		hasPlazas.value = Boolean(data.has_plazas);
 		defaultLowStockThreshold.value = Number(data.default_low_stock_threshold) || 10;
+		if (data.can_view_cost_price !== undefined) {
+			serverCanViewCost.value = Boolean(data.can_view_cost_price);
+		}
 		if (Array.isArray(data.plazas_options) && data.plazas_options.length > 0) {
 			plazasOptions.value = data.plazas_options;
 		}
@@ -820,7 +841,9 @@ async function handleSave() {
 			new_item_group: isCreatingNewGroup.value ? selectedGroup : "",
 			stock_uom: form.value.stock_uom,
 			selling_rate: sellRate,
-			cost_rate: Number(form.value.cost_rate) || 0,
+			...(canViewCostPrice.value
+				? { cost_rate: Number(form.value.cost_rate) || 0 }
+				: {}),
 			custom_plazas: form.value.custom_plazas || "",
 			custom_ancho_cm: Number(form.value.custom_ancho_cm) || 0,
 			custom_largo_cm: Number(form.value.custom_largo_cm) || 0,

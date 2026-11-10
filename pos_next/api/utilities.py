@@ -106,3 +106,47 @@ def is_wallet_payment_mode(mode_of_payment):
 		return False
 
 	return cint(frappe.get_cached_value("Mode of Payment", mode_of_payment, "is_wallet_payment"))
+
+
+POS_MANAGER_ROLES = (
+	"System Manager",
+	"Nexus POS Manager",
+)
+
+
+def user_is_pos_manager(user=None) -> bool:
+	"""Return True if the user holds an administrative/management role for POS configuration and costing."""
+	target_user = user or frappe.session.user
+	if not target_user or target_user == "Guest":
+		return False
+	if target_user == "Administrator":
+		return True
+	roles = frappe.get_roles(target_user)
+	return any(role in roles for role in POS_MANAGER_ROLES)
+
+
+def user_can_view_cost_price(pos_profile=None, visibility_mode=None, user=None) -> bool:
+	"""
+	Evaluate whether the given user is allowed to view and edit cost/factory prices in POS.
+
+	Modes supported on POS Settings (`cost_price_visibility`):
+	- 'Managers Only' (default): Only users with management roles (`POS_MANAGER_ROLES`).
+	- 'All Users': Any authenticated user assigned to the POS Profile.
+	- 'Hidden': Hidden for everyone in the POS interface.
+	"""
+	target_user = user or frappe.session.user
+	if not target_user or target_user == "Guest":
+		return False
+
+	mode = visibility_mode
+	if not mode and pos_profile and frappe.db.has_column("POS Settings", "cost_price_visibility"):
+		mode = frappe.db.get_value(
+			"POS Settings", {"pos_profile": pos_profile, "enabled": 1}, "cost_price_visibility"
+		)
+
+	mode = (mode or "Managers Only").strip()
+	if mode == "Hidden":
+		return False
+	if mode == "All Users":
+		return True
+	return user_is_pos_manager(target_user)

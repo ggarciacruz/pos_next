@@ -341,6 +341,18 @@
 												"
 											/>
 											<div class="pt-2 border-t border-blue-200/60">
+												<SelectField
+													v-model="settings.cost_price_visibility"
+													:label="__('Visibilidad de Precio de Costo en POS')"
+													:options="costPriceVisibilityOptions"
+													:description="
+														__(
+															'Controla quién puede ver y editar los precios de costo de fábrica y márgenes de ganancia dentro del POS.'
+														)
+													"
+												/>
+											</div>
+											<div class="pt-2 border-t border-blue-200/60">
 												<NumberField
 													v-model="settings.low_stock_threshold"
 													:label="
@@ -1326,8 +1338,15 @@ const settings = ref({
 	low_stock_threshold: 10,
 	allow_stock_entry: 0,
 	allow_item_management: 0,
+	cost_price_visibility: "Managers Only",
 	tax_inclusive: 0,
 });
+
+const costPriceVisibilityOptions = [
+	{ label: "Solo Administradores / Gerentes", value: "Managers Only" },
+	{ label: "Todos los Usuarios del Perfil", value: "All Users" },
+	{ label: "Oculto para Todos en el POS", value: "Hidden" },
+];
 
 const receiptTitleOptions = [
 	{ label: "Recibo de Venta", value: "Recibo de Venta" },

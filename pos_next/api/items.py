@@ -3328,6 +3328,10 @@ def get_pos_item_form_data(pos_profile, item_code=None):
 	has_dimensions = bool(frappe.db.has_column("Item", "custom_ancho_cm"))
 	has_plazas = bool(frappe.db.has_column("Item", "custom_plazas"))
 
+	from pos_next.api.utilities import user_can_view_cost_price
+
+	can_view_cost = user_can_view_cost_price(pos_profile)
+
 	item_payload = None
 	if item_code and frappe.db.exists("Item", item_code):
 		doc = frappe.get_doc("Item", item_code)
@@ -3341,15 +3345,19 @@ def get_pos_item_form_data(pos_profile, item_code=None):
 			or doc.standard_rate
 			or 0
 		)
-		cost_rate = flt(
-			getattr(doc, "custom_costo_fabricacion", 0)
-			or frappe.db.get_value(
-				"Item Price",
-				{"item_code": item_code, "price_list": "Precio Fábrica (Costo)"},
-				"price_list_rate",
+		cost_rate = (
+			flt(
+				getattr(doc, "custom_costo_fabricacion", 0)
+				or frappe.db.get_value(
+					"Item Price",
+					{"item_code": item_code, "price_list": "Precio Fábrica (Costo)"},
+					"price_list_rate",
+				)
+				or doc.valuation_rate
+				or 0
 			)
-			or doc.valuation_rate
-			or 0
+			if can_view_cost
+			else 0.0
 		)
 		item_wh_map, wh_name_map, stock_map, _other_map, _reserved_map = _resolve_item_warehouses_and_stock(
 			[item_code],
@@ -3398,6 +3406,7 @@ def get_pos_item_form_data(pos_profile, item_code=None):
 		"has_plazas": has_plazas,
 		"plazas_options": ["1 Plaza", "1.5 Plazas", "2 Plazas", "2.5 Plazas / Queen", "3 Plazas / King"],
 		"default_low_stock_threshold": low_stock_threshold,
+		"can_view_cost_price": cint(can_view_cost),
 		"item": item_payload,
 	}
 
@@ -3506,11 +3515,15 @@ def save_pos_item(pos_profile, item_data):
 		ig.is_group = 0
 		ig.insert(ignore_permissions=True)
 
+	from pos_next.api.utilities import user_can_view_cost_price
+
+	can_view_cost = user_can_view_cost_price(pos_profile)
+
 	selling_rate = flt(item_data.get("selling_rate"))
 	if selling_rate < 0:
 		frappe.throw(_("El precio de venta no puede ser negativo."))
 
-	cost_rate = max(0.0, flt(item_data.get("cost_rate")))
+	cost_rate = max(0.0, flt(item_data.get("cost_rate"))) if can_view_cost else 0.0
 	ancho = max(0.0, flt(item_data.get("custom_ancho_cm")))
 	largo = max(0.0, flt(item_data.get("custom_largo_cm")))
 	alto = max(0.0, flt(item_data.get("custom_alto_cm")))
@@ -3539,12 +3552,23 @@ def save_pos_item(pos_profile, item_data):
 		if not item_code or not frappe.db.exists("Item", item_code):
 			frappe.throw(_("No se encontró el producto {0} para editar.").format(item_code))
 		item = frappe.get_doc("Item", item_code)
+		if not can_view_cost:
+			cost_rate = flt(
+				getattr(item, "custom_costo_fabricacion", 0)
+				or frappe.db.get_value(
+					"Item Price",
+					{"item_code": item.name, "price_list": "Precio Fábrica (Costo)"},
+					"price_list_rate",
+				)
+				or item.valuation_rate
+				or 0
+			)
 
 	item.item_name = item_name
 	item.item_group = item_group
 	item.disabled = 1 if cint(item_data.get("disabled")) else 0
 	item.standard_rate = selling_rate
-	if cost_rate > 0:
+	if can_view_cost and cost_rate > 0:
 		item.valuation_rate = cost_rate
 	safety_stock = max(0.0, flt(item_data.get("safety_stock")))
 	item.safety_stock = safety_stock
@@ -3567,7 +3591,7 @@ def save_pos_item(pos_profile, item_data):
 		item.custom_plazas = plazas
 	if frappe.db.has_column("Item", "custom_linea_modelo"):
 		item.custom_linea_modelo = linea or item_group
-	if frappe.db.has_column("Item", "custom_costo_fabricacion"):
+	if can_view_cost and frappe.db.has_column("Item", "custom_costo_fabricacion"):
 		item.custom_costo_fabricacion = cost_rate
 	if frappe.db.has_column("Item", "custom_precio_venta"):
 		item.custom_precio_venta = selling_rate
@@ -3658,7 +3682,7 @@ def save_pos_item(pos_profile, item_data):
 		if selling_price_list != "Standard Selling":
 			_upsert_price("Standard Selling", selling_rate, is_selling=1)
 		_upsert_price("Precio Mayoreo Ruffino", selling_rate, is_selling=1)
-		if cost_rate > 0:
+		if can_view_cost and cost_rate > 0:
 			_upsert_price("Precio Fábrica (Costo)", cost_rate, is_selling=0)
 
 		# Propagate price and cost updates to all variants if this item is a template
@@ -3666,14 +3690,20 @@ def save_pos_item(pos_profile, item_data):
 			variant_codes = frappe.get_all("Item", filters={"variant_of": item.name}, pluck="name")
 			for v_code in variant_codes:
 				v_updates = {"standard_rate": selling_rate}
-				if cost_rate > 0:
+				if can_view_cost and cost_rate > 0:
 					v_updates["valuation_rate"] = cost_rate
 				if frappe.db.has_column("Item", "custom_precio_venta"):
 					v_updates["custom_precio_venta"] = selling_rate
-				if frappe.db.has_column("Item", "custom_costo_fabricacion") and cost_rate > 0:
+				if can_view_cost and frappe.db.has_column("Item", "custom_costo_fabricacion") and cost_rate > 0:
 					v_updates["custom_costo_fabricacion"] = cost_rate
 				if frappe.db.has_column("Item", "custom_margen_mayoreo"):
-					v_updates["custom_margen_mayoreo"] = max(0.0, selling_rate - cost_rate)
+					v_eff_cost = cost_rate
+					if not can_view_cost:
+						v_eff_cost = flt(
+							frappe.db.get_value("Item", v_code, "custom_costo_fabricacion")
+							or cost_rate
+						)
+					v_updates["custom_margen_mayoreo"] = max(0.0, selling_rate - v_eff_cost)
 				frappe.db.set_value("Item", v_code, v_updates, update_modified=False)
 				for pl_target in {selling_price_list, "Standard Selling", "Precio Mayoreo Ruffino"}:
 					if pl_target and frappe.db.exists("Price List", pl_target):
@@ -3690,7 +3720,7 @@ def save_pos_item(pos_profile, item_data):
 							vp.currency = pos_profile_doc.currency or "BOB"
 							vp.flags.ignore_permissions = True
 							vp.insert(ignore_permissions=True)
-				if cost_rate > 0 and frappe.db.exists("Price List", "Precio Fábrica (Costo)"):
+				if can_view_cost and cost_rate > 0 and frappe.db.exists("Price List", "Precio Fábrica (Costo)"):
 					vp_cost = frappe.db.get_value("Item Price", {"item_code": v_code, "price_list": "Precio Fábrica (Costo)"}, "name")
 					if vp_cost:
 						frappe.db.set_value("Item Price", vp_cost, "price_list_rate", cost_rate, update_modified=False)
@@ -3905,11 +3935,18 @@ def get_pos_inventory_report(pos_profile):
 		for b in bins:
 			by_wh_map.setdefault(b.item_code, {})[b.warehouse] = flt(b.actual_qty)
 
+	from pos_next.api.utilities import user_can_view_cost_price
+
+	can_view_cost = user_can_view_cost_price(pos_profile)
+
 	# Batch fetch Item Prices
 	selling_price_map = {}
 	cost_price_map = {}
 	if item_codes:
-		price_lists = list({selling_price_list, "Precio Mayoreo Ruffino", "Standard Selling", "Precio Fábrica (Costo)"})
+		price_lists = {selling_price_list, "Precio Mayoreo Ruffino", "Standard Selling"}
+		if can_view_cost:
+			price_lists.add("Precio Fábrica (Costo)")
+		price_lists = list(price_lists)
 		prices = frappe.get_all(
 			"Item Price",
 			filters={"item_code": ["in", item_codes], "price_list": ["in", price_lists]},
@@ -3927,7 +3964,7 @@ def get_pos_inventory_report(pos_profile):
 				or 0.0
 			)
 			selling_price_map[code] = sell_val
-			if pl_dict.get("Precio Fábrica (Costo)"):
+			if can_view_cost and pl_dict.get("Precio Fábrica (Costo)"):
 				cost_price_map[code] = pl_dict.get("Precio Fábrica (Costo)")
 
 	enriched_items = []
@@ -3955,10 +3992,14 @@ def get_pos_inventory_report(pos_profile):
 			or 0.0
 		)
 		cost_rate = (
-			flt(it.get("custom_costo_fabricacion"))
-			or cost_price_map.get(code)
-			or flt(it.get("valuation_rate"))
-			or 0.0
+			(
+				flt(it.get("custom_costo_fabricacion"))
+				or cost_price_map.get(code)
+				or flt(it.get("valuation_rate"))
+				or 0.0
+			)
+			if can_view_cost
+			else 0.0
 		)
 
 		wh_qtys = {w: flt(by_wh_map.get(code, {}).get(w, 0)) for w in wh_names_list}
@@ -3993,6 +4034,7 @@ def get_pos_inventory_report(pos_profile):
 		"pos_profile": pos_profile,
 		"default_warehouse": pos_profile_doc.warehouse,
 		"default_low_stock_threshold": low_stock_threshold,
+		"can_view_cost_price": cint(can_view_cost),
 		"warehouses": [
 			{"warehouse": w.name, "warehouse_name": w.warehouse_name or w.name}
 			for w in company_warehouses

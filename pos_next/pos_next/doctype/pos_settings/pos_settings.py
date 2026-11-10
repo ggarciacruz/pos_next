@@ -138,6 +138,13 @@ def get_pos_settings(pos_profile):
 			)
 		)
 	)
+	from pos_next.api.utilities import user_can_view_cost_price, user_is_pos_manager
+
+	settings["cost_price_visibility"] = settings.get("cost_price_visibility") or "Managers Only"
+	settings["user_can_manage_pos_settings"] = cint(user_is_pos_manager())
+	settings["user_can_view_cost_price"] = cint(
+		user_can_view_cost_price(pos_profile, settings.get("cost_price_visibility"))
+	)
 
 	return settings
 
@@ -147,7 +154,7 @@ def create_default_settings(pos_profile):
 	doc = frappe.new_doc("POS Settings")
 	doc.pos_profile = pos_profile
 	doc.enabled = 1
-	doc.insert()
+	doc.insert(ignore_permissions=True)
 
 	res = doc.as_dict()
 	res["user_can_cancel_invoice"] = cint(
@@ -172,6 +179,13 @@ def create_default_settings(pos_profile):
 				for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
 			)
 		)
+	)
+	from pos_next.api.utilities import user_can_view_cost_price, user_is_pos_manager
+
+	res["cost_price_visibility"] = res.get("cost_price_visibility") or "Managers Only"
+	res["user_can_manage_pos_settings"] = cint(user_is_pos_manager())
+	res["user_can_view_cost_price"] = cint(
+		user_can_view_cost_price(pos_profile, res.get("cost_price_visibility"))
 	)
 	return res
 
@@ -182,15 +196,16 @@ def update_pos_settings(pos_profile, settings):
 	import json
 
 	from frappe import _
+	from pos_next.api.utilities import user_can_view_cost_price, user_is_pos_manager
 
 	if isinstance(settings, str):
 		settings = json.loads(settings)
 
-	# Check if user has access to this POS Profile
-	has_access = frappe.db.exists("POS Profile User", {"parent": pos_profile, "user": frappe.session.user})
-
-	if not has_access and not frappe.has_permission("POS Settings", "write"):
-		frappe.throw(_("You don't have permission to update this POS Profile"))
+	if not user_is_pos_manager():
+		frappe.throw(
+			_("Solo los administradores o gerentes del POS están autorizados para modificar la Configuración del POS."),
+			frappe.PermissionError,
+		)
 
 	# Check if settings exist
 	existing = frappe.db.exists("POS Settings", {"pos_profile": pos_profile})
@@ -198,12 +213,12 @@ def update_pos_settings(pos_profile, settings):
 	if existing:
 		doc = frappe.get_doc("POS Settings", existing)
 		doc.update(settings)
-		doc.save()
+		doc.save(ignore_permissions=True)
 	else:
 		doc = frappe.new_doc("POS Settings")
 		doc.pos_profile = pos_profile
 		doc.update(settings)
-		doc.insert()
+		doc.insert(ignore_permissions=True)
 
 	res = doc.as_dict()
 	res["user_can_cancel_invoice"] = cint(
@@ -228,5 +243,10 @@ def update_pos_settings(pos_profile, settings):
 				for r in ("Stock User", "Stock Manager", "Sales Manager", "Nexus POS Manager", "System Manager")
 			)
 		)
+	)
+	res["cost_price_visibility"] = res.get("cost_price_visibility") or "Managers Only"
+	res["user_can_manage_pos_settings"] = cint(user_is_pos_manager())
+	res["user_can_view_cost_price"] = cint(
+		user_can_view_cost_price(pos_profile, res.get("cost_price_visibility"))
 	)
 	return res

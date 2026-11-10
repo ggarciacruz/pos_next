@@ -80,6 +80,7 @@
   "low_stock_threshold",
   "allow_stock_entry",
   "allow_item_management",
+  "cost_price_visibility",
   "section_break_security",
   "enable_session_lock",
   "session_lock_timeout",
@@ -606,6 +607,14 @@
    "label": "Permitir Crear y Editar Productos desde el POS"
   },
   {
+   "default": "Managers Only",
+   "description": "Controla quién puede ver y editar precios de costo y márgenes de ganancia en el POS: Solo Administradores / Gerentes (por defecto), Todos los Usuarios del Perfil, u Oculto para Todos.",
+   "fieldname": "cost_price_visibility",
+   "fieldtype": "Select",
+   "label": "Visibilidad de Precio de Costo en POS",
+   "options": "Managers Only\nAll Users\nHidden"
+  },
+  {
    "collapsible": 1,
    "fieldname": "section_break_security",
    "fieldtype": "Section Break",
@@ -686,10 +695,8 @@
    "role": "Sales User"
   },
   {
-   "export": 1,
    "read": 1,
-   "role": "POSNext Cashier",
-   "write": 1
+   "role": "POSNext Cashier"
   }
  ],
  "row_format": "Dynamic",

@@ -77,6 +77,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		user_can_manage_stock: 0,
 		allow_item_management: 0,
 		user_can_manage_items: 0,
+		cost_price_visibility: "Managers Only",
+		user_can_view_cost_price: 0,
+		user_can_manage_pos_settings: 0,
 		// Sales Persons
 		enable_sales_persons: "Disabled",
 		// Security
@@ -219,6 +222,13 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	const canManageItems = computed(
 		() => allowItemManagement.value && Boolean(settings.value.user_can_manage_items)
 	);
+	const costPriceVisibility = computed(
+		() => settings.value.cost_price_visibility || "Managers Only"
+	);
+	const canViewCostPrice = computed(() => Boolean(settings.value.user_can_view_cost_price));
+	const canManagePOSSettings = computed(() =>
+		Boolean(settings.value.user_can_manage_pos_settings)
+	);
 
 	// Computed - Sales Persons
 	const enableSalesPersons = computed(() => settings.value.enable_sales_persons !== "Disabled");
@@ -349,6 +359,11 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			low_stock_threshold: 10,
 			allow_stock_entry: 0,
 			user_can_manage_stock: 0,
+			allow_item_management: 0,
+			user_can_manage_items: 0,
+			cost_price_visibility: "Managers Only",
+			user_can_view_cost_price: 0,
+			user_can_manage_pos_settings: 0,
 			enable_sales_persons: "Disabled",
 			// Security
 			enable_session_lock: 0,
@@ -492,6 +507,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		canManageStock,
 		allowItemManagement,
 		canManageItems,
+		costPriceVisibility,
+		canViewCostPrice,
+		canManagePOSSettings,
 
 		// Computed - Sales Persons
 		enableSalesPersons,

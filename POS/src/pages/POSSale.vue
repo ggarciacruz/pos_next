@@ -710,7 +710,7 @@
 
 			<!-- POS Settings -->
 			<POSSettings
-				v-if="showPOSSettings"
+				v-if="showPOSSettings && posSettingsStore.canManagePOSSettings"
 				v-model="showPOSSettings"
 				:pos-profile="shiftStore.profileName"
 				:current-warehouse="shiftStore.profileWarehouse"
@@ -3381,7 +3381,9 @@ function handleManagementMenuClick(menuItem) {
 	if (menuItem === "promotions") {
 		showPromotionManagement.value = true;
 	} else if (menuItem === "settings") {
-		showPOSSettings.value = true;
+		if (posSettingsStore.canManagePOSSettings) {
+			showPOSSettings.value = true;
+		}
 	} else if (menuItem === "invoices") {
 		// Load invoice history data before showing
 		loadInvoiceHistoryData();

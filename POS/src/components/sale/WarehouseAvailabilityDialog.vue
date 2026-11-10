@@ -811,7 +811,10 @@
 									</button>
 								</div>
 
-								<label class="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded bg-white border border-gray-300 hover:bg-gray-50 cursor-pointer select-none ms-auto">
+								<label
+									v-if="canViewCostPrice"
+									class="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded bg-white border border-gray-300 hover:bg-gray-50 cursor-pointer select-none ms-auto"
+								>
 									<input
 										v-model="showCostPrice"
 										type="checkbox"
@@ -883,7 +886,7 @@
 											<template v-if="shouldShowExtraMedida(row)"> · {{ row.custom_medida }}</template>
 											<template v-if="row.display_warehouse_name"> · {{ cleanWarehouseName(row.display_warehouse_name) }}</template>
 										</div>
-										<div v-if="showCostPrice" class="text-[10px] font-semibold text-gray-500 mt-0.5">
+										<div v-if="effectiveShowCostPrice" class="text-[10px] font-semibold text-gray-500 mt-0.5">
 											Costo: Bs. {{ Number(row.cost_rate || 0).toFixed(0) }}
 										</div>
 									</div>
@@ -960,7 +963,7 @@
 												Almacén
 											</th>
 											<th
-												v-if="showCostPrice"
+												v-if="effectiveShowCostPrice"
 												@click="toggleInvSort('cost_rate')"
 												class="w-[125px] px-2.5 py-1.5 text-end font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200/70 transition-colors"
 											>
@@ -1026,7 +1029,7 @@
 												</div>
 											</td>
 											<td
-												v-if="showCostPrice"
+												v-if="effectiveShowCostPrice"
 												class="w-[125px] px-2.5 py-1.5 text-end font-semibold text-gray-600 whitespace-nowrap"
 											>
 												Bs. {{ Number(row.cost_rate || 0).toFixed(0) }}
@@ -1995,7 +1998,7 @@
 									Totales ({{ filteredInventoryItems.length }} prod.):
 								</div>
 								<div
-									v-if="showCostPrice"
+									v-if="effectiveShowCostPrice"
 									class="w-[125px] px-2.5 text-end font-extrabold text-gray-900 whitespace-nowrap"
 									title="Total Costo Fábrica"
 								>
@@ -2029,7 +2032,7 @@
 							<!-- Mobile (< 640px): Compact aligned bar -->
 							<div class="flex sm:hidden items-center justify-between gap-2 text-[11px]">
 								<div class="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-									<span v-if="showCostPrice" class="text-gray-600 font-semibold whitespace-nowrap">
+									<span v-if="effectiveShowCostPrice" class="text-gray-600 font-semibold whitespace-nowrap">
 										Costo: <strong class="font-extrabold text-gray-900">Bs. {{ formatPrice(inventorySummary.totalCostValue) || "0.00" }}</strong>
 									</span>
 									<span class="text-gray-600 font-semibold whitespace-nowrap">
@@ -2230,6 +2233,13 @@ const invWarehouseFilter = ref("");
 const invGroupFilter = ref("");
 const invStatusFilter = ref("");
 const showCostPrice = ref(false); // Unchecked by default for privacy
+const serverCanViewCostPrice = ref(null);
+const canViewCostPrice = computed(() =>
+	serverCanViewCostPrice.value !== null
+		? serverCanViewCostPrice.value
+		: settingsStore.canViewCostPrice
+);
+const effectiveShowCostPrice = computed(() => canViewCostPrice.value && showCostPrice.value);
 
 // Default sort: 'status_grouped' (Optimal Stock on top -> Low Stock in middle -> Out of Stock at bottom)
 const invSortKey = ref("status_grouped");
@@ -2882,6 +2892,15 @@ async function loadInventoryReport() {
 		inventoryCompany.value = data.company || props.company || "Muebles Ruffino";
 		inventoryDefaultThreshold.value =
 			Number(data.default_low_stock_threshold) || settingsStore.lowStockThreshold || 10;
+		if (data.can_view_cost_price !== undefined) {
+			serverCanViewCostPrice.value = Boolean(data.can_view_cost_price);
+			if (!serverCanViewCostPrice.value) {
+				showCostPrice.value = false;
+				if (invSortKey.value === "cost_rate") {
+					invSortKey.value = "status_grouped";
+				}
+			}
+		}
 	} catch (err) {
 		console.error("Error loading inventory report:", err);
 	} finally {
@@ -3016,7 +3035,7 @@ function exportInventoryPDF() {
 	const rows = filteredInventoryItems.value;
 	if (!rows.length) return;
 
-	const includeCost = Boolean(showCostPrice.value);
+	const includeCost = Boolean(effectiveShowCostPrice.value);
 	const companyTitle = inventoryCompany.value || props.company || "Muebles Ruffino";
 	const nowStr = new Date().toLocaleString("es-BO", {
 		year: "numeric",

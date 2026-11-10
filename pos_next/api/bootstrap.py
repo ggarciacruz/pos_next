@@ -289,6 +289,13 @@ def _get_pos_settings(pos_profile_doc):
 				)
 			)
 		)
+		from pos_next.api.utilities import user_can_view_cost_price, user_is_pos_manager
+
+		settings["cost_price_visibility"] = settings.get("cost_price_visibility") or "Managers Only"
+		settings["user_can_manage_pos_settings"] = cint(user_is_pos_manager())
+		settings["user_can_view_cost_price"] = cint(
+			user_can_view_cost_price(pos_profile_doc.name, settings.get("cost_price_visibility"))
+		)
 
 		return settings
 	except Exception:
