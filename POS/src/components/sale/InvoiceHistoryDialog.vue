@@ -2,7 +2,7 @@
 	<MdxModal v-model="show" :title="__('Sales History')" size="5xl">
 		<div class="flex flex-col gap-4">
 			<!-- Filters -->
-			<div class="flex items-center gap-2">
+			<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
 				<div class="relative flex-1">
 					<svg
 						class="h-4 w-4 text-slate-400 absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -25,22 +25,32 @@
 						class="w-full ps-9 pe-3 py-2 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
 					/>
 				</div>
-				<MdxButton
-					variant="secondary"
-					size="md"
-					:loading="invoicesResource.loading"
-					:title="__('Refresh')"
-					@click="loadInvoices"
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+				<div class="flex items-center gap-2">
+					<div v-if="showProfileSelector" class="flex-1 sm:w-64">
+						<MdxSelect
+							v-model="selectedProfileFilter"
+							:options="profileFilterOptions"
+							:placeholder="''"
+							:teleport="true"
 						/>
-					</svg>
-				</MdxButton>
+					</div>
+					<MdxButton
+						variant="secondary"
+						size="md"
+						:loading="invoicesResource.loading"
+						:title="__('Refresh')"
+						@click="loadInvoices"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+							/>
+						</svg>
+					</MdxButton>
+				</div>
 			</div>
 
 			<!-- Invoices List -->
@@ -95,8 +105,14 @@
 								>
 									{{ __(invoice.status) }}
 								</span>
+								<span
+									v-if="showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)"
+									class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200"
+								>
+									{{ invoice.pos_profile_label || invoice.pos_profile }}
+								</span>
 							</div>
-							<p class="text-xs text-slate-600 text-start">
+							<p class="text-xs text-slate-600 text-start font-medium">
 								{{ invoice.customer_name }}
 							</p>
 							<p class="text-xs text-slate-500 text-start">
@@ -107,8 +123,9 @@
 							<p class="text-xs text-slate-500 text-start">
 								{{ formatPaymentModes(invoice) }}
 							</p>
-							<p v-if="invoice.owner" class="text-xs text-slate-500 text-start">
-								<span class="font-semibold">{{ __("Vendedor:") }}</span> {{ userNamesMap[invoice.owner] || invoice.owner.split('@')[0].toUpperCase() }}
+							<p v-if="invoice.owner_full_name || invoice.owner" class="text-xs text-slate-500 text-start">
+								<span class="font-semibold">{{ __("Vendedor:") }}</span>
+								{{ invoice.owner_full_name || userNamesMap[invoice.owner] || invoice.owner.split('@')[0].toUpperCase() }}
 							</p>
 						</div>
 
@@ -295,16 +312,18 @@
 <script setup>
 import { useToast } from "@/composables/useToast";
 import { useFormatters } from "@/composables/useFormatters";
+import { useRealtimeStock } from "@/composables/useRealtimeStock";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
 import { getInvoiceStatusColor } from "@/utils/invoice";
 import { createResource, call } from "frappe-ui";
-import { MdxModal, MdxButton, MdxLoadingSpinner } from "mdx_ui";
-import { computed, ref, watch } from "vue";
+import { MdxModal, MdxButton, MdxLoadingSpinner, MdxSelect } from "mdx_ui";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import ReturnInvoiceDialog from "./ReturnInvoiceDialog.vue";
 
 const { showSuccess, showError } = useToast();
 const { formatDate, formatTime } = useFormatters();
+const { onInvoiceCreated } = useRealtimeStock();
 const posSettingsStore = usePOSSettingsStore();
 
 const props = defineProps({
@@ -340,6 +359,35 @@ const hasMore = ref(true);
 const invoiceToCancel = ref(null);
 const cancelReason = ref("");
 const cancellingInvoice = ref(false);
+const scopeProfiles = ref([]);
+const selectedProfileFilter = ref("ALL");
+
+const showProfileSelector = computed(
+	() => posSettingsStore.canManagePOSSettings && scopeProfiles.value.length > 1
+);
+
+const profileFilterOptions = computed(() => [
+	{ label: __("Todos los Puntos de Venta"), value: "ALL" },
+	...scopeProfiles.value.map((p) => ({
+		label: p.label || p.value,
+		value: p.value,
+	})),
+]);
+
+async function loadScopeProfiles() {
+	if (!props.posProfile || !posSettingsStore.canManagePOSSettings) {
+		scopeProfiles.value = [];
+		return;
+	}
+	try {
+		const res = await call("pos_next.api.pos_profile.get_scope_pos_profiles", {
+			pos_profile: props.posProfile,
+		});
+		scopeProfiles.value = Array.isArray(res) ? res : [];
+	} catch (err) {
+		console.warn("Failed to load scope POS profiles:", err);
+	}
+}
 
 // Return dialog state
 const showReturnDialog = ref(false);
@@ -352,11 +400,15 @@ const isLoadingMore = ref(false);
 const invoicesResource = createResource({
 	url: "pos_next.api.invoices.get_invoices",
 	makeParams() {
-		return {
+		const params = {
 			pos_profile: props.posProfile,
 			start: page.value * pageSize,
 			limit: pageSize,
 		};
+		if (showProfileSelector.value && selectedProfileFilter.value && selectedProfileFilter.value !== "ALL") {
+			params.filter_profile = selectedProfileFilter.value;
+		}
+		return params;
 	},
 	auto: false,
 	async onSuccess(data) {
@@ -374,7 +426,7 @@ const invoicesResource = createResource({
 				invoices.value = newInvoices;
 			}
 
-			// Batch fetch user full names
+			// Batch fetch user full names only if missing from backend payload
 			await loadOwnerNames(invoices.value);
 
 			// Check if there are more results
@@ -391,17 +443,48 @@ const invoicesResource = createResource({
 
 watch(
 	() => props.modelValue,
-	(val) => {
+	async (val) => {
 		show.value = val;
 		if (val && props.posProfile) {
-			invoicesResource.reload();
+			await loadScopeProfiles();
+			loadInvoices();
 		}
 	},
 	{ immediate: true }
 );
 
+watch(selectedProfileFilter, () => {
+	if (show.value && props.posProfile) {
+		loadInvoices();
+	}
+});
+
 watch(show, (val) => {
 	emit("update:modelValue", val);
+});
+
+let cleanupInvoiceRealtime = null;
+
+onMounted(() => {
+	cleanupInvoiceRealtime = onInvoiceCreated((eventData) => {
+		if (!show.value || !props.posProfile) return;
+		if (posSettingsStore.canManagePOSSettings) {
+			const matchesFilter =
+				selectedProfileFilter.value === "ALL" ||
+				eventData?.pos_profile === selectedProfileFilter.value;
+			if (matchesFilter) {
+				loadInvoices();
+			}
+		} else if (eventData?.pos_profile === props.posProfile) {
+			loadInvoices();
+		}
+	});
+});
+
+onUnmounted(() => {
+	if (cleanupInvoiceRealtime) {
+		cleanupInvoiceRealtime();
+	}
 });
 
 // Clear selected invoice when return dialog closes
@@ -416,9 +499,13 @@ const userNamesMap = ref({});
 async function loadOwnerNames(invoiceList) {
 	if (!invoiceList || invoiceList.length === 0) return;
 
-	const ownersToFetch = [...new Set(invoiceList.map((d) => d.owner).filter(Boolean))].filter(
-		(owner) => !userNamesMap.value[owner]
-	);
+	const ownersToFetch = [
+		...new Set(
+			invoiceList
+				.filter((d) => d.owner && !d.owner_full_name)
+				.map((d) => d.owner)
+		),
+	].filter((owner) => !userNamesMap.value[owner]);
 
 	if (ownersToFetch.length === 0) return;
 
@@ -446,7 +533,9 @@ const filteredInvoices = computed(() => {
 	return invoices.value.filter(
 		(inv) =>
 			inv.name?.toLowerCase().includes(term) ||
-			inv.customer_name?.toLowerCase().includes(term)
+			inv.customer_name?.toLowerCase().includes(term) ||
+			inv.pos_profile_label?.toLowerCase().includes(term) ||
+			inv.owner_full_name?.toLowerCase().includes(term)
 	);
 });
 

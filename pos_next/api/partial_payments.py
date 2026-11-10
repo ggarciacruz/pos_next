@@ -29,6 +29,12 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, get_datetime, get_time, nowdate
 
+from pos_next.api.utilities import (
+	enrich_invoices_with_scope_metadata,
+	get_accessible_pos_profiles_for_scope,
+	user_is_pos_manager,
+)
+
 # ==========================================
 # Constants and Configuration
 # ==========================================
@@ -500,9 +506,11 @@ def create_payment_entry(
 
 
 @frappe.whitelist()
-def get_partial_paid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT) -> List[Dict]:
+def get_partial_paid_invoices(
+	pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT, filter_profile: str = None
+) -> List[Dict]:
 	"""
-	Get partially paid invoices for a POS Profile.
+	Get partially paid invoices for a POS Profile (or accessible company POS Profiles for managers).
 
 	A partially paid invoice has:
 	- Outstanding amount > 0 (not fully paid)
@@ -512,6 +520,7 @@ def get_partial_paid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIM
 	Args:
 	    pos_profile: POS Profile name
 	    limit: Maximum invoices to return (default 50, max 500)
+	    filter_profile: Optional POS Profile filter for managers
 
 	Returns:
 	    List[dict]: Invoices with payment history from Payment Ledger
@@ -528,9 +537,13 @@ def get_partial_paid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIM
 	if not frappe.db.exists("POS Profile", pos_profile):
 		frappe.throw(_("POS Profile {0} does not exist").format(pos_profile))
 
-	# Check permissions
-	if not _has_pos_profile_access(pos_profile):
-		frappe.throw(_("You don't have access to this POS Profile"))
+	target_profiles = get_accessible_pos_profiles_for_scope(
+		pos_profile, filter_profile=filter_profile
+	)
+	if not target_profiles:
+		return []
+
+	company = frappe.db.get_value("POS Profile", pos_profile, "company")
 
 	# Validate and sanitize limit
 	limit = cint(limit)
@@ -544,7 +557,7 @@ def get_partial_paid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIM
 	invoices = frappe.get_all(
 		"Sales Invoice",
 		filters={
-			"pos_profile": pos_profile,
+			"pos_profile": ["in", target_profiles],
 			"docstatus": 1,
 			"is_pos": 1,
 			"outstanding_amount": [">", 0],
@@ -553,6 +566,8 @@ def get_partial_paid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIM
 		},
 		fields=[
 			"name",
+			"pos_profile",
+			"owner",
 			"customer",
 			"customer_name",
 			"posting_date",
@@ -564,7 +579,7 @@ def get_partial_paid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIM
 			"creation",
 			"currency",
 		],
-		order_by="posting_date desc, posting_time desc",
+		order_by="posting_date desc, posting_time desc, creation desc",
 		limit=limit,
 	)
 
@@ -573,13 +588,15 @@ def get_partial_paid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIM
 	for invoice in invoices:
 		enrich_invoice_with_payment_history(invoice, include_metadata=True)
 
-	return invoices
+	return enrich_invoices_with_scope_metadata(invoices, company=company)
 
 
 @frappe.whitelist()
-def get_unpaid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT) -> List[Dict]:
+def get_unpaid_invoices(
+	pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT, filter_profile: str = None
+) -> List[Dict]:
 	"""
-	Get all unpaid invoices (partial + fully unpaid) for a POS Profile.
+	Get all unpaid invoices (partial + fully unpaid) for a POS Profile (or accessible company POS Profiles for managers).
 
 	Includes:
 	- Fully unpaid invoices (paid_amount = 0)
@@ -589,6 +606,7 @@ def get_unpaid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT) ->
 	Args:
 	    pos_profile: POS Profile name
 	    limit: Maximum invoices to return (default 50, max 500)
+	    filter_profile: Optional POS Profile filter for managers
 
 	Returns:
 	    List[dict]: Unpaid invoices with payment history
@@ -605,8 +623,13 @@ def get_unpaid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT) ->
 	if not frappe.db.exists("POS Profile", pos_profile):
 		frappe.throw(_("POS Profile {0} does not exist").format(pos_profile))
 
-	if not _has_pos_profile_access(pos_profile):
-		frappe.throw(_("You don't have access to this POS Profile"))
+	target_profiles = get_accessible_pos_profiles_for_scope(
+		pos_profile, filter_profile=filter_profile
+	)
+	if not target_profiles:
+		return []
+
+	company = frappe.db.get_value("POS Profile", pos_profile, "company")
 
 	# Validate and sanitize limit
 	limit = cint(limit)
@@ -619,7 +642,7 @@ def get_unpaid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT) ->
 	invoices = frappe.get_all(
 		"Sales Invoice",
 		filters={
-			"pos_profile": pos_profile,
+			"pos_profile": ["in", target_profiles],
 			"docstatus": 1,
 			"is_pos": 1,
 			"outstanding_amount": [">", 0],
@@ -627,6 +650,8 @@ def get_unpaid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT) ->
 		},
 		fields=[
 			"name",
+			"pos_profile",
+			"owner",
 			"customer",
 			"customer_name",
 			"posting_date",
@@ -643,7 +668,7 @@ def get_unpaid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT) ->
 			"custom_modalidad_cobro_chofer",
 			"custom_estado_entrega",
 		],
-		order_by="posting_date desc, posting_time desc",
+		order_by="posting_date desc, posting_time desc, creation desc",
 		limit=limit,
 	)
 
@@ -651,7 +676,7 @@ def get_unpaid_invoices(pos_profile: str, limit: int = DEFAULT_INVOICE_LIMIT) ->
 	for invoice in invoices:
 		enrich_invoice_with_payment_history(invoice, include_metadata=True)
 
-	return invoices
+	return enrich_invoices_with_scope_metadata(invoices, company=company)
 
 
 @frappe.whitelist()
@@ -686,6 +711,12 @@ def get_partial_payment_details(invoice_name: str) -> Dict:
 	except frappe.DoesNotExistError:
 		frappe.throw(_("Invoice {0} does not exist").format(invoice_name))
 
+	if invoice.pos_profile and not user_is_pos_manager():
+		if not frappe.db.exists(
+			"POS Profile User", {"parent": invoice.pos_profile, "user": frappe.session.user}
+		):
+			frappe.throw(_("You don't have permission to view this invoice"), frappe.PermissionError)
+
 	# Get payment history
 	payment_data = get_payment_history(invoice_name, include_metadata=True)
 
@@ -704,6 +735,7 @@ def get_partial_payment_details(invoice_name: str) -> Dict:
 
 	return {
 		"name": invoice.name,
+		"pos_profile": invoice.pos_profile,
 		"customer": invoice.customer,
 		"customer_name": invoice.customer_name,
 		"posting_date": invoice.posting_date,
@@ -783,6 +815,14 @@ def add_payment_to_partial_invoice(invoice_name: str, payments) -> Dict:
 	except frappe.DoesNotExistError:
 		frappe.throw(_("Invoice {0} does not exist").format(invoice_name))
 
+	if invoice.pos_profile and not user_is_pos_manager():
+		if not frappe.db.exists(
+			"POS Profile User", {"parent": invoice.pos_profile, "user": frappe.session.user}
+		):
+			frappe.throw(
+				_("You don't have permission to add payments to this invoice"), frappe.PermissionError
+			)
+
 	total_payment_amount = sum(flt(p.get("amount", 0)) for p in payments)
 	if total_payment_amount > flt(invoice.outstanding_amount) + AMOUNT_TOLERANCE:
 		frappe.throw(
@@ -843,7 +883,7 @@ def add_payment_to_partial_invoice(invoice_name: str, payments) -> Dict:
 
 
 @frappe.whitelist()
-def get_partial_payment_summary(pos_profile: str) -> Dict:
+def get_partial_payment_summary(pos_profile: str, filter_profile: str = None) -> Dict:
 	"""
 	Get summary statistics for partial payments.
 
@@ -852,6 +892,7 @@ def get_partial_payment_summary(pos_profile: str) -> Dict:
 
 	Args:
 	    pos_profile: POS Profile name
+	    filter_profile: Optional POS Profile filter for managers
 
 	Returns:
 	    dict: {
@@ -873,8 +914,11 @@ def get_partial_payment_summary(pos_profile: str) -> Dict:
 	if not frappe.db.exists("POS Profile", pos_profile):
 		frappe.throw(_("POS Profile {0} does not exist").format(pos_profile))
 
-	if not _has_pos_profile_access(pos_profile):
-		frappe.throw(_("You don't have access to this POS Profile"))
+	target_profiles = get_accessible_pos_profiles_for_scope(
+		pos_profile, filter_profile=filter_profile
+	)
+	if not target_profiles:
+		return {"count": 0, "total_outstanding": 0.0, "total_paid": 0.0, "total_grand_total": 0.0}
 
 	# Use direct SQL aggregation - single query instead of N queries
 	# This is critical for performance with large datasets
@@ -886,14 +930,14 @@ def get_partial_payment_summary(pos_profile: str) -> Dict:
             COALESCE(SUM(paid_amount), 0) as total_paid,
             COALESCE(SUM(grand_total), 0) as total_grand_total
         FROM `tabSales Invoice`
-        WHERE pos_profile = %(pos_profile)s
+        WHERE pos_profile IN %(pos_profiles)s
             AND docstatus = 1
             AND is_pos = 1
             AND outstanding_amount > 0
             AND paid_amount > 0
             AND is_return = 0
         """,
-		{"pos_profile": pos_profile},
+		{"pos_profiles": tuple(target_profiles)},
 		as_dict=True,
 	)[0]
 
@@ -906,7 +950,7 @@ def get_partial_payment_summary(pos_profile: str) -> Dict:
 
 
 @frappe.whitelist()
-def get_unpaid_summary(pos_profile: str) -> Dict:
+def get_unpaid_summary(pos_profile: str, filter_profile: str = None) -> Dict:
 	"""
 	Get summary statistics for all unpaid invoices.
 
@@ -915,6 +959,7 @@ def get_unpaid_summary(pos_profile: str) -> Dict:
 
 	Args:
 	    pos_profile: POS Profile name
+	    filter_profile: Optional POS Profile filter for managers
 
 	Returns:
 	    dict: {
@@ -936,8 +981,11 @@ def get_unpaid_summary(pos_profile: str) -> Dict:
 	if not frappe.db.exists("POS Profile", pos_profile):
 		frappe.throw(_("POS Profile {0} does not exist").format(pos_profile))
 
-	if not _has_pos_profile_access(pos_profile):
-		frappe.throw(_("You don't have access to this POS Profile"))
+	target_profiles = get_accessible_pos_profiles_for_scope(
+		pos_profile, filter_profile=filter_profile
+	)
+	if not target_profiles:
+		return {"count": 0, "total_outstanding": 0.0, "total_paid": 0.0, "total_grand_total": 0.0}
 
 	# Use direct SQL aggregation - critical for performance
 	summary = frappe.db.sql(
@@ -948,13 +996,13 @@ def get_unpaid_summary(pos_profile: str) -> Dict:
             COALESCE(SUM(paid_amount), 0) as total_paid,
             COALESCE(SUM(grand_total), 0) as total_grand_total
         FROM `tabSales Invoice`
-        WHERE pos_profile = %(pos_profile)s
+        WHERE pos_profile IN %(pos_profiles)s
             AND docstatus = 1
             AND is_pos = 1
             AND outstanding_amount > 0
             AND is_return = 0
         """,
-		{"pos_profile": pos_profile},
+		{"pos_profiles": tuple(target_profiles)},
 		as_dict=True,
 	)[0]
 

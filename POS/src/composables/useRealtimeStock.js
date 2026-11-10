@@ -18,6 +18,7 @@ const log = logger.create("RealtimeStock");
 // Shared state across all instances
 const isListening = ref(false);
 const eventHandlers = new Set();
+const invoiceEventHandlers = new Set();
 const pendingUpdates = new Map();
 let batchTimeout = null;
 
@@ -94,10 +95,17 @@ function handleStockUpdate(data) {
 }
 
 /**
- * Handle invoice created event (optional, for future use)
+ * Handle invoice created event
  */
 function handleInvoiceCreated(data) {
-	// Can be used to update sales dashboards, notifications, etc.
+	if (!data) return;
+	invoiceEventHandlers.forEach((handler) => {
+		try {
+			handler(data);
+		} catch (error) {
+			log.error("Invoice event handler error", error);
+		}
+	});
 }
 
 /**
@@ -170,17 +178,34 @@ export function useRealtimeStock() {
 
 		eventHandlers.add(handler);
 
-		// Start listening when first handler is registered
-		if (eventHandlers.size === 1) {
+		if (!isListening.value) {
 			startListening();
 		}
 
-		// Return cleanup function
 		return () => {
 			eventHandlers.delete(handler);
 
-			// Stop listening when last handler is removed
-			if (eventHandlers.size === 0) {
+			if (eventHandlers.size === 0 && invoiceEventHandlers.size === 0) {
+				stopListening();
+			}
+		};
+	}
+
+	function onInvoiceCreated(handler) {
+		if (typeof handler !== "function") {
+			throw new Error("Handler must be a function");
+		}
+
+		invoiceEventHandlers.add(handler);
+
+		if (!isListening.value) {
+			startListening();
+		}
+
+		return () => {
+			invoiceEventHandlers.delete(handler);
+
+			if (eventHandlers.size === 0 && invoiceEventHandlers.size === 0) {
 				stopListening();
 			}
 		};
@@ -192,6 +217,7 @@ export function useRealtimeStock() {
 	return {
 		isListening,
 		onStockUpdate,
+		onInvoiceCreated,
 		flushUpdates,
 		startListening,
 		stopListening,

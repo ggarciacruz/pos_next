@@ -28,7 +28,9 @@ export function useInvoiceFilters(invoices) {
 				(inv) =>
 					inv.name?.toLowerCase().includes(search) ||
 					inv.customer_name?.toLowerCase().includes(search) ||
-					inv.customer?.toLowerCase().includes(search)
+					inv.customer?.toLowerCase().includes(search) ||
+					inv.pos_profile_label?.toLowerCase().includes(search) ||
+					inv.owner_full_name?.toLowerCase().includes(search)
 			);
 		}
 

@@ -150,3 +150,114 @@ def user_can_view_cost_price(pos_profile=None, visibility_mode=None, user=None) 
 	if mode == "All Users":
 		return True
 	return user_is_pos_manager(target_user)
+
+
+def clean_pos_profile_label(profile_name: str, company: str = None) -> str:
+	"""Return a human-friendly POS Profile display label without trailing company abbreviation."""
+	if not profile_name:
+		return ""
+	resolved_company = company or frappe.get_cached_value("POS Profile", profile_name, "company")
+	if resolved_company:
+		abbr = frappe.get_cached_value("Company", resolved_company, "abbr")
+		suffix = f" - {abbr}" if abbr else ""
+		if suffix and profile_name.endswith(suffix):
+			return profile_name[: -len(suffix)].strip()
+	return profile_name
+
+
+def get_accessible_pos_profiles_for_scope(
+	pos_profile: str, filter_profile: str = None, user: str = None
+) -> list[str]:
+	"""
+	Determine the list of POS Profiles whose transactions should be visible in the current scope.
+
+	Rules:
+	- Non-manager users (cashiers) are strictly isolated to `[pos_profile]`.
+	- Managers (`System Manager` / `Nexus POS Manager`) see all active POS Profiles of the
+	  same Company that they have access to, or a single `[filter_profile]` when selected.
+	"""
+	if not pos_profile:
+		frappe.throw(_("POS Profile is required"))
+
+	target_user = user or frappe.session.user
+	if not target_user or target_user == "Guest":
+		frappe.throw(_("Authentication required"), frappe.AuthenticationError)
+
+	company = frappe.db.get_value("POS Profile", pos_profile, "company")
+	if not company:
+		frappe.throw(_("POS Profile {0} does not exist").format(pos_profile))
+
+	has_direct_access = bool(
+		frappe.db.exists("POS Profile User", {"parent": pos_profile, "user": target_user})
+	)
+	is_manager = user_is_pos_manager(target_user)
+
+	if not has_direct_access and not is_manager and not frappe.has_permission("Sales Invoice", "read"):
+		frappe.throw(_("You don't have access to this POS Profile"), frappe.PermissionError)
+
+	if not is_manager:
+		return [pos_profile]
+
+	roles = frappe.get_roles(target_user)
+	if target_user == "Administrator" or "System Manager" in roles:
+		accessible_profiles = frappe.get_all(
+			"POS Profile",
+			filters={"company": company, "disabled": 0},
+			pluck="name",
+			order_by="name asc",
+		)
+	else:
+		rows = frappe.db.sql(
+			"""
+			SELECT DISTINCT p.name
+			FROM `tabPOS Profile` p
+			INNER JOIN `tabPOS Profile User` u ON u.parent = p.name
+			WHERE p.company = %(company)s
+				AND p.disabled = 0
+				AND u.user = %(user)s
+			ORDER BY p.name ASC
+			""",
+			{"company": company, "user": target_user},
+			as_dict=True,
+		)
+		accessible_profiles = [r.name for r in rows]
+
+	if pos_profile not in accessible_profiles:
+		accessible_profiles.insert(0, pos_profile)
+
+	cleaned_filter = (filter_profile or "").strip()
+	if cleaned_filter and cleaned_filter.upper() != "ALL":
+		if cleaned_filter not in accessible_profiles:
+			frappe.throw(_("You don't have access to POS Profile {0}").format(cleaned_filter), frappe.PermissionError)
+		return [cleaned_filter]
+
+	return accessible_profiles
+
+
+def enrich_invoices_with_scope_metadata(invoices: list, company: str = None) -> list:
+	"""Batch-attach `owner_full_name` and `pos_profile_label` to invoice dicts."""
+	if not invoices:
+		return invoices
+
+	owners = list({inv.get("owner") for inv in invoices if inv.get("owner")})
+	owner_map = {}
+	if owners:
+		user_rows = frappe.get_all(
+			"User",
+			filters={"name": ["in", owners]},
+			fields=["name", "full_name"],
+		)
+		owner_map = {u.name: (u.full_name or u.name) for u in user_rows}
+
+	label_cache = {}
+	for inv in invoices:
+		prof = inv.get("pos_profile")
+		if prof:
+			if prof not in label_cache:
+				label_cache[prof] = clean_pos_profile_label(prof, company=company)
+			inv["pos_profile_label"] = label_cache[prof]
+		owner = inv.get("owner")
+		if owner:
+			inv["owner_full_name"] = owner_map.get(owner) or owner.split("@")[0]
+
+	return invoices

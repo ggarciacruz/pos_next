@@ -9,9 +9,27 @@ from frappe.utils import cint
 from pos_next.api.utilities import (
 	_parse_list_parameter,
 	check_user_company,
+	clean_pos_profile_label,
+	get_accessible_pos_profiles_for_scope,
 	user_can_view_cost_price,
 	user_is_pos_manager,
 )
+
+
+@frappe.whitelist()
+def get_scope_pos_profiles(pos_profile: str):
+	"""Return accessible POS Profiles within the same company for invoice/history filtering."""
+	if not pos_profile:
+		return []
+	company = frappe.db.get_value("POS Profile", pos_profile, "company")
+	profiles = get_accessible_pos_profiles_for_scope(pos_profile)
+	return [
+		{
+			"value": profile_name,
+			"label": clean_pos_profile_label(profile_name, company=company),
+		}
+		for profile_name in profiles
+	]
 
 
 @frappe.whitelist()

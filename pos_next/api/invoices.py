@@ -12,6 +12,11 @@ from erpnext.stock.doctype.batch.batch import get_batch_no, get_batch_qty
 from frappe import _
 from frappe.utils import cint, cstr, flt, get_datetime, nowdate, nowtime
 
+from pos_next.api.utilities import (
+	enrich_invoices_with_scope_metadata,
+	get_accessible_pos_profiles_for_scope,
+)
+
 # ==========================================
 # Constants for field names (avoid typos and enable refactoring)
 # ==========================================
@@ -1890,14 +1895,15 @@ def get_invoice(invoice_name):
 
 
 @frappe.whitelist()
-def get_invoices(pos_profile: str, limit: int = 100, start: int = 0) -> list:
+def get_invoices(pos_profile: str, limit: int = 100, start: int = 0, filter_profile: str = None) -> list:
 	"""
-	Get list of invoices for a POS Profile.
+	Get list of invoices for a POS Profile (or all accessible company POS Profiles for POS Managers).
 
 	Args:
-		pos_profile: POS Profile name
+		pos_profile: Active POS Profile name
 		limit: Maximum number of invoices to return (default 100)
 		start: Offset for pagination (default 0)
+		filter_profile: Optional POS Profile filter for managers ('ALL' or specific profile)
 
 	Returns:
 		List of invoices with details
@@ -1908,17 +1914,21 @@ def get_invoices(pos_profile: str, limit: int = 100, start: int = 0) -> list:
 	limit = cint(limit) or 100
 	start = cint(start) or 0
 
-	# Check if user has access to this POS Profile
-	has_access = frappe.db.exists("POS Profile User", {"parent": pos_profile, "user": frappe.session.user})
+	target_profiles = get_accessible_pos_profiles_for_scope(
+		pos_profile, filter_profile=filter_profile
+	)
+	if not target_profiles:
+		return []
 
-	if not has_access and not frappe.has_permission("Sales Invoice", "read"):
-		frappe.throw(_("You don't have access to this POS Profile"))
+	company = frappe.db.get_value("POS Profile", pos_profile, "company")
 
-	# Query for invoices
+	# Query for invoices across resolved accessible POS Profiles
 	invoices = frappe.db.sql(
 		"""
 		SELECT
 			name,
+			pos_profile,
+			owner,
 			customer,
 			customer_name,
 			posting_date,
@@ -1938,21 +1948,23 @@ def get_invoices(pos_profile: str, limit: int = 100, start: int = 0) -> list:
 		FROM
 			`tabSales Invoice`
 		WHERE
-			pos_profile = %(pos_profile)s
+			pos_profile IN %(pos_profiles)s
 			AND docstatus = 1
 			AND is_pos = 1
 		ORDER BY
 			posting_date DESC,
-			posting_time DESC
+			posting_time DESC,
+			creation DESC
 		LIMIT %(limit)s
 		OFFSET %(start)s
 	""",
-		{"pos_profile": pos_profile, "limit": limit, "start": start},
+		{"pos_profiles": tuple(target_profiles), "limit": limit, "start": start},
 		as_dict=True,
 	)
 
 	invoice_names = [invoice.name for invoice in invoices]
 	payments_by_invoice = {}
+	items_by_invoice = {}
 	if invoice_names:
 		payments = frappe.db.sql(
 			"""
@@ -1980,12 +1992,10 @@ def get_invoices(pos_profile: str, limit: int = 100, start: int = 0) -> list:
 				}
 			)
 
-	# Load items for each invoice for filtering purposes
-	for invoice in invoices:
-		invoice.payments = payments_by_invoice.get(invoice.name, [])
-		items = frappe.db.sql(
+		all_items = frappe.db.sql(
 			"""
 			SELECT
+				parent,
 				item_code,
 				item_name,
 				qty,
@@ -1994,16 +2004,31 @@ def get_invoices(pos_profile: str, limit: int = 100, start: int = 0) -> list:
 			FROM
 				`tabSales Invoice Item`
 			WHERE
-				parent = %(invoice_name)s
+				parent IN %(invoice_names)s
 			ORDER BY
+				parent,
 				idx
 		""",
-			{"invoice_name": invoice.name},
+			{"invoice_names": tuple(invoice_names)},
 			as_dict=True,
 		)
-		invoice.items = items
 
-	return invoices
+		for row in all_items:
+			items_by_invoice.setdefault(row.parent, []).append(
+				{
+					"item_code": row.item_code,
+					"item_name": row.item_name,
+					"qty": row.qty,
+					"rate": row.rate,
+					"amount": row.amount,
+				}
+			)
+
+	for invoice in invoices:
+		invoice.payments = payments_by_invoice.get(invoice.name, [])
+		invoice.items = items_by_invoice.get(invoice.name, [])
+
+	return enrich_invoices_with_scope_metadata(invoices, company=company)
 
 
 # ==========================================
@@ -2170,7 +2195,7 @@ def _filter_fully_returned(invoices):
 
 
 @frappe.whitelist()
-def get_returnable_invoices(limit=50, pos_profile=None):
+def get_returnable_invoices(limit=50, pos_profile=None, filter_profile=None):
 	"""Get list of invoices that have items available for return.
 	Filters by return validity period if configured in POS Settings.
 
@@ -2180,9 +2205,17 @@ def get_returnable_invoices(limit=50, pos_profile=None):
 	"""
 	from frappe.utils import add_days, today
 
-	# Check return validity days from POS Settings
+	# Check return validity days from POS Settings and resolve profile scope
 	return_validity_days = 0
+	target_profiles = None
+	company = None
 	if pos_profile:
+		target_profiles = get_accessible_pos_profiles_for_scope(
+			pos_profile, filter_profile=filter_profile
+		)
+		if not target_profiles:
+			return []
+		company = frappe.db.get_value("POS Profile", pos_profile, "company")
 		return_validity_days = cint(
 			frappe.db.get_value("POS Settings", {"pos_profile": pos_profile}, "return_validity_days") or 0
 		)
@@ -2197,6 +2230,8 @@ def get_returnable_invoices(limit=50, pos_profile=None):
 		frappe.qb.from_(si)
 		.select(
 			si.name,
+			si.pos_profile,
+			si.owner,
 			si.customer,
 			si.customer_name,
 			si.contact_mobile,
@@ -2210,6 +2245,9 @@ def get_returnable_invoices(limit=50, pos_profile=None):
 		.limit(fetch_limit)
 	)
 
+	if target_profiles:
+		query = query.where(si.pos_profile.isin(target_profiles))
+
 	if return_validity_days > 0:
 		cutoff_date = add_days(today(), -return_validity_days)
 		query = query.where(si.posting_date >= cutoff_date)
@@ -2217,12 +2255,13 @@ def get_returnable_invoices(limit=50, pos_profile=None):
 	candidates = query.run(as_dict=True)
 
 	# Step 2: filter out fully-returned invoices, then trim to requested limit
-	return _filter_fully_returned(candidates)[: cint(limit)]
+	result = _filter_fully_returned(candidates)[: cint(limit)]
+	return enrich_invoices_with_scope_metadata(result, company=company)
 
 
 @frappe.whitelist()
-def search_invoice_by_number(search_term, pos_profile=None):
-	"""Search for invoices by invoice number across the entire database.
+def search_invoice_by_number(search_term, pos_profile=None, filter_profile=None):
+	"""Search for invoices by invoice number across accessible POS profiles.
 	No date restrictions - searches all returnable invoices matching the term.
 
 	Two-step approach for performance:
@@ -2231,13 +2270,24 @@ def search_invoice_by_number(search_term, pos_profile=None):
 
 	Args:
 	    search_term: Invoice number or partial number to search for (min 3 chars)
-	    pos_profile: Optional POS profile for context (reserved for future use)
+	    pos_profile: Optional POS profile for context and scope enforcement
+	    filter_profile: Optional POS profile filter for managers
 
 	Returns:
 	    List of matching invoices with return availability info (max 10 results)
 	"""
 	if not search_term or len(search_term) < 3:
 		return []
+
+	target_profiles = None
+	company = None
+	if pos_profile:
+		target_profiles = get_accessible_pos_profiles_for_scope(
+			pos_profile, filter_profile=filter_profile
+		)
+		if not target_profiles:
+			return []
+		company = frappe.db.get_value("POS Profile", pos_profile, "company")
 
 	# Escape LIKE wildcards in user input to prevent pattern abuse.
 	# frappe.db.escape() returns a quoted string for raw SQL — not usable with
@@ -2246,10 +2296,12 @@ def search_invoice_by_number(search_term, pos_profile=None):
 	si = frappe.qb.DocType("Sales Invoice")
 
 	# Step 1: find matching invoices (lightweight, no JOINs)
-	candidates = (
+	query = (
 		frappe.qb.from_(si)
 		.select(
 			si.name,
+			si.pos_profile,
+			si.owner,
 			si.customer,
 			si.customer_name,
 			si.contact_mobile,
@@ -2263,10 +2315,16 @@ def search_invoice_by_number(search_term, pos_profile=None):
 		.orderby(si.posting_date, order=frappe.qb.desc)
 		.orderby(si.creation, order=frappe.qb.desc)
 		.limit(10)
-	).run(as_dict=True)
+	)
+
+	if target_profiles:
+		query = query.where(si.pos_profile.isin(target_profiles))
+
+	candidates = query.run(as_dict=True)
 
 	# Step 2: filter out fully-returned invoices
-	return _filter_fully_returned(candidates)
+	result = _filter_fully_returned(candidates)
+	return enrich_invoices_with_scope_metadata(result, company=company)
 
 
 @frappe.whitelist()

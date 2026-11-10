@@ -229,6 +229,12 @@
 										>
 											{{ __(invoice.status) }}
 										</span>
+										<span
+											v-if="invoice.pos_profile_label"
+											class="px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap"
+										>
+											{{ invoice.pos_profile_label }}
+										</span>
 									</div>
 									<p class="text-xs text-gray-600 mt-1 text-start">
 										{{ invoice.customer_name }}

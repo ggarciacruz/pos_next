@@ -13,9 +13,9 @@
 				>
 					<!-- Header -->
 					<div
-						class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-white shrink-0"
+						class="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-200 bg-white shrink-0"
 					>
-						<div class="flex items-center gap-3">
+						<div class="flex items-center gap-3 min-w-0">
 							<div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
 								<svg
 									class="w-5 h-5 text-blue-600"
@@ -31,16 +31,24 @@
 									/>
 								</svg>
 							</div>
-							<div>
-								<h2 class="text-base font-bold text-slate-900 leading-tight">
+							<div class="min-w-0">
+								<h2 class="text-base font-bold text-slate-900 leading-tight truncate">
 									{{ __("Invoice Management") }}
 								</h2>
-								<p class="text-xs text-slate-500 flex items-center mt-0.5">
+								<p class="text-xs text-slate-500 flex items-center mt-0.5 truncate">
 									{{ __("Manage all your invoices in one place") }}
 								</p>
 							</div>
 						</div>
-						<div class="flex items-center gap-2">
+						<div class="flex items-center gap-2 ms-auto">
+							<div v-if="showProfileSelector" class="w-52 sm:w-64">
+								<MdxSelect
+									v-model="selectedProfileFilter"
+									:options="profileFilterOptions"
+									:placeholder="''"
+									:teleport="true"
+								/>
+							</div>
 							<Button
 								@click="refreshCurrentTab"
 								:loading="loading"
@@ -161,7 +169,7 @@
 													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
 											]"
 										>
-											{{ __("All ({0})", [unpaidInvoices.length]) }}
+											{{ __("All ({0})", [scopedUnpaidInvoices.length]) }}
 										</button>
 										<button
 											@click="unpaidFilter = 'partial'"
@@ -174,7 +182,7 @@
 										>
 											{{
 												__("Partially Paid ({0})", [
-													unpaidInvoices.filter(
+													scopedUnpaidInvoices.filter(
 														(inv) => inv.status === "Partly Paid"
 													).length,
 												])
@@ -191,7 +199,7 @@
 										>
 											{{
 												__("Unpaid ({0})", [
-													unpaidInvoices.filter(
+													scopedUnpaidInvoices.filter(
 														(inv) => inv.status === "Unpaid"
 													).length,
 												])
@@ -208,7 +216,7 @@
 										>
 											{{
 												__("Overdue ({0})", [
-													unpaidInvoices.filter(
+													scopedUnpaidInvoices.filter(
 														(inv) => inv.status === "Overdue"
 													).length,
 												])
@@ -307,7 +315,7 @@
 										<div class="px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 bg-white">
 											<!-- Left: Document + Status + Customer + Date -->
 											<div class="min-w-[210px] flex-1">
-												<div class="flex items-center gap-2">
+												<div class="flex items-center gap-2 flex-wrap">
 													<h3 class="text-sm font-bold text-gray-900 tabular-nums">
 														{{ invoice.name }}
 													</h3>
@@ -318,6 +326,12 @@
 														]"
 													>
 														{{ __(invoice.status) }}
+													</span>
+													<span
+														v-if="showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)"
+														class="px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200"
+													>
+														{{ invoice.pos_profile_label || invoice.pos_profile }}
 													</span>
 												</div>
 												<div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-600">
@@ -353,6 +367,13 @@
 														</svg>
 														{{ formatDate(invoice.posting_date) }}
 														{{ formatTime(invoice.posting_time) }}
+													</div>
+													<div
+														v-if="invoice.owner_full_name || invoice.owner"
+														class="flex items-center text-slate-500"
+													>
+														<span class="font-medium me-1">{{ __("Vendedor:") }}</span>
+														<span>{{ invoice.owner_full_name || invoice.owner.split('@')[0] }}</span>
 													</div>
 												</div>
 											</div>
@@ -594,6 +615,27 @@
 													{{ formatDate(invoice.posting_date) }}
 													{{ formatTime(invoice.posting_time) }}
 												</div>
+											</div>
+
+											<!-- POS Profile & Seller Attribution -->
+											<div
+												v-if="(showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)) || invoice.owner_full_name || invoice.owner"
+												class="flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-slate-500"
+											>
+												<span
+													v-if="showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)"
+													class="px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200 truncate max-w-[180px]"
+													:title="invoice.pos_profile_label || invoice.pos_profile"
+												>
+													{{ invoice.pos_profile_label || invoice.pos_profile }}
+												</span>
+												<span
+													v-if="invoice.owner_full_name || invoice.owner"
+													class="truncate ms-auto"
+												>
+													<span class="font-medium">{{ __("Vendedor:") }}</span>
+													{{ invoice.owner_full_name || invoice.owner.split('@')[0] }}
+												</span>
 											</div>
 
 											<!-- Payment Details in 3 columns -->
@@ -883,7 +925,7 @@
 									>
 										<div class="flex items-start justify-between">
 											<div class="flex-1">
-												<div class="flex items-center gap-2 mb-1">
+												<div class="flex items-center gap-2 mb-1 flex-wrap">
 													<h4
 														class="text-sm font-semibold text-gray-900"
 													>
@@ -893,6 +935,12 @@
 														class="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800"
 													>
 														{{ __("Return") }}
+													</span>
+													<span
+														v-if="showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)"
+														class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200"
+													>
+														{{ invoice.pos_profile_label || invoice.pos_profile }}
 													</span>
 												</div>
 												<div
@@ -1106,9 +1154,17 @@
 										<!-- Card Header -->
 										<div class="flex items-start justify-between gap-2">
 											<div>
-												<span class="text-xs font-mono font-bold text-gray-800">
-													{{ dispatch.name }}
-												</span>
+												<div class="flex items-center gap-1.5 flex-wrap">
+													<span class="text-xs font-mono font-bold text-gray-800">
+														{{ dispatch.name }}
+													</span>
+													<span
+														v-if="showProfileSelector && (dispatch.pos_profile_label || dispatch.pos_profile)"
+														class="text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200"
+													>
+														{{ dispatch.pos_profile_label || dispatch.pos_profile }}
+													</span>
+												</div>
 												<h4 class="text-sm font-bold text-gray-900 leading-tight mt-0.5">
 													{{ dispatch.customer_name || dispatch.customer }}
 												</h4>
@@ -1350,13 +1406,15 @@
 import InvoiceFilters from "@/components/invoices/InvoiceFilters.vue";
 import PaymentDialog from "@/components/sale/PaymentDialog.vue";
 import { useInvoiceFilters } from "@/composables/useInvoiceFilters";
+import { useRealtimeStock } from "@/composables/useRealtimeStock";
 import { useInvoiceFiltersStore } from "@/stores/invoiceFilters";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
 import { getInvoiceStatusColor } from "@/utils/invoice";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import { Button, call, LoadingIndicator } from "frappe-ui";
-import { computed, onMounted, ref, watch } from "vue";
+import { MdxSelect } from "mdx_ui";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { isOffline } from "@/utils/offline/offlineState";
 import {
 	cacheUnpaidInvoices,
@@ -1370,6 +1428,7 @@ import { usePOSSettingsStore } from "@/stores/posSettings";
 const log = logger.create("InvoiceManagement");
 const { showSuccess, showError } = useToast();
 const { formatDate, formatDateTime, formatTime } = useFormatters();
+const { onInvoiceCreated } = useRealtimeStock();
 const posSettingsStore = usePOSSettingsStore();
 
 const props = defineProps({
@@ -1408,8 +1467,47 @@ const activeTab = ref("partial");
 // Initialize filter store and composable
 const filterStore = useInvoiceFiltersStore();
 
+// Multi-POS profile scope filter for POS Managers
+const scopeProfiles = ref([]);
+const selectedProfileFilter = ref("ALL");
+
+const showProfileSelector = computed(
+	() => posSettingsStore.canManagePOSSettings && scopeProfiles.value.length > 1
+);
+
+const profileFilterOptions = computed(() => [
+	{ label: __("Todos los Puntos de Venta"), value: "ALL" },
+	...scopeProfiles.value.map((p) => ({
+		label: p.label || p.value,
+		value: p.value,
+	})),
+]);
+
+async function loadScopeProfiles() {
+	if (!props.posProfile || !posSettingsStore.canManagePOSSettings || isOffline()) {
+		scopeProfiles.value = [];
+		return;
+	}
+	try {
+		const res = await call("pos_next.api.pos_profile.get_scope_pos_profiles", {
+			pos_profile: props.posProfile,
+		});
+		scopeProfiles.value = Array.isArray(res) ? res : [];
+	} catch (err) {
+		log.warn("Failed to load scope POS profiles:", err);
+	}
+}
+
+const scopedHistoryInvoices = computed(() => {
+	const allInvoices = Array.isArray(props.historyInvoices) ? props.historyInvoices : [];
+	if (!showProfileSelector.value || selectedProfileFilter.value === "ALL") {
+		return allInvoices;
+	}
+	return allInvoices.filter((inv) => inv.pos_profile === selectedProfileFilter.value);
+});
+
 // Create a computed ref for history invoices to use with filter composable
-const historyInvoicesRef = computed(() => props.historyInvoices);
+const historyInvoicesRef = computed(() => scopedHistoryInvoices.value);
 const invoiceFilters = useInvoiceFilters(historyInvoicesRef);
 
 // Unpaid invoices data
@@ -1425,6 +1523,13 @@ const showPaymentDialog = ref(false);
 const invoiceToCancel = ref(null);
 const cancelReason = ref("");
 const cancellingInvoice = ref(false);
+
+const scopedUnpaidInvoices = computed(() => {
+	if (!showProfileSelector.value || selectedProfileFilter.value === "ALL") {
+		return unpaidInvoices.value;
+	}
+	return unpaidInvoices.value.filter((inv) => inv.pos_profile === selectedProfileFilter.value);
+});
 
 function canCancelInvoice(invoice) {
 	if (!posSettingsStore.canCancelInvoice || !invoice) return false;
@@ -1475,19 +1580,20 @@ async function confirmCancelInvoice() {
 
 // Filtered unpaid invoices based on payment amounts
 const filteredUnpaidInvoices = computed(() => {
+	const baseList = scopedUnpaidInvoices.value;
 	if (unpaidFilter.value === "partial") {
 		// Partially paid: status is 'Partly Paid' only
-		return unpaidInvoices.value.filter((inv) => inv.status === "Partly Paid");
+		return baseList.filter((inv) => inv.status === "Partly Paid");
 	}
 	if (unpaidFilter.value === "unpaid") {
 		// Totally unpaid: status is 'Unpaid'
-		return unpaidInvoices.value.filter((inv) => inv.status === "Unpaid");
+		return baseList.filter((inv) => inv.status === "Unpaid");
 	}
 	if (unpaidFilter.value === "overdue") {
 		// Overdue: invoice status is Overdue
-		return unpaidInvoices.value.filter((inv) => inv.status === "Overdue");
+		return baseList.filter((inv) => inv.status === "Overdue");
 	}
-	return unpaidInvoices.value; // "all"
+	return baseList; // "all"
 });
 
 // Filtered summary based on selected filter
@@ -1503,15 +1609,13 @@ const filteredUnpaidSummary = computed(() => {
 
 // Return invoices (filtered from history)
 const returnInvoices = computed(() => {
-	const allInvoices = Array.isArray(props.historyInvoices) ? props.historyInvoices : [];
-	return allInvoices.filter((inv) => inv.is_return);
+	return scopedHistoryInvoices.value.filter((inv) => inv.is_return);
 });
 
 // Filtered history using the composable (exclude returns, show in separate tab)
 const filteredHistoryInvoices = computed(() => {
 	// Filter out return invoices, then apply all filters from the store
-	const allInvoices = Array.isArray(props.historyInvoices) ? props.historyInvoices : [];
-	const nonReturnInvoices = allInvoices.filter((inv) => !inv.is_return);
+	const nonReturnInvoices = scopedHistoryInvoices.value.filter((inv) => !inv.is_return);
 
 	// Use the filter composable with non-return invoices
 	const tempInvoicesRef = computed(() => nonReturnInvoices);
@@ -1526,8 +1630,7 @@ const dispatchDateFilter = ref("");
 const loadingDelivery = ref({});
 
 const allDispatches = computed(() => {
-	const allInvoices = Array.isArray(props.historyInvoices) ? props.historyInvoices : [];
-	return allInvoices.filter(
+	return scopedHistoryInvoices.value.filter(
 		(inv) => Boolean(
 			inv.custom_direccion_entrega ||
 			(inv.custom_fecha_entrega && inv.custom_estado_entrega && inv.custom_estado_entrega !== "Entregado en Tienda") ||
@@ -1596,7 +1699,7 @@ const tabs = computed(() => [
 		icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z",
 		color: "orange",
 		activeClass: "text-orange-600",
-		badge: () => unpaidInvoices.value.length,
+		badge: () => scopedUnpaidInvoices.value.length,
 	},
 	{
 		id: "despachos",
@@ -1695,6 +1798,7 @@ watch(
 	(val) => {
 		show.value = val;
 		if (val) {
+			loadScopeProfiles();
 			loadUnpaidInvoices();
 			loadUnpaidSummary();
 			// Also request history refresh if we don't have data
@@ -1714,7 +1818,7 @@ watch(show, (val) => {
 watch(activeTab, (newTab) => {
 	// Always emit refresh event when switching to history or returns tabs
 	// This ensures up-to-date outstanding amounts and invoice data
-	if (newTab === "history" || newTab === "returns") {
+	if (newTab === "history" || newTab === "returns" || newTab === "despachos") {
 		emit("refresh-history");
 	} else if (newTab === "partial") {
 		// Refresh unpaid invoices when switching to partial tab
@@ -1731,14 +1835,12 @@ function handleClose() {
 async function refreshCurrentTab() {
 	if (activeTab.value === "partial") {
 		await Promise.all([loadUnpaidInvoices(), loadUnpaidSummary()]);
-	} else if (activeTab.value === "history") {
-		// Request parent to refresh history data
-		emit("refresh-history");
-	} else if (activeTab.value === "drafts") {
-		// Drafts are passed from parent, emit event if needed
-		emit("refresh-history");
-	} else if (activeTab.value === "returns") {
-		// Returns would also need a refresh
+	} else if (
+		activeTab.value === "history" ||
+		activeTab.value === "despachos" ||
+		activeTab.value === "drafts" ||
+		activeTab.value === "returns"
+	) {
 		emit("refresh-history");
 	}
 }
@@ -1752,7 +1854,7 @@ async function loadUnpaidInvoices() {
 	// Load cached data immediately for instant display
 	try {
 		const cachedInvoices = await getCachedUnpaidInvoices(props.posProfile, {
-			limit: 100,
+			limit: 200,
 		});
 		if (cachedInvoices && cachedInvoices.length > 0) {
 			unpaidInvoices.value = cachedInvoices;
@@ -1774,7 +1876,7 @@ async function loadUnpaidInvoices() {
 	try {
 		const result = await call("pos_next.api.partial_payments.get_unpaid_invoices", {
 			pos_profile: props.posProfile,
-			limit: 100,
+			limit: 200,
 		});
 
 		unpaidInvoices.value = result || [];
@@ -1926,14 +2028,32 @@ function calculateDraftTotal(items) {
 	);
 }
 
+let cleanupInvoiceRealtime = null;
+
 // Lifecycle
 onMounted(() => {
 	// Load saved filter presets from localStorage
 	filterStore.loadSavedFiltersFromStorage();
 
 	if (show.value) {
+		loadScopeProfiles();
 		loadUnpaidInvoices();
 		loadUnpaidSummary();
+	}
+
+	cleanupInvoiceRealtime = onInvoiceCreated((eventData) => {
+		if (!show.value || !props.posProfile) return;
+		if (posSettingsStore.canManagePOSSettings || eventData?.pos_profile === props.posProfile) {
+			loadUnpaidInvoices();
+			loadUnpaidSummary();
+			emit("refresh-history");
+		}
+	});
+});
+
+onUnmounted(() => {
+	if (cleanupInvoiceRealtime) {
+		cleanupInvoiceRealtime();
 	}
 });
 </script>
