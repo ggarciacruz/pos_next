@@ -34,7 +34,7 @@
 			<!-- Selector Múltiple Compacto -->
 			<template v-else-if="options.length > 0">
 				<!-- Barra Superior Fija en 1 Sola Línea (Móvil y Desktop) -->
-				<div class="px-3.5 sm:px-5 py-2 bg-white border-b border-slate-200/80 flex items-center gap-2 flex-shrink-0">
+				<div class="px-3.5 sm:px-5 py-2.5 bg-white border-b border-slate-200 flex items-center gap-2 flex-shrink-0">
 					<div class="flex-1 min-w-0 variant-search-box">
 						<MdxSearchInput
 							v-model="variantSearch"
@@ -52,7 +52,7 @@
 							class="px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
 							:class="
 								variantStockFilter === 'all'
-									? 'bg-white text-slate-900 shadow-2xs'
+									? 'bg-white text-slate-900 shadow-sm'
 									: 'text-slate-600 hover:text-slate-900'
 							"
 						>
@@ -64,11 +64,11 @@
 							class="px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
 							:class="
 								variantStockFilter === 'in_stock'
-									? 'bg-white text-emerald-700 shadow-2xs'
+									? 'bg-white text-emerald-700 shadow-sm'
 									: 'text-slate-600 hover:text-slate-900'
 							"
 						>
-							{{ __("Stock") }} ({{ inStockVariantsCount }})
+							{{ __("Con stock") }} ({{ inStockVariantsCount }})
 						</button>
 					</div>
 
@@ -76,7 +76,7 @@
 						v-if="selectedVariantsCount > 0"
 						type="button"
 						@click="clearVariantQuantities"
-						class="p-1.5 rounded-lg text-slate-500 bg-white border border-slate-200 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer flex-shrink-0"
+						class="p-1.5 rounded-lg text-slate-500 bg-white border border-slate-300 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer flex-shrink-0"
 						:title="__('Limpiar selección')"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -85,23 +85,25 @@
 					</button>
 				</div>
 
-				<!-- Único Contenedor con Scroll: 2 Columnas en PC/Tablet, Filas de 1 Línea en Móvil -->
-				<div class="flex-1 min-h-0 overflow-y-auto px-3.5 sm:px-5 py-2.5">
+				<!-- Único Contenedor con Scroll sobre Lienzo Slate (Contraste Nítido entre Tarjetas) -->
+				<div class="flex-1 min-h-0 overflow-y-auto bg-slate-100 px-3.5 sm:px-5 py-3">
 					<div
 						v-if="filteredVariantOptions.length > 0"
-						class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2"
+						class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5"
 					>
 						<div
 							v-for="opt in filteredVariantOptions"
 							:key="opt.item_code"
 							@click="handleVariantRowTap(opt)"
 							:class="[
-								'rounded-lg border px-2.5 py-1.5 sm:py-2 transition-all flex items-center justify-between gap-2 select-none',
+								'variant-card rounded-xl border px-3 py-2 transition-all flex items-center justify-between gap-2 select-none',
 								isVariantDisabled(opt)
-									? 'bg-slate-50/70 border-slate-200 opacity-55 cursor-not-allowed'
+									? 'bg-slate-100/80 border-slate-200 opacity-55 cursor-not-allowed'
 									: getVariantQty(opt.item_code) > 0
-										? 'bg-blue-50/40 border-blue-500 ring-1 ring-blue-500/15 cursor-pointer'
-										: 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 cursor-pointer',
+										? 'variant-card--selected bg-blue-50 border-blue-600 ring-2 ring-blue-500/20 cursor-pointer'
+										: getAvailableStock(opt) > 0
+											? 'bg-white border-slate-300 border-l-[3px] border-l-emerald-500 hover:border-slate-400 cursor-pointer'
+											: 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer',
 							]"
 						>
 							<!-- Izquierda: Nombre del Color + Indicador Compacto de Stock -->
@@ -126,7 +128,7 @@
 								</span>
 								<span
 									v-else
-									class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-400 shrink-0 tabular-nums"
+									class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200/80 shrink-0 tabular-nums"
 									:title="__('Sin stock físico')"
 								>
 									0
@@ -134,14 +136,14 @@
 
 								<span
 									v-if="(opt.data?.other_qty || 0) > 0"
-									class="inline-flex items-center px-1 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 shrink-0 tabular-nums"
+									class="inline-flex items-center px-1 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 shrink-0 tabular-nums"
 								>
 									+{{ Math.floor(opt.data.other_qty) }}
 								</span>
 
 								<span
 									v-if="getCartReserved(opt.item_code) > 0"
-									class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200/80 text-slate-700 shrink-0 tabular-nums"
+									class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-700 shrink-0 tabular-nums"
 									:title="__('Ya reservado en el carrito actual')"
 								>
 									{{ __("Carr:") }} {{ getCartReserved(opt.item_code) }}
@@ -160,7 +162,7 @@
 								<!-- Cuando ya tiene cantidad seleccionada: Stepper compacto [ - | N | + ] -->
 								<div
 									v-if="getVariantQty(opt.item_code) > 0"
-									class="inline-flex items-center rounded-lg border border-blue-200 bg-white shadow-2xs overflow-hidden h-[30px]"
+									class="inline-flex items-center rounded-lg border border-blue-300 bg-white shadow-sm overflow-hidden h-[30px]"
 								>
 									<button
 										type="button"
@@ -194,7 +196,7 @@
 									type="button"
 									@click="adjustVariantQty(opt, 1)"
 									:disabled="isVariantDisabled(opt)"
-									class="w-[30px] h-[30px] rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+									class="w-[30px] h-[30px] rounded-lg border border-slate-300 bg-slate-50 text-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
 									:title="__('Agregar 1')"
 								>
 									<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -208,7 +210,7 @@
 					<!-- Estado Vacío de Filtro/Búsqueda -->
 					<div
 						v-else
-						class="py-8 px-4 text-center bg-slate-50 border border-slate-200 rounded-xl"
+						class="py-8 px-4 text-center bg-white border border-slate-300 rounded-xl shadow-sm"
 					>
 						<p class="text-xs sm:text-sm font-semibold text-slate-700">
 							{{
@@ -931,5 +933,14 @@ function formatCurrency(amount) {
 }
 .variant-search-box :deep(.mdx-search__input) {
 	height: 34px;
+}
+.variant-card {
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+.variant-card:hover {
+	box-shadow: 0 3px 6px -1px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.variant-card--selected {
+	box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.18);
 }
 </style>

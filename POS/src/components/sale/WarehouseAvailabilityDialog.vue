@@ -447,7 +447,7 @@
 				<!-- Variant Selection & Live Stock Overview Section (Ultracompact) -->
 				<div
 					v-if="showVariantSelection"
-					class="mb-3 border border-slate-200 rounded-xl bg-slate-50/80"
+					class="mb-3 border border-slate-300 rounded-xl bg-slate-100"
 				>
 					<div class="p-2.5 sm:p-3.5 space-y-2.5">
 						<!-- Compact Single-Row Toolbar: Search + Filter Pills + Bulk Toggle -->
@@ -471,7 +471,7 @@
 							</div>
 
 							<div class="flex items-center flex-wrap gap-1.5">
-								<div class="inline-flex items-center bg-white p-0.5 rounded-lg border border-slate-200">
+								<div class="inline-flex items-center bg-white p-0.5 rounded-lg border border-slate-300 shadow-sm">
 									<button
 										type="button"
 										@click="variantDialogFilter = 'all'"
@@ -494,14 +494,14 @@
 												: 'text-slate-600 hover:text-slate-900'
 										"
 									>
-										{{ __("Stock") }} ({{ inStockDialogVariantsCount }})
+										{{ __("Con stock") }} ({{ inStockDialogVariantsCount }})
 									</button>
 								</div>
 
 								<button
 									type="button"
 									@click="selectedVariants.length === variants.length ? deselectAllVariants() : selectAllVariants()"
-									class="text-[11px] font-bold px-2.5 py-1.5 text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+									class="text-[11px] font-bold px-2.5 py-1.5 text-slate-700 bg-white border border-slate-300 shadow-sm hover:bg-slate-50 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
 								>
 									{{
 										selectedVariants.length === variants.length && variants.length > 0
@@ -527,17 +527,19 @@
 						<!-- Variants Grid (2 Columns on Tablet/Desktop, 1-Line Compact Rows on Mobile, No Nested Scroll) -->
 						<div
 							v-else-if="filteredDialogVariants.length > 0"
-							class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2"
+							class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5"
 						>
 							<div
 								v-for="variant in filteredDialogVariants"
 								:key="variant.item_code"
 								@click="toggleVariantSelection(variant)"
 								:class="[
-									'w-full text-start px-2.5 py-1.5 sm:py-2 rounded-lg border transition-all cursor-pointer select-none flex items-center justify-between gap-2',
+									'w-full text-start px-3 py-2 rounded-xl border transition-all cursor-pointer select-none flex items-center justify-between gap-2 shadow-sm',
 									isVariantSelected(variant)
-										? 'bg-white border-blue-500 ring-1 ring-blue-500/20 shadow-2xs'
-										: 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70',
+										? 'bg-blue-50 border-blue-600 ring-2 ring-blue-500/20 shadow'
+										: (variant.actual_qty ?? 0) > 0
+											? 'bg-white border-slate-300 border-l-[3px] border-l-emerald-500 hover:border-slate-400 hover:shadow'
+											: 'bg-white border-slate-300 hover:border-slate-400 hover:shadow',
 								]"
 							>
 								<div class="flex items-center gap-2 min-w-0 flex-1">
@@ -581,14 +583,14 @@
 									</span>
 									<span
 										v-else
-										class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-400 shrink-0 tabular-nums"
+										class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200/80 shrink-0 tabular-nums"
 									>
 										0
 									</span>
 
 									<span
 										v-if="(variant.other_qty || 0) > 0"
-										class="inline-flex items-center px-1 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 shrink-0 tabular-nums"
+										class="inline-flex items-center px-1 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 shrink-0 tabular-nums"
 									>
 										+{{ Math.floor(variant.other_qty) }}
 									</span>
@@ -598,7 +600,7 @@
 								<button
 									type="button"
 									@click.stop="openSingleVariantAvailability(variant)"
-									class="px-2 py-1 text-[11px] font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0"
+									class="px-2 py-1 text-[11px] font-bold text-slate-700 bg-slate-50 hover:bg-slate-200/70 border border-slate-300 rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0"
 								>
 									{{
 										settingsStore.canManageStock
