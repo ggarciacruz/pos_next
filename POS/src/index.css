@@ -214,3 +214,8 @@ button.active\:scale-95:active,
 		transform: scale(0.98);
 	}
 }
+
+/* Preserve mdx_ui MdxSearchInput left icon spacing against @tailwindcss/forms [type="text"] reset */
+.mdx-search .mdx-search__input[type="text"] {
+	padding-left: 36px !important;
+}

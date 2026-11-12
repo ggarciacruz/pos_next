@@ -185,7 +185,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	const hasCustomer = computed(() => !!customer.value);
 
 	// Actions
-	function addItem(item, qty = 1, _autoAdd = false, currentProfile = null) {
+	function addItem(item, qty = 1, _autoAdd = false, currentProfile = null, options = {}) {
 		if (currentProfile && shouldValidateItemStock(item)) {
 			// Account for quantity already in the cart for this item
 			const itemUom = item.uom || item.stock_uom;
@@ -204,20 +204,22 @@ export const usePOSCartStore = defineStore("posCart", () => {
 				if (!check.available) {
 					throw new Error(check.error);
 				}
-			} else {
+			} else if (!options.suppressStockWarning) {
 				const actualQty = getTotalWarehouseStock(item);
 				if (actualQty <= 0) {
 					showWarning(
 						__('"{0}" agregado sin stock en almacén (se venderá en negativo).', [
 							item.item_name || item.item_code,
-						])
+						]),
+						__("Aviso de stock")
 					);
 				} else if (totalQty > actualQty) {
 					showWarning(
 						__(
 							'"{0}" supera el stock disponible ({1}). Se venderá en negativo.',
 							[item.item_name || item.item_code, Math.floor(actualQty)]
-						)
+						),
+						__("Aviso de stock")
 					);
 				}
 			}
@@ -258,7 +260,8 @@ export const usePOSCartStore = defineStore("posCart", () => {
 						__(
 							'"{0}" supera el stock disponible ({1}). Se venderá en negativo.',
 							[item.item_name || item.item_code, Math.floor(actualQty)]
-						)
+						),
+						__("Aviso de stock")
 					);
 				}
 			}

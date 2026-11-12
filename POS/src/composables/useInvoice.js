@@ -286,9 +286,10 @@ export function useInvoice() {
 				batch_no: item.batch_no,
 				serial_no: item.serial_no,
 				item_uoms: item.item_uoms || [], // Available UOMs for this item
-				// Add item_group and brand for offer eligibility checking
+				// Add item_group, brand, and variant_of for offer eligibility & template stock sync
 				item_group: item.item_group,
 				brand: item.brand,
+				variant_of: item.variant_of || null,
 				// Resolved barcode flag - prevents editing qty/uom/rate for weighted/priced barcodes
 				is_resolved_barcode: item.is_resolved_barcode || false,
 				// Stock validation fields — needed for qty increase checks in cart

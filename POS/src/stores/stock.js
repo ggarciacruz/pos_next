@@ -62,13 +62,17 @@ export const useStockStore = defineStore("stock", () => {
 
 	// Initialize items from server
 	const init = (items) =>
-		items?.forEach((item) =>
+		items?.forEach((item) => {
+			const prev = server.value.get(item.item_code);
 			server.value.set(item.item_code, {
 				qty: item.actual_qty ?? item.stock_qty ?? 0,
-				warehouse: item.warehouse || warehouse.value,
+				other_qty: item.other_qty ?? prev?.other_qty ?? 0,
+				variants_total: item.variants_total ?? prev?.variants_total,
+				variants_in_stock: item.variants_in_stock ?? prev?.variants_in_stock,
+				warehouse: item.warehouse || prev?.warehouse || warehouse.value,
 				ts: Date.now(),
-			})
-		);
+			});
+		});
 
 	// Update reservations from cart
 	const reserve = (cartItems) => {
@@ -79,6 +83,7 @@ export const useStockStore = defineStore("stock", () => {
 			return;
 		}
 
+		const variantMeta = new Map();
 		cartItems.forEach((cartItem) => {
 			// Skip items with missing item_code
 			if (!cartItem?.item_code) return;
@@ -92,21 +97,47 @@ export const useStockStore = defineStore("stock", () => {
 
 			const current = reserved.value.get(itemCode) || 0;
 			reserved.value.set(itemCode, current + quantity * factor);
+
+			if (cartItem.variant_of && !variantMeta.has(itemCode)) {
+				variantMeta.set(itemCode, {
+					variant_of: cartItem.variant_of,
+					original_stock: Number(
+						cartItem.original_stock ?? cartItem.actual_qty ?? cartItem.stock_qty ?? 0
+					),
+				});
+			}
+		});
+
+		// Propagate physical stock reservations up to parent template cards
+		variantMeta.forEach((meta, variantCode) => {
+			const reservedVariantQty = reserved.value.get(variantCode) || 0;
+			const serverVariantQty = server.value.has(variantCode)
+				? Number(server.value.get(variantCode)?.qty || 0)
+				: meta.original_stock;
+			const consumedPositive = Math.min(reservedVariantQty, Math.max(0, serverVariantQty));
+			if (consumedPositive > 0) {
+				const tplCurrent = reserved.value.get(meta.variant_of) || 0;
+				reserved.value.set(meta.variant_of, tplCurrent + consumedPositive);
+			}
 		});
 	};
 
 	// Apply updates from server or realtime Socket.IO events
-	// Called by: POSSale.vue:770 (realtime), various refresh flows
+	// Called by: POSSale.vue (realtime), various refresh flows
 	// Does NOT clear reservations - only updates server stock
 	// Pinia reactivity automatically recalculates display stock
 	const update = (stockUpdates) =>
-		stockUpdates?.forEach((stockUpdate) =>
+		stockUpdates?.forEach((stockUpdate) => {
+			const prev = server.value.get(stockUpdate.item_code);
 			server.value.set(stockUpdate.item_code, {
-				qty: stockUpdate.actual_qty ?? stockUpdate.stock_qty,
-				warehouse: stockUpdate.warehouse || warehouse.value,
+				qty: stockUpdate.actual_qty ?? stockUpdate.stock_qty ?? prev?.qty ?? 0,
+				other_qty: stockUpdate.other_qty ?? prev?.other_qty ?? 0,
+				variants_total: stockUpdate.variants_total ?? prev?.variants_total,
+				variants_in_stock: stockUpdate.variants_in_stock ?? prev?.variants_in_stock,
+				warehouse: stockUpdate.warehouse || prev?.warehouse || warehouse.value,
 				ts: Date.now(),
-			})
-		);
+			});
+		});
 
 	// Refresh stock from server (direct API call)
 	// Called after invoice submission, manual refresh, or warehouse change

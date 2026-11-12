@@ -560,17 +560,21 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		// Step 4: Inject live stock quantities (optimized)
 		// Use a simple map operation - O(n) complexity
 		const itemsWithStock = list.map((item) => {
+			const serverEntry = stockStore.server.get(item.item_code);
 			// Get display stock (includes reservations from cart)
 			const displayStock = stockStore.getDisplayStock(item.item_code);
 			// Get original server stock (without reservations)
-			const originalStock = stockStore.server.get(item.item_code)?.qty || 0;
+			const originalStock = serverEntry?.qty ?? item.actual_qty ?? 0;
 
-			// Return item with updated stock quantities
+			// Return item with updated stock quantities and live variant metadata
 			return {
 				...item,
 				actual_qty: displayStock,
 				stock_qty: displayStock,
 				original_stock: originalStock,
+				other_qty: serverEntry?.other_qty ?? item.other_qty ?? 0,
+				variants_total: serverEntry?.variants_total ?? item.variants_total,
+				variants_in_stock: serverEntry?.variants_in_stock ?? item.variants_in_stock,
 			};
 		});
 

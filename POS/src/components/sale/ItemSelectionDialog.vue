@@ -1,20 +1,269 @@
 <template>
-	<MdxModal v-model="isOpen" :title="dialogTitle" size="md">
-		<div class="flex flex-col gap-4">
-			<!-- Tarjeta Unificada de Producto / Variante Activa -->
+	<MdxModal
+		v-model="isOpen"
+		:title="dialogTitle"
+		:subtitle="dialogSubtitle"
+		:size="mode === 'variant' ? 'lg' : 'md'"
+		:no-padding="mode === 'variant'"
+	>
+		<template v-if="mode === 'variant' && options.length > 0" #header-actions>
+			<MdxBadge
+				:variant="totalAvailableTemplateStock > 0 ? 'success' : 'neutral'"
+				size="sm"
+			>
+				{{
+					totalAvailableTemplateStock > 0
+						? __("Stock: {0}", [Math.floor(totalAvailableTemplateStock)])
+						: __("Sin stock")
+				}}
+			</MdxBadge>
+		</template>
+
+		<!-- ============================================================== -->
+		<!-- MODO VARIANTE: Grilla Ultracompacta (Sin Doble Scroll)         -->
+		<!-- ============================================================== -->
+		<div
+			v-if="mode === 'variant'"
+			class="flex flex-col flex-1 min-h-0"
+		>
+			<!-- Estado de Carga -->
+			<div v-if="loading" class="py-10 px-4">
+				<MdxLoadingSpinner size="md" :text="__('Loading options...')" />
+			</div>
+
+			<!-- Selector Múltiple Compacto -->
+			<template v-else-if="options.length > 0">
+				<!-- Barra Superior Fija en 1 Sola Línea (Móvil y Desktop) -->
+				<div class="px-3.5 sm:px-5 py-2 bg-white border-b border-slate-200/80 flex items-center gap-2 flex-shrink-0">
+					<div class="flex-1 min-w-0 variant-search-box">
+						<MdxSearchInput
+							v-model="variantSearch"
+							:placeholder="__('Buscar color...')"
+							:debounce="80"
+							:enable-shortcut-listener="false"
+							:shortcut-key="''"
+						/>
+					</div>
+
+					<div class="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 flex-shrink-0">
+						<button
+							type="button"
+							@click="variantStockFilter = 'all'"
+							class="px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
+							:class="
+								variantStockFilter === 'all'
+									? 'bg-white text-slate-900 shadow-2xs'
+									: 'text-slate-600 hover:text-slate-900'
+							"
+						>
+							{{ __("Todos") }} ({{ options.length }})
+						</button>
+						<button
+							type="button"
+							@click="variantStockFilter = 'in_stock'"
+							class="px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
+							:class="
+								variantStockFilter === 'in_stock'
+									? 'bg-white text-emerald-700 shadow-2xs'
+									: 'text-slate-600 hover:text-slate-900'
+							"
+						>
+							{{ __("Stock") }} ({{ inStockVariantsCount }})
+						</button>
+					</div>
+
+					<button
+						v-if="selectedVariantsCount > 0"
+						type="button"
+						@click="clearVariantQuantities"
+						class="p-1.5 rounded-lg text-slate-500 bg-white border border-slate-200 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer flex-shrink-0"
+						:title="__('Limpiar selección')"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+
+				<!-- Único Contenedor con Scroll: 2 Columnas en PC/Tablet, Filas de 1 Línea en Móvil -->
+				<div class="flex-1 min-h-0 overflow-y-auto px-3.5 sm:px-5 py-2.5">
+					<div
+						v-if="filteredVariantOptions.length > 0"
+						class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2"
+					>
+						<div
+							v-for="opt in filteredVariantOptions"
+							:key="opt.item_code"
+							@click="handleVariantRowTap(opt)"
+							:class="[
+								'rounded-lg border px-2.5 py-1.5 sm:py-2 transition-all flex items-center justify-between gap-2 select-none',
+								isVariantDisabled(opt)
+									? 'bg-slate-50/70 border-slate-200 opacity-55 cursor-not-allowed'
+									: getVariantQty(opt.item_code) > 0
+										? 'bg-blue-50/40 border-blue-500 ring-1 ring-blue-500/15 cursor-pointer'
+										: 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 cursor-pointer',
+							]"
+						>
+							<!-- Izquierda: Nombre del Color + Indicador Compacto de Stock -->
+							<div class="min-w-0 flex-1 flex items-center gap-1.5">
+								<span
+									class="text-[13px] font-bold truncate leading-tight"
+									:class="
+										getVariantQty(opt.item_code) > 0
+											? 'text-blue-950'
+											: 'text-slate-900'
+									"
+									:title="`${getVariantPrimaryLabel(opt)} (${opt.item_code})`"
+								>
+									{{ getVariantPrimaryLabel(opt) }}
+								</span>
+
+								<span
+									v-if="getAvailableStock(opt) > 0"
+									class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0 tabular-nums"
+								>
+									{{ Math.floor(getAvailableStock(opt)) }} {{ __("disp.") }}
+								</span>
+								<span
+									v-else
+									class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-400 shrink-0 tabular-nums"
+									:title="__('Sin stock físico')"
+								>
+									0
+								</span>
+
+								<span
+									v-if="(opt.data?.other_qty || 0) > 0"
+									class="inline-flex items-center px-1 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 shrink-0 tabular-nums"
+								>
+									+{{ Math.floor(opt.data.other_qty) }}
+								</span>
+
+								<span
+									v-if="getCartReserved(opt.item_code) > 0"
+									class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200/80 text-slate-700 shrink-0 tabular-nums"
+									:title="__('Ya reservado en el carrito actual')"
+								>
+									{{ __("Carr:") }} {{ getCartReserved(opt.item_code) }}
+								</span>
+							</div>
+
+							<!-- Derecha: Precio Diferencial (solo si difiere del base) + Control Táctil Compacto -->
+							<div class="flex items-center gap-2 shrink-0" @click.stop>
+								<span
+									v-if="hasDistinctVariantPrices"
+									class="text-xs font-bold text-slate-600 tabular-nums whitespace-nowrap"
+								>
+									{{ formatCurrency(opt.rate || 0) }}
+								</span>
+
+								<!-- Cuando ya tiene cantidad seleccionada: Stepper compacto [ - | N | + ] -->
+								<div
+									v-if="getVariantQty(opt.item_code) > 0"
+									class="inline-flex items-center rounded-lg border border-blue-200 bg-white shadow-2xs overflow-hidden h-[30px]"
+								>
+									<button
+										type="button"
+										@click="adjustVariantQty(opt, -1)"
+										class="w-7 h-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer"
+										:title="__('Restar')"
+									>
+										<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round">
+											<path d="M5 12h14" />
+										</svg>
+									</button>
+									<span class="min-w-[26px] px-1 text-center text-xs font-black text-blue-700 tabular-nums select-none">
+										{{ getVariantQty(opt.item_code) }}
+									</span>
+									<button
+										type="button"
+										@click="adjustVariantQty(opt, 1)"
+										:disabled="isAtMaxQty(opt)"
+										class="w-7 h-full flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-200 disabled:text-slate-400 transition-colors cursor-pointer disabled:cursor-not-allowed"
+										:title="__('Sumar')"
+									>
+										<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round">
+											<path d="M12 5v14M5 12h14" />
+										</svg>
+									</button>
+								</div>
+
+								<!-- Cuando está en 0: Botón limpio de 1 toque [ + ] -->
+								<button
+									v-else
+									type="button"
+									@click="adjustVariantQty(opt, 1)"
+									:disabled="isVariantDisabled(opt)"
+									class="w-[30px] h-[30px] rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+									:title="__('Agregar 1')"
+								>
+									<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+										<path d="M12 5v14M5 12h14" />
+									</svg>
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- Estado Vacío de Filtro/Búsqueda -->
+					<div
+						v-else
+						class="py-8 px-4 text-center bg-slate-50 border border-slate-200 rounded-xl"
+					>
+						<p class="text-xs sm:text-sm font-semibold text-slate-700">
+							{{
+								variantStockFilter === "in_stock" && !variantSearch
+									? __("Ninguna variante tiene stock físico disponible en este momento.")
+									: __("No se encontraron variantes con ese filtro.")
+							}}
+						</p>
+						<button
+							v-if="variantStockFilter === 'in_stock' || variantSearch"
+							type="button"
+							@click="resetVariantFilters"
+							class="mt-2 px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+						>
+							{{ __("Ver todas las variantes") }}
+						</button>
+					</div>
+				</div>
+			</template>
+
+			<!-- Sin Variantes Creadas -->
+			<div v-else class="text-center py-8 px-5">
+				<p class="text-sm font-bold text-slate-900">
+					{{ __("No Variants Available") }}
+				</p>
+				<p class="text-xs text-slate-500 mt-1.5">
+					<TranslatedHTML
+						:inner="
+							__(
+								'This item template &lt;strong&gt;{0}&lt;strong&gt; has no variants created yet.',
+								[item?.item_name]
+							)
+						"
+					/>
+				</p>
+			</div>
+		</div>
+
+		<!-- ============================================================== -->
+		<!-- MODO UOM: Selector Rápido de Unidad de Medida                  -->
+		<!-- ============================================================== -->
+		<div v-else class="flex flex-col gap-4">
 			<div
 				v-if="item"
 				class="flex items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-xl"
 			>
 				<div class="flex items-center gap-3 min-w-0 flex-1">
 					<div
-						class="w-14 h-14 bg-white border border-slate-200/80 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
+						class="w-12 h-12 bg-white border border-slate-200/80 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
 					>
 						<img
-							v-if="matchedVariant?.data?.image || item.image"
-							:src="matchedVariant?.data?.image || item.image"
+							v-if="item.image"
+							:src="item.image"
 							loading="lazy"
-							:alt="matchedVariant?.label || item.item_name"
+							:alt="item.item_name"
 							class="w-full h-full object-contain"
 						/>
 						<svg
@@ -34,104 +283,22 @@
 					</div>
 					<div class="flex-1 min-w-0">
 						<h3 class="text-sm font-bold text-slate-900 truncate">
-							{{ matchedVariant?.label || item.item_name }}
+							{{ item.item_name }}
 						</h3>
 						<p class="text-xs font-medium text-slate-500 truncate">
-							{{ matchedVariant?.description || item.item_code }}
+							{{ item.item_code }}
 						</p>
 					</div>
 				</div>
-
-				<!-- Precio y Stock integrados en la tarjeta superior (Modo Variante) -->
-				<div
-					v-if="mode === 'variant' && matchedVariant"
-					class="flex flex-col items-end flex-shrink-0 gap-1"
-				>
-					<span class="text-base font-black text-slate-900 tabular-nums">
-						{{ formatCurrency((matchedVariant.rate || 0) * quantity) }}
-					</span>
-					<MdxBadge
-						:variant="
-							(matchedVariant.stock ?? matchedVariant.data?.actual_qty ?? 0) > 0
-								? 'success'
-								: 'danger'
-						"
-						size="sm"
-					>
-						{{
-							__("Stock: {0}", [
-								matchedVariant.stock ?? matchedVariant.data?.actual_qty ?? 0,
-							])
-						}}
-					</MdxBadge>
-				</div>
 			</div>
 
-			<!-- Loading State (mdx_ui) -->
 			<MdxLoadingSpinner
 				v-if="loading"
 				size="md"
 				:text="__('Loading options...')"
 			/>
 
-			<!-- Variant Options with Attribute Selection -->
-			<div
-				v-else-if="mode === 'variant' && options.length > 0"
-				class="flex flex-col gap-4"
-			>
-				<!-- Group variants by attributes -->
-				<div
-					v-for="(values, attrName) in variantAttributesMap"
-					:key="attrName"
-					class="flex flex-col gap-2"
-				>
-					<label
-						class="text-[11px] font-black text-slate-500 uppercase tracking-wider text-start block"
-					>
-						{{ attrName }}
-					</label>
-					<div class="flex flex-wrap gap-2">
-						<button
-							v-for="value in values"
-							:key="value"
-							type="button"
-							@click="selectAttribute(attrName, value)"
-							:class="[
-								'px-3.5 py-2 rounded-lg border text-xs font-bold transition-all touch-manipulation',
-								selectedAttributes[attrName] === value
-									? 'border-blue-600 bg-blue-600 text-white shadow-sm'
-									: 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50',
-							]"
-						>
-							{{ value }}
-						</button>
-					</div>
-				</div>
-
-				<!-- Quantity Control for Variant (MdxQuantityStepper) -->
-				<MdxQuantityStepper
-					v-if="matchedVariant"
-					v-model="quantity"
-					:min="1"
-					:uom="matchedVariant.data?.stock_uom || item?.stock_uom"
-					:label="__('Quantity')"
-					:show-quick-adds="false"
-				/>
-
-				<!-- Warning if combination not found -->
-				<div
-					v-else-if="allAttributesSelected"
-					class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2"
-				>
-					<MdxBadge variant="warning" size="sm">
-						{{ __("This combination is not available") }}
-					</MdxBadge>
-				</div>
-			</div>
-
-			<!-- UOM Options (Fast Cashier UI) -->
-			<div v-else-if="mode === 'uom' && options.length > 0" class="flex flex-col gap-4">
-				<!-- UOM Selection Buttons -->
+			<div v-else-if="options.length > 0" class="flex flex-col gap-4">
 				<div>
 					<label
 						class="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2 text-start"
@@ -167,7 +334,6 @@
 					</div>
 				</div>
 
-				<!-- Quantity Control for UOM (MdxQuantityStepper) -->
 				<MdxQuantityStepper
 					v-model="quantity"
 					:min="1"
@@ -177,7 +343,6 @@
 					:quick-adds="[1, 5, 10, 20]"
 				/>
 
-				<!-- Price Summary -->
 				<div
 					class="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between"
 				>
@@ -199,7 +364,6 @@
 					</p>
 				</div>
 
-				<!-- Stock Warning -->
 				<div v-if="stockWarning" class="flex items-center justify-center">
 					<MdxBadge variant="warning" size="md">
 						{{ stockWarning }}
@@ -207,89 +371,43 @@
 				</div>
 			</div>
 
-			<!-- No Options -->
 			<div v-else class="text-center py-8">
-				<div
-					class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-slate-100 mb-3"
-				>
-					<svg
-						class="h-6 w-6 text-slate-500"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-						/>
-					</svg>
-				</div>
 				<p class="text-sm font-bold text-slate-900">
-					{{
-						mode === "variant"
-							? __("No Variants Available")
-							: __("No Options Available")
-					}}
+					{{ __("No Options Available") }}
 				</p>
-				<p v-if="mode === 'variant'" class="text-xs text-slate-500 mt-2">
-					<TranslatedHTML
-						:inner="
-							__(
-								'This item template &lt;strong&gt;{0}&lt;strong&gt; has no variants created yet.',
-								[item?.item_name]
-							)
-						"
-					/>
-				</p>
-				<p v-else class="text-xs text-slate-500 mt-2">
+				<p class="text-xs text-slate-500 mt-2">
 					{{ __("No additional units of measurement configured for this item.") }}
 				</p>
-				<div v-if="mode === 'variant'" class="mt-4">
-					<p class="text-xs text-slate-600 mb-2">{{ __("To create variants:") }}</p>
-					<ol
-						class="text-xs text-slate-600 text-start max-w-xs mx-auto flex flex-col gap-1"
-					>
-						<TranslatedHTML
-							:tag="'li'"
-							:inner="
-								__(
-									'1. Go to &lt;strong&gt;Item Master&lt;strong&gt; → &lt;strong&gt;{0}&lt;strong&gt;',
-									[item?.item_code]
-								)
-							"
-						/>
-						<TranslatedHTML
-							:tag="'li'"
-							:inner="
-								__('2. Click &lt;strong&gt;&quot;Make Variants&quot;&lt;strong&gt; button')
-							"
-						/>
-						<li>{{ __("3. Select attribute combinations") }}</li>
-						<TranslatedHTML
-							:tag="'li'"
-							:inner="__('4. Click &lt;strong&gt;&quot;Create&quot;&lt;strong&gt;')"
-						/>
-					</ol>
-				</div>
 			</div>
 		</div>
 
-		<template #footer>
-			<div class="flex gap-2.5 w-full">
-				<MdxButton class="flex-1" variant="secondary" @click="cancel">
-					{{ __("Cancel") }}
-				</MdxButton>
-				<MdxButton
-					class="flex-1"
-					variant="primary"
-					:disabled="!selectedOption"
-					@click="confirm"
-				>
-					{{ confirmButtonText }}
-				</MdxButton>
+		<template v-if="mode === 'variant' && selectedVariantsCount > 0" #footer-left>
+			<div
+				class="flex items-center justify-between sm:justify-start gap-2.5 text-xs text-slate-600"
+			>
+				<span>
+					<strong class="font-bold text-slate-900">{{ selectedVariantsCount }}</strong>
+					{{ __("var.") }} ·
+					<strong class="font-bold text-slate-900">{{ totalSelectedUnits }}</strong>
+					{{ totalSelectedUnits === 1 ? __("ud.") : __("uds.") }}
+				</span>
+				<span class="text-sm font-black text-slate-900 tabular-nums">
+					{{ formatCurrency(totalSelectedAmount) }}
+				</span>
 			</div>
+		</template>
+
+		<template #footer>
+			<MdxButton variant="secondary" @click="cancel">
+				{{ __("Cancel") }}
+			</MdxButton>
+			<MdxButton
+				variant="primary"
+				:disabled="!canConfirm"
+				@click="confirm"
+			>
+				{{ confirmButtonText }}
+			</MdxButton>
 		</template>
 	</MdxModal>
 </template>
@@ -303,11 +421,15 @@ import {
 	MdxLoadingSpinner,
 	MdxModal,
 	MdxQuantityStepper,
+	MdxSearchInput,
 } from "mdx_ui";
 import { computed, ref, watch } from "vue";
 import TranslatedHTML from "../common/TranslatedHTML.vue";
 import { offlineState } from "@/utils/offline/offlineState";
 import { getCachedVariants, cacheItems } from "@/utils/offline/items";
+import { useStockStore } from "@/stores/stock";
+import { usePOSSettingsStore } from "@/stores/posSettings";
+import { shouldValidateItemStock } from "@/utils/stockValidator";
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -325,6 +447,9 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "option-selected"]);
 
+const stockStore = useStockStore();
+const settingsStore = usePOSSettingsStore();
+
 const isOpen = computed({
 	get: () => props.modelValue,
 	set: (value) => emit("update:modelValue", value),
@@ -334,18 +459,228 @@ const loading = ref(false);
 const options = ref([]);
 const selectedOption = ref(null);
 const quantity = ref(1);
-const selectedAttributes = ref({}); // For variant attribute selection
+const variantQuantities = ref({});
+const variantSearch = ref("");
+const variantStockFilter = ref("all"); // 'all' | 'in_stock'
 
-// Computed properties for dialog customization
 const dialogTitle = computed(() => {
-	return props.mode === "variant" ? __("Select Item Variant") : __("Select Unit of Measure");
+	if (props.mode === "variant") {
+		return props.item?.item_name || __("Seleccionar Variantes");
+	}
+	return __("Select Unit of Measure");
+});
+
+function cleanWarehouseLabel(raw) {
+	return String(raw || "").replace(/\s*-\s*[A-Z0-9]+$/i, "").trim();
+}
+
+const baseVariantRate = computed(() => {
+	if (props.mode !== "variant") return 0;
+	if (options.value.length > 0) {
+		return Number(options.value[0]?.rate || props.item?.rate || 0);
+	}
+	return Number(props.item?.rate || props.item?.price_list_rate || 0);
+});
+
+const hasDistinctVariantPrices = computed(() => {
+	if (props.mode !== "variant" || options.value.length <= 1) return false;
+	const first = Number(options.value[0]?.rate || 0);
+	return options.value.some((o) => Math.abs(Number(o.rate || 0) - first) > 0.009);
+});
+
+const primaryVariantWarehouse = computed(() => {
+	if (props.mode !== "variant") return "";
+	return (
+		options.value[0]?.warehouseLabel ||
+		cleanWarehouseLabel(props.item?.warehouse_name || props.item?.warehouse)
+	);
+});
+
+const dialogSubtitle = computed(() => {
+	if (props.mode !== "variant" || !props.item) return "";
+	const parts = [props.item.item_code];
+	if (!hasDistinctVariantPrices.value && baseVariantRate.value > 0) {
+		parts.push(`${formatCurrency(baseVariantRate.value)} c/u`);
+	}
+	if (primaryVariantWarehouse.value) {
+		parts.push(primaryVariantWarehouse.value);
+	}
+	return parts.filter(Boolean).join(" · ");
+});
+
+function getVariantPrimaryLabel(opt) {
+	const attrValues = Object.values(opt.attributes || {}).filter(Boolean);
+	if (attrValues.length > 0) {
+		return attrValues.join(" · ");
+	}
+	return opt.label || opt.item_code;
+}
+
+function getCartReserved(itemCode) {
+	return Number(stockStore.reserved.get(itemCode) || 0);
+}
+
+function getServerStock(opt) {
+	if (stockStore.server.has(opt.item_code)) {
+		return Number(stockStore.server.get(opt.item_code)?.qty ?? opt.stock ?? 0);
+	}
+	return Number(opt.stock ?? opt.data?.actual_qty ?? 0);
+}
+
+function getAvailableStock(opt) {
+	return getServerStock(opt) - getCartReserved(opt.item_code);
+}
+
+function isStrictStockEnforced(opt) {
+	return Boolean(
+		settingsStore.shouldEnforceStockValidation() && shouldValidateItemStock(opt.data || {})
+	);
+}
+
+function isVariantDisabled(opt) {
+	return isStrictStockEnforced(opt) && getAvailableStock(opt) <= 0;
+}
+
+function getVariantMaxQty(opt) {
+	if (!isStrictStockEnforced(opt)) {
+		return undefined;
+	}
+	return Math.max(0, Math.floor(getAvailableStock(opt)));
+}
+
+function getVariantQty(itemCode) {
+	return Number(variantQuantities.value[itemCode] || 0);
+}
+
+function setVariantQty(opt, nextVal) {
+	if (!opt?.item_code) return;
+	let val = Math.max(0, Number(nextVal) || 0);
+	const maxQ = getVariantMaxQty(opt);
+	if (maxQ !== undefined) {
+		val = Math.min(maxQ, val);
+	}
+	const updated = { ...variantQuantities.value };
+	if (val <= 0) {
+		delete updated[opt.item_code];
+	} else {
+		updated[opt.item_code] = val;
+	}
+	variantQuantities.value = updated;
+}
+
+function isAtMaxQty(opt) {
+	const maxQ = getVariantMaxQty(opt);
+	return maxQ !== undefined && getVariantQty(opt.item_code) >= maxQ;
+}
+
+function adjustVariantQty(opt, delta) {
+	if (!opt?.item_code) return;
+	if (delta > 0 && isVariantDisabled(opt)) return;
+	const current = getVariantQty(opt.item_code);
+	setVariantQty(opt, current + delta);
+}
+
+function handleVariantRowTap(opt) {
+	if (isVariantDisabled(opt)) return;
+	const current = getVariantQty(opt.item_code);
+	if (current === 0) {
+		setVariantQty(opt, 1);
+	} else if (current === 1) {
+		setVariantQty(opt, 0);
+	}
+}
+
+function clearVariantQuantities() {
+	variantQuantities.value = {};
+}
+
+function resetVariantFilters() {
+	variantSearch.value = "";
+	variantStockFilter.value = "all";
+}
+
+const inStockVariantsCount = computed(() => {
+	if (props.mode !== "variant") return 0;
+	return options.value.filter((opt) => getAvailableStock(opt) > 0).length;
+});
+
+const totalAvailableTemplateStock = computed(() => {
+	if (props.mode !== "variant") return 0;
+	return options.value.reduce((sum, opt) => sum + Math.max(0, getAvailableStock(opt)), 0);
+});
+
+const sortedVariantOptions = computed(() => {
+	if (props.mode !== "variant") return [];
+	return [...options.value].sort((a, b) => {
+		const aHas = getAvailableStock(a) > 0 ? 1 : 0;
+		const bHas = getAvailableStock(b) > 0 ? 1 : 0;
+		if (bHas !== aHas) return bHas - aHas;
+		return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
+	});
+});
+
+const filteredVariantOptions = computed(() => {
+	let list = sortedVariantOptions.value;
+	if (variantStockFilter.value === "in_stock") {
+		list = list.filter((opt) => getAvailableStock(opt) > 0);
+	}
+	const q = (variantSearch.value || "").trim().toLowerCase();
+	if (q) {
+		list = list.filter((opt) => {
+			const attrStr = Object.values(opt.attributes || {})
+				.join(" ")
+				.toLowerCase();
+			return (
+				attrStr.includes(q) ||
+				(opt.label || "").toLowerCase().includes(q) ||
+				(opt.item_code || "").toLowerCase().includes(q)
+			);
+		});
+	}
+	return list;
+});
+
+const selectedVariantEntries = computed(() => {
+	if (props.mode !== "variant") return [];
+	return options.value
+		.filter((opt) => getVariantQty(opt.item_code) > 0)
+		.map((opt) => ({
+			...opt,
+			quantity: getVariantQty(opt.item_code),
+		}));
+});
+
+const selectedVariantsCount = computed(() => selectedVariantEntries.value.length);
+
+const totalSelectedUnits = computed(() =>
+	selectedVariantEntries.value.reduce((sum, entry) => sum + Number(entry.quantity || 0), 0)
+);
+
+const totalSelectedAmount = computed(() =>
+	selectedVariantEntries.value.reduce(
+		(sum, entry) => sum + Number(entry.rate || 0) * Number(entry.quantity || 0),
+		0
+	)
+);
+
+const canConfirm = computed(() => {
+	if (props.mode === "variant") {
+		return selectedVariantsCount.value > 0;
+	}
+	return Boolean(selectedOption.value);
 });
 
 const confirmButtonText = computed(() => {
-	return props.mode === "variant" ? __("Add to Cart") : __("Add to Cart");
+	if (props.mode === "variant") {
+		if (totalSelectedUnits.value > 0) {
+			return __("Agregar {0} al Carrito", [totalSelectedUnits.value]);
+		}
+		return __("Add to Cart");
+	}
+	return __("Add to Cart");
 });
 
-// Computed: Stock warning when quantity exceeds available stock
+// Computed: Stock warning when quantity exceeds available stock (UOM mode)
 const stockWarning = computed(() => {
 	if (props.mode !== "uom" || !selectedOption.value) return null;
 
@@ -362,52 +697,13 @@ const stockWarning = computed(() => {
 	return null;
 });
 
-// Computed: Build a map of all available attribute values
-const variantAttributesMap = computed(() => {
-	if (props.mode !== "variant" || options.value.length === 0) return {};
-
-	const attrMap = {};
-	options.value.forEach((option) => {
-		Object.entries(option.attributes || {}).forEach(([key, value]) => {
-			if (!attrMap[key]) {
-				attrMap[key] = new Set();
-			}
-			attrMap[key].add(value);
-		});
-	});
-
-	// Convert Sets to Arrays preserving configured attribute order
-	const result = {};
-	Object.keys(attrMap).forEach((key) => {
-		result[key] = Array.from(attrMap[key]);
-	});
-
-	return result;
-});
-
-// Computed: Check if all attributes are selected
-const allAttributesSelected = computed(() => {
-	const attrKeys = Object.keys(variantAttributesMap.value);
-	return attrKeys.length > 0 && attrKeys.every((key) => selectedAttributes.value[key]);
-});
-
-// Computed: Find variant that matches selected attributes
-const matchedVariant = computed(() => {
-	if (!allAttributesSelected.value) return null;
-
-	return options.value.find((option) => {
-		return Object.entries(selectedAttributes.value).every(([key, value]) => {
-			return option.attributes[key] === value;
-		});
-	});
-});
-
 /**
  * Transform raw variant data into option format for the UI
  */
 function mapVariantsToOptions(variants) {
-	return variants.map((v) => ({
+	return variants.map((v, idx) => ({
 		type: "variant",
+		orderIndex: idx,
 		item_code: v.item_code,
 		label: v.item_name,
 		description: v.item_code,
@@ -415,17 +711,9 @@ function mapVariantsToOptions(variants) {
 		rate: v.rate || v.price_list_rate || 0,
 		priceLabel: __("per {0}", [v.stock_uom]),
 		stock: v.actual_qty ?? 0,
+		warehouseLabel: cleanWarehouseLabel(v.warehouse_name || v.warehouse),
 		data: v,
 	}));
-}
-
-function autoSelectFirstVariant() {
-	if (options.value.length > 0 && Object.keys(selectedAttributes.value).length === 0) {
-		const firstWithStock = options.value.find((opt) => (opt.stock ?? 0) > 0) || options.value[0];
-		if (firstWithStock?.attributes) {
-			selectedAttributes.value = { ...firstWithStock.attributes };
-		}
-	}
 }
 
 /**
@@ -435,7 +723,6 @@ async function loadVariantsFromCache() {
 	try {
 		const cachedVariants = await getCachedVariants(props.item?.item_code);
 		options.value = cachedVariants?.length > 0 ? mapVariantsToOptions(cachedVariants) : [];
-		autoSelectFirstVariant();
 	} catch (error) {
 		console.error("Error loading variants from cache:", error);
 		options.value = [];
@@ -456,8 +743,11 @@ const variantsResource = createResource({
 	auto: false,
 	async onSuccess(data) {
 		const variants = data?.message || data || [];
+		// Sync fresh variant stock into stockStore so cart reservations and badges stay unified
+		if (variants.length > 0) {
+			stockStore.init(variants);
+		}
 		options.value = mapVariantsToOptions(variants);
-		autoSelectFirstVariant();
 		loading.value = false;
 
 		// Cache variants for offline use
@@ -475,8 +765,8 @@ const variantsResource = createResource({
 // Load options when dialog opens
 watch(
 	() => props.modelValue,
-	(isOpen) => {
-		if (isOpen && props.item) {
+	(isOpenVal) => {
+		if (isOpenVal && props.item) {
 			loadOptions();
 		}
 	},
@@ -496,7 +786,9 @@ watch([() => props.mode, () => props.item], ([, newItem]) => {
 async function loadOptions() {
 	selectedOption.value = null;
 	quantity.value = props.item.resolved_qty || 1;
-	selectedAttributes.value = {}; // Reset attribute selection
+	variantQuantities.value = {};
+	variantSearch.value = "";
+	variantStockFilter.value = "all";
 
 	if (props.mode === "variant") {
 		loading.value = true;
@@ -528,15 +820,6 @@ async function loadOptions() {
 		loading.value = false;
 	}
 }
-
-// Watch matched variant and auto-select it
-watch(matchedVariant, (variant) => {
-	if (variant) {
-		selectedOption.value = variant;
-	} else {
-		selectedOption.value = null;
-	}
-});
 
 function buildUomOptions() {
 	if (!props.item) return [];
@@ -585,15 +868,8 @@ function getUomPrice(uom, conversionFactor) {
 	}
 
 	// Calculate price based on conversion factor
-	// If 1 Gram = 0.001 Kg, then price per Gram = price per Kg * 0.001
 	const baseRate = props.item.rate || 0;
 	return baseRate * conversionFactor;
-}
-
-function selectAttribute(attributeName, value) {
-	selectedAttributes.value[attributeName] = value;
-	// Force reactivity
-	selectedAttributes.value = { ...selectedAttributes.value };
 }
 
 function selectOption(option) {
@@ -601,9 +877,36 @@ function selectOption(option) {
 }
 
 function confirm() {
+	if (props.mode === "variant") {
+		const list = selectedVariantEntries.value;
+		if (list.length === 0) return;
+
+		// Preserve secondary UOM / Batch / Serial flow if a single specialized variant was chosen
+		if (
+			list.length === 1 &&
+			(list[0].data?.item_uoms?.length > 0 ||
+				list[0].data?.has_batch_no ||
+				list[0].data?.has_serial_no)
+		) {
+			emit("option-selected", {
+				...list[0],
+				type: "variant",
+				quantity: list[0].quantity,
+			});
+			return;
+		}
+
+		emit("option-selected", {
+			type: "variants_bulk",
+			items: list.map((entry) => ({
+				data: entry.data,
+				quantity: entry.quantity,
+			})),
+		});
+		return;
+	}
+
 	if (selectedOption.value) {
-		// Emit first, let parent decide if dialog should close
-		// Parent can keep dialog open by switching mode (variant → UOM)
 		const option = { ...selectedOption.value, quantity: quantity.value };
 		emit("option-selected", option);
 	}
@@ -611,7 +914,9 @@ function confirm() {
 
 function cancel() {
 	selectedOption.value = null;
-	selectedAttributes.value = {};
+	variantQuantities.value = {};
+	variantSearch.value = "";
+	variantStockFilter.value = "all";
 	isOpen.value = false;
 }
 
@@ -619,3 +924,12 @@ function formatCurrency(amount) {
 	return formatCurrencyUtil(Number.parseFloat(amount || 0), props.currency);
 }
 </script>
+
+<style scoped>
+.variant-search-box :deep(.mdx-search) {
+	max-width: none;
+}
+.variant-search-box :deep(.mdx-search__input) {
+	height: 34px;
+}
+</style>

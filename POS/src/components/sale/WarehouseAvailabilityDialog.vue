@@ -444,101 +444,114 @@
 					</div>
 				</div>
 
-				<!-- Variant Selection Section -->
+				<!-- Variant Selection & Live Stock Overview Section (Ultracompact) -->
 				<div
 					v-if="showVariantSelection"
-					class="mb-4 border border-gray-200 rounded-lg bg-gray-50"
+					class="mb-3 border border-slate-200 rounded-xl bg-slate-50/80"
 				>
-					<div class="p-4">
-						<div class="flex items-center justify-between mb-3">
-							<h4 class="text-sm font-semibold text-gray-900">
-								{{ __("Select Variants") }}
-							</h4>
-							<div class="flex gap-2">
+					<div class="p-2.5 sm:p-3.5 space-y-2.5">
+						<!-- Compact Single-Row Toolbar: Search + Filter Pills + Bulk Toggle -->
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<div v-if="variants.length > 4" class="flex-1 min-w-[180px] dialog-variant-search">
+								<MdxSearchInput
+									v-model="variantDialogSearch"
+									:placeholder="__('Buscar color o código...')"
+									:debounce="80"
+									:enable-shortcut-listener="false"
+									:shortcut-key="''"
+								/>
+							</div>
+							<div v-else class="text-start">
+								<h4 class="text-xs sm:text-sm font-bold text-slate-900">
+									{{ __("Variantes / Colores") }}
+									<span class="font-medium text-slate-500">
+										({{ inStockDialogVariantsCount }}/{{ variants.length }} {{ __("con stock") }})
+									</span>
+								</h4>
+							</div>
+
+							<div class="flex items-center flex-wrap gap-1.5">
+								<div class="inline-flex items-center bg-white p-0.5 rounded-lg border border-slate-200">
+									<button
+										type="button"
+										@click="variantDialogFilter = 'all'"
+										class="px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
+										:class="
+											variantDialogFilter === 'all'
+												? 'bg-slate-900 text-white'
+												: 'text-slate-600 hover:text-slate-900'
+										"
+									>
+										{{ __("Todas") }} ({{ variants.length }})
+									</button>
+									<button
+										type="button"
+										@click="variantDialogFilter = 'in_stock'"
+										class="px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
+										:class="
+											variantDialogFilter === 'in_stock'
+												? 'bg-emerald-600 text-white'
+												: 'text-slate-600 hover:text-slate-900'
+										"
+									>
+										{{ __("Stock") }} ({{ inStockDialogVariantsCount }})
+									</button>
+								</div>
+
 								<button
-									@click="selectAllVariants"
-									class="text-xs px-2 py-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+									type="button"
+									@click="selectedVariants.length === variants.length ? deselectAllVariants() : selectAllVariants()"
+									class="text-[11px] font-bold px-2.5 py-1.5 text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
 								>
-									{{ __("Select All") }}
-								</button>
-								<button
-									@click="deselectAllVariants"
-									class="text-xs px-2 py-1 text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
-								>
-									{{ __("Deselect All") }}
+									{{
+										selectedVariants.length === variants.length && variants.length > 0
+											? __("Deselect All")
+											: __("Select All")
+									}}
 								</button>
 							</div>
 						</div>
 
 						<!-- Loading Variants -->
-						<div v-if="loadingVariants" class="flex items-center justify-center py-8">
+						<div v-if="loadingVariants" class="flex items-center justify-center py-6">
 							<div class="text-center">
 								<div
-									class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"
+									class="animate-spin rounded-full h-7 w-7 border-b-2 border-blue-500 mx-auto"
 								></div>
-								<p class="mt-2 text-xs text-gray-500">
+								<p class="mt-2 text-xs text-slate-500">
 									{{ __("Loading variants...") }}
 								</p>
 							</div>
 						</div>
 
-						<!-- Variants List -->
+						<!-- Variants Grid (2 Columns on Tablet/Desktop, 1-Line Compact Rows on Mobile, No Nested Scroll) -->
 						<div
-							v-else-if="variants.length > 0"
-							class="space-y-2 max-h-64 overflow-y-auto"
+							v-else-if="filteredDialogVariants.length > 0"
+							class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2"
 						>
-							<button
-								v-for="variant in variants"
+							<div
+								v-for="variant in filteredDialogVariants"
 								:key="variant.item_code"
 								@click="toggleVariantSelection(variant)"
 								:class="[
-									'w-full text-start p-3 rounded-lg border transition-all',
+									'w-full text-start px-2.5 py-1.5 sm:py-2 rounded-lg border transition-all cursor-pointer select-none flex items-center justify-between gap-2',
 									isVariantSelected(variant)
-										? 'bg-blue-50 border-blue-300 shadow-sm'
-										: 'bg-white border-gray-200 hover:border-blue-200 hover:bg-gray-50',
+										? 'bg-white border-blue-500 ring-1 ring-blue-500/20 shadow-2xs'
+										: 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70',
 								]"
 							>
-								<div class="flex items-center gap-3">
+								<div class="flex items-center gap-2 min-w-0 flex-1">
 									<!-- Checkbox -->
-									<div class="flex-shrink-0">
-										<div
-											:class="[
-												'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
-												isVariantSelected(variant)
-													? 'bg-blue-600 border-blue-600'
-													: 'bg-white border-gray-300',
-											]"
-										>
-											<svg
-												v-if="isVariantSelected(variant)"
-												class="w-3 h-3 text-white"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="3"
-													d="M5 13l4 4L19 7"
-												/>
-											</svg>
-										</div>
-									</div>
-
-									<!-- Variant Image -->
 									<div
-										class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0"
+										:class="[
+											'w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0',
+											isVariantSelected(variant)
+												? 'bg-blue-600 border-blue-600 text-white'
+												: 'bg-white border-slate-300 text-transparent',
+										]"
 									>
-										<img
-											v-if="variant.image"
-											:src="variant.image"
-											:alt="variant.item_name"
-											class="w-full h-full object-cover"
-										/>
 										<svg
-											v-else
-											class="w-5 h-5 text-gray-400"
+											class="w-3 h-3"
 											fill="none"
 											stroke="currentColor"
 											viewBox="0 0 24 24"
@@ -546,59 +559,89 @@
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
-												stroke-width="2"
-												d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+												stroke-width="3"
+												d="M5 13l4 4L19 7"
 											/>
 										</svg>
 									</div>
 
-									<!-- Variant Info -->
-									<div class="flex-1 min-w-0">
-										<p class="text-sm font-medium text-gray-900 truncate">
-											{{ variant.item_name }}
-										</p>
-										<p class="text-xs text-gray-500 truncate">
-											{{ variant.item_code }}
-										</p>
-										<!-- Attributes -->
-										<div
-											v-if="
-												variant.attributes &&
-												Object.keys(variant.attributes).length > 0
-											"
-											class="mt-1 flex flex-wrap gap-1"
-										>
-											<span
-												v-for="(value, key) in variant.attributes"
-												:key="key"
-												class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-700"
-											>
-												{{ key }}: {{ value }}
-											</span>
-										</div>
-									</div>
+									<!-- Color Name + Stock Pill -->
+									<span
+										class="text-[13px] font-bold text-slate-900 truncate"
+										:title="`${getDialogVariantPrimaryLabel(variant)} (${variant.item_code})`"
+									>
+										{{ getDialogVariantPrimaryLabel(variant) }}
+									</span>
+
+									<span
+										v-if="(variant.actual_qty ?? 0) > 0"
+										class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0 tabular-nums"
+									>
+										{{ Math.floor(variant.actual_qty || 0) }} {{ __("disp.") }}
+									</span>
+									<span
+										v-else
+										class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-400 shrink-0 tabular-nums"
+									>
+										0
+									</span>
+
+									<span
+										v-if="(variant.other_qty || 0) > 0"
+										class="inline-flex items-center px-1 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 shrink-0 tabular-nums"
+									>
+										+{{ Math.floor(variant.other_qty) }}
+									</span>
 								</div>
+
+								<!-- Direct Single-Variant Stock Action -->
+								<button
+									type="button"
+									@click.stop="openSingleVariantAvailability(variant)"
+									class="px-2 py-1 text-[11px] font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0"
+								>
+									{{
+										settingsStore.canManageStock
+											? __("+ / − Stock")
+											: __("Almacenes")
+									}}
+								</button>
+							</div>
+						</div>
+
+						<!-- Empty Filtered Variants -->
+						<div v-else-if="variants.length > 0" class="text-center py-5 bg-white rounded-xl border border-slate-200">
+							<p class="text-xs font-semibold text-slate-600">
+								{{ __("No se encontraron variantes con los filtros actuales.") }}
+							</p>
+							<button
+								type="button"
+								@click="variantDialogFilter = 'all'; variantDialogSearch = ''"
+								class="mt-2 px-3 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+							>
+								{{ __("Mostrar todas") }}
 							</button>
 						</div>
 
 						<!-- No Variants -->
-						<div v-else class="text-center py-6">
-							<p class="text-sm text-gray-500">{{ __("No variants found") }}</p>
+						<div v-else class="text-center py-5">
+							<p class="text-sm text-slate-500">{{ __("No variants found") }}</p>
 						</div>
 
-						<!-- Confirm Button -->
-						<div v-if="variants.length > 0" class="mt-4 pt-4 border-t border-gray-200">
+						<!-- Confirm Multi-Variant Warehouse Check Button -->
+						<div v-if="variants.length > 0" class="pt-2 border-t border-slate-200">
 							<button
+								type="button"
 								@click="confirmVariantSelection"
 								:disabled="selectedVariants.length === 0"
 								:class="[
-									'w-full px-4 py-2 rounded-lg font-medium transition-colors',
+									'w-full px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-colors',
 									selectedVariants.length > 0
-										? 'bg-blue-600 text-white hover:bg-blue-700'
-										: 'bg-gray-300 text-gray-500 cursor-not-allowed',
+										? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+										: 'bg-slate-200 text-slate-500 cursor-not-allowed',
 								]"
 							>
-								{{ __("Check Availability in All Wherehouses") }} ({{
+								{{ __("Ver disponibilidad por almacén") }} ({{
 									selectedVariants.length
 								}}
 								{{ __("Selected") }})
@@ -1092,6 +1135,40 @@
 						v-else-if="warehouses && warehouses.length > 0 && !showVariantSelection"
 						class="flex flex-col gap-3"
 					>
+						<!-- Back to Variants Navigation Bar (when inspecting variants of a template) -->
+						<div
+							v-if="variants.length > 0"
+							class="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+						>
+							<div class="text-xs text-slate-700 text-start">
+								<template v-if="selectedVariants.length === 1">
+									<span class="text-slate-500">{{ __("Variante:") }}</span>
+									<strong class="ms-1 font-bold text-slate-900">
+										{{ selectedVariants[0].item_name }}
+									</strong>
+									<span class="ms-1 font-mono text-slate-400">
+										({{ selectedVariants[0].item_code }})
+									</span>
+								</template>
+								<template v-else>
+									<strong class="font-bold text-slate-900">
+										{{ selectedVariants.length }}
+									</strong>
+									{{ __("variantes seleccionadas") }}
+								</template>
+							</div>
+							<button
+								type="button"
+								@click="showVariantSelection = true; activeQuickWarehouse = null"
+								class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+							>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+								</svg>
+								<span>{{ __("Volver a Variantes") }}</span>
+							</button>
+						</div>
+
 						<!-- Group by warehouse if multiple variants selected -->
 						<template v-if="selectedVariants.length > 1">
 							<!-- Group warehouses by warehouse name -->
@@ -2107,7 +2184,7 @@
  */
 import { ref, computed, watch, nextTick } from "vue";
 import { call } from "frappe-ui";
-import { MdxModal, MdxSelect } from "mdx_ui";
+import { MdxModal, MdxSearchInput, MdxSelect } from "mdx_ui";
 import ItemQuickFormDialog from "@/components/sale/ItemQuickFormDialog.vue";
 import { __ } from "@/utils/translation";
 import { usePOSCartStore } from "@/stores/posCart";
@@ -2182,6 +2259,8 @@ const variants = ref([]);
 const selectedVariants = ref([]);
 const loadingVariants = ref(false);
 const showVariantSelection = ref(false);
+const variantDialogSearch = ref("");
+const variantDialogFilter = ref("all"); // 'all' | 'in_stock'
 
 // Warehouse availability state
 const loading = ref(false);
@@ -2560,6 +2639,50 @@ function convertToBarcodeUom(qty) {
 	return qty / uomData.conversion_factor;
 }
 
+function getDialogVariantPrimaryLabel(variant) {
+	const attrs = Object.values(variant?.attributes || {}).filter(Boolean);
+	if (attrs.length > 0) {
+		return attrs.join(" · ");
+	}
+	return variant?.item_name || variant?.item_code || "";
+}
+
+const inStockDialogVariantsCount = computed(() =>
+	(variants.value || []).filter((v) => Number(v.actual_qty || 0) > 0).length
+);
+
+const filteredDialogVariants = computed(() => {
+	let list = [...(variants.value || [])].sort((a, b) => {
+		const aHas = Number(a.actual_qty || 0) > 0 ? 1 : 0;
+		const bHas = Number(b.actual_qty || 0) > 0 ? 1 : 0;
+		return bHas - aHas;
+	});
+	if (variantDialogFilter.value === "in_stock") {
+		list = list.filter((v) => Number(v.actual_qty || 0) > 0);
+	}
+	const q = (variantDialogSearch.value || "").trim().toLowerCase();
+	if (q) {
+		list = list.filter((v) => {
+			const attrStr = Object.values(v.attributes || {})
+				.join(" ")
+				.toLowerCase();
+			return (
+				attrStr.includes(q) ||
+				(v.item_name || "").toLowerCase().includes(q) ||
+				(v.item_code || "").toLowerCase().includes(q)
+			);
+		});
+	}
+	return list;
+});
+
+function openSingleVariantAvailability(variant) {
+	if (!variant) return;
+	selectedVariants.value = [variant];
+	showVariantSelection.value = false;
+	loadAvailability();
+}
+
 async function loadVariants() {
 	const templateItem = isSearchMode.value ? selectedItemCode.value : props.itemCode;
 	if (!templateItem || !props.posProfile) return;
@@ -2567,6 +2690,8 @@ async function loadVariants() {
 	loadingVariants.value = true;
 	variants.value = [];
 	selectedVariants.value = [];
+	variantDialogSearch.value = "";
+	variantDialogFilter.value = "all";
 	showVariantSelection.value = true;
 	error.value = null;
 
@@ -2651,7 +2776,8 @@ async function loadAvailability() {
 			const response = await call("pos_next.api.items.get_item_warehouse_availability", {
 				item_codes: JSON.stringify(itemCodes),
 				company: props.company,
-				include_zero_stock: settingsStore.canManageStock ? 1 : 0,
+				include_zero_stock:
+					selectedVariants.value.length === 1 || settingsStore.canManageStock ? 1 : 0,
 				pos_profile: props.posProfile || shiftStore.currentProfile,
 			});
 			warehouses.value = sortWithProfileWarehouseFirst(response || []);
@@ -2727,7 +2853,18 @@ function applyStockBinUpdates(updatedBins) {
 		}
 	}
 
-	// 2. Update POS stockStore, itemSearchStore, and offlineWorker for items in their effective warehouse
+	// 1b. Also update cached variants list inside this dialog if open
+	for (const bin of updatedBins) {
+		const vTarget = variants.value.find((v) => v.item_code === bin.item_code);
+		if (vTarget && (!vTarget.warehouse || !bin.warehouse || vTarget.warehouse === bin.warehouse)) {
+			vTarget.actual_qty = bin.actual_qty;
+			if (bin.other_qty !== undefined) {
+				vTarget.other_qty = bin.other_qty;
+			}
+		}
+	}
+
+	// 2. Update POS stockStore, itemSearchStore, and offlineWorker for items (including parent templates)
 	const profileWh = shiftStore.profileWarehouse;
 	const findItemEffectiveWh = (code) => {
 		const found =
@@ -2742,7 +2879,11 @@ function applyStockBinUpdates(updatedBins) {
 		})
 		.map((b) => ({
 			item_code: b.item_code,
+			warehouse: b.warehouse,
 			actual_qty: b.actual_qty,
+			other_qty: b.other_qty,
+			variants_total: b.variants_total,
+			variants_in_stock: b.variants_in_stock,
 			available_qty: b.available_qty,
 		}));
 
@@ -2756,11 +2897,21 @@ function applyStockBinUpdates(updatedBins) {
 				if (target) {
 					target.actual_qty = upd.actual_qty;
 					target.stock_qty = upd.actual_qty;
+					if (upd.other_qty !== undefined) {
+						target.other_qty = upd.other_qty;
+					}
+					if (upd.variants_total !== undefined) {
+						target.variants_total = upd.variants_total;
+					}
+					if (upd.variants_in_stock !== undefined) {
+						target.variants_in_stock = upd.variants_in_stock;
+					}
 				}
 			}
 		};
 		updateItemArrQty(itemSearchStore.allItems);
 		updateItemArrQty(itemSearchStore.searchResults);
+		itemSearchStore.invalidateCache();
 	}
 
 	// 3. If other warehouse stock changed while viewing a single item, update other_qty on item cards
@@ -3377,8 +3528,9 @@ function handleBatchSearchInput() {
 			const res = await call("pos_next.api.items.get_items", {
 				pos_profile: props.posProfile || shiftStore.profileName,
 				search_term: batchSearchQuery.value.trim(),
+				include_variants: 1,
 				start: 0,
-				limit: 12,
+				limit: 15,
 			});
 			batchSearchResults.value = (res || []).filter((i) => !i.has_variants);
 		} catch (err) {
@@ -3544,6 +3696,13 @@ function formatPrice(price) {
 </script>
 
 <style scoped>
+.dialog-variant-search :deep(.mdx-search) {
+	max-width: none;
+}
+.dialog-variant-search :deep(.mdx-search__input) {
+	height: 34px;
+}
+
 /* RTL Support for Search Input */
 .stock-search-input {
 	text-align: start;

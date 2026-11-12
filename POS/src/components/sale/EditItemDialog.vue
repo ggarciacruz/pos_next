@@ -684,7 +684,8 @@ async function handleWarehouseChange() {
 						localItem.value.item_name,
 						availableStock,
 						localWarehouse.value,
-					])
+					]),
+					__("Aviso de stock")
 				);
 			}
 		} else if (availableStock < localQuantity.value) {

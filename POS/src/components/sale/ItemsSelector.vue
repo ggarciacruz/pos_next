@@ -646,6 +646,52 @@
 									</span>
 								</span>
 							</div>
+
+							<!-- Variant Stock Summary Pill for Template Items -->
+							<div
+								v-if="item.has_variants && (item.variants_total || 0) > 0"
+								class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-medium leading-tight max-w-full truncate select-none"
+								:class="
+									(item.variants_in_stock || 0) > 0
+										? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+										: 'bg-slate-100 text-slate-500 border border-slate-200'
+								"
+								:title="
+									(item.variants_in_stock || 0) > 0
+										? __('{0} de {1} variantes con stock', [
+												item.variants_in_stock,
+												item.variants_total,
+											])
+										: __('{0} variantes · Sin stock', [item.variants_total])
+								"
+							>
+								<svg
+									class="w-2.5 h-2.5 shrink-0"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+									/>
+								</svg>
+								<span class="truncate">
+									<template v-if="(item.variants_in_stock || 0) > 0">
+										{{
+											__("{0} de {1} variantes con stock", [
+												item.variants_in_stock,
+												item.variants_total,
+											])
+										}}
+									</template>
+									<template v-else>
+										{{ __("{0} variantes · Sin stock", [item.variants_total]) }}
+									</template>
+								</span>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -953,14 +999,33 @@
 										T: {{ Math.floor(item.actual_qty ?? item.stock_qty ?? 0) }}
 									</div>
 									<div
-										v-if="item.other_qty !== undefined && !item.has_variants"
+										v-if="item.has_variants && (item.variants_total || 0) > 0"
+										class="text-[9px] font-medium whitespace-nowrap select-none"
+										:class="
+											(item.variants_in_stock || 0) > 0
+												? 'text-emerald-700'
+												: 'text-slate-500'
+										"
+										:title="
+											(item.variants_in_stock || 0) > 0
+												? __('{0} de {1} variantes con stock', [
+														item.variants_in_stock,
+														item.variants_total,
+													])
+												: __('{0} variantes · Sin stock', [item.variants_total])
+										"
+									>
+										{{ item.variants_in_stock || 0 }}/{{ item.variants_total }} {{ __("var.") }}
+									</div>
+									<div
+										v-else-if="item.other_qty !== undefined && !item.has_variants"
 										class="text-[9px] text-gray-500 font-medium whitespace-nowrap cursor-pointer hover:text-blue-600 select-none"
 										@click.stop="showWarehouseAvailability(item)"
 										:title="__('Click to view all warehouses')"
 									>
 										O: <span class="font-bold" :class="item.other_qty > 0 ? 'text-blue-600' : 'text-gray-400'">{{ Math.floor(item.other_qty) }}</span>
 									</div>
-									<span v-else-if="!item.is_stock_item && !item.is_bundle" class="text-xs sm:text-sm text-gray-400 italic">
+									<span v-else-if="!item.is_stock_item && !item.is_bundle && !item.has_variants" class="text-xs sm:text-sm text-gray-400 italic">
 										{{ __("N/A") }}
 									</span>
 								</div>

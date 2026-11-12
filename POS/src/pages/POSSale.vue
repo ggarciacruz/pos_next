@@ -1456,14 +1456,16 @@ onMounted(async () => {
 
 	// Set up real-time stock update listener
 	const cleanup = onStockUpdate(async (stockUpdates) => {
-		// Filter updates to only include items from our warehouse(s)
+		// Filter updates to include items matching either the profile warehouse or the item's resolved warehouse
 		const profileWarehouses = shiftStore.profileWarehouse
 			? [shiftStore.profileWarehouse]
 			: warehousesList.value.map((w) => w.warehouse_name || w.name);
 
-		const relevantUpdates = stockUpdates.filter((update) =>
-			profileWarehouses.includes(update.warehouse)
-		);
+		const relevantUpdates = stockUpdates.filter((update) => {
+			if (profileWarehouses.includes(update.warehouse)) return true;
+			const cachedWh = stockStore.server.get(update.item_code)?.warehouse;
+			return Boolean(cachedWh && cachedWh === update.warehouse);
+		});
 
 		if (relevantUpdates.length > 0) {
 			// Apply stock updates - Pinia auto-updates UI!
@@ -2539,7 +2541,132 @@ async function handleOptionSelected(option) {
 	if (!cartStore.pendingItem) return;
 
 	try {
-		if (option.type === "variant") {
+		if (option.type === "variants_bulk") {
+			const selections = Array.isArray(option.items) ? option.items : [];
+			if (selections.length === 0) return;
+
+			// Validate all selected variants upfront if strict stock validation is enforced
+			for (const entry of selections) {
+				const variant = entry.data;
+				if (
+					variant &&
+					settingsStore.shouldEnforceStockValidation() &&
+					shouldValidateItemStock(variant)
+				) {
+					const actualQty = variant.actual_qty ?? 0;
+					if (actualQty <= 0) {
+						uiStore.showError(
+							__("Insufficient Stock"),
+							__('"{0}" is out of stock in warehouse "{1}".', [
+								variant.item_name,
+								variant.warehouse || shiftStore.profileWarehouse,
+							]),
+							__("Item: {0}", [variant.item_code])
+						);
+						return;
+					}
+				}
+			}
+
+			let addedVariants = 0;
+			let addedUnits = 0;
+			let firstItemName = "";
+			const negativeVariants = [];
+			const isMultiSelection = selections.length > 1;
+			try {
+				for (const entry of selections) {
+					const variant = entry.data;
+					const qty = Number(entry.quantity) || 1;
+					if (!variant || qty <= 0) continue;
+
+					if (
+						isMultiSelection &&
+						!settingsStore.shouldEnforceStockValidation() &&
+						shouldValidateItemStock(variant)
+					) {
+						const itemUom = variant.uom || variant.stock_uom;
+						const existing = cartStore.invoiceItems.find(
+							(i) => i.item_code === variant.item_code && i.uom === itemUom
+						);
+						const totalQty = (existing ? existing.quantity : 0) + qty;
+						const actualQty = Number(
+							stockStore.server.get(variant.item_code)?.qty ?? variant.actual_qty ?? 0
+						);
+						if (actualQty <= 0 || totalQty > actualQty) {
+							negativeVariants.push({ variant, actualQty, totalQty });
+						}
+					}
+
+					cartStore.addItem(variant, qty, false, shiftStore.currentProfile, {
+						suppressStockWarning: isMultiSelection,
+					});
+					if (!firstItemName) firstItemName = variant.item_name;
+					addedVariants += 1;
+					addedUnits += qty;
+				}
+				uiStore.showItemSelectionDialog = false;
+				cartStore.clearPendingItem();
+
+				if (isMultiSelection && negativeVariants.length === 1) {
+					const neg = negativeVariants[0];
+					if (neg.actualQty <= 0) {
+						showWarning(
+							__('"{0}" agregado sin stock en almacén (se venderá en negativo).', [
+								neg.variant.item_name || neg.variant.item_code,
+							]),
+							__("Aviso de stock")
+						);
+					} else {
+						showWarning(
+							__('"{0}" supera el stock disponible ({1}). Se venderá en negativo.', [
+								neg.variant.item_name || neg.variant.item_code,
+								Math.floor(neg.actualQty),
+							]),
+							__("Aviso de stock")
+						);
+					}
+				} else if (isMultiSelection && negativeVariants.length > 1) {
+					showWarning(
+						__(
+							"{0} variantes agregadas sin stock suficiente en almacén (se venderán en negativo).",
+							[negativeVariants.length]
+						),
+						__("Aviso de stock")
+					);
+				}
+
+				if (addedVariants === 1 && negativeVariants.length === 0) {
+					// If 1 variant was added within available stock, confirm; otherwise addItem already emitted the stock notice
+					const singleVariant = selections[0]?.data;
+					const singleUom = singleVariant?.uom || singleVariant?.stock_uom;
+					const cartLine = cartStore.invoiceItems.find(
+						(i) => i.item_code === singleVariant?.item_code && i.uom === singleUom
+					);
+					const postTotalQty = Number(cartLine?.quantity || selections[0]?.quantity || 1);
+					const singleActual = Number(
+						stockStore.server.get(singleVariant?.item_code)?.qty ??
+							singleVariant?.actual_qty ??
+							0
+					);
+					if (
+						settingsStore.shouldEnforceStockValidation() ||
+						!shouldValidateItemStock(singleVariant || {}) ||
+						(singleActual > 0 && postTotalQty <= singleActual)
+					) {
+						showSuccess(__("{0} added to cart", [firstItemName]));
+					}
+				} else if (addedVariants > 1 && negativeVariants.length === 0) {
+					showSuccess(
+						__("{0} variantes ({1} uds.) agregadas al carrito", [
+							addedVariants,
+							addedUnits,
+						])
+					);
+				}
+			} catch (error) {
+				showError(error.message);
+			}
+		} else if (option.type === "variant") {
 			const variant = option.data;
 			const variantQty = option.quantity || cartStore.pendingItemQty || 1;
 

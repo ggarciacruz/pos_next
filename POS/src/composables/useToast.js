@@ -51,20 +51,20 @@ export function useToast() {
 		processQueue();
 	}
 
-	function showSuccess(message) {
-		showToastNotification(__("Success"), message, "success");
+	function showSuccess(message, title = null) {
+		showToastNotification(title || __("Success"), message, "success");
 	}
 
-	function showError(message) {
-		showToastNotification(__("Error"), message, "error");
+	function showError(message, title = null) {
+		showToastNotification(title || __("Error"), message, "error");
 	}
 
-	function showWarning(message) {
-		showToastNotification(__("Validation Error"), message, "warning");
+	function showWarning(message, title = null) {
+		showToastNotification(title || __("Warning"), message, "warning");
 	}
 
-	function showInfo(message) {
-		showToastNotification(__("Info"), message, "info");
+	function showInfo(message, title = null) {
+		showToastNotification(title || __("Info"), message, "info");
 	}
 
 	function hideToast() {

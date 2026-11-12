@@ -66,6 +66,8 @@ def emit_stock_update_event(doc, method=None):
 				update["actual_qty"] = actual_qty
 				update["stock_qty"] = actual_qty if update.get("stock_qty") is None else update["stock_qty"]
 				update["warehouse"] = update.get("warehouse") or warehouse
+				if update.get("warehouse"):
+					warehouses.add(update["warehouse"])
 
 			stock_updates.extend(warehouse_updates)
 

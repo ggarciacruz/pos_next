@@ -633,12 +633,28 @@ def get_item_variants(template_item, pos_profile):
 			# Get variant attributes from preloaded map
 			variant["attributes"] = attributes_map.get(v_code, {})
 
-			# Get price from preloaded map (check stock UOM first, then any UOM)
+			# Get price from preloaded map (check stock UOM first, then UOM-less price, then any UOM)
 			variant_prices = uom_prices_map.get(v_code, {})
-			price = variant_prices.get(variant["stock_uom"])
+			price = (
+				variant_prices.get(variant["stock_uom"])
+				or variant_prices.get(None)
+				or variant_prices.get("")
+			)
 			if not price and variant_prices:
 				# Fallback to first available price if stock UOM price not found
 				price = next(iter(variant_prices.values()), None)
+			if not price and template_item:
+				tpl_price = frappe.db.get_value(
+					"Item Price",
+					{
+						"item_code": template_item,
+						"price_list": pos_profile_doc.selling_price_list,
+						"selling": 1,
+					},
+					"price_list_rate",
+				)
+				if tpl_price:
+					price = tpl_price
 			variant["rate"] = flt(price or 0)
 			variant["price_list_rate"] = variant["rate"]
 			variant["uom"] = variant["stock_uom"]
@@ -1193,14 +1209,16 @@ def _is_factory_warehouse(warehouse_name):
 	return not wh_lower or "fábrica" in wh_lower or "fabrica" in wh_lower
 
 
-def _resolve_item_warehouses_and_stock(items_or_codes, company=None, default_warehouse=None):
+def _resolve_item_warehouses_and_stock(
+	items_or_codes, company=None, default_warehouse=None, return_variant_meta=False
+):
 	"""
 	Resolve each item's effective warehouse and calculate Bin quantities.
 	When default_warehouse is a factory warehouse (or empty), each item uses its
 	configured Item Default / Item Group Default warehouse for the company if present.
 	"""
 	if not items_or_codes:
-		return {}, {}, {}, {}, {}
+		return ({}, {}, {}, {}, {}, {}) if return_variant_meta else ({}, {}, {}, {}, {})
 
 	if isinstance(items_or_codes[0], dict):
 		item_codes = [i["item_code"] for i in items_or_codes if i.get("item_code")]
@@ -1212,7 +1230,7 @@ def _resolve_item_warehouses_and_stock(items_or_codes, company=None, default_war
 		item_group_by_code = {}
 
 	if not item_codes:
-		return {}, {}, {}, {}, {}
+		return ({}, {}, {}, {}, {}, {}) if return_variant_meta else ({}, {}, {}, {}, {})
 
 	if not company and default_warehouse:
 		company = frappe.db.get_value("Warehouse", default_warehouse, "company")
@@ -1305,6 +1323,33 @@ def _resolve_item_warehouses_and_stock(items_or_codes, company=None, default_war
 	stock_map = defaultdict(float)
 	reserved_map = defaultdict(float)
 	other_stock_map = defaultdict(float)
+	variant_meta_map = {}
+
+	# Detect template items (has_variants=1) for both dict and string-code callers
+	if isinstance(items_or_codes[0], dict):
+		template_codes = [
+			i["item_code"] for i in items_or_codes if i.get("item_code") and i.get("has_variants")
+		]
+	else:
+		template_codes = frappe.get_all(
+			"Item",
+			filters={"name": ["in", item_codes], "has_variants": 1},
+			pluck="name",
+		)
+
+	variant_rows = []
+	if template_codes:
+		for tpl_code in template_codes:
+			variant_meta_map[tpl_code] = {"variants_total": 0, "variants_in_stock": 0}
+		variant_rows = frappe.get_all(
+			"Item",
+			filters={"variant_of": ["in", template_codes], "disabled": 0, "is_sales_item": 1},
+			fields=["name", "variant_of", "item_group"],
+		)
+		for vr in variant_rows:
+			tpl_code = vr["variant_of"]
+			if tpl_code in variant_meta_map:
+				variant_meta_map[tpl_code]["variants_total"] += 1
 
 	if query_wh_names:
 		Bin = DocType("Bin")
@@ -1327,41 +1372,81 @@ def _resolve_item_warehouses_and_stock(items_or_codes, company=None, default_war
 			elif wh in active_wh_set:
 				other_stock_map[ic] += flt(row["actual_qty"])
 
-		# Aggregate variant stock into parent template items (has_variants=1)
-		template_codes = []
-		if isinstance(items_or_codes[0], dict):
-			template_codes = [
-				i["item_code"] for i in items_or_codes if i.get("item_code") and i.get("has_variants")
-			]
-		if template_codes:
-			variant_rows = frappe.get_all(
-				"Item",
-				filters={"variant_of": ["in", template_codes], "disabled": 0},
-				fields=["name", "variant_of"],
-			)
-			if variant_rows:
-				v_to_tpl = {r["name"]: r["variant_of"] for r in variant_rows}
-				v_codes = list(v_to_tpl.keys())
-				v_bins = (
-					frappe.qb.from_(Bin)
-					.select(Bin.item_code, Bin.warehouse, Bin.actual_qty, Bin.reserved_qty)
-					.where(Bin.item_code.isin(v_codes))
-					.where(Bin.warehouse.isin(list(query_wh_names)))
-					.run(as_dict=True)
-				)
-				for row in v_bins:
-					tpl_code = v_to_tpl.get(row["item_code"])
-					if not tpl_code:
-						continue
-					wh = row["warehouse"]
-					eff_wh = item_wh_map.get(tpl_code) or default_warehouse
-					eff_set = expanded_wh_map.get(eff_wh, {eff_wh} if eff_wh else set())
-					if wh in eff_set:
-						stock_map[tpl_code] += flt(row["actual_qty"])
-						reserved_map[tpl_code] += flt(row["reserved_qty"])
-					elif wh in active_wh_set:
-						other_stock_map[tpl_code] += flt(row["actual_qty"])
+		# Aggregate positive sellable variant stock per variant into parent template items
+		if variant_rows:
+			v_to_tpl = {r["name"]: r["variant_of"] for r in variant_rows}
+			v_codes = list(v_to_tpl.keys())
 
+			v_custom_wh = {}
+			if _is_factory_warehouse(default_warehouse):
+				v_id_filters = {"parent": ["in", v_codes], "parenttype": "Item"}
+				if company:
+					v_id_filters["company"] = company
+				for vd in frappe.get_all(
+					"Item Default",
+					filters=v_id_filters,
+					fields=["parent", "default_warehouse"],
+				):
+					if vd.default_warehouse:
+						v_custom_wh[vd.parent] = vd.default_warehouse
+						if vd.default_warehouse not in expanded_wh_map:
+							if frappe.db.get_value("Warehouse", vd.default_warehouse, "is_group"):
+								desc = frappe.db.get_descendants("Warehouse", vd.default_warehouse) or [
+									vd.default_warehouse
+								]
+								expanded_wh_map[vd.default_warehouse] = set(desc)
+								query_wh_names.update(desc)
+							else:
+								expanded_wh_map[vd.default_warehouse] = {vd.default_warehouse}
+								query_wh_names.add(vd.default_warehouse)
+
+			v_bins = (
+				frappe.qb.from_(Bin)
+				.select(Bin.item_code, Bin.warehouse, Bin.actual_qty, Bin.reserved_qty)
+				.where(Bin.item_code.isin(v_codes))
+				.where(Bin.warehouse.isin(list(query_wh_names)))
+				.run(as_dict=True)
+			)
+			v_eff_qty = defaultdict(float)
+			v_eff_res = defaultdict(float)
+			v_other_qty = defaultdict(float)
+
+			for row in v_bins:
+				vc = row["item_code"]
+				tpl_code = v_to_tpl.get(vc)
+				if not tpl_code:
+					continue
+				wh = row["warehouse"]
+				eff_wh = v_custom_wh.get(vc) or item_wh_map.get(tpl_code) or default_warehouse
+				eff_set = expanded_wh_map.get(eff_wh, {eff_wh} if eff_wh else set())
+				if wh in eff_set:
+					v_eff_qty[vc] += flt(row["actual_qty"])
+					v_eff_res[vc] += flt(row["reserved_qty"])
+				elif wh in active_wh_set:
+					v_other_qty[vc] += flt(row["actual_qty"])
+
+			for vc, tpl_code in v_to_tpl.items():
+				pos_qty = max(0.0, v_eff_qty.get(vc, 0.0))
+				pos_res = max(0.0, v_eff_res.get(vc, 0.0))
+				pos_other = max(0.0, v_other_qty.get(vc, 0.0))
+				if pos_qty > 0:
+					stock_map[tpl_code] += pos_qty
+					if tpl_code in variant_meta_map:
+						variant_meta_map[tpl_code]["variants_in_stock"] += 1
+				if pos_res > 0:
+					reserved_map[tpl_code] += pos_res
+				if pos_other > 0:
+					other_stock_map[tpl_code] += pos_other
+
+	if return_variant_meta:
+		return (
+			item_wh_map,
+			wh_name_map,
+			dict(stock_map),
+			dict(other_stock_map),
+			dict(reserved_map),
+			variant_meta_map,
+		)
 	return item_wh_map, wh_name_map, dict(stock_map), dict(other_stock_map), dict(reserved_map)
 
 
@@ -1536,10 +1621,18 @@ def get_items(
 				uom_prices_map.setdefault(price["item_code"], {})[price["uom"]] = price["price_list_rate"]
 
 		# Batch query stock and effective warehouse per item
-		item_wh_map, wh_name_map, stock_map, other_stock_map, _reserved_map = _resolve_item_warehouses_and_stock(
+		(
+			item_wh_map,
+			wh_name_map,
+			stock_map,
+			other_stock_map,
+			_reserved_map,
+			variant_meta_map,
+		) = _resolve_item_warehouses_and_stock(
 			items,
 			company=pos_profile_doc.company,
 			default_warehouse=pos_profile_doc.warehouse,
+			return_variant_meta=True,
 		)
 
 		# ===================================================================
@@ -1691,6 +1784,10 @@ def get_items(
 				if (item.get("is_stock_item") or item.get("has_variants"))
 				else 0
 			)
+			if item.get("has_variants"):
+				vmeta = variant_meta_map.get(item["item_code"]) or {}
+				item["variants_total"] = int(vmeta.get("variants_total", 0))
+				item["variants_in_stock"] = int(vmeta.get("variants_in_stock", 0))
 
 			# ===================================================================
 			# BUNDLE MARKER: Flag items that are Product Bundles
@@ -1857,10 +1954,18 @@ def get_items_bulk(
 
 		# Stock & effective warehouse per item
 		warehouse = pos_profile_doc.warehouse
-		item_wh_map, wh_name_map, stock_map, other_stock_map, _reserved_map = _resolve_item_warehouses_and_stock(
+		(
+			item_wh_map,
+			wh_name_map,
+			stock_map,
+			other_stock_map,
+			_reserved_map,
+			variant_meta_map,
+		) = _resolve_item_warehouses_and_stock(
 			items,
 			company=pos_profile_doc.company,
 			default_warehouse=warehouse,
+			return_variant_meta=True,
 		)
 
 		# Bundle availability
@@ -1922,6 +2027,10 @@ def get_items_bulk(
 				if (item.get("is_stock_item") or item.get("has_variants"))
 				else 0
 			)
+			if item.get("has_variants"):
+				vmeta = variant_meta_map.get(item_code) or {}
+				item["variants_total"] = int(vmeta.get("variants_total", 0))
+				item["variants_in_stock"] = int(vmeta.get("variants_in_stock", 0))
 			eff_wh = item_wh_map.get(item_code) or warehouse
 			item["warehouse"] = eff_wh
 			item["warehouse_name"] = wh_name_map.get(eff_wh, eff_wh)
@@ -2200,36 +2309,60 @@ def get_stock_quantities(item_codes, warehouse):
 		if not normalized_codes:
 			return []
 
-		item_wh_map, wh_name_map, stock_map, _other_map, reserved_map = _resolve_item_warehouses_and_stock(
+		# Auto-include parent template items so POS template cards refresh in real time
+		parent_templates = frappe.get_all(
+			"Item",
+			filters={"name": ["in", normalized_codes], "variant_of": ["is", "set"]},
+			pluck="variant_of",
+		)
+		for tpl_code in parent_templates:
+			if tpl_code and tpl_code not in seen:
+				seen.add(tpl_code)
+				normalized_codes.append(tpl_code)
+
+		(
+			item_wh_map,
+			wh_name_map,
+			stock_map,
+			other_map,
+			reserved_map,
+			variant_meta_map,
+		) = _resolve_item_warehouses_and_stock(
 			normalized_codes,
 			default_warehouse=warehouse,
+			return_variant_meta=True,
 		)
 
 		# Get bundle availability for non-stock items (bulk optimized)
 		bundle_availability_map = _calculate_bundle_availability_bulk(normalized_codes, warehouse)
 
-		# Return stock for all requested items
+		# Return stock for all requested items (and affected parent templates)
 		result = []
 		for item_code in normalized_codes:
 			eff_wh = item_wh_map.get(item_code) or warehouse
 			if item_code in bundle_availability_map:
 				actual_qty = flt(bundle_availability_map[item_code])
 				reserved_qty = 0.0
+				other_qty = 0.0
 			else:
 				actual_qty = flt(stock_map.get(item_code, 0.0))
 				reserved_qty = flt(reserved_map.get(item_code, 0.0))
+				other_qty = flt(other_map.get(item_code, 0.0))
 
-			result.append(
-				{
-					"item_code": item_code,
-					"warehouse": eff_wh,
-					"warehouse_name": wh_name_map.get(eff_wh, eff_wh),
-					"actual_qty": actual_qty,
-					"stock_qty": actual_qty,  # Alias for frontend convenience
-					"reserved_qty": reserved_qty,
-					"available_qty": actual_qty - reserved_qty,
-				}
-			)
+			entry = {
+				"item_code": item_code,
+				"warehouse": eff_wh,
+				"warehouse_name": wh_name_map.get(eff_wh, eff_wh),
+				"actual_qty": actual_qty,
+				"stock_qty": actual_qty,  # Alias for frontend convenience
+				"other_qty": other_qty,
+				"reserved_qty": reserved_qty,
+				"available_qty": actual_qty - reserved_qty,
+			}
+			if item_code in variant_meta_map:
+				entry["variants_total"] = int(variant_meta_map[item_code].get("variants_total", 0))
+				entry["variants_in_stock"] = int(variant_meta_map[item_code].get("variants_in_stock", 0))
+			result.append(entry)
 
 		return result
 
@@ -2950,26 +3083,21 @@ def create_pos_stock_entry(pos_profile, warehouse, items, entry_mode="add", rema
 	finally:
 		frappe.flags.ignore_permissions = prev_ignore
 
-	# Fetch updated stock quantities from Bin for all affected items
-	updated_stock = []
-	for code in set(affected_codes):
-		bin_vals = frappe.db.get_value(
-			"Bin",
-			{"item_code": code, "warehouse": warehouse},
-			["actual_qty", "reserved_qty"],
-			as_dict=True,
-		) or {"actual_qty": 0, "reserved_qty": 0}
-		actual_q = flt(bin_vals.get("actual_qty"))
-		reserved_q = flt(bin_vals.get("reserved_qty"))
-		updated_stock.append(
-			{
-				"item_code": code,
-				"warehouse": warehouse,
-				"actual_qty": actual_q,
-				"stock_qty": actual_q,
-				"reserved_qty": reserved_q,
-				"available_qty": max(0.0, actual_q - reserved_q),
-			}
+	# Fetch updated stock quantities (including parent templates if variants were adjusted)
+	updated_stock = get_stock_quantities(list(set(affected_codes)), warehouse)
+	if updated_stock:
+		affected_whs = list({u.get("warehouse") or warehouse for u in updated_stock})
+		frappe.publish_realtime(
+			event="pos_stock_update",
+			message={
+				"stock_entry": created_entries[0] if created_entries else None,
+				"warehouses": affected_whs,
+				"stock_updates": updated_stock,
+				"timestamp": frappe.utils.now(),
+				"event_type": "stock_entry",
+			},
+			user=None,
+			after_commit=True,
 		)
 
 	return {
@@ -3106,25 +3234,27 @@ def cancel_pos_stock_entry(stock_entry_name, reason, pos_profile=None):
 		),
 	)
 
-	updated_stock = []
+	by_wh = defaultdict(set)
 	for code, wh in affected_pairs:
-		bin_vals = frappe.db.get_value(
-			"Bin",
-			{"item_code": code, "warehouse": wh},
-			["actual_qty", "reserved_qty"],
-			as_dict=True,
-		) or {"actual_qty": 0, "reserved_qty": 0}
-		actual_q = flt(bin_vals.get("actual_qty"))
-		reserved_q = flt(bin_vals.get("reserved_qty"))
-		updated_stock.append(
-			{
-				"item_code": code,
-				"warehouse": wh,
-				"actual_qty": actual_q,
-				"stock_qty": actual_q,
-				"reserved_qty": reserved_q,
-				"available_qty": max(0.0, actual_q - reserved_q),
-			}
+		by_wh[wh].add(code)
+
+	updated_stock = []
+	for wh, codes in by_wh.items():
+		updated_stock.extend(get_stock_quantities(list(codes), wh))
+
+	if updated_stock:
+		affected_whs = list({u.get("warehouse") for u in updated_stock if u.get("warehouse")})
+		frappe.publish_realtime(
+			event="pos_stock_update",
+			message={
+				"stock_entry": se.name,
+				"warehouses": affected_whs,
+				"stock_updates": updated_stock,
+				"timestamp": frappe.utils.now(),
+				"event_type": "stock_entry_cancel",
+			},
+			user=None,
+			after_commit=True,
 		)
 
 	return {
