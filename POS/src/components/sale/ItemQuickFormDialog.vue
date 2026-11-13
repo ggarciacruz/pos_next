@@ -314,9 +314,9 @@
 											{{ __("Precio de Venta (Bs.)") }}
 											<span class="text-red-500">*</span>
 										</label>
-										<div class="relative">
+										<div class="flex items-stretch bg-white border-2 border-blue-400 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-600 focus-within:border-blue-500 transition-shadow">
 											<span
-												class="absolute inset-y-0 start-0 ps-2.5 sm:ps-3 flex items-center text-xs font-bold text-blue-700 pointer-events-none"
+												class="px-2.5 sm:px-3 flex items-center bg-blue-50/80 border-r border-blue-200 text-xs font-bold text-blue-700 select-none shrink-0"
 											>
 												Bs.
 											</span>
@@ -324,9 +324,9 @@
 												v-model.number="form.selling_rate"
 												type="number"
 												min="0"
-												step="1"
+												step="any"
 												placeholder="0.00"
-												class="w-full ps-8 sm:ps-9 pe-2.5 sm:pe-3 py-1.5 sm:py-2 text-sm sm:text-base font-bold text-gray-900 bg-white border-2 border-blue-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+												class="flex-1 min-w-0 w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base font-bold text-gray-900 bg-transparent !border-0 !ring-0 focus:outline-none"
 											/>
 										</div>
 									</div>
@@ -338,9 +338,9 @@
 												>({{ __("Opc.") }})</span
 											>
 										</label>
-										<div class="relative">
+										<div class="flex items-stretch bg-white border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-shadow">
 											<span
-												class="absolute inset-y-0 start-0 ps-2.5 sm:ps-3 flex items-center text-xs font-semibold text-gray-500 pointer-events-none"
+												class="px-2.5 sm:px-3 flex items-center bg-slate-50 border-r border-gray-200 text-xs font-semibold text-gray-600 select-none shrink-0"
 											>
 												Bs.
 											</span>
@@ -348,9 +348,9 @@
 												v-model.number="form.cost_rate"
 												type="number"
 												min="0"
-												step="1"
+												step="any"
 												placeholder="0.00"
-												class="w-full ps-8 sm:ps-9 pe-2.5 sm:pe-3 py-1.5 sm:py-2 text-sm sm:text-base font-semibold text-gray-800 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+												class="flex-1 min-w-0 w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base font-semibold text-gray-800 bg-transparent !border-0 !ring-0 focus:outline-none"
 											/>
 										</div>
 									</div>

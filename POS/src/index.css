@@ -215,7 +215,25 @@ button.active\:scale-95:active,
 	}
 }
 
-/* Preserve mdx_ui MdxSearchInput left icon spacing against @tailwindcss/forms [type="text"] reset */
+/* Preserve mdx_ui MdxSearchInput & icon-prefixed inputs spacing against @tailwindcss/forms [type="text"/"number"] reset */
 .mdx-search .mdx-search__input[type="text"] {
 	padding-left: 36px !important;
+}
+
+input[type="text"].ps-8,
+input[type="number"].ps-8,
+input[type="search"].ps-8 {
+	padding-inline-start: 2rem !important;
+}
+
+input[type="text"].ps-9,
+input[type="number"].ps-9,
+input[type="search"].ps-9 {
+	padding-inline-start: 2.25rem !important;
+}
+
+input[type="text"].ps-10,
+input[type="number"].ps-10,
+input[type="search"].ps-10 {
+	padding-inline-start: 2.5rem !important;
 }
