@@ -87,6 +87,32 @@
 						</div>
 
 						<template v-else>
+							<!-- Banner if user opened a child variant directly from Inventory table -->
+							<div
+								v-if="parentTemplateCode"
+								class="p-3 rounded-xl bg-slate-100 border border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+							>
+								<div class="min-w-0">
+									<p class="text-xs font-bold text-slate-900">
+										{{ __("Esta es una variante individual de color") }}
+									</p>
+									<p class="text-[11px] text-slate-600 mt-0.5">
+										{{ __("Para agregar más colores o cambiar datos generales, edite la plantilla principal") }}
+										(<span class="font-mono font-semibold text-slate-800">{{ parentTemplateCode }}</span>).
+									</p>
+								</div>
+								<button
+									type="button"
+									@click="emit('switch-item', parentTemplateCode)"
+									class="px-3 py-1.5 text-xs font-bold text-blue-700 bg-white hover:bg-blue-50 border border-blue-300 rounded-lg shadow-sm transition-colors shrink-0 flex items-center justify-center gap-1.5"
+								>
+									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+									</svg>
+									<span>{{ __("Gestionar Colores en Plantilla") }}</span>
+								</button>
+							</div>
+
 							<!-- Section 1: Photo + Name + Category (Compact side-by-side even on mobile) -->
 							<div class="space-y-3">
 								<div class="flex flex-row gap-3 sm:gap-4 items-start">
@@ -331,6 +357,196 @@
 								</div>
 							</div>
 
+							<!-- Section 2.5: Modalidad del Producto y Colores / Variantes -->
+							<div
+								v-if="!parentTemplateCode"
+								class="p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5 sm:space-y-3"
+							>
+								<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+									<div>
+										<h3 class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-800">
+											{{ __("Colores / Variantes del Producto") }}
+										</h3>
+										<p class="text-[11px] text-slate-500 mt-0.5">
+											{{
+												form.has_variants
+													? __("Seleccione los colores en los que se fabrica o vende este modelo")
+													: __("Active por colores si este producto se vende en distintos tonos o tapices")
+											}}
+										</p>
+									</div>
+
+									<!-- Segmented Mode Toggle -->
+									<div class="inline-flex p-0.5 rounded-lg bg-slate-200/80 border border-slate-300/80 self-start sm:self-auto shrink-0">
+										<button
+											type="button"
+											:disabled="isTemplateLocked"
+											@click="setVariantMode(false)"
+											class="px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-bold rounded-md transition-all"
+											:class="[
+												!form.has_variants
+													? 'bg-white text-slate-900 shadow-sm'
+													: 'text-slate-600 hover:text-slate-900',
+												isTemplateLocked ? 'opacity-50 cursor-not-allowed' : '',
+											]"
+										>
+											{{ __("Producto único") }}
+										</button>
+										<button
+											type="button"
+											@click="setVariantMode(true)"
+											class="px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-bold rounded-md transition-all flex items-center gap-1.5"
+											:class="
+												form.has_variants
+													? 'bg-blue-600 text-white shadow-sm'
+													: 'text-slate-600 hover:text-slate-900'
+											"
+										>
+											<span>{{ __("Por colores") }}</span>
+											<span
+												v-if="form.has_variants && form.selected_colors.length > 0"
+												class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-white/20 text-white"
+											>
+												{{ form.selected_colors.length }}
+											</span>
+										</button>
+									</div>
+								</div>
+
+								<!-- Expanded Color Selector when Por colores is active -->
+								<div v-if="form.has_variants" class="space-y-2.5 pt-1 border-t border-slate-200/80">
+									<!-- Safe conversion notice when standalone item already has movements/sales -->
+									<div
+										v-if="isEditMode && existingColors.length === 0 && hasLedgerHistory"
+										class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 text-[11px] text-amber-900 leading-snug"
+									>
+										<svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+										</svg>
+										<span>
+											{{ __("Este producto ya registra movimientos previos. Al guardar, el código anterior se archivará conservando su historial contable y se creará la plantilla con los colores seleccionados.") }}
+										</span>
+									</div>
+
+									<!-- Quick Selection Toolbar + Add Color Trigger -->
+									<div class="flex flex-wrap items-center justify-between gap-1.5">
+										<div class="flex flex-wrap items-center gap-1.5">
+											<button
+												v-if="standardColors.length > 0"
+												type="button"
+												@click="selectStandardColors"
+												class="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors shadow-sm"
+											>
+												{{ __("Estándar") }} ({{ standardColors.length }})
+											</button>
+											<button
+												v-if="colorOptions.length > standardColors.length"
+												type="button"
+												@click="selectAllColors"
+												class="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors shadow-sm"
+											>
+												{{ __("Todos") }} ({{ colorOptions.length }})
+											</button>
+											<button
+												v-if="form.selected_colors.length > existingColors.length"
+												type="button"
+												@click="clearOptionalColors"
+												class="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+											>
+												{{ __("Limpiar") }}
+											</button>
+										</div>
+
+										<button
+											v-if="!isCreatingNewColor"
+											type="button"
+											@click="startCreateNewColor"
+											class="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 transition-colors shadow-sm flex items-center gap-1"
+										>
+											<svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+											</svg>
+											<span>{{ __("Nuevo color") }}</span>
+										</button>
+									</div>
+
+									<!-- Inline Create New Color Form -->
+									<div
+										v-if="isCreatingNewColor"
+										class="p-2 bg-white rounded-lg border border-blue-300 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
+									>
+										<input
+											ref="newColorInputRef"
+											v-model="newColorName"
+											type="text"
+											maxlength="40"
+											:placeholder="__('Nombre del nuevo color (Ej: Turquesa, Mostaza)')"
+											@keydown.enter.prevent="handleSaveNewColor"
+											class="flex-1 px-2.5 py-1.5 text-xs font-medium text-slate-900 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										/>
+										<div class="flex items-center justify-end gap-1.5 shrink-0">
+											<button
+												type="button"
+												:disabled="savingNewColor"
+												@click="cancelCreateNewColor"
+												class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50"
+											>
+												{{ __("Cancelar") }}
+											</button>
+											<button
+												type="button"
+												:disabled="savingNewColor"
+												@click="handleSaveNewColor"
+												class="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50"
+											>
+												{{ savingNewColor ? __("Guardando...") : __("Agregar") }}
+											</button>
+										</div>
+									</div>
+
+									<!-- Compact Elevated Color Cards Grid -->
+									<div class="p-2 rounded-xl bg-slate-200/60 border border-slate-200/90 max-h-48 overflow-y-auto">
+										<div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
+											<button
+												v-for="opt in colorOptions"
+												:key="opt.value"
+												type="button"
+												@click="toggleColorSelection(opt.value)"
+												class="px-2.5 py-2 rounded-lg border text-start transition-all flex items-center justify-between gap-1.5 touch-manipulation"
+												:class="getColorCardClasses(opt.value)"
+											>
+												<div class="flex items-center gap-2 min-w-0">
+													<span
+														class="w-3 h-3 rounded-full shrink-0 border border-slate-400/60"
+														:style="{ backgroundColor: getColorSwatchHex(opt.value) }"
+													></span>
+													<span class="text-xs font-semibold truncate">
+														{{ opt.value }}
+													</span>
+												</div>
+
+												<span
+													v-if="isExistingLockedColor(opt.value)"
+													class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-slate-200 text-slate-700 shrink-0"
+												>
+													{{ __("Creado") }}
+												</span>
+												<svg
+													v-else-if="isColorSelected(opt.value)"
+													class="w-4 h-4 text-blue-600 shrink-0"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+													stroke-width="2.5"
+												>
+													<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+												</svg>
+											</button>
+										</div>
+									</div>
+								</div>
+							</div>
+
 							<!-- Section 3: Plazas & Dimensions (2x2 grid on mobile, 4-col on desktop) -->
 							<div
 								v-if="hasDimensions || hasPlazas"
@@ -400,11 +616,11 @@
 								</div>
 							</div>
 
-							<!-- Section 4: Initial Stock (New Item) OR Active Status (Edit Item) + SKU Code -->
+							<!-- Section 4: Initial Stock (New Standalone Item) OR Color Stock Info OR Active Status + SKU Code -->
 							<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-								<!-- Initial Stock when creating -->
+								<!-- Initial Stock when creating a standalone item -->
 								<div
-									v-if="!isEditMode"
+									v-if="!isEditMode && !form.has_variants"
 									class="p-3 sm:p-3.5 bg-green-50 rounded-xl border border-green-200 space-y-2"
 								>
 									<label class="block text-xs font-bold text-green-900">
@@ -435,6 +651,24 @@
 												{{ preset }}
 											</button>
 										</div>
+									</div>
+								</div>
+
+								<!-- Stock info when creating a template with colors -->
+								<div
+									v-else-if="!isEditMode && form.has_variants"
+									class="p-3 sm:p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-start gap-2.5"
+								>
+									<svg class="w-4 h-4 text-slate-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+									</svg>
+									<div class="min-w-0">
+										<p class="text-xs font-bold text-slate-800">
+											{{ __("Stock inicial por color") }}
+										</p>
+										<p class="text-[11px] text-slate-500 leading-snug mt-0.5">
+											{{ __("Cada variante inicia en 0 u. Puede cargar cantidades por color desde Almacén.") }}
+										</p>
 									</div>
 								</div>
 
@@ -531,13 +765,7 @@
 					:disabled="saving || loading"
 					@click="handleSave"
 				>
-					{{
-						saving
-							? __("Guardando...")
-							: isEditMode
-							? __("Guardar Cambios")
-							: __("Crear Producto")
-					}}
+					{{ primarySaveLabel }}
 				</MdxButton>
 			</div>
 		</template>
@@ -570,7 +798,7 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(["update:modelValue", "saved"]);
+const emit = defineEmits(["update:modelValue", "saved", "switch-item"]);
 
 const { showSuccess, showError } = useToast();
 const settingsStore = usePOSSettingsStore();
@@ -585,6 +813,15 @@ const hasDimensions = ref(true);
 const hasPlazas = ref(true);
 const defaultLowStockThreshold = ref(10);
 const serverCanViewCost = ref(null);
+const colorOptions = ref([]);
+const standardColors = ref([]);
+const existingColors = ref([]);
+const hasLedgerHistory = ref(false);
+const parentTemplateCode = ref("");
+const isCreatingNewColor = ref(false);
+const newColorName = ref("");
+const savingNewColor = ref(false);
+const newColorInputRef = ref(null);
 const canViewCostPrice = computed(() =>
 	serverCanViewCost.value !== null
 		? Boolean(serverCanViewCost.value)
@@ -619,9 +856,35 @@ const form = ref({
 	safety_stock: null,
 	disabled: 0,
 	image: "",
+	has_variants: 0,
+	selected_colors: [],
 });
 
 const isEditMode = computed(() => Boolean(props.itemCode));
+const isTemplateLocked = computed(
+	() => isEditMode.value && existingColors.value.length > 0
+);
+
+const newColorsCount = computed(() => {
+	if (!form.value.has_variants) return 0;
+	const existingSet = new Set(existingColors.value);
+	return form.value.selected_colors.filter((c) => !existingSet.has(c)).length;
+});
+
+const primarySaveLabel = computed(() => {
+	if (saving.value) return "Guardando...";
+	if (!isEditMode.value) {
+		return form.value.has_variants && form.value.selected_colors.length > 0
+			? `Crear con ${form.value.selected_colors.length} colores`
+			: "Crear Producto";
+	}
+	if (form.value.has_variants && newColorsCount.value > 0) {
+		return existingColors.value.length === 0
+			? `Guardar con ${newColorsCount.value} colores`
+			: `Guardar (+${newColorsCount.value} colores)`;
+	}
+	return "Guardar Cambios";
+});
 
 const estimatedProfit = computed(() => {
 	const sell = Number(form.value.selling_rate) || 0;
@@ -646,6 +909,12 @@ const resolvedWarehouseLabel = computed(() => {
 function resetForm() {
 	isCreatingNewGroup.value = false;
 	savingNewGroup.value = false;
+	isCreatingNewColor.value = false;
+	savingNewColor.value = false;
+	newColorName.value = "";
+	existingColors.value = [];
+	hasLedgerHistory.value = false;
+	parentTemplateCode.value = "";
 	imagePreview.value = "";
 	imageBase64.value = "";
 	form.value = {
@@ -664,7 +933,158 @@ function resetForm() {
 		safety_stock: null,
 		disabled: 0,
 		image: "",
+		has_variants: 0,
+		selected_colors: [],
 	};
+}
+
+const COLOR_SWATCH_MAP = {
+	negro: "#1e293b",
+	plomo: "#64748b",
+	gris: "#64748b",
+	cafe: "#6f4e37",
+	"azul marino": "#1e3a8a",
+	arena: "#d6c5a9",
+	beige: "#ddd0b8",
+	crema: "#f5efe0",
+	fucsia: "#db2777",
+	"palo rosa": "#f4afab",
+	rosado: "#f472b6",
+	lila: "#a855f7",
+	morado: "#7e22ce",
+	calipso: "#06b6d4",
+	turquesa: "#14b8a6",
+	"verde petroleo": "#115e59",
+	rojo: "#dc2626",
+	guindo: "#881337",
+	verde: "#16a34a",
+	azul: "#2563eb",
+	blanco: "#ffffff",
+	mostaza: "#ca8a04",
+	amarillo: "#eab308",
+	naranja: "#ea580c",
+};
+
+function getColorSwatchHex(colorValue) {
+	const norm = String(colorValue || "")
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.trim()
+		.toLowerCase();
+	return COLOR_SWATCH_MAP[norm] || "#94a3b8";
+}
+
+function isExistingLockedColor(colorValue) {
+	return existingColors.value.includes(colorValue);
+}
+
+function isColorSelected(colorValue) {
+	return (
+		existingColors.value.includes(colorValue) ||
+		form.value.selected_colors.includes(colorValue)
+	);
+}
+
+function getColorCardClasses(colorValue) {
+	if (isExistingLockedColor(colorValue)) {
+		return "bg-slate-100 border-slate-300 text-slate-700 cursor-default shadow-sm";
+	}
+	if (isColorSelected(colorValue)) {
+		return "bg-white border-blue-600 text-slate-900 ring-1 ring-blue-600/20 shadow-sm";
+	}
+	return "bg-white border-slate-300 text-slate-700 hover:border-slate-400 shadow-sm";
+}
+
+function setVariantMode(enabled) {
+	if (!enabled && isTemplateLocked.value) return;
+	form.value.has_variants = enabled ? 1 : 0;
+	if (enabled && form.value.selected_colors.length === 0) {
+		const defaults =
+			standardColors.value.length > 0
+				? standardColors.value
+				: colorOptions.value.map((c) => c.value);
+		form.value.selected_colors = [...defaults];
+	}
+}
+
+function toggleColorSelection(colorValue) {
+	if (isExistingLockedColor(colorValue)) return;
+	const idx = form.value.selected_colors.indexOf(colorValue);
+	if (idx !== -1) {
+		form.value.selected_colors.splice(idx, 1);
+	} else {
+		form.value.selected_colors.push(colorValue);
+	}
+}
+
+function selectStandardColors() {
+	const merged = new Set([
+		...existingColors.value,
+		...(standardColors.value.length > 0
+			? standardColors.value
+			: colorOptions.value.map((c) => c.value)),
+	]);
+	form.value.selected_colors = Array.from(merged);
+}
+
+function selectAllColors() {
+	const merged = new Set([
+		...existingColors.value,
+		...colorOptions.value.map((c) => c.value),
+	]);
+	form.value.selected_colors = Array.from(merged);
+}
+
+function clearOptionalColors() {
+	form.value.selected_colors = [...existingColors.value];
+}
+
+async function startCreateNewColor() {
+	newColorName.value = "";
+	isCreatingNewColor.value = true;
+	await nextTick();
+	newColorInputRef.value?.focus();
+}
+
+function cancelCreateNewColor() {
+	newColorName.value = "";
+	isCreatingNewColor.value = false;
+}
+
+async function handleSaveNewColor() {
+	const clean = (newColorName.value || "").trim();
+	if (!clean) {
+		showError("Por favor escriba el nombre del nuevo color.");
+		newColorInputRef.value?.focus();
+		return;
+	}
+	savingNewColor.value = true;
+	try {
+		const res = await call("pos_next.api.items.create_pos_color_attribute", {
+			pos_profile: props.posProfile,
+			color_name: clean,
+		});
+		const data = res?.message || res || {};
+		const savedColor = data.color?.value || clean;
+		const savedAbbr = data.color?.abbr || "";
+
+		if (!colorOptions.value.some((c) => c.value === savedColor)) {
+			colorOptions.value = [
+				...colorOptions.value,
+				{ value: savedColor, abbr: savedAbbr },
+			];
+		}
+		if (!form.value.selected_colors.includes(savedColor)) {
+			form.value.selected_colors.push(savedColor);
+		}
+		newColorName.value = "";
+		isCreatingNewColor.value = false;
+		showSuccess(data.message || `Color '${savedColor}' agregado y seleccionado.`);
+	} catch (err) {
+		showError(err?.message || "No se pudo guardar el nuevo color.");
+	} finally {
+		savingNewColor.value = false;
+	}
 }
 
 function startCreateNewGroup() {
@@ -775,8 +1195,17 @@ async function loadFormData() {
 		if (Array.isArray(data.plazas_options) && data.plazas_options.length > 0) {
 			plazasOptions.value = data.plazas_options;
 		}
+		colorOptions.value = Array.isArray(data.color_options) ? data.color_options : [];
+		standardColors.value = Array.isArray(data.standard_colors) ? data.standard_colors : [];
 
 		if (data.item) {
+			const itemExistingColors = Array.isArray(data.item.existing_colors)
+				? data.item.existing_colors
+				: [];
+			existingColors.value = itemExistingColors;
+			hasLedgerHistory.value = Boolean(data.item.has_ledger_history);
+			parentTemplateCode.value = data.item.variant_of || "";
+
 			form.value = {
 				item_code: data.item.item_code || "",
 				item_name: data.item.item_name || "",
@@ -793,10 +1222,12 @@ async function loadFormData() {
 				safety_stock: data.item.safety_stock > 0 ? Number(data.item.safety_stock) : null,
 				disabled: data.item.disabled ? 1 : 0,
 				image: data.item.image || "",
+				has_variants: data.item.has_variants ? 1 : 0,
+				selected_colors: [...itemExistingColors],
 			};
 		} else {
 			form.value.stock_uom = data.default_uom || "Unidad(es)";
-			form.value.item_group = "";
+			form.value.item_group = props.defaultItemGroup || "";
 		}
 	} catch (err) {
 		console.error("Error loading item form data:", err);
@@ -831,6 +1262,13 @@ async function handleSave() {
 		return;
 	}
 
+	if (form.value.has_variants && !parentTemplateCode.value) {
+		if (!Array.isArray(form.value.selected_colors) || form.value.selected_colors.length === 0) {
+			showError("Por favor seleccione al menos un color para el producto.");
+			return;
+		}
+	}
+
 	saving.value = true;
 	try {
 		const payload = {
@@ -848,9 +1286,14 @@ async function handleSave() {
 			custom_ancho_cm: Number(form.value.custom_ancho_cm) || 0,
 			custom_largo_cm: Number(form.value.custom_largo_cm) || 0,
 			custom_alto_cm: Number(form.value.custom_alto_cm) || 0,
-			opening_stock: !isEditMode.value ? Math.max(0, Number(form.value.opening_stock) || 0) : 0,
+			opening_stock:
+				!isEditMode.value && !form.value.has_variants
+					? Math.max(0, Number(form.value.opening_stock) || 0)
+					: 0,
 			safety_stock: Math.max(0, Number(form.value.safety_stock) || 0),
 			disabled: form.value.disabled ? 1 : 0,
+			has_variants: form.value.has_variants ? 1 : 0,
+			selected_colors: form.value.has_variants ? form.value.selected_colors : [],
 			image_base64: imageBase64.value || null,
 		};
 
@@ -863,11 +1306,11 @@ async function handleSave() {
 		showSuccess(result.message || "Producto guardado correctamente.");
 		emit("saved", {
 			item: result.item,
-			isNew: !isEditMode.value,
+			isNew: Boolean(result.is_new ?? !isEditMode.value),
+			archivedItemCode: result.archived_item_code || null,
 		});
 		closeDialog();
 	} catch (err) {
-		console.error("Error saving POS item:", err);
 		showError(err?.message || "No se pudo guardar el producto.");
 	} finally {
 		saving.value = false;
@@ -879,8 +1322,8 @@ function closeDialog() {
 }
 
 watch(
-	() => props.modelValue,
-	(open) => {
+	[() => props.modelValue, () => props.itemCode],
+	([open]) => {
 		if (open) {
 			loadFormData();
 		}

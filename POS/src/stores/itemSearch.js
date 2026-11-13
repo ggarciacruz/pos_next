@@ -2339,6 +2339,10 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 						item_code: item.item_code,
 						actual_qty: qty,
 						available_qty: qty,
+						other_qty: item.other_qty ?? 0,
+						variants_total: item.variants_total,
+						variants_in_stock: item.variants_in_stock,
+						warehouse: item.warehouse,
 					},
 				]);
 				try {
@@ -2417,6 +2421,8 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					item_group: data.item_group ?? prev.item_group,
 					image: data.image !== undefined ? data.image : prev.image,
 					has_variants: data.has_variants !== undefined ? data.has_variants : prev.has_variants,
+					variants_total:
+						data.variants_total !== undefined ? data.variants_total : prev.variants_total,
 					custom_medida: data.custom_medida !== undefined ? data.custom_medida : prev.custom_medida,
 					custom_ancho_cm: data.custom_ancho_cm ?? prev.custom_ancho_cm,
 					custom_largo_cm: data.custom_largo_cm ?? prev.custom_largo_cm,
@@ -2438,6 +2444,14 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		mergeIntoArray(searchResults.value);
 
 		if (foundInCatalog && mergedSnapshot) {
+			if (data.variants_total !== undefined) {
+				stockStore.update([
+					{
+						item_code: code,
+						variants_total: data.variants_total,
+					},
+				]);
+			}
 			allItemsVersion.value += 1;
 			searchResultsVersion.value += 1;
 			clearBaseCache();

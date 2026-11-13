@@ -3347,6 +3347,8 @@ def _generate_clean_item_code(item_name, item_group=""):
 	prefix = "PROD"
 	if "SOMIER" in grp_clean or "SOMIER" in name_clean:
 		prefix = "SOM"
+	elif "ESPALD" in grp_clean or "ESPALD" in name_clean:
+		prefix = "ESP"
 	elif "CANNON" in grp_clean or "CANNON" in name_clean:
 		prefix = "CANNON"
 	elif "EDRE" in grp_clean or "EDRE" in name_clean:
@@ -3366,11 +3368,14 @@ def _generate_clean_item_code(item_name, item_group=""):
 		"COLCHONES",
 		"SOMIER",
 		"SOMIERES",
+		"ESPALDAR",
+		"ESPALDARES",
 		"CANNON",
 		"EDREDONADO",
 		"ORTOPEDICO",
 		"PLAZA",
 		"PLAZAS",
+		"CM",
 		"DE",
 		"EL",
 		"LA",
@@ -3387,6 +3392,155 @@ def _generate_clean_item_code(item_name, item_group=""):
 		counter += 1
 		candidate = f"{base_code}-{counter:02d}"
 	return candidate
+
+
+def _ensure_and_get_color_attribute():
+	"""Ensure the 'Color' Item Attribute exists and return its ordered options + standard colors."""
+	default_colors = [
+		("Negro", "NEG"),
+		("Plomo", "PLO"),
+		("Café", "CAF"),
+		("Azul Marino", "AZM"),
+		("Arena", "ARE"),
+		("Crema", "CRE"),
+		("Fucsia", "FUC"),
+		("Palo Rosa", "PRO"),
+		("Lila", "LIL"),
+		("Calipso", "CAL"),
+		("Verde Petróleo", "VPE"),
+	]
+
+	if not frappe.db.exists("Item Attribute", "Color"):
+		attr_doc = frappe.new_doc("Item Attribute")
+		attr_doc.attribute_name = "Color"
+		attr_doc.numeric_values = 0
+		for val, abbr in default_colors:
+			attr_doc.append("item_attribute_values", {"attribute_value": val, "abbr": abbr})
+		attr_doc.flags.ignore_permissions = True
+		attr_doc.insert(ignore_permissions=True)
+	else:
+		attr_doc = frappe.get_doc("Item Attribute", "Color")
+
+	color_options = [
+		{"value": r.attribute_value, "abbr": r.abbr}
+		for r in (attr_doc.item_attribute_values or [])
+		if r.attribute_value
+	]
+
+	# Identify colors actively used by existing furniture variants so 1-click "Colores estándar" matches catalog
+	used_color_set = set()
+	active_variants = frappe.get_all(
+		"Item",
+		filters={"variant_of": ["is", "set"], "disabled": 0},
+		pluck="name",
+		limit=2000,
+	)
+	if active_variants:
+		used_rows = frappe.get_all(
+			"Item Variant Attribute",
+			filters={"parent": ["in", active_variants], "attribute": "Color"},
+			pluck="attribute_value",
+		)
+		used_color_set = {c for c in used_rows if c}
+
+	standard_colors = [c["value"] for c in color_options if c["value"] in used_color_set]
+	if not standard_colors:
+		default_names = {val for val, _ in default_colors}
+		standard_colors = [c["value"] for c in color_options if c["value"] in default_names] or [
+			c["value"] for c in color_options
+		]
+
+	return attr_doc, color_options, standard_colors
+
+
+def _item_has_ledger_or_submitted_docs(item_code):
+	"""Return True if ERPNext would forbid toggling has_variants in-place on this Item."""
+	if not item_code:
+		return False
+	if frappe.db.exists("Stock Ledger Entry", {"item_code": item_code}):
+		return True
+	for child_dt in (
+		"Sales Invoice Item",
+		"POS Invoice Item",
+		"Delivery Note Item",
+		"Purchase Receipt Item",
+		"Purchase Invoice Item",
+		"Stock Entry Detail",
+		"Stock Reconciliation Item",
+	):
+		if frappe.db.exists(child_dt, {"item_code": item_code, "docstatus": 1}):
+			return True
+	return False
+
+
+@frappe.whitelist()
+def create_pos_color_attribute(pos_profile, color_name):
+	"""Add a new color value to the 'Color' Item Attribute directly from POS."""
+	import re
+	import unicodedata
+
+	pos_profile = _normalize_pos_profile_name(pos_profile)
+	_verify_pos_item_permission(pos_profile)
+
+	clean_color = re.sub(r"\s+", " ", (color_name or "").strip())
+	if not clean_color:
+		frappe.throw(_("Por favor escriba el nombre del nuevo color."))
+	if len(clean_color) > 40 or any(ch in clean_color for ch in ("<", ">", '"', "'", ";")):
+		frappe.throw(_("El nombre del color contiene caracteres no permitidos o es demasiado largo."))
+
+	# Normalize lowercase entries cleanly ("azul turquesa" -> "Azul Turquesa")
+	if clean_color == clean_color.lower():
+		clean_color = " ".join(w.capitalize() for w in clean_color.split(" "))
+
+	attr_doc, _opts, _std = _ensure_and_get_color_attribute()
+
+	for row in attr_doc.item_attribute_values or []:
+		if (row.attribute_value or "").strip().lower() == clean_color.lower():
+			return {
+				"success": True,
+				"already_existed": True,
+				"color": {"value": row.attribute_value, "abbr": row.abbr},
+				"message": _("El color '{0}' ya existe y fue seleccionado.").format(row.attribute_value),
+			}
+
+	norm_ascii = "".join(
+		c for c in unicodedata.normalize("NFKD", clean_color) if not unicodedata.combining(c)
+	).upper()
+	alpha_words = [w for w in re.split(r"[^A-Z0-9]+", norm_ascii) if w]
+	if not alpha_words:
+		frappe.throw(_("Por favor ingrese un nombre de color válido."))
+
+	if len(alpha_words) >= 2:
+		base_abbr = (alpha_words[0][0] + alpha_words[1][:2])[:4]
+	else:
+		base_abbr = alpha_words[0][:3]
+	if len(base_abbr) < 2:
+		base_abbr = (base_abbr + "XX")[:3]
+
+	existing_abbrs = {(r.abbr or "").strip().upper() for r in (attr_doc.item_attribute_values or [])}
+	candidate_abbr = base_abbr
+	seq = 2
+	while candidate_abbr in existing_abbrs:
+		candidate_abbr = f"{base_abbr[:3]}{seq}"
+		seq += 1
+
+	attr_doc.append(
+		"item_attribute_values",
+		{
+			"attribute_value": clean_color,
+			"abbr": candidate_abbr,
+		},
+	)
+	attr_doc.flags.ignore_permissions = True
+	attr_doc.save(ignore_permissions=True)
+	frappe.clear_document_cache("Item Attribute", "Color")
+
+	return {
+		"success": True,
+		"already_existed": False,
+		"color": {"value": clean_color, "abbr": candidate_abbr},
+		"message": _("Color '{0}' agregado y seleccionado.").format(clean_color),
+	}
 
 
 @frappe.whitelist()
@@ -3461,14 +3615,20 @@ def get_pos_item_form_data(pos_profile, item_code=None):
 	from pos_next.api.utilities import user_can_view_cost_price
 
 	can_view_cost = user_can_view_cost_price(pos_profile)
+	_attr_doc, color_options, standard_colors = _ensure_and_get_color_attribute()
 
 	item_payload = None
 	if item_code and frappe.db.exists("Item", item_code):
 		doc = frappe.get_doc("Item", item_code)
+		price_lookup_code = item_code
+		if cint(doc.has_variants):
+			first_var = frappe.db.get_value("Item", {"variant_of": doc.name, "disabled": 0}, "name")
+			if first_var:
+				price_lookup_code = first_var
 		selling_rate = flt(
 			frappe.db.get_value(
 				"Item Price",
-				{"item_code": item_code, "price_list": price_list, "selling": 1},
+				{"item_code": price_lookup_code, "price_list": price_list, "selling": 1},
 				"price_list_rate",
 			)
 			or getattr(doc, "custom_precio_venta", 0)
@@ -3480,7 +3640,7 @@ def get_pos_item_form_data(pos_profile, item_code=None):
 				getattr(doc, "custom_costo_fabricacion", 0)
 				or frappe.db.get_value(
 					"Item Price",
-					{"item_code": item_code, "price_list": "Precio Fábrica (Costo)"},
+					{"item_code": price_lookup_code, "price_list": "Precio Fábrica (Costo)"},
 					"price_list_rate",
 				)
 				or doc.valuation_rate
@@ -3503,6 +3663,29 @@ def get_pos_item_form_data(pos_profile, item_code=None):
 			if doc_ancho > 0 and doc_largo > 0
 			else ""
 		)
+
+		existing_colors = []
+		has_ledger_history = 0
+		if cint(doc.has_variants):
+			v_names = frappe.get_all(
+				"Item",
+				filters={"variant_of": doc.name, "disabled": 0},
+				pluck="name",
+			)
+			if v_names:
+				v_attrs = frappe.get_all(
+					"Item Variant Attribute",
+					filters={"parent": ["in", v_names], "attribute": "Color"},
+					pluck="attribute_value",
+				)
+				attr_set = {v for v in v_attrs if v}
+				existing_colors = [c["value"] for c in color_options if c["value"] in attr_set]
+				for extra_c in attr_set:
+					if extra_c not in existing_colors:
+						existing_colors.append(extra_c)
+		elif not doc.variant_of:
+			has_ledger_history = 1 if _item_has_ledger_or_submitted_docs(doc.name) else 0
+
 		item_payload = {
 			"item_code": doc.name,
 			"item_name": doc.item_name,
@@ -3510,6 +3693,10 @@ def get_pos_item_form_data(pos_profile, item_code=None):
 			"stock_uom": doc.stock_uom or "Unidad(es)",
 			"image": doc.image or "",
 			"disabled": cint(doc.disabled),
+			"has_variants": cint(doc.has_variants),
+			"variant_of": doc.variant_of or "",
+			"existing_colors": existing_colors,
+			"has_ledger_history": has_ledger_history,
 			"selling_rate": selling_rate,
 			"cost_rate": cost_rate,
 			"custom_plazas": getattr(doc, "custom_plazas", "") or "",
@@ -3535,6 +3722,8 @@ def get_pos_item_form_data(pos_profile, item_code=None):
 		"has_dimensions": has_dimensions,
 		"has_plazas": has_plazas,
 		"plazas_options": ["1 Plaza", "1.5 Plazas", "2 Plazas", "2.5 Plazas / Queen", "3 Plazas / King"],
+		"color_options": color_options,
+		"standard_colors": standard_colors,
 		"default_low_stock_threshold": low_stock_threshold,
 		"can_view_cost_price": cint(can_view_cost),
 		"item": item_payload,
@@ -3660,6 +3849,32 @@ def save_pos_item(pos_profile, item_data):
 	plazas = (item_data.get("custom_plazas") or "").strip()
 	linea = (item_data.get("custom_linea_modelo") or "").strip()
 
+	enable_variants = bool(cint(item_data.get("has_variants")))
+	raw_colors = item_data.get("selected_colors") or []
+	selected_colors = []
+	for c in raw_colors:
+		c_clean = str(c or "").strip()
+		if c_clean and c_clean not in selected_colors:
+			selected_colors.append(c_clean)
+
+	if enable_variants:
+		_attr_doc, valid_color_opts, _std_colors = _ensure_and_get_color_attribute()
+		valid_color_map = {opt["value"].lower(): opt["value"] for opt in valid_color_opts}
+		normalized_colors = []
+		for c_val in selected_colors:
+			canonical = valid_color_map.get(c_val.lower())
+			if not canonical:
+				frappe.throw(_("El color '{0}' no está registrado en el catálogo de colores.").format(c_val))
+			if canonical not in normalized_colors:
+				normalized_colors.append(canonical)
+		selected_colors = normalized_colors
+		if not selected_colors:
+			frappe.throw(_("Por favor seleccione al menos un color para generar las variantes del producto."))
+
+	archived_item_code = None
+	preserved_image = None
+	created_variants_count = 0
+
 	if is_new:
 		requested_code = (item_data.get("item_code") or "").strip().upper()
 		if requested_code:
@@ -3682,6 +3897,8 @@ def save_pos_item(pos_profile, item_data):
 		if not item_code or not frappe.db.exists("Item", item_code):
 			frappe.throw(_("No se encontró el producto {0} para editar.").format(item_code))
 		item = frappe.get_doc("Item", item_code)
+		if cint(item.has_variants):
+			enable_variants = True
 		if not can_view_cost:
 			cost_rate = flt(
 				getattr(item, "custom_costo_fabricacion", 0)
@@ -3694,10 +3911,49 @@ def save_pos_item(pos_profile, item_data):
 				or 0
 			)
 
+		# Safe conversion: if converting a standalone item that already has Stock Ledger / Invoice history,
+		# ERPNext forbids flipping has_variants in-place. Archive the standalone SKU cleanly and create a new Template.
+		if enable_variants and not cint(item.has_variants) and not item.variant_of:
+			if _item_has_ledger_or_submitted_docs(item.name):
+				archived_item_code = item.name
+				preserved_image = item.image
+				preserved_uom = item.stock_uom or "Unidad(es)"
+				prev_ig_flag = getattr(frappe.flags, "ignore_permissions", False)
+				frappe.flags.ignore_permissions = True
+				try:
+					item.disabled = 1
+					item.flags.ignore_permissions = True
+					item.save(ignore_permissions=True)
+					frappe.clear_document_cache("Item", archived_item_code)
+				finally:
+					frappe.flags.ignore_permissions = prev_ig_flag
+
+				from pos_next.realtime_events import emit_item_event as _emit_archived
+
+				_emit_archived(item, "on_update")
+
+				item_code = _generate_clean_item_code(item_name, item_group)
+				item = frappe.new_doc("Item")
+				item.item_code = item_code
+				item.stock_uom = preserved_uom
+				item.is_stock_item = 1
+				item.is_sales_item = 1
+				if preserved_image:
+					item.image = preserved_image
+				is_new = True
+
+	if enable_variants and not item.variant_of:
+		item.has_variants = 1
+		item.variant_based_on = "Item Attribute"
+		has_color_row = any(r.attribute == "Color" for r in (item.attributes or []))
+		if not has_color_row:
+			item.append("attributes", {"attribute": "Color"})
+
 	item.item_name = item_name
 	item.item_group = item_group
 	item.disabled = 1 if cint(item_data.get("disabled")) else 0
-	item.standard_rate = selling_rate
+	# ERPNext Item.after_insert auto-creates an Item Price if standard_rate > 0, which fails on templates (has_variants=1)
+	item.standard_rate = 0 if (is_new and cint(item.has_variants)) else selling_rate
 	if can_view_cost and cost_rate > 0:
 		item.valuation_rate = cost_rate
 	safety_stock = max(0.0, flt(item_data.get("safety_stock")))
@@ -3740,8 +3996,12 @@ def save_pos_item(pos_profile, item_data):
 		if is_new:
 			item.flags.ignore_permissions = True
 			item.insert(ignore_permissions=True)
+			if cint(item.has_variants) and selling_rate > 0:
+				frappe.db.set_value("Item", item.name, "standard_rate", selling_rate, update_modified=False)
+				item.standard_rate = selling_rate
 		else:
 			item.flags.ignore_permissions = True
+			item.flags.dont_update_variants = True
 			item.save(ignore_permissions=True)
 
 		# Resolve Item Default from Item Group (or parent group) so warehouse & accounts match automatically
@@ -3784,6 +4044,7 @@ def save_pos_item(pos_profile, item_data):
 			row_dict = {"company": company, **id_values}
 			item_reload.append("item_defaults", row_dict)
 			item_reload.flags.ignore_permissions = True
+			item_reload.flags.dont_update_variants = True
 			item_reload.save(ignore_permissions=True)
 
 		# Upsert Item Prices (Selling & Cost)
@@ -3808,20 +4069,107 @@ def save_pos_item(pos_profile, item_data):
 				ip.flags.ignore_permissions = True
 				ip.insert(ignore_permissions=True)
 
-		_upsert_price(selling_price_list, selling_rate, is_selling=1)
-		if selling_price_list != "Standard Selling":
-			_upsert_price("Standard Selling", selling_rate, is_selling=1)
-		_upsert_price("Precio Mayoreo Ruffino", selling_rate, is_selling=1)
-		if can_view_cost and cost_rate > 0:
-			_upsert_price("Precio Fábrica (Costo)", cost_rate, is_selling=0)
+		if not cint(item.has_variants):
+			_upsert_price(selling_price_list, selling_rate, is_selling=1)
+			if selling_price_list != "Standard Selling":
+				_upsert_price("Standard Selling", selling_rate, is_selling=1)
+			_upsert_price("Precio Mayoreo Ruffino", selling_rate, is_selling=1)
+			if can_view_cost and cost_rate > 0:
+				_upsert_price("Precio Fábrica (Costo)", cost_rate, is_selling=0)
+		else:
+			# Templates in ERPNext cannot hold direct Item Price rows; prices belong to their variants
+			frappe.db.delete("Item Price", {"item_code": item.name})
 
-		# Propagate price and cost updates to all variants if this item is a template
+		# Create any missing Color variants & propagate price/cost/warehouse updates if this item is a template
 		if cint(item.has_variants):
+			if selected_colors:
+				from erpnext.controllers.item_variant import create_variant
+
+				template_reload = frappe.get_doc("Item", item.name)
+				existing_v_rows = frappe.get_all(
+					"Item",
+					filters={"variant_of": item.name},
+					fields=["name", "disabled"],
+				)
+				existing_color_to_code = {}
+				if existing_v_rows:
+					v_attr_rows = frappe.get_all(
+						"Item Variant Attribute",
+						filters={"parent": ["in", [r.name for r in existing_v_rows]], "attribute": "Color"},
+						fields=["parent", "attribute_value"],
+					)
+					for va in v_attr_rows:
+						if va.attribute_value:
+							existing_color_to_code[va.attribute_value] = va.parent
+
+				for color_val in selected_colors:
+					if color_val in existing_color_to_code:
+						existing_v_code = existing_color_to_code[color_val]
+						if cint(frappe.db.get_value("Item", existing_v_code, "disabled")):
+							frappe.db.set_value("Item", existing_v_code, "disabled", 0, update_modified=False)
+						continue
+
+					variant_doc = create_variant(
+						template_reload.name,
+						{"Color": color_val},
+						use_template_image=True,
+					)
+					variant_doc.item_name = f"{template_reload.item_name} - {color_val}"
+					base_v_code = variant_doc.item_code or f"{template_reload.name}-{color_val[:3].upper()}"
+					candidate_v_code = base_v_code
+					v_seq = 2
+					while frappe.db.exists("Item", candidate_v_code):
+						candidate_v_code = f"{base_v_code}-{v_seq}"
+						v_seq += 1
+					variant_doc.item_code = candidate_v_code
+					variant_doc.item_group = item_group
+					variant_doc.is_stock_item = 1
+					variant_doc.is_sales_item = 1
+					variant_doc.disabled = 0
+					variant_doc.standard_rate = 0
+					if can_view_cost and cost_rate > 0:
+						variant_doc.valuation_rate = cost_rate
+					variant_doc.safety_stock = safety_stock
+					if template_reload.image:
+						variant_doc.image = template_reload.image
+
+					# Ensure company Item Default on the new variant
+					has_co_def = False
+					for d_row in variant_doc.item_defaults or []:
+						if d_row.company == company:
+							for k_def, v_def in id_values.items():
+								setattr(d_row, k_def, v_def)
+							has_co_def = True
+					if not has_co_def:
+						variant_doc.append("item_defaults", {"company": company, **id_values})
+
+					variant_doc.flags.ignore_permissions = True
+					variant_doc.insert(ignore_permissions=True)
+					created_variants_count += 1
+
 			variant_codes = frappe.get_all("Item", filters={"variant_of": item.name}, pluck="name")
 			for v_code in variant_codes:
-				v_updates = {"standard_rate": selling_rate}
+				v_updates = {
+					"item_group": item_group,
+					"standard_rate": selling_rate,
+					"safety_stock": safety_stock,
+				}
+				if item.image and not frappe.db.get_value("Item", v_code, "image"):
+					v_updates["image"] = item.image
 				if can_view_cost and cost_rate > 0:
 					v_updates["valuation_rate"] = cost_rate
+				if frappe.db.has_column("Item", "custom_ancho_cm"):
+					v_updates["custom_ancho_cm"] = ancho
+				if frappe.db.has_column("Item", "custom_largo_cm"):
+					v_updates["custom_largo_cm"] = largo
+				if frappe.db.has_column("Item", "custom_alto_cm"):
+					v_updates["custom_alto_cm"] = alto
+				if frappe.db.has_column("Item", "custom_plazas"):
+					v_updates["custom_plazas"] = plazas
+				if frappe.db.has_column("Item", "custom_linea_modelo"):
+					v_updates["custom_linea_modelo"] = linea or item_group
+				if frappe.db.has_column("Item", "custom_medida") and getattr(item, "custom_medida", None):
+					v_updates["custom_medida"] = item.custom_medida
 				if frappe.db.has_column("Item", "custom_precio_venta"):
 					v_updates["custom_precio_venta"] = selling_rate
 				if can_view_cost and frappe.db.has_column("Item", "custom_costo_fabricacion") and cost_rate > 0:
@@ -3835,6 +4183,15 @@ def save_pos_item(pos_profile, item_data):
 						)
 					v_updates["custom_margen_mayoreo"] = max(0.0, selling_rate - v_eff_cost)
 				frappe.db.set_value("Item", v_code, v_updates, update_modified=False)
+
+				v_def_id = frappe.db.get_value(
+					"Item Default",
+					{"parent": v_code, "parenttype": "Item", "company": company},
+					"name",
+				)
+				if v_def_id:
+					frappe.db.set_value("Item Default", v_def_id, id_values, update_modified=False)
+
 				for pl_target in {selling_price_list, "Standard Selling", "Precio Mayoreo Ruffino"}:
 					if pl_target and frappe.db.exists("Price List", pl_target):
 						vp_name = frappe.db.get_value("Item Price", {"item_code": v_code, "price_list": pl_target}, "name")
@@ -3854,11 +4211,21 @@ def save_pos_item(pos_profile, item_data):
 					vp_cost = frappe.db.get_value("Item Price", {"item_code": v_code, "price_list": "Precio Fábrica (Costo)"}, "name")
 					if vp_cost:
 						frappe.db.set_value("Item Price", vp_cost, "price_list_rate", cost_rate, update_modified=False)
+					else:
+						vp_c = frappe.new_doc("Item Price")
+						vp_c.item_code = v_code
+						vp_c.price_list = "Precio Fábrica (Costo)"
+						vp_c.price_list_rate = cost_rate
+						vp_c.selling = 0
+						vp_c.buying = 1
+						vp_c.currency = pos_profile_doc.currency or "BOB"
+						vp_c.flags.ignore_permissions = True
+						vp_c.insert(ignore_permissions=True)
 				frappe.clear_document_cache("Item", v_code)
 
-		# Optional initial stock when creating a new item
+		# Optional initial stock when creating a new standalone item (templates cannot hold direct stock)
 		opening_stock = flt(item_data.get("opening_stock"))
-		if is_new and opening_stock > 0 and target_warehouse:
+		if is_new and not cint(item.has_variants) and opening_stock > 0 and target_warehouse:
 			se = frappe.new_doc("Stock Entry")
 			se.company = company
 			se.purpose = "Material Receipt"
@@ -3891,22 +4258,52 @@ def save_pos_item(pos_profile, item_data):
 
 	emit_item_event(item, "after_insert" if is_new else "on_update")
 
-	item_wh_map, wh_name_map, stock_map, other_stock_map, _reserved_map = _resolve_item_warehouses_and_stock(
-		[item.name],
+	(
+		item_wh_map,
+		wh_name_map,
+		stock_map,
+		other_stock_map,
+		_reserved_map,
+		variant_meta_map,
+	) = _resolve_item_warehouses_and_stock(
+		[
+			{
+				"item_code": item.name,
+				"item_group": item.item_group,
+				"has_variants": cint(item.has_variants),
+			}
+		],
 		company=company,
 		default_warehouse=pos_profile_doc.warehouse,
+		return_variant_meta=True,
 	)
 	eff_wh = item_wh_map.get(item.name) or target_warehouse
 	actual_qty = flt(stock_map.get(item.name, 0))
+	v_meta = variant_meta_map.get(item.name) or {}
+
+	if archived_item_code:
+		success_msg = _(
+			"Producto '{0}' convertido a plantilla con {1} colores (el código anterior {2} quedó archivado con su historial)."
+		).format(item.item_name, v_meta.get("variants_total", created_variants_count), archived_item_code)
+	elif is_new and cint(item.has_variants):
+		success_msg = _("Producto '{0}' creado con {1} variantes de color.").format(
+			item.item_name, v_meta.get("variants_total", created_variants_count)
+		)
+	elif not is_new and created_variants_count > 0:
+		success_msg = _(
+			"Producto '{0}' actualizado ({1} nuevos colores agregados)."
+		).format(item.item_name, created_variants_count)
+	elif is_new:
+		success_msg = _("Producto '{0}' creado exitosamente.").format(item.item_name)
+	else:
+		success_msg = _("Producto '{0}' actualizado exitosamente.").format(item.item_name)
 
 	return {
 		"success": True,
 		"is_new": is_new,
-		"message": (
-			_("Producto '{0}' creado exitosamente.").format(item.item_name)
-			if is_new
-			else _("Producto '{0}' actualizado exitosamente.").format(item.item_name)
-		),
+		"archived_item_code": archived_item_code,
+		"created_variants_count": created_variants_count,
+		"message": success_msg,
 		"item": {
 			"name": item.name,
 			"item_code": item.name,
@@ -3921,6 +4318,8 @@ def save_pos_item(pos_profile, item_data):
 			"is_stock_item": 1,
 			"is_sales_item": 1,
 			"has_variants": cint(item.has_variants),
+			"variants_total": cint(v_meta.get("variants_total", 0)),
+			"variants_in_stock": cint(v_meta.get("variants_in_stock", 0)),
 			"rate": selling_rate,
 			"price_list_rate": selling_rate,
 			"price_list_rate_price_uom": selling_rate,

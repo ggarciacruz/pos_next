@@ -294,6 +294,10 @@ def emit_item_event(doc, method=None):
 			else ""
 		)
 
+		variants_total = 0
+		if int(item_doc.has_variants or 0):
+			variants_total = int(frappe.db.count("Item", {"variant_of": item_doc.name, "disabled": 0}) or 0)
+
 		event_data = {
 			"action": "delete" if int(item_doc.disabled or 0) else "update",
 			"item_code": item_doc.name,
@@ -306,6 +310,7 @@ def emit_item_event(doc, method=None):
 			"image": item_doc.image or "",
 			"disabled": int(item_doc.disabled or 0),
 			"has_variants": int(item_doc.has_variants or 0),
+			"variants_total": variants_total,
 			"variant_of": item_doc.variant_of or "",
 			"rate": selling_rate,
 			"price_list_rate": selling_rate,

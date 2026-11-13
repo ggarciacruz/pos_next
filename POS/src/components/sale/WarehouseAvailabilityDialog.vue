@@ -2026,6 +2026,12 @@
 										<span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-medium">
 											{{ prod.item_group }}
 										</span>
+										<span
+											v-if="prod.has_variants"
+											class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 font-semibold"
+										>
+											{{ prod.variants_total ? `${prod.variants_total} colores` : __("Por colores") }}
+										</span>
 										<span class="text-gray-600">
 											{{ (prod.warehouse_name || prod.warehouse || "").replace(/\s*-\s*[A-Z0-9]+$/i, "") }}:
 											<strong :class="(prod.actual_qty ?? 0) > 0 ? 'text-green-600' : 'text-red-500'">
@@ -2168,6 +2174,7 @@
 		:pos-profile="posProfile || shiftStore.profileName"
 		:item-code="editingCatalogItemCode"
 		@saved="handleCatalogItemSaved"
+		@switch-item="openEditItemModal"
 	/>
 </template>
 
@@ -3382,8 +3389,14 @@ function openEditItemModal(code) {
 	showItemQuickForm.value = true;
 }
 
-async function handleCatalogItemSaved({ item }) {
+async function handleCatalogItemSaved({ item, archivedItemCode }) {
 	const activeProfile = props.posProfile || shiftStore.profileName;
+	if (archivedItemCode) {
+		await itemSearchStore.upsertCatalogItem(
+			{ item_code: archivedItemCode, disabled: 1 },
+			null
+		);
+	}
 	await itemSearchStore.upsertCatalogItem(item, activeProfile);
 	loadInventoryReport();
 
