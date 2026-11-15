@@ -2,6 +2,7 @@ import { createResource } from "frappe-ui";
 import { computed, ref, toRaw } from "vue";
 import { isOffline, getCachedItem } from "@/utils/offline";
 import { useSerialNumberStore } from "@/stores/serialNumber";
+import { usePOSShiftStore } from "@/stores/posShift";
 import { CoalescingMutex } from "@/utils/mutex";
 import { logger } from "@/utils/logger";
 import { roundCurrency } from "@/utils/currency";
@@ -1033,8 +1034,10 @@ export function useInvoice() {
 
 				if (targetDoctype === "Sales Invoice") {
 					if (emitOfficialInvoice) {
+						const shiftStore = usePOSShiftStore();
 						invoiceData.naming_series = "CF-.YYYY.-";
-						invoiceData.taxes_and_charges = "IVA Débito Fiscal - NE";
+						invoiceData.taxes_and_charges =
+							shiftStore.currentProfile?.taxes_and_charges || "IVA Débito Fiscal - NE";
 					} else {
 						invoiceData.naming_series = "SF-.YYYY.-";
 						invoiceData.taxes_and_charges = "";

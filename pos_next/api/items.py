@@ -199,6 +199,11 @@ def get_item_detail(item, doc=None, warehouse=None, price_list=None, company=Non
 							}
 						)
 
+			# Garantizar ordenamiento estricto FEFO (primero el lote más próximo a vencer)
+			batch_no_data.sort(
+				key=lambda b: (str(b.get("expiry_date") or "9999-12-31"), str(b.get("batch_no") or ""))
+			)
+
 	# ===========================================================================
 	# SERIAL NUMBER TRACKING: Get available serial numbers
 	# ===========================================================================

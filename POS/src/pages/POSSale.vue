@@ -2312,7 +2312,8 @@ async function handlePaymentCompleted(paymentData) {
 
 			if (paymentData.emit_official_invoice) {
 				invoiceData.naming_series = "CF-.YYYY.-";
-				invoiceData.taxes_and_charges = "IVA Débito Fiscal - NE";
+				invoiceData.taxes_and_charges =
+					shiftStore.currentProfile?.taxes_and_charges || "IVA Débito Fiscal - NE";
 			} else {
 				invoiceData.naming_series = "SF-.YYYY.-";
 				invoiceData.taxes_and_charges = "";

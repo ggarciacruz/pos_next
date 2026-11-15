@@ -49,7 +49,7 @@
 				</label>
 				<div class="flex flex-col gap-2 max-h-80 overflow-y-auto">
 					<div
-						v-for="batch in availableBatches"
+						v-for="(batch, bIdx) in availableBatches"
 						:key="batch.batch_no"
 						@click="selectBatch(batch)"
 						:class="[
@@ -61,9 +61,17 @@
 					>
 						<div class="flex items-start justify-between">
 							<div class="flex-1">
-								<h4 class="text-sm font-semibold text-slate-900">
-									{{ batch.batch_no }}
-								</h4>
+								<div class="flex items-center gap-2 flex-wrap">
+									<h4 class="text-sm font-semibold text-slate-900">
+										{{ batch.batch_no }}
+									</h4>
+									<span
+										v-if="bIdx === 0 && availableBatches.length > 1 && batch.expiry_date"
+										class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+									>
+										{{ __("Prioridad FEFO") }}
+									</span>
+								</div>
 								<div class="flex items-center gap-3 mt-1">
 									<span class="text-xs text-slate-600">
 										{{ __("Qty: {0}", [batch.qty]) }}
@@ -306,7 +314,7 @@ const selectedBatch = ref(null);
 const selectedSerials = ref([]);
 const serialSearchQuery = ref("");
 
-// Computed: Available batches with cart quantities subtracted
+// Computed: Available batches with cart quantities subtracted, sorted by FEFO (earliest expiry first)
 const availableBatches = computed(() => {
 	return warehouseBatches.value
 		.map((batch) => {
@@ -324,8 +332,23 @@ const availableBatches = computed(() => {
 				qty: Math.max(0, batch.qty - cartQtyForBatch), // Available = warehouse - cart
 			};
 		})
-		.filter((batch) => batch.qty > 0); // Only show batches with available qty
+		.filter((batch) => batch.qty > 0) // Only show batches with available qty
+		.sort((a, b) =>
+			String(a.expiry_date || "9999-12-31").localeCompare(
+				String(b.expiry_date || "9999-12-31")
+			)
+		);
 });
+
+function applyFefoAutoSelection() {
+	if (!props.item?.has_batch_no) return;
+	const list = availableBatches.value;
+	if (!list.length) return;
+	selectedBatch.value = list[0];
+	if (list.length === 1 && !props.item?.has_serial_no && list[0].qty >= props.quantity) {
+		handleConfirm();
+	}
+}
 
 // Resource for loading batches with actual stock quantities
 const batchesResource = createResource({
@@ -346,6 +369,7 @@ const batchesResource = createResource({
 				expiry_date: batch.expiry_date,
 				manufacturing_date: batch.manufacturing_date,
 			}));
+			applyFefoAutoSelection();
 		}
 	},
 	onError(error) {
@@ -410,6 +434,7 @@ async function loadBatchesOrSerials() {
 					expiry_date: batch.expiry_date,
 					manufacturing_date: batch.manufacturing_date,
 				}));
+				applyFefoAutoSelection();
 				return;
 			}
 		}
