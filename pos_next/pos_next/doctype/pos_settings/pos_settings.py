@@ -112,12 +112,15 @@ def get_pos_settings(pos_profile):
 
 	# Inject the current global Stock Settings value for transparency
 	# This helps UI reflect the actual state even if multiple POS Settings exist
+	from pos_next.api.constants import DEFAULT_POS_SETTINGS, attach_resolved_print_formats
+
+	for k, v in DEFAULT_POS_SETTINGS.items():
+		settings.setdefault(k, v)
+
 	settings["_global_allow_negative_stock"] = cint(
 		frappe.db.get_single_value("Stock Settings", "allow_negative_stock") or 0
 	)
-	settings["user_can_cancel_invoice"] = cint(
-		bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
-	)
+	attach_resolved_print_formats(settings, pos_profile=pos_profile)
 	settings["user_can_manage_stock"] = cint(
 		bool(
 			frappe.has_permission("Stock Entry", "create")
@@ -156,10 +159,10 @@ def create_default_settings(pos_profile):
 	doc.enabled = 1
 	doc.insert(ignore_permissions=True)
 
+	from pos_next.api.constants import attach_resolved_print_formats
+
 	res = doc.as_dict()
-	res["user_can_cancel_invoice"] = cint(
-		bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
-	)
+	attach_resolved_print_formats(res, pos_profile=pos_profile)
 	res["user_can_manage_stock"] = cint(
 		bool(
 			frappe.has_permission("Stock Entry", "create")
@@ -220,10 +223,10 @@ def update_pos_settings(pos_profile, settings):
 		doc.update(settings)
 		doc.insert(ignore_permissions=True)
 
+	from pos_next.api.constants import attach_resolved_print_formats
+
 	res = doc.as_dict()
-	res["user_can_cancel_invoice"] = cint(
-		bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
-	)
+	attach_resolved_print_formats(res, pos_profile=pos_profile)
 	res["user_can_manage_stock"] = cint(
 		bool(
 			frappe.has_permission("Stock Entry", "create")

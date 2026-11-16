@@ -168,12 +168,12 @@ def validate_manual_rate_edit(item, pos_profile=None, pos_settings_cache=None):
 	return {"valid": True}
 
 
-def log_manual_rate_edit(item, invoice_name, user=None):
+def log_manual_rate_edit(item, invoice_name, user=None, reference_doctype=DOCTYPE_SALES_INVOICE):
 	"""
 	Create an audit log entry for manual rate edits.
 
-	This function creates a Comment on the Sales Invoice documenting the rate change.
-	It should only be called ONCE per item, after the invoice is successfully submitted.
+	This function creates a Comment on the Sales Invoice / Sales Order documenting the rate change.
+	It should only be called ONCE per item, after the document is successfully submitted.
 
 	Args:
 	    item: The item dict/object with rate information. Must contain:
@@ -208,12 +208,12 @@ def log_manual_rate_edit(item, invoice_name, user=None):
 		if new_rate > original_rate:
 			change_type = "increase"
 
-	# Create audit comment on the invoice
+	# Create audit comment on the invoice / order
 	frappe.get_doc(
 		{
 			"doctype": DOCTYPE_COMMENT,
 			"comment_type": "Comment",
-			"reference_doctype": DOCTYPE_SALES_INVOICE,
+			"reference_doctype": reference_doctype or DOCTYPE_SALES_INVOICE,
 			"reference_name": invoice_name,
 			"content": _(
 				"Manual rate edit by {user}: Item {item_code} rate changed from {original} to {new} ({change_pct}% {change_type})"
@@ -732,6 +732,14 @@ def update_invoice(data):
 		pos_profile = data.get("pos_profile")
 		doctype = data.get("doctype", "Sales Invoice")
 
+		from pos_next.api.constants import get_safe_pos_settings_dict
+
+		safe_pos_settings = get_safe_pos_settings_dict(pos_profile, require_enabled=True) if pos_profile else {}
+		if doctype == "Sales Invoice" and cint(safe_pos_settings.get("create_only_sales_order")):
+			frappe.throw(
+				_("Este Perfil de POS opera exclusivamente con Órdenes de Venta (Modo Solo Pre-ventas).")
+			)
+
 		# Ensure the document type is set
 		data.setdefault("doctype", doctype)
 
@@ -749,6 +757,16 @@ def update_invoice(data):
 			invoice_doc.quotation_to = "Customer"
 			invoice_doc.party_name = data.get("customer")
 			invoice_doc.customer = data.get("customer")
+		elif doctype == "Sales Order":
+			tx_date = invoice_doc.get("transaction_date") or data.get("posting_date") or nowdate()
+			deliv_date = invoice_doc.get("delivery_date") or tx_date
+			if deliv_date < tx_date:
+				deliv_date = tx_date
+			invoice_doc.transaction_date = tx_date
+			invoice_doc.delivery_date = deliv_date
+			for item in invoice_doc.get("items", []):
+				if not item.get("delivery_date") or item.get("delivery_date") < tx_date:
+					item.delivery_date = deliv_date
 
 		# Important: set before set_missing_values()/pricing/validation paths that may
 		# read linked docs (e.g., Customer) and trigger controller permission checks.
@@ -861,15 +879,19 @@ def update_invoice(data):
 			is_manual_edit = cint(item.get(FIELD_IS_RATE_MANUALLY_EDITED) or 0)
 
 			if is_manual_edit:
-				# MANUAL RATE EDIT: preserve original price_list_rate for audit
-				original_rate = flt(item.get(FIELD_ORIGINAL_RATE) or item.get(FIELD_PRICE_LIST_RATE) or 0)
-				if original_rate > 0:
-					item.price_list_rate = original_rate
-
-				# Validate manual rate edit against business rules (uses cached settings)
+				# Validate manual rate edit against business rules BEFORE mutating price_list_rate
 				validation = validate_manual_rate_edit(item, pos_profile, pos_settings_cache)
 				if not validation.get("valid"):
 					frappe.throw(validation.get("message"))
+
+				# MANUAL RATE EDIT: preserve original price_list_rate for discounts,
+				# but raise price_list_rate when rate > original_rate so ERPNext
+				# taxes_and_totals never computes a negative discount_amount on markups.
+				original_rate = flt(item.get(FIELD_ORIGINAL_RATE) or item.get(FIELD_PRICE_LIST_RATE) or 0)
+				if original_rate > 0:
+					item.price_list_rate = original_rate if original_rate >= item_rate else item_rate
+				else:
+					item.price_list_rate = item_rate
 			else:
 				# NORMAL FLOW: Trust frontend's price_list_rate if provided and valid
 				if frontend_price_list_rate > 0:
@@ -944,6 +966,9 @@ def update_invoice(data):
 			invoice_doc.is_pos = 1
 			invoice_doc.update_stock = 1
 			if pos_profile_doc and pos_profile_doc.warehouse:
+				invoice_doc.set_warehouse = pos_profile_doc.warehouse
+		elif doctype == "Sales Order":
+			if pos_profile_doc and pos_profile_doc.warehouse and invoice_doc.meta.has_field("set_warehouse"):
 				invoice_doc.set_warehouse = pos_profile_doc.warehouse
 
 		# ========================================================================
@@ -1052,6 +1077,8 @@ def update_invoice(data):
 		# Save as draft / Submit quotation
 		invoice_doc.flags.ignore_permissions = True
 		frappe.flags.ignore_account_permission = True
+		if doctype == "Sales Order":
+			invoice_doc.flags.skip_auto_so_hooks = True
 		req_docstatus = cint(data.get("docstatus", 0))
 		if doctype == "Quotation":
 			if not invoice_doc.name or not frappe.db.exists("Quotation", invoice_doc.name):
@@ -1060,12 +1087,12 @@ def update_invoice(data):
 			else:
 				invoice_doc.docstatus = 0
 				invoice_doc.save()
-			
+
 			if req_docstatus == 1:
 				invoice_doc.submit()
 		else:
 			if req_docstatus == 1:
-				if not invoice_doc.name or not frappe.db.exists("Sales Order", invoice_doc.name):
+				if not invoice_doc.name or not frappe.db.exists(doctype, invoice_doc.name):
 					invoice_doc.docstatus = 0
 					invoice_doc.insert(ignore_permissions=True)
 				else:
@@ -1074,7 +1101,10 @@ def update_invoice(data):
 				invoice_doc.submit()
 			else:
 				invoice_doc.docstatus = 0
-				invoice_doc.save()
+				if not invoice_doc.name or not frappe.db.exists(doctype, invoice_doc.name):
+					invoice_doc.insert(ignore_permissions=True)
+				else:
+					invoice_doc.save()
 
 		return invoice_doc.as_dict()
 	except Exception:
@@ -1343,6 +1373,14 @@ def submit_invoice(invoice=None, data=None):
 	pos_profile = invoice.get("pos_profile")
 	doctype = invoice.get("doctype", "Sales Invoice")
 
+	from pos_next.api.constants import get_safe_pos_settings_dict
+
+	safe_pos_settings = get_safe_pos_settings_dict(pos_profile, require_enabled=True) if pos_profile else {}
+	if doctype == "Sales Invoice" and cint(safe_pos_settings.get("create_only_sales_order")):
+		frappe.throw(
+			_("Este Perfil de POS opera exclusivamente con Órdenes de Venta (Modo Solo Pre-ventas).")
+		)
+
 	# Normalize pricing_rules before processing
 	standardize_pricing_rules(invoice.get("items"))
 
@@ -1405,6 +1443,28 @@ def submit_invoice(invoice=None, data=None):
 		# Ensure update_stock is set for Sales Invoice
 		if doctype == "Sales Invoice":
 			invoice_doc.update_stock = 1
+		elif doctype == "Sales Order":
+			invoice_doc.flags.skip_auto_so_hooks = True
+			tx_date = invoice_doc.get("transaction_date") or invoice.get("posting_date") or nowdate()
+			deliv_date = invoice_doc.get("delivery_date") or tx_date
+			if deliv_date < tx_date:
+				deliv_date = tx_date
+			invoice_doc.transaction_date = tx_date
+			invoice_doc.delivery_date = deliv_date
+			if pos_profile:
+				try:
+					pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+					if pos_profile_doc.warehouse:
+						if invoice_doc.meta.has_field("set_warehouse"):
+							invoice_doc.set_warehouse = pos_profile_doc.warehouse
+						for item in invoice_doc.get("items", []):
+							if not item.get("warehouse"):
+								item.warehouse = pos_profile_doc.warehouse
+				except Exception:
+					pass
+			for item in invoice_doc.get("items", []):
+				if not item.get("delivery_date") or item.get("delivery_date") < tx_date:
+					item.delivery_date = deliv_date
 
 		# For return invoices, set update_outstanding_for_self = 0
 		# This ensures the GL entry's against_voucher points to the original invoice,
@@ -1518,16 +1578,20 @@ def submit_invoice(invoice=None, data=None):
 		# Settings for this profile actually permit credit sales, so a tampered
 		# client can't bypass the core payment-row requirement.
 		is_credit_sale = cint(data.get("is_credit_sale") or invoice.get("is_credit_sale"))
-		if is_credit_sale and not invoice_doc.payments and flt(invoice_doc.grand_total) > 0:
-			allow_credit_sale = cint(
-				frappe.db.get_value(DOCTYPE_POS_SETTINGS, {"pos_profile": pos_profile}, "allow_credit_sale")
-			)
+		if is_credit_sale and not invoice_doc.get("payments") and flt(invoice_doc.grand_total) > 0:
+			allow_credit_sale = cint(safe_pos_settings.get("allow_credit_sale"))
 			if not allow_credit_sale:
 				frappe.throw(_("Credit sales are not enabled for this POS Profile."))
 			invoice_doc.flags.pos_next_credit_sale = 1
 
 		# Auto-submit linked draft Sales Orders before invoice save/submission
-		linked_sales_orders = list({item.sales_order for item in invoice_doc.items if item.get("sales_order")})
+		linked_sales_orders = list(
+			{
+				item.sales_order
+				for item in invoice_doc.items
+				if item.get("sales_order") and item.get("sales_order") != invoice_doc.name
+			}
+		)
 		for so_name in linked_sales_orders:
 			if frappe.db.exists("Sales Order", so_name):
 				so_doc = frappe.get_doc("Sales Order", so_name)
@@ -1538,11 +1602,103 @@ def submit_invoice(invoice=None, data=None):
 		# Save before submit
 		invoice_doc.flags.ignore_permissions = True
 		frappe.flags.ignore_account_permission = True
+		if doctype == "Sales Order":
+			invoice_doc.flags.skip_auto_so_hooks = True
 		invoice_doc.save()
 
-		# Submit invoice
+		# Submit invoice / order
+		if doctype == "Sales Order":
+			invoice_doc.flags.skip_auto_so_hooks = True
 		invoice_doc.submit()
 		invoice_submitted = True
+
+		created_payment_entries = []
+		created_delivery_note = None
+		if doctype == "Sales Order":
+			# 1. Optional Payment Entry generation for Sales Order POS checkout
+			if cint(safe_pos_settings.get("create_payment_on_sales_order")) and not is_credit_sale:
+				raw_payments = invoice.get("payments") or data.get("payments") or []
+				so_payable_total = (
+					flt(invoice_doc.grand_total)
+					if cint(getattr(invoice_doc, "disable_rounded_total", 0))
+					else flt(getattr(invoice_doc, "rounded_total", 0) or invoice_doc.grand_total)
+				)
+				remaining_to_allocate = max(0.0, so_payable_total)
+				shift_ref = (
+					invoice.get("posa_pos_opening_shift")
+					or data.get("posa_pos_opening_shift")
+					or invoice.get("pos_opening_shift")
+					or data.get("pos_opening_shift")
+					or invoice_doc.name
+				)
+				if raw_payments and remaining_to_allocate > 0:
+					from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
+
+					for pay_row in raw_payments:
+						if remaining_to_allocate <= 0.005:
+							break
+						pay_dict = pay_row if isinstance(pay_row, dict) else pay_row.as_dict()
+						pay_amt = flt(pay_dict.get("amount") or 0)
+						if pay_amt <= 0:
+							continue
+						alloc_amt = min(pay_amt, remaining_to_allocate)
+						if alloc_amt <= 0:
+							continue
+						mop = pay_dict.get("mode_of_payment") or "Cash"
+						pay_account = pay_dict.get("account")
+						if not pay_account:
+							acct_info = get_bank_cash_account(mop, invoice_doc.company)
+							pay_account = acct_info.get("account") if acct_info else None
+
+						pe_doc = get_payment_entry(
+							"Sales Order",
+							invoice_doc.name,
+							party_amount=alloc_amt,
+							bank_account=pay_account,
+						)
+						for ref_row in pe_doc.get("references") or []:
+							if flt(ref_row.outstanding_amount) > 0 and flt(ref_row.allocated_amount) > flt(
+								ref_row.outstanding_amount
+							):
+								alloc_amt = flt(ref_row.outstanding_amount)
+								ref_row.allocated_amount = alloc_amt
+								pe_doc.paid_amount = alloc_amt
+								pe_doc.received_amount = alloc_amt
+						pe_doc.mode_of_payment = mop
+						pe_doc.posting_date = invoice_doc.transaction_date or nowdate()
+						pe_doc.reference_date = pe_doc.posting_date
+						pe_doc.reference_no = str(shift_ref)[:140]
+						pe_doc.remarks = f"Cobro POS Orden de Venta {invoice_doc.name} ({mop})"
+						pe_doc.flags.ignore_permissions = True
+						pe_doc.insert()
+						pe_doc.submit()
+						created_payment_entries.append(pe_doc.name)
+						remaining_to_allocate = max(0.0, flt(remaining_to_allocate - alloc_amt, 2))
+
+			# 2. Optional Delivery Note generation for Sales Order POS checkout
+			wants_delivery_note = cint(
+				data.get("create_delivery_note", invoice.get("create_delivery_note", 1))
+			)
+			if cint(safe_pos_settings.get("allow_delivery_note_on_sales_order")) and wants_delivery_note:
+				from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
+
+				dn_doc = make_delivery_note(invoice_doc.name)
+				dn_doc.posting_date = invoice_doc.transaction_date or nowdate()
+				if pos_profile:
+					wh = frappe.db.get_value("POS Profile", pos_profile, "warehouse")
+					if wh:
+						if dn_doc.meta.has_field("set_warehouse") and not dn_doc.get("set_warehouse"):
+							dn_doc.set_warehouse = wh
+						for dn_item in dn_doc.get("items", []):
+							if not dn_item.get("warehouse"):
+								dn_item.warehouse = wh
+				dn_doc.flags.ignore_permissions = True
+				dn_doc.insert()
+				dn_doc.submit()
+				created_delivery_note = dn_doc.name
+
+			if created_payment_entries or created_delivery_note:
+				invoice_doc.reload()
 
 		# Update Quotation items ordered quantity and parent Quotation status
 		for q_item in quotation_items_to_update:
@@ -1644,7 +1800,7 @@ def submit_invoice(invoice=None, data=None):
 				)
 
 		# Log manual rate edits for audit trail (only after successful submission)
-		if doctype == DOCTYPE_SALES_INVOICE:
+		if doctype in (DOCTYPE_SALES_INVOICE, "Sales Order"):
 			incoming_items = invoice.get("items") or []
 			for item in incoming_items:
 				if cint(item.get(FIELD_IS_RATE_MANUALLY_EDITED)):
@@ -1659,19 +1815,33 @@ def submit_invoice(invoice=None, data=None):
 							FIELD_IS_RATE_MANUALLY_EDITED: 1,
 						},
 						invoice_doc.name,
+						reference_doctype=doctype,
 					)
+
+		if doctype == "Sales Order":
+			resolved_paid = flt(getattr(invoice_doc, "advance_paid", 0) or 0)
+			resolved_outstanding = max(0.0, flt(invoice_doc.grand_total or 0) - resolved_paid)
+			resolved_change = max(0.0, flt(invoice.get("change_amount") or data.get("change_amount") or 0))
+		else:
+			resolved_paid = getattr(invoice_doc, "paid_amount", 0)
+			resolved_outstanding = getattr(invoice_doc, "outstanding_amount", 0)
+			resolved_change = getattr(invoice_doc, "change_amount", 0)
 
 		# Return complete invoice details
 		result = {
 			"name": invoice_doc.name,
+			"doctype": doctype,
 			"status": invoice_doc.docstatus,
 			"grand_total": invoice_doc.grand_total,
 			"total": invoice_doc.total,
 			"net_total": invoice_doc.net_total,
-			"outstanding_amount": getattr(invoice_doc, "outstanding_amount", 0),
-			"paid_amount": getattr(invoice_doc, "paid_amount", 0),
-			"change_amount": getattr(invoice_doc, "change_amount", 0),
+			"outstanding_amount": resolved_outstanding,
+			"paid_amount": resolved_paid,
+			"change_amount": resolved_change,
 		}
+		if doctype == "Sales Order":
+			result["payment_entries"] = created_payment_entries
+			result["delivery_note"] = created_delivery_note
 
 		# Include offline_id in response for client-side tracking
 		if offline_id:
@@ -1734,13 +1904,17 @@ def _resolve_public_receipt_doc(name: str, token: str, doctype_hint: str | None 
 
 
 def _render_receipt_pdf_bytes(doc) -> bytes:
-	format_candidates = {
-		"Sales Invoice": "Nota de Venta Muebles Ruffino",
-		"Quotation": "Cotización de Venta de Muebles",
-		"Sales Order": "Nota de Pre-venta de Muebles",
-	}
-	candidate = format_candidates.get(doc.doctype)
-	print_format = candidate if (candidate and frappe.db.exists("Print Format", candidate)) else None
+	from pos_next.api.constants import LEGACY_PRINT_FORMATS_BY_DOCTYPE, resolve_pos_print_format
+
+	pos_profile = getattr(doc, "pos_profile", None)
+	if not pos_profile and getattr(doc, "company", None):
+		pos_profile = frappe.db.get_value(
+			"POS Profile", {"company": doc.company, "disabled": 0}, "name"
+		)
+
+	print_format = resolve_pos_print_format(doc.doctype, pos_profile=pos_profile)
+	legacy_formats = set(LEGACY_PRINT_FORMATS_BY_DOCTYPE.values())
+	no_letterhead = 1 if (print_format in legacy_formats) else 0
 
 	prev_flag = getattr(frappe.flags, "ignore_print_permissions", False)
 	try:
@@ -1751,7 +1925,7 @@ def _render_receipt_pdf_bytes(doc) -> bytes:
 			print_format=print_format,
 			doc=doc,
 			as_pdf=True,
-			no_letterhead=1,
+			no_letterhead=no_letterhead,
 		)
 	finally:
 		frappe.flags.ignore_print_permissions = prev_flag
@@ -1792,9 +1966,12 @@ class PublicReceiptRenderer:
 			for bot in ("whatsapp", "facebookexternalhit", "telegrambot", "twitterbot", "slackbot")
 		)
 		if is_preview_bot:
-			company = escape_html(
-				str(getattr(doc, "company", None) or "Muebles Ruffino").split(" - ")[0]
+			raw_company = (
+				getattr(doc, "company", None)
+				or frappe.defaults.get_global_default("company")
+				or "Comprobante"
 			)
+			company = escape_html(str(raw_company).split(" - ")[0])
 			doc_label = (
 				"Cotización"
 				if doc.doctype == "Quotation"
@@ -1866,30 +2043,93 @@ def pdf(d: str = "Sales Invoice", n: str = "", k: str = "", download: int = 0):
 
 
 @frappe.whitelist()
-def get_invoice(invoice_name):
+def get_invoice(invoice_name, doctype: str = None):
 	"""
-	Get a single invoice with all details for POS.
+	Get a single invoice / sales order with all details for POS.
 
 	Args:
-		invoice_name: Sales Invoice name
-
-	Returns:
-		Complete invoice document with items and payments
+		invoice_name: Sales Invoice or Sales Order name
+		doctype: Optional explicit DocType hint
 	"""
 	if not invoice_name:
 		frappe.throw(_("Invoice name is required"))
 
-	if not frappe.db.exists("Sales Invoice", invoice_name):
+	target_doctype = None
+	if doctype in ("Sales Invoice", "Sales Order", "Quotation") and frappe.db.exists(doctype, invoice_name):
+		target_doctype = doctype
+	elif frappe.db.exists("Sales Invoice", invoice_name):
+		target_doctype = "Sales Invoice"
+	elif frappe.db.exists("Sales Order", invoice_name):
+		target_doctype = "Sales Order"
+	elif frappe.db.exists("Quotation", invoice_name):
+		target_doctype = "Quotation"
+
+	if not target_doctype:
 		frappe.throw(_("Invoice {0} does not exist").format(invoice_name))
 
-	# Check permissions
-	if not frappe.has_permission("Sales Invoice", "read", invoice_name):
+	invoice = frappe.get_doc(target_doctype, invoice_name)
+	has_pos_access = False
+	if getattr(invoice, "pos_profile", None):
+		has_pos_access = bool(
+			frappe.db.exists(
+				"POS Profile User", {"parent": invoice.pos_profile, "user": frappe.session.user}
+			)
+		)
+	elif getattr(invoice, "company", None):
+		user_profiles = frappe.get_all(
+			"POS Profile User", filters={"user": frappe.session.user}, pluck="parent"
+		)
+		if user_profiles:
+			has_pos_access = bool(
+				frappe.db.exists(
+					"POS Profile", {"name": ["in", user_profiles], "company": invoice.company}
+				)
+			)
+
+	if not has_pos_access and not frappe.has_permission(target_doctype, "read", invoice_name):
 		frappe.throw(_("You don't have permission to view this invoice"))
 
-	# Get invoice document
-	invoice = frappe.get_doc("Sales Invoice", invoice_name)
 	data = invoice.as_dict()
+	data["doctype"] = target_doctype
 	data["public_pdf_url"] = _build_public_pdf_path(invoice)
+
+	if target_doctype == "Sales Order":
+		data.setdefault("posting_date", data.get("transaction_date"))
+		creation_str = str(data.get("creation") or "")
+		data.setdefault(
+			"posting_time",
+			creation_str.split(" ")[1].split(".")[0] if " " in creation_str else "",
+		)
+		paid_amt = flt(invoice.advance_paid or 0)
+		data["paid_amount"] = paid_amt
+		data["outstanding_amount"] = max(0.0, flt(invoice.grand_total or 0) - paid_amt)
+		pe_rows = frappe.db.sql(
+			"""
+			SELECT pe.name AS payment_entry, pe.mode_of_payment, per.allocated_amount AS amount
+			FROM `tabPayment Entry Reference` per
+			INNER JOIN `tabPayment Entry` pe ON pe.name = per.parent
+			WHERE per.reference_doctype = 'Sales Order'
+				AND per.reference_name = %(so_name)s
+				AND pe.docstatus = 1
+			ORDER BY pe.posting_date ASC, pe.creation ASC
+			""",
+			{"so_name": invoice.name},
+			as_dict=True,
+		)
+		data["payments"] = [
+			{
+				"mode_of_payment": r.mode_of_payment or "Cash",
+				"amount": flt(r.amount),
+				"payment_entry": r.payment_entry,
+			}
+			for r in pe_rows
+		]
+		data["delivery_notes"] = frappe.get_all(
+			"Delivery Note Item",
+			filters={"against_sales_order": invoice.name, "docstatus": 1},
+			distinct=True,
+			pluck="parent",
+		)
 
 	return data
 
@@ -1897,16 +2137,7 @@ def get_invoice(invoice_name):
 @frappe.whitelist()
 def get_invoices(pos_profile: str, limit: int = 100, start: int = 0, filter_profile: str = None) -> list:
 	"""
-	Get list of invoices for a POS Profile (or all accessible company POS Profiles for POS Managers).
-
-	Args:
-		pos_profile: Active POS Profile name
-		limit: Maximum number of invoices to return (default 100)
-		start: Offset for pagination (default 0)
-		filter_profile: Optional POS Profile filter for managers ('ALL' or specific profile)
-
-	Returns:
-		List of invoices with details
+	Get list of invoices (or Sales Orders when create_only_sales_order == 1) for a POS Profile.
 	"""
 	if not pos_profile:
 		frappe.throw(_("POS Profile is required"))
@@ -1922,9 +2153,106 @@ def get_invoices(pos_profile: str, limit: int = 100, start: int = 0, filter_prof
 
 	company = frappe.db.get_value("POS Profile", pos_profile, "company")
 
+	from pos_next.api.constants import get_safe_pos_settings_dict
+
+	safe_settings = get_safe_pos_settings_dict(pos_profile, require_enabled=True)
+	if cint(safe_settings.get("create_only_sales_order")) and company:
+		orders = frappe.db.sql(
+			"""
+			SELECT
+				name,
+				%(default_profile)s AS pos_profile,
+				owner,
+				customer,
+				customer_name,
+				transaction_date AS posting_date,
+				TIME(creation) AS posting_time,
+				grand_total,
+				IFNULL(advance_paid, 0) AS paid_amount,
+				GREATEST(0, grand_total - IFNULL(advance_paid, 0)) AS outstanding_amount,
+				status,
+				docstatus,
+				0 AS is_return,
+				NULL AS return_against,
+				per_delivered,
+				'Sales Order' AS doctype
+			FROM `tabSales Order`
+			WHERE company = %(company)s
+				AND docstatus = 1
+			ORDER BY transaction_date DESC, creation DESC
+			LIMIT %(limit)s OFFSET %(start)s
+			""",
+			{
+				"default_profile": pos_profile,
+				"company": company,
+				"limit": limit,
+				"start": start,
+			},
+			as_dict=True,
+		)
+		order_names = [o.name for o in orders]
+		payments_by_order = {}
+		items_by_order = {}
+		if order_names:
+			pe_rows = frappe.db.sql(
+				"""
+				SELECT per.reference_name AS parent, pe.mode_of_payment, per.allocated_amount AS amount
+				FROM `tabPayment Entry Reference` per
+				INNER JOIN `tabPayment Entry` pe ON pe.name = per.parent
+				WHERE per.reference_doctype = 'Sales Order'
+					AND per.reference_name IN %(order_names)s
+					AND pe.docstatus = 1
+				ORDER BY pe.posting_date ASC, pe.creation ASC
+				""",
+				{"order_names": tuple(order_names)},
+				as_dict=True,
+			)
+			for p in pe_rows:
+				payments_by_order.setdefault(p.parent, []).append(
+					{"mode_of_payment": p.mode_of_payment or "Cash", "amount": flt(p.amount)}
+				)
+
+			so_items = frappe.db.sql(
+				"""
+				SELECT parent, item_code, item_name, qty, rate, amount
+				FROM `tabSales Order Item`
+				WHERE parent IN %(order_names)s
+				ORDER BY parent, idx
+				""",
+				{"order_names": tuple(order_names)},
+				as_dict=True,
+			)
+			for row in so_items:
+				items_by_order.setdefault(row.parent, []).append(
+					{
+						"item_code": row.item_code,
+						"item_name": row.item_name,
+						"qty": row.qty,
+						"rate": row.rate,
+						"amount": row.amount,
+					}
+				)
+
+		for order in orders:
+			order.payments = payments_by_order.get(order.name, [])
+			order.items = items_by_order.get(order.name, [])
+		return enrich_invoices_with_scope_metadata(orders, company=company)
+
+	optional_si_cols = [
+		"custom_fecha_entrega",
+		"custom_direccion_entrega",
+		"custom_telefono_contacto",
+		"custom_modalidad_cobro_chofer",
+		"custom_estado_entrega",
+	]
+	extra_select = ",\n\t\t\t".join(
+		col if frappe.db.has_column("Sales Invoice", col) else f"NULL AS {col}"
+		for col in optional_si_cols
+	)
+
 	# Query for invoices across resolved accessible POS Profiles
 	invoices = frappe.db.sql(
-		"""
+		f"""
 		SELECT
 			name,
 			pos_profile,
@@ -1940,11 +2268,7 @@ def get_invoices(pos_profile: str, limit: int = 100, start: int = 0, filter_prof
 			docstatus,
 			is_return,
 			return_against,
-			custom_fecha_entrega,
-			custom_direccion_entrega,
-			custom_telefono_contacto,
-			custom_modalidad_cobro_chofer,
-			custom_estado_entrega
+			{extra_select}
 		FROM
 			`tabSales Invoice`
 		WHERE
@@ -2039,17 +2363,40 @@ def get_invoices(pos_profile: str, limit: int = 100, start: int = 0, filter_prof
 @frappe.whitelist()
 def get_draft_invoices(pos_opening_shift, doctype="Sales Order"):
 	"""Get all draft invoices for a POS opening shift."""
+	from pos_next.api.constants import get_safe_pos_settings_dict
+
+	shift_info = (
+		frappe.db.get_value(
+			"POS Opening Shift",
+			pos_opening_shift,
+			["company", "pos_profile"],
+			as_dict=True,
+		)
+		if pos_opening_shift
+		else None
+	)
+	company = shift_info.get("company") if shift_info else None
+	pos_profile = shift_info.get("pos_profile") if shift_info else None
+	safe_settings = get_safe_pos_settings_dict(pos_profile, require_enabled=True) if pos_profile else {}
+	only_sales_order = bool(cint(safe_settings.get("create_only_sales_order")))
+
 	filters = {}
+	limit_page_length = 0
 	if doctype == "Quotation":
 		filters["docstatus"] = ["in", [0, 1]]
-		filters["status"] = ["not in", ["Cancelled"]]
+		filters["status"] = ["not in", ["Cancelled", "Ordered", "Lost"]]
+		limit_page_length = 100
 	elif doctype == "Sales Order":
-		filters["docstatus"] = ["in", [0, 1]]
-		filters["status"] = ["not in", ["Cancelled"]]
+		if only_sales_order:
+			# On pure Sales Order workflows, submitted Sales Orders are completed orders, not pending pre-sales.
+			filters["docstatus"] = 0
+		else:
+			filters["docstatus"] = ["in", [0, 1]]
+			filters["status"] = ["not in", ["Cancelled"]]
+		limit_page_length = 100
 	else:
 		filters["docstatus"] = 0
 
-	company = frappe.db.get_value("POS Opening Shift", pos_opening_shift, "company")
 	if company:
 		filters["company"] = company
 
@@ -2067,7 +2414,7 @@ def get_draft_invoices(pos_opening_shift, doctype="Sales Order"):
 		doctype,
 		filters=filters,
 		fields=["name"],
-		limit_page_length=0,
+		limit_page_length=limit_page_length,
 		order_by="modified desc",
 		ignore_permissions=True,
 	)
@@ -2083,10 +2430,14 @@ def get_draft_invoices(pos_opening_shift, doctype="Sales Order"):
 
 @frappe.whitelist()
 def delete_invoice(invoice):
-	"""Delete draft invoice or sales order."""
-	doctype = "Sales Order" if frappe.db.exists("Sales Order", invoice) else "Sales Invoice"
+	"""Delete draft invoice, sales order, or quotation."""
+	doctype = None
+	for candidate in ("Sales Order", "Quotation", "Sales Invoice"):
+		if frappe.db.exists(candidate, invoice):
+			doctype = candidate
+			break
 
-	if not frappe.db.exists(doctype, invoice):
+	if not doctype:
 		frappe.throw(_("Document {0} does not exist").format(invoice))
 
 	# Check if it's a draft
@@ -3652,8 +4003,9 @@ def mark_invoice_delivered(invoice_name: str, estado: str = "Entregado", doctype
 		else:
 			dt = "Sales Invoice"
 
-	frappe.db.set_value(dt, invoice_name, "custom_estado_entrega", estado)
-	frappe.db.commit()
+	if frappe.db.has_column(dt, "custom_estado_entrega"):
+		frappe.db.set_value(dt, invoice_name, "custom_estado_entrega", estado)
+		frappe.db.commit()
 	return {"status": "success", "invoice_name": invoice_name, "estado": estado}
 
 
@@ -3681,20 +4033,30 @@ def update_customer_delivery_info(customer_name: str, direccion: str = None, tel
 @frappe.whitelist()
 def cancel_pos_invoice(invoice_name: str, reason: str = None, pos_profile: str = None) -> dict:
 	"""
-	Anular (cancelar) una Nota de Venta (Sales Invoice) desde el Punto de Venta (/pos).
+	Anular (cancelar) una Nota de Venta (Sales Invoice) u Orden de Venta (Sales Order) desde el POS (/pos).
 
 	Doble candado de seguridad:
 	1. POS Settings (`allow_cancel_invoice` == 1) habilitado en el Perfil de POS.
-	2. Rol del usuario con permiso `cancel` sobre `Sales Invoice` (o rol `Nexus POS Manager`).
+	2. Rol del usuario con permiso `cancel` sobre el DocType (o rol `Nexus POS Manager`).
 	"""
 	if frappe.session.user == "Guest":
 		frappe.throw(_("Autenticación requerida"), frappe.AuthenticationError)
 
-	if not invoice_name or not frappe.db.exists("Sales Invoice", invoice_name):
+	target_doctype = None
+	if invoice_name and frappe.db.exists("Sales Invoice", invoice_name):
+		target_doctype = "Sales Invoice"
+	elif invoice_name and frappe.db.exists("Sales Order", invoice_name):
+		target_doctype = "Sales Order"
+
+	if not target_doctype:
 		frappe.throw(_("La nota de venta {0} no existe.").format(invoice_name or ""))
 
-	invoice = frappe.get_doc("Sales Invoice", invoice_name)
-	target_profile = invoice.pos_profile or pos_profile
+	invoice = frappe.get_doc(target_doctype, invoice_name)
+	target_profile = getattr(invoice, "pos_profile", None) or pos_profile
+	if not target_profile and getattr(invoice, "company", None):
+		target_profile = frappe.db.get_value(
+			"POS Profile", {"company": invoice.company, "disabled": 0}, "name"
+		)
 
 	# Candado 1: Verificar interruptor en POS Settings
 	allow_cancel = 0
@@ -3715,7 +4077,7 @@ def cancel_pos_invoice(invoice_name: str, reason: str = None, pos_profile: str =
 
 	# Candado 2: Verificar permiso por Rol del Usuario
 	has_role_perm = bool(
-		frappe.has_permission("Sales Invoice", "cancel", doc=invoice)
+		frappe.has_permission(target_doctype, "cancel", doc=invoice)
 		or "Nexus POS Manager" in frappe.get_roles()
 	)
 	if not has_role_perm:
@@ -3730,43 +4092,44 @@ def cancel_pos_invoice(invoice_name: str, reason: str = None, pos_profile: str =
 	if invoice.docstatus != 1:
 		frappe.throw(_("Solo se pueden anular notas de venta que ya fueron emitidas."))
 
-	# Verificar si ya tiene Notas de Crédito / Devoluciones activas
-	active_returns = frappe.get_all(
-		"Sales Invoice",
-		filters={"return_against": invoice_name, "docstatus": 1},
-		pluck="name",
-	)
-	if active_returns:
-		frappe.throw(
-			_(
-				"Esta nota ya tiene una Devolución registrada ({0}). Anula primero la devolución si deseas anular la venta original."
-			).format(", ".join(active_returns))
+	if target_doctype == "Sales Invoice":
+		# Verificar si ya tiene Notas de Crédito / Devoluciones activas
+		active_returns = frappe.get_all(
+			"Sales Invoice",
+			filters={"return_against": invoice_name, "docstatus": 1},
+			pluck="name",
 		)
+		if active_returns:
+			frappe.throw(
+				_(
+					"Esta nota ya tiene una Devolución registrada ({0}). Anula primero la devolución si deseas anular la venta original."
+				).format(", ".join(active_returns))
+			)
 
-	# Verificar si está incluida en un Arqueo / Cierre de Turno ya consolidado
-	closed_shifts = frappe.db.sql(
-		"""
-		SELECT parent
-		FROM `tabSales Invoice Reference`
-		WHERE sales_invoice = %(invoice_name)s AND docstatus = 1
-		""",
-		{"invoice_name": invoice_name},
-		as_dict=True,
-	)
-	if closed_shifts:
-		shift_names = ", ".join({row.parent for row in closed_shifts})
-		frappe.throw(
-			_(
-				"Esta venta pertenece a un turno de caja ya cerrado ({0}). Para reversarla, utiliza la opción 'Devolver Venta'."
-			).format(shift_names)
+		# Verificar si está incluida en un Arqueo / Cierre de Turno ya consolidado
+		closed_shifts = frappe.db.sql(
+			"""
+			SELECT parent
+			FROM `tabSales Invoice Reference`
+			WHERE sales_invoice = %(invoice_name)s AND docstatus = 1
+			""",
+			{"invoice_name": invoice_name},
+			as_dict=True,
 		)
+		if closed_shifts:
+			shift_names = ", ".join({row.parent for row in closed_shifts})
+			frappe.throw(
+				_(
+					"Esta venta pertenece a un turno de caja ya cerrado ({0}). Para reversarla, utiliza la opción 'Devolver Venta'."
+				).format(shift_names)
+			)
 
-	# Anular en cascada los cobros / anticipos (Payment Entry) vinculados a esta factura
+	# Anular en cascada los cobros / anticipos (Payment Entry) y Notas de Entrega vinculados
 	linked_pe_names = set(
 		frappe.get_all(
 			"Payment Entry Reference",
 			filters={
-				"reference_doctype": "Sales Invoice",
+				"reference_doctype": target_doctype,
 				"reference_name": invoice_name,
 				"docstatus": 1,
 			},
@@ -3788,10 +4151,56 @@ def cancel_pos_invoice(invoice_name: str, reason: str = None, pos_profile: str =
 		if row.voucher_no:
 			linked_pe_names.add(row.voucher_no)
 
-	cancelled_payments = []
+	# Para Sales Order: verificar si alguno de sus Payment Entries pertenece a un turno ya cerrado
+	if target_doctype == "Sales Order" and linked_pe_names:
+		pe_refs = [
+			r
+			for r in frappe.get_all(
+				"Payment Entry",
+				filters={"name": ["in", list(linked_pe_names)], "docstatus": 1},
+				pluck="reference_no",
+			)
+			if r
+		]
+		if pe_refs:
+			closed_so_shifts = frappe.get_all(
+				"POS Closing Shift",
+				filters={"pos_opening_shift": ["in", pe_refs], "docstatus": 1},
+				pluck="name",
+			)
+			if closed_so_shifts:
+				frappe.throw(
+					_(
+						"Esta venta tiene cobros asociados a un turno de caja ya cerrado ({0})."
+					).format(", ".join(set(closed_so_shifts)))
+				)
+
 	clean_reason = (reason or "").strip()
 	user_fullname = frappe.utils.get_fullname(frappe.session.user) or frappe.session.user
 
+	cancelled_delivery_notes = []
+	if target_doctype == "Sales Order":
+		linked_dn_names = frappe.get_all(
+			"Delivery Note Item",
+			filters={"against_sales_order": invoice_name, "docstatus": 1},
+			distinct=True,
+			pluck="parent",
+		)
+		for dn_name in linked_dn_names:
+			if frappe.db.exists("Delivery Note", dn_name):
+				dn_doc = frappe.get_doc("Delivery Note", dn_name)
+				if dn_doc.docstatus == 1:
+					dn_doc.flags.ignore_permissions = True
+					dn_doc.add_comment(
+						"Comment",
+						text=_(
+							"Nota de Entrega anulada automáticamente desde POS al anular la orden {0} por {1}."
+						).format(invoice_name, user_fullname),
+					)
+					dn_doc.cancel()
+					cancelled_delivery_notes.append(dn_name)
+
+	cancelled_payments = []
 	for pe_name in linked_pe_names:
 		if frappe.db.exists("Payment Entry", pe_name):
 			pe_doc = frappe.get_doc("Payment Entry", pe_name)
@@ -3806,13 +4215,13 @@ def cancel_pos_invoice(invoice_name: str, reason: str = None, pos_profile: str =
 				pe_doc.cancel()
 				cancelled_payments.append(pe_name)
 
-	# Registrar auditoría del motivo de anulación en la factura
+	# Registrar auditoría del motivo de anulación
 	audit_msg = _("Venta anulada desde Punto de Venta (/pos) por {0}.").format(user_fullname)
 	if clean_reason:
 		audit_msg += f" Motivo: {clean_reason}"
 	invoice.add_comment("Comment", text=audit_msg)
 
-	# Recargar documento por si los Payment Entries modificaron outstanding_amount al cancelarse
+	# Recargar documento por si los Payment Entries / Delivery Notes modificaron avance/entrega al cancelarse
 	invoice.reload()
 	invoice.flags.ignore_permissions = True
 	invoice.cancel()
@@ -3820,8 +4229,10 @@ def cancel_pos_invoice(invoice_name: str, reason: str = None, pos_profile: str =
 
 	return {
 		"status": "success",
+		"doctype": target_doctype,
 		"invoice_name": invoice_name,
 		"cancelled_payments": cancelled_payments,
+		"cancelled_delivery_notes": cancelled_delivery_notes,
 	}
 
 

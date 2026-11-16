@@ -33,6 +33,8 @@ def get_item_result_columns():
 	fields = [f"i.{col}" for col in ITEM_RESULT_FIELDS]
 	if frappe.db and frappe.db.has_column("Item", "custom_medida"):
 		fields.append("i.custom_medida")
+	elif frappe.db and frappe.db.has_column("Item", "custom_formato"):
+		fields.append("i.custom_formato as custom_medida")
 	else:
 		fields.append("'' as custom_medida")
 	return ",\n\t".join(fields)
@@ -41,6 +43,8 @@ def get_item_group_by_columns():
 	fields = [f"i.{col.split(' as ')[0]}" for col in ITEM_RESULT_FIELDS]
 	if frappe.db and frappe.db.has_column("Item", "custom_medida"):
 		fields.append("i.custom_medida")
+	elif frappe.db and frappe.db.has_column("Item", "custom_formato"):
+		fields.append("i.custom_formato")
 	return ", ".join(fields)
 
 ITEM_RESULT_COLUMNS = ",\n\t".join(ITEM_RESULT_FIELDS)

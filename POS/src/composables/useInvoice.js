@@ -741,14 +741,14 @@ export function useInvoice() {
 	 * @param {Array} items - Raw cart items
 	 * @returns {Array} Items formatted for ERPNext Sales Invoice
 	 */
-	function formatItemsForSubmission(items, draftId = null) {
+	function formatItemsForSubmission(items, draftId = null, targetDoctype = "Sales Invoice") {
 		const isQuotation = draftId && (
 			draftId.includes("-QTN-") ||
 			draftId.includes("-COT-") ||
 			draftId.startsWith("QTN-") ||
 			draftId.startsWith("COT-")
 		);
-		const isSalesOrder = draftId && !isQuotation;
+		const isSalesOrder = draftId && !isQuotation && targetDoctype !== "Sales Order";
 
 		const mapRow = (item) => ({
 			item_code: item.item_code,
@@ -771,8 +771,16 @@ export function useInvoice() {
 			is_rate_manually_edited: item.is_rate_manually_edited || 0,
 			original_rate: item.original_rate || null,
 			is_free_item: item.is_free_item || 0,
+			custom_cantidad_m2:
+				item.custom_cantidad_m2 !== undefined ? item.custom_cantidad_m2 : undefined,
+			custom_precio_m2:
+				item.custom_precio_m2 !== undefined ? item.custom_precio_m2 : undefined,
 			sales_order: (isSalesOrder && item.so_detail) ? draftId : undefined,
 			so_detail: isSalesOrder ? (item.so_detail || undefined) : undefined,
+			prevdoc_docname:
+				targetDoctype === "Sales Order" && isQuotation && item.so_detail
+					? draftId
+					: undefined,
 			against_quotation: (isQuotation && item.so_detail) ? draftId : undefined,
 			quotation_item: isQuotation ? (item.so_detail || undefined) : undefined,
 		});
@@ -985,7 +993,8 @@ export function useInvoice() {
 		receivableAccount = null,
 		draftId = null,
 		emitOfficialInvoice = false,
-		deliveryData = null
+		deliveryData = null,
+		createDeliveryNote = true
 	) {
 		/**
 		 * Two-step submission process with mutex protection:
@@ -1019,12 +1028,23 @@ export function useInvoice() {
 				const { invoicePayments, redeemedCustomerCredit, customerCreditDict } =
 					buildCustomerCreditPayload(rawPayments);
 
+				const isDraftSalesOrder =
+					draftId &&
+					targetDoctype === "Sales Order" &&
+					!(
+						draftId.includes("-QTN-") ||
+						draftId.includes("-COT-") ||
+						draftId.startsWith("QTN-") ||
+						draftId.startsWith("COT-")
+					);
+
 				const invoiceData = {
 					doctype: targetDoctype,
+					name: isDraftSalesOrder ? draftId : undefined,
 					pos_profile: posProfile.value,
 					posa_pos_opening_shift: posOpeningShift.value,
 					customer: customer.value?.name || customer.value,
-					items: formatItemsForSubmission(rawItems, draftId),
+					items: formatItemsForSubmission(rawItems, draftId, targetDoctype),
 					payments: invoicePayments,
 					discount_amount: additionalDiscount.value || 0,
 					coupon_code: couponCode.value,
@@ -1059,8 +1079,10 @@ export function useInvoice() {
 					invoiceData.receivable_account = receivableAccount;
 				}
 
-				if (targetDoctype === "Sales Order" && deliveryDate) {
-					invoiceData.delivery_date = deliveryDate;
+				if (targetDoctype === "Sales Order") {
+					const today = new Date().toISOString().split("T")[0];
+					invoiceData.transaction_date = today;
+					invoiceData.delivery_date = deliveryDate || today;
 				}
 
 				// Truck dispatch & delivery fields
@@ -1096,6 +1118,9 @@ export function useInvoice() {
 				const submitData = {
 					change_amount: remainingAmount.value < 0 ? Math.abs(remainingAmount.value) : 0,
 					write_off_amount: writeOffAmount || 0,
+					payments: invoicePayments,
+					posa_pos_opening_shift: posOpeningShift.value,
+					create_delivery_note: createDeliveryNote ? 1 : 0,
 				};
 
 				if (redeemedCustomerCredit > 0 && customerCreditDict.length > 0) {

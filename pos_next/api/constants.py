@@ -47,6 +47,15 @@ POS_SETTINGS_FIELDS = [
 	"allow_quotation",
 	"allow_select_sales_order",
 	"create_only_sales_order",
+	"create_payment_on_sales_order",
+	"allow_delivery_note_on_sales_order",
+	"enable_coverage_calculator",
+	"coverage_uom",
+	"coverage_factor_mode",
+	"lock_coverage_uom_direct_sale",
+	"invoice_print_format",
+	"sales_order_print_format",
+	"quotation_print_format",
 	"enable_session_lock",
 	"session_lock_timeout",
 	"show_variants_as_items",
@@ -90,9 +99,165 @@ DEFAULT_POS_SETTINGS = {
 	"allow_quotation": 0,
 	"allow_select_sales_order": 0,
 	"create_only_sales_order": 0,
+	"create_payment_on_sales_order": 0,
+	"allow_delivery_note_on_sales_order": 0,
+	"enable_coverage_calculator": 0,
+	"coverage_uom": "",
+	"coverage_factor_mode": "Multiply",
+	"lock_coverage_uom_direct_sale": 1,
+	"invoice_print_format": "",
+	"sales_order_print_format": "",
+	"quotation_print_format": "",
+	"resolved_invoice_print_format": "",
+	"resolved_sales_order_print_format": "",
+	"resolved_quotation_print_format": "",
 	"enable_session_lock": 0,
 	"session_lock_timeout": 5,
 	"show_variants_as_items": 0,
 	"display_item_code": 0,
 	"item_title_display": "Item Name",
 }
+
+
+LEGACY_PRINT_FORMATS_BY_DOCTYPE = {
+	"Sales Invoice": "Nota de Venta Muebles Ruffino",
+	"Sales Order": "Nota de Pre-venta de Muebles",
+	"Quotation": "Cotización de Venta de Muebles",
+}
+
+SETTINGS_PRINT_FORMAT_FIELD_BY_DOCTYPE = {
+	"Sales Invoice": "invoice_print_format",
+	"Sales Order": "sales_order_print_format",
+	"Quotation": "quotation_print_format",
+}
+
+
+def get_safe_pos_settings_dict(pos_profile, require_enabled=True):
+	"""
+	Fetch POS Settings safely across both migrated and unmigrated multi-tenant sites.
+	Intersects requested fields with actual MariaDB columns on `tabPOS Settings`
+	and merges defaults for any column not yet migrated on that site.
+	"""
+	import frappe
+
+	base = DEFAULT_POS_SETTINGS.copy()
+	if not pos_profile:
+		return base
+
+	try:
+		if not frappe.db.table_exists("POS Settings"):
+			return base
+		existing_cols = set(frappe.db.get_table_columns("POS Settings") or [])
+		safe_fields = [f for f in POS_SETTINGS_FIELDS if f == "name" or f in existing_cols]
+		if not safe_fields:
+			return base
+
+		filters = {"pos_profile": pos_profile}
+		if require_enabled and "enabled" in existing_cols:
+			filters["enabled"] = 1
+
+		row = frappe.db.get_value("POS Settings", filters, safe_fields, as_dict=True)
+		if not row:
+			return base
+
+		merged = base.copy()
+		for k, v in row.items():
+			if v is not None:
+				merged[k] = v
+		return merged
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Safe POS Settings Lookup Error")
+		return base
+
+
+THERMAL_RECEIPT_PRINT_FORMATS = {
+	"POS Next Receipt",
+	"MDX POS Receipt",
+	"POS Invoice",
+}
+
+
+def resolve_pos_print_format(doctype, pos_profile=None, pos_settings=None):
+	"""
+	Multi-tenant safe Letter/PDF Print Format resolution cascade:
+	1. Explicit POS Settings override (`invoice_print_format` / `sales_order_print_format` / `quotation_print_format`)
+	2. DocType's Property Setter / Meta `default_print_format` (excluding 80mm thermal receipt formats)
+	3. Legacy site Print Format ONLY if that Print Format record exists on the active site
+	4. POS Profile `print_format` (for Sales Invoice, excluding 80mm thermal receipt formats)
+	5. None (Frappe Standard fallback)
+	"""
+	import frappe
+
+	doctype = doctype or "Sales Invoice"
+	settings = pos_settings if isinstance(pos_settings, dict) else get_safe_pos_settings_dict(pos_profile)
+
+	# 1. Explicit POS Settings field
+	settings_field = SETTINGS_PRINT_FORMAT_FIELD_BY_DOCTYPE.get(doctype)
+	if settings_field:
+		candidate = (settings.get(settings_field) or "").strip()
+		if candidate and frappe.db.exists("Print Format", candidate):
+			return candidate
+
+	# 2. Site's default_print_format (Property Setter or Meta)
+	prop_pf = (
+		frappe.db.get_value(
+			"Property Setter",
+			{"doc_type": doctype, "property": "default_print_format", "doctype_or_field": "DocType"},
+			"value",
+		)
+		or ""
+	).strip()
+	if prop_pf and prop_pf not in THERMAL_RECEIPT_PRINT_FORMATS and frappe.db.exists("Print Format", prop_pf):
+		return prop_pf
+
+	try:
+		meta_pf = (frappe.get_meta(doctype).default_print_format or "").strip()
+		if meta_pf and meta_pf not in THERMAL_RECEIPT_PRINT_FORMATS and frappe.db.exists("Print Format", meta_pf):
+			return meta_pf
+	except Exception:
+		pass
+
+	# 3. Legacy fallback ONLY if that Print Format exists in this site's DB
+	legacy_pf = LEGACY_PRINT_FORMATS_BY_DOCTYPE.get(doctype)
+	if legacy_pf and frappe.db.exists("Print Format", legacy_pf):
+		return legacy_pf
+
+	# 4. POS Profile print_format (Sales Invoice, only if it is a custom Letter format)
+	if doctype == "Sales Invoice" and pos_profile:
+		profile_pf = (frappe.db.get_value("POS Profile", pos_profile, "print_format") or "").strip()
+		if (
+			profile_pf
+			and profile_pf not in THERMAL_RECEIPT_PRINT_FORMATS
+			and frappe.db.exists("Print Format", profile_pf)
+		):
+			return profile_pf
+
+	return None
+
+
+def attach_resolved_print_formats(settings, pos_profile=None):
+	"""Attach resolved print format names and Sales Order-aware cancel permission to settings dict."""
+	import frappe
+	from frappe.utils import cint
+
+	if not isinstance(settings, dict):
+		return settings
+
+	settings["resolved_invoice_print_format"] = (
+		resolve_pos_print_format("Sales Invoice", pos_profile=pos_profile, pos_settings=settings) or ""
+	)
+	settings["resolved_sales_order_print_format"] = (
+		resolve_pos_print_format("Sales Order", pos_profile=pos_profile, pos_settings=settings) or ""
+	)
+	settings["resolved_quotation_print_format"] = (
+		resolve_pos_print_format("Quotation", pos_profile=pos_profile, pos_settings=settings) or ""
+	)
+
+	target_cancel_dt = "Sales Order" if cint(settings.get("create_only_sales_order")) else "Sales Invoice"
+	settings["user_can_cancel_invoice"] = cint(
+		bool(
+			frappe.has_permission(target_cancel_dt, "cancel")
+			or "Nexus POS Manager" in frappe.get_roles()
+		)
+	)
+	return settings

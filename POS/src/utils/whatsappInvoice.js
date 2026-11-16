@@ -45,7 +45,7 @@ export function buildWhatsAppPhoneDigits(rawPhone) {
 /**
  * Hydrates or fetches full invoice/quotation/order data and resolves the customer's phone number.
  */
-export async function resolveWhatsAppDocument(inputDoc, fallbackCompany = "Muebles Ruffino") {
+export async function resolveWhatsAppDocument(inputDoc, fallbackCompany = "") {
 	let doc = typeof inputDoc === "string" ? { name: inputDoc } : { ...(inputDoc || {}) };
 
 	if (!doc.name && doc.draft_id) {
@@ -62,14 +62,15 @@ export async function resolveWhatsAppDocument(inputDoc, fallbackCompany = "Muebl
 		name.startsWith("COT-") ||
 		name.startsWith("SAL-QTN-");
 
-	const isSalesOrder =
+	let isSalesOrder =
 		!isQuotation &&
 		(doc.doctype === "Sales Order" ||
 			name.includes("-ORD-") ||
 			name.includes("-PV-") ||
 			name.startsWith("SAL-ORD-") ||
 			name.startsWith("SO-") ||
-			name.startsWith("PV-"));
+			name.startsWith("PV-") ||
+			name.startsWith("OV-"));
 
 	const initialPaidAmount = doc.paid_amount;
 	const initialOutstandingAmount = doc.outstanding_amount;
@@ -94,24 +95,41 @@ export async function resolveWhatsAppDocument(inputDoc, fallbackCompany = "Muebl
 					});
 					const fullQtn = resQtn?.message || resQtn;
 					if (fullQtn) doc = { ...doc, ...fullQtn, doctype: "Quotation" };
-				} else if (isSalesOrder) {
-					const resSo = await call("frappe.client.get", {
-						doctype: "Sales Order",
-						name,
-					});
-					const fullSo = resSo?.message || resSo;
-					if (fullSo) doc = { ...doc, ...fullSo, doctype: "Sales Order" };
 				} else {
 					const resInv = await call("pos_next.api.invoices.get_invoice", {
 						invoice_name: name,
 					});
 					const fullInv = resInv?.message || resInv;
-					if (fullInv) doc = { ...doc, ...fullInv, doctype: "Sales Invoice" };
+					if (fullInv) {
+						const resolvedDt =
+							fullInv.doctype || (isSalesOrder ? "Sales Order" : "Sales Invoice");
+						doc = { ...doc, ...fullInv, doctype: resolvedDt };
+						if (resolvedDt === "Sales Order") {
+							isSalesOrder = true;
+						}
+					}
 				}
 			} catch (e) {
-				console.warn("Could not fetch server document for WhatsApp:", e);
+				if (isSalesOrder) {
+					try {
+						const resSo = await call("frappe.client.get", {
+							doctype: "Sales Order",
+							name,
+						});
+						const fullSo = resSo?.message || resSo;
+						if (fullSo) doc = { ...doc, ...fullSo, doctype: "Sales Order" };
+					} catch (soErr) {
+						console.warn("Could not fetch Sales Order for WhatsApp:", soErr);
+					}
+				} else {
+					console.warn("Could not fetch server document for WhatsApp:", e);
+				}
 			}
 		}
+	}
+
+	if (!isQuotation && doc.doctype === "Sales Order") {
+		isSalesOrder = true;
 	}
 
 	if (initialOutstandingAmount != null && doc.outstanding_amount == null) {
@@ -194,7 +212,7 @@ export async function resolveWhatsAppDocument(inputDoc, fallbackCompany = "Muebl
 		...doc,
 		doctype: doctypeParam,
 		name: name || "S/N",
-		company: doc.company || fallbackCompany || "Muebles Ruffino",
+		company: doc.company || fallbackCompany || "Comprobante",
 		customer_display: customerName,
 		resolved_phone: extractLocalPhone(phone),
 		is_quotation: isQuotation,
@@ -214,7 +232,7 @@ export async function resolveWhatsAppDocument(inputDoc, fallbackCompany = "Muebl
 export function buildWhatsAppReceiptMessage(doc) {
 	if (!doc) return "";
 
-	const company = (doc.company || "Muebles Ruffino").replace(/ - [A-Z0-9]+$/i, "").toUpperCase();
+	const company = (doc.company || "Comprobante").replace(/ - [A-Z0-9]+$/i, "").toUpperCase();
 	const isQuotation = Boolean(doc.is_quotation || doc.doctype === "Quotation");
 	const isSalesOrder = Boolean(doc.is_sales_order || doc.doctype === "Sales Order");
 

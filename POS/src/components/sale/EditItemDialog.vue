@@ -137,7 +137,7 @@
 								"
 								class="w-full h-9 border border-slate-200 rounded-xl ps-10 pe-3 text-sm font-bold text-slate-900 tabular-nums"
 								:title="rateEditDisabledReason"
-								@input="calculateTotals"
+								@input="handleBoxRateInput"
 							/>
 						</div>
 						<!-- Compact warning when rate editing disabled due to pricing rules -->
@@ -194,6 +194,140 @@
 							@update:modelValue="handleWarehouseChange"
 						/>
 					</div>
+				</div>
+			</div>
+
+			<!-- Coverage / Surface Area Calculator (Opt-in via POS Settings) -->
+			<div
+				v-if="hasCoverageCalculator"
+				class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col gap-3"
+			>
+				<div class="flex items-center justify-between gap-2">
+					<div class="flex items-center gap-1.5 min-w-0">
+						<svg
+							class="w-4 h-4 text-slate-600 shrink-0"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+							/>
+						</svg>
+						<span class="text-xs font-bold text-slate-800 truncate">
+							{{ __("Calculadora de Cobertura") }} ({{ settingsStore.coverageUom }})
+						</span>
+					</div>
+					<span
+						class="text-[11px] font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg px-2 py-0.5 tabular-nums shrink-0"
+					>
+						1 {{ localItem.stock_uom }} = {{ formatArea(coveragePerUnit) }}
+						{{ settingsStore.coverageUom }}
+					</span>
+				</div>
+
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<!-- Required Area Input -->
+					<div>
+						<label class="block text-[11px] font-semibold text-slate-600 mb-1 text-start">
+							{{ __("Área requerida") }} ({{ settingsStore.coverageUom }})
+						</label>
+						<div class="relative h-9">
+							<input
+								v-model.number="localRequiredArea"
+								type="number"
+								min="0"
+								step="0.01"
+								inputmode="decimal"
+								:disabled="Boolean(localItem?.is_resolved_barcode)"
+								class="w-full h-9 bg-white border border-slate-200 rounded-xl px-3 pe-12 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 tabular-nums"
+								@input="handleAreaInput"
+							/>
+							<span
+								class="absolute inset-y-0 end-0 pe-3 flex items-center text-slate-400 text-xs font-bold"
+							>
+								{{ settingsStore.coverageUom }}
+							</span>
+						</div>
+					</div>
+
+					<!-- Bidirectional Price per Coverage UOM -->
+					<div>
+						<label class="block text-[11px] font-semibold text-slate-600 mb-1 text-start">
+							{{ __("Precio por {0}", [settingsStore.coverageUom]) }}
+						</label>
+						<div class="relative h-9">
+							<span
+								class="absolute inset-y-0 start-0 ps-3 flex items-center text-slate-400 text-xs font-bold"
+							>
+								{{ currencySymbol }}
+							</span>
+							<input
+								v-model.number="localCoverageRate"
+								type="number"
+								min="0"
+								step="0.01"
+								inputmode="decimal"
+								:readonly="!canEditRate"
+								:class="
+									canEditRate
+										? 'bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
+										: 'bg-slate-100 text-slate-500 cursor-not-allowed'
+								"
+								class="w-full h-9 border border-slate-200 rounded-xl ps-10 pe-3 text-sm font-bold text-slate-900 tabular-nums"
+								:title="rateEditDisabledReason"
+								@input="handleCoverageRateInput"
+							/>
+						</div>
+					</div>
+				</div>
+
+				<!-- Integer Box Rounding Suggestions when requested area is fractional -->
+				<div v-if="boxRoundingOptions.length === 2" class="space-y-1.5 pt-0.5">
+					<p class="text-[11px] font-medium text-slate-600">
+						{{
+							__("Ajuste a {0} cerradas para cubrir {1} {2}:", [
+								localItem.stock_uom,
+								formatArea(pendingAreaTarget),
+								settingsStore.coverageUom,
+							])
+						}}
+					</p>
+					<div class="grid grid-cols-2 gap-2">
+						<button
+							v-for="opt in boxRoundingOptions"
+							:key="opt.units"
+							type="button"
+							@click="applyRoundedBoxes(opt.units)"
+							:class="
+								localQuantity === opt.units
+									? 'bg-slate-900 border-slate-900 text-white'
+									: 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+							"
+							class="px-2.5 py-2 rounded-xl border text-start transition-colors touch-manipulation"
+						>
+							<div class="text-xs font-bold tabular-nums">
+								{{ opt.units }} {{ localItem.stock_uom }}
+							</div>
+							<div
+								:class="
+									localQuantity === opt.units ? 'text-slate-300' : 'text-slate-500'
+								"
+								class="text-[11px] font-medium tabular-nums"
+							>
+								{{ formatArea(opt.area) }} {{ settingsStore.coverageUom }}
+							</div>
+						</button>
+					</div>
+				</div>
+				<div v-else class="flex items-center justify-between text-[11px] text-slate-600 pt-0.5">
+					<span>{{ __("Cobertura efectiva:") }}</span>
+					<span class="font-bold text-slate-900 tabular-nums">
+						{{ formatArea(effectiveCoverageArea) }} {{ settingsStore.coverageUom }}
+					</span>
 				</div>
 			</div>
 
@@ -399,6 +533,11 @@ const localSerials = ref([]); // List of serial numbers for this item
 const removedSerials = ref([]); // Track serials removed during this edit session
 const originalSerials = ref([]); // Original serials when dialog opened
 const originalPriceListRate = ref(0); // Original price_list_rate when dialog opened (for rate edit validation)
+const localRequiredArea = ref(0);
+const localCoverageRate = ref(0);
+const pendingAreaTarget = ref(0);
+const isEditingCoverageRate = ref(false);
+const isEditingArea = ref(false);
 
 const getItemDetailsResource = createResource({
 	url: "pos_next.api.items.get_item_details",
@@ -412,8 +551,59 @@ const show = computed({
 
 const availableUoms = computed(() => {
 	if (!localItem.value || !localItem.value.item_uoms) return [];
-	return localItem.value.item_uoms.filter((u) => u.uom !== localItem.value.stock_uom);
+	const lockCov =
+		settingsStore.enableCoverageCalculator &&
+		settingsStore.lockCoverageUomDirectSale &&
+		settingsStore.coverageUom &&
+		localItem.value.stock_uom !== settingsStore.coverageUom;
+	return localItem.value.item_uoms.filter(
+		(u) =>
+			u.uom !== localItem.value.stock_uom &&
+			(!lockCov || u.uom !== settingsStore.coverageUom)
+	);
 });
+
+const coveragePerUnit = computed(() => {
+	if (
+		!settingsStore.enableCoverageCalculator ||
+		!settingsStore.coverageUom ||
+		!localItem.value ||
+		!localItem.value.stock_uom ||
+		localItem.value.stock_uom === settingsStore.coverageUom
+	) {
+		return 0;
+	}
+	const covEntry = localItem.value.item_uoms?.find(
+		(u) => u.uom === settingsStore.coverageUom
+	);
+	const rawFactor = Number(covEntry?.conversion_factor || 0);
+	if (!rawFactor || rawFactor <= 0) return 0;
+	return settingsStore.coverageFactorMode === "Divide" ? 1 / rawFactor : rawFactor;
+});
+
+const hasCoverageCalculator = computed(() => coveragePerUnit.value > 0);
+
+const effectiveCoverageArea = computed(() => {
+	if (!hasCoverageCalculator.value) return 0;
+	return Math.round(Number(localQuantity.value || 0) * coveragePerUnit.value * 10000) / 10000;
+});
+
+const boxRoundingOptions = computed(() => {
+	if (!hasCoverageCalculator.value || pendingAreaTarget.value <= 0) return [];
+	const exact = pendingAreaTarget.value / coveragePerUnit.value;
+	const lower = Math.max(1, Math.floor(exact + 1e-7));
+	const upper = Math.max(1, Math.ceil(exact - 1e-7));
+	if (lower === upper) return [];
+	return [
+		{ units: lower, area: lower * coveragePerUnit.value },
+		{ units: upper, area: upper * coveragePerUnit.value },
+	];
+});
+
+function formatArea(val) {
+	const num = Number(val || 0);
+	return Number(num.toFixed(4)).toString();
+}
 
 const currencySymbol = computed(() => getCurrencySymbol(props.currency));
 
@@ -511,8 +701,15 @@ watch(
 			// Reset stock check state
 			hasStock.value = true;
 			isCheckingStock.value = false;
+			pendingAreaTarget.value = 0;
 
 			calculateTotals();
+			if (hasCoverageCalculator.value) {
+				localRequiredArea.value =
+					Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
+			} else {
+				localRequiredArea.value = 0;
+			}
 			isInitializingItem.value = false;
 		}
 	},
@@ -563,6 +760,11 @@ function getSmartStep(quantity) {
 function incrementQuantity() {
 	const step = getSmartStep(localQuantity.value);
 	localQuantity.value = Math.round((localQuantity.value + step) * 10000) / 10000;
+	pendingAreaTarget.value = 0;
+	if (hasCoverageCalculator.value) {
+		localRequiredArea.value =
+			Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
+	}
 	calculateTotals();
 }
 
@@ -572,6 +774,11 @@ function decrementQuantity() {
 
 	if (newQty > 0) {
 		localQuantity.value = newQty;
+		pendingAreaTarget.value = 0;
+		if (hasCoverageCalculator.value) {
+			localRequiredArea.value =
+				Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
+		}
 		calculateTotals();
 	}
 }
@@ -580,6 +787,11 @@ function handleQuantityInput() {
 	// Allow any value during typing, just recalculate totals
 	// Don't validate or reset - let user type freely
 	if (localQuantity.value > 0 && !isNaN(localQuantity.value)) {
+		pendingAreaTarget.value = 0;
+		if (hasCoverageCalculator.value && !isEditingArea.value) {
+			localRequiredArea.value =
+				Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
+		}
 		calculateTotals();
 	}
 }
@@ -589,11 +801,64 @@ function handleQuantityBlur() {
 	if (!localQuantity.value || localQuantity.value <= 0 || isNaN(localQuantity.value)) {
 		// If invalid, reset to 1
 		localQuantity.value = 1;
+	} else if (hasCoverageCalculator.value && settingsStore.lockCoverageUomDirectSale) {
+		// Enforce whole boxes when fractional coverage UOM direct sale is locked
+		localQuantity.value = Math.max(1, Math.round(localQuantity.value));
 	} else {
 		// Round to 4 decimal places for consistency
 		localQuantity.value = Math.round(localQuantity.value * 10000) / 10000;
 	}
+	if (hasCoverageCalculator.value && !pendingAreaTarget.value) {
+		localRequiredArea.value =
+			Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
+	}
 	calculateTotals();
+}
+
+function handleAreaInput() {
+	if (!hasCoverageCalculator.value) return;
+	const area = Number.parseFloat(localRequiredArea.value);
+	if (!area || area <= 0 || Number.isNaN(area)) {
+		pendingAreaTarget.value = 0;
+		return;
+	}
+	isEditingArea.value = true;
+	const exactUnits = area / coveragePerUnit.value;
+	const lower = Math.max(1, Math.floor(exactUnits + 1e-7));
+	const upper = Math.max(1, Math.ceil(exactUnits - 1e-7));
+	if (lower === upper) {
+		pendingAreaTarget.value = 0;
+		localQuantity.value = lower;
+	} else {
+		pendingAreaTarget.value = area;
+		localQuantity.value = upper;
+	}
+	calculateTotals();
+	isEditingArea.value = false;
+}
+
+function applyRoundedBoxes(units) {
+	localQuantity.value = units;
+	pendingAreaTarget.value = 0;
+	if (hasCoverageCalculator.value) {
+		localRequiredArea.value = Math.round(units * coveragePerUnit.value * 10000) / 10000;
+	}
+	calculateTotals();
+}
+
+function handleBoxRateInput() {
+	calculateTotals();
+}
+
+function handleCoverageRateInput() {
+	if (!hasCoverageCalculator.value || !canEditRate.value) return;
+	const covRate = Number.parseFloat(localCoverageRate.value);
+	if (Number.isNaN(covRate) || covRate < 0) return;
+	isEditingCoverageRate.value = true;
+	discountValue.value = 0;
+	localRate.value = roundCurrency(covRate * coveragePerUnit.value);
+	calculateTotals();
+	isEditingCoverageRate.value = false;
 }
 
 function getConversionFactorForUom(uom) {
@@ -749,6 +1014,13 @@ function calculateDiscount() {
 function calculateTotals() {
 	calculatedSubtotal.value = localRate.value * localQuantity.value;
 	calculateDiscount();
+	if (hasCoverageCalculator.value && !isEditingCoverageRate.value) {
+		const netUnitRate =
+			localQuantity.value > 0
+				? calculatedTotal.value / localQuantity.value
+				: localRate.value;
+		localCoverageRate.value = roundCurrency(netUnitRate / coveragePerUnit.value);
+	}
 }
 
 function removeSerial(serialNo) {
@@ -802,6 +1074,11 @@ function updateItem() {
 		}
 	}
 
+	const netUnitRate =
+		localQuantity.value > 0
+			? calculatedTotal.value / localQuantity.value
+			: localRate.value;
+
 	const updatedItem = {
 		...localItem.value,
 		quantity: localQuantity.value,
@@ -815,6 +1092,13 @@ function updateItem() {
 		// Track manual rate edits for audit logging
 		is_rate_manually_edited: isRateManuallyEdited ? 1 : 0,
 		original_rate: isRateManuallyEdited ? originalPriceListRate.value : null,
+		...(hasCoverageCalculator.value
+			? {
+					custom_cantidad_m2:
+						Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000,
+					custom_precio_m2: roundCurrency(netUnitRate / coveragePerUnit.value),
+				}
+			: {}),
 	};
 
 	// Update serial numbers if item has serials

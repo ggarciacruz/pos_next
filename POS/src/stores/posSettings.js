@@ -45,9 +45,16 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allow_quotation: 0,
 		allow_select_sales_order: 0,
 		create_only_sales_order: 0,
+		create_payment_on_sales_order: 0,
+		allow_delivery_note_on_sales_order: 0,
 		allow_return_without_invoice: 0,
 		allow_free_batch_return: 0,
 		allow_print_draft_invoices: 0,
+		// Coverage / Surface UOM Conversion
+		enable_coverage_calculator: 0,
+		coverage_uom: "",
+		coverage_factor_mode: "Multiply",
+		lock_coverage_uom_direct_sale: 1,
 		// Pricing & Display
 		decimal_precision: "2",
 		// Customer Settings
@@ -56,6 +63,12 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		fetch_coupon: 0,
 		// Printing
 		receipt_header_title: "Recibo de Venta",
+		invoice_print_format: "",
+		sales_order_print_format: "",
+		quotation_print_format: "",
+		resolved_invoice_print_format: "",
+		resolved_sales_order_print_format: "",
+		resolved_quotation_print_format: "",
 		enable_siat_fiscal_format: 0,
 		allow_print_last_invoice: 0,
 		silent_print: 0,
@@ -151,6 +164,24 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	const allowQuotation = computed(() => Boolean(settings.value.allow_quotation));
 	const allowSelectSalesOrder = computed(() => Boolean(settings.value.allow_select_sales_order));
 	const createOnlySalesOrder = computed(() => Boolean(settings.value.create_only_sales_order));
+	const createPaymentOnSalesOrder = computed(() =>
+		Boolean(settings.value.create_payment_on_sales_order)
+	);
+	const allowDeliveryNoteOnSalesOrder = computed(() =>
+		Boolean(settings.value.allow_delivery_note_on_sales_order)
+	);
+	const enableCoverageCalculator = computed(() =>
+		Boolean(settings.value.enable_coverage_calculator)
+	);
+	const coverageUom = computed(() => (settings.value.coverage_uom || "").trim());
+	const coverageFactorMode = computed(
+		() => settings.value.coverage_factor_mode || "Multiply"
+	);
+	const lockCoverageUomDirectSale = computed(() =>
+		settings.value.lock_coverage_uom_direct_sale === undefined
+			? true
+			: Boolean(settings.value.lock_coverage_uom_direct_sale)
+	);
 	const allowReturnWithoutInvoice = computed(() =>
 		Boolean(settings.value.allow_return_without_invoice)
 	);
@@ -177,6 +208,41 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	const receiptHeaderTitle = computed(
 		() => settings.value.receipt_header_title || "Recibo de Venta"
 	);
+	const invoicePrintFormat = computed(() => settings.value.invoice_print_format || "");
+	const salesOrderPrintFormat = computed(() => settings.value.sales_order_print_format || "");
+	const quotationPrintFormat = computed(() => settings.value.quotation_print_format || "");
+	const resolvedInvoicePrintFormat = computed(
+		() => settings.value.resolved_invoice_print_format || settings.value.invoice_print_format || ""
+	);
+	const resolvedSalesOrderPrintFormat = computed(
+		() =>
+			settings.value.resolved_sales_order_print_format ||
+			settings.value.sales_order_print_format ||
+			""
+	);
+	const resolvedQuotationPrintFormat = computed(
+		() =>
+			settings.value.resolved_quotation_print_format ||
+			settings.value.quotation_print_format ||
+			""
+	);
+
+	function getPrintFormatForDoctype(doctype = "Sales Invoice", profilePrintFormat = "") {
+		if (doctype === "Quotation") {
+			return resolvedQuotationPrintFormat.value || null;
+		}
+		if (doctype === "Sales Order") {
+			return resolvedSalesOrderPrintFormat.value || null;
+		}
+		if (resolvedInvoicePrintFormat.value) {
+			return resolvedInvoicePrintFormat.value;
+		}
+		const thermalFormats = new Set(["POS Next Receipt", "MDX POS Receipt", "POS Invoice"]);
+		if (profilePrintFormat && !thermalFormats.has(profilePrintFormat)) {
+			return profilePrintFormat;
+		}
+		return null;
+	}
 	const enableSiatFiscalFormat = computed(() =>
 		Boolean(settings.value.enable_siat_fiscal_format)
 	);
@@ -335,14 +401,26 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			allow_quotation: 0,
 			allow_select_sales_order: 0,
 			create_only_sales_order: 0,
+			create_payment_on_sales_order: 0,
+			allow_delivery_note_on_sales_order: 0,
 			allow_return_without_invoice: 0,
 			allow_free_batch_return: 0,
 			allow_print_draft_invoices: 0,
+			enable_coverage_calculator: 0,
+			coverage_uom: "",
+			coverage_factor_mode: "Multiply",
+			lock_coverage_uom_direct_sale: 1,
 			decimal_precision: "2",
 			allow_customer_purchase_order: 0,
 			allow_duplicate_customer_names: 0,
 			fetch_coupon: 0,
 			receipt_header_title: "Recibo de Venta",
+			invoice_print_format: "",
+			sales_order_print_format: "",
+			quotation_print_format: "",
+			resolved_invoice_print_format: "",
+			resolved_sales_order_print_format: "",
+			resolved_quotation_print_format: "",
 			enable_siat_fiscal_format: 0,
 			allow_print_last_invoice: 0,
 			silent_print: 0,
@@ -469,6 +547,12 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allowQuotation,
 		allowSelectSalesOrder,
 		createOnlySalesOrder,
+		createPaymentOnSalesOrder,
+		allowDeliveryNoteOnSalesOrder,
+		enableCoverageCalculator,
+		coverageUom,
+		coverageFactorMode,
+		lockCoverageUomDirectSale,
 		allowReturnWithoutInvoice,
 		allowFreeBatchReturn,
 		allowPrintDraftInvoices,
@@ -483,6 +567,13 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 
 		// Computed - Printing
 		receiptHeaderTitle,
+		invoicePrintFormat,
+		salesOrderPrintFormat,
+		quotationPrintFormat,
+		resolvedInvoicePrintFormat,
+		resolvedSalesOrderPrintFormat,
+		resolvedQuotationPrintFormat,
+		getPrintFormatForDoctype,
 		enableSiatFiscalFormat,
 		allowPrintLastInvoice,
 		silentPrint,

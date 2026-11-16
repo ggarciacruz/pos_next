@@ -934,7 +934,7 @@
 							fullWidth
 							@click="
 								() => {
-									handlePrintInvoicePDF(uiStore.lastInvoiceName);
+									handlePrintInvoicePDF(uiStore.lastInvoiceName, lastSubmittedDoctype);
 									uiStore.showSuccessDialog = false;
 								}
 							"
@@ -962,7 +962,7 @@
 							fullWidth
 							@click="
 								() => {
-									handleWhatsAppInvoice({ name: uiStore.lastInvoiceName });
+									handleWhatsAppInvoice({ name: uiStore.lastInvoiceName, doctype: lastSubmittedDoctype });
 									uiStore.showSuccessDialog = false;
 								}
 							"
@@ -1296,6 +1296,20 @@ const logoutAfterClose = ref(false);
 const editCustomer = ref(null); // Customer being edited (null for create mode)
 const showClearCacheDialog = ref(false);
 const clearCacheOverlayRef = ref(null);
+const lastSubmittedDoctype = ref("Sales Invoice");
+
+function getSelectableItemUoms(item) {
+	if (!Array.isArray(item?.item_uoms)) return [];
+	if (
+		posSettingsStore.enableCoverageCalculator &&
+		posSettingsStore.lockCoverageUomDirectSale &&
+		posSettingsStore.coverageUom &&
+		item.stock_uom !== posSettingsStore.coverageUom
+	) {
+		return item.item_uoms.filter((u) => u.uom !== posSettingsStore.coverageUom);
+	}
+	return item.item_uoms;
+}
 
 // Dialog state for printing saved draft
 const showPrintDraftConfirmDialog = ref(false);
@@ -2130,8 +2144,9 @@ function handleItemSelected(item, autoAdd = false) {
 		return;
 	}
 
-	// Check for UOMs
-	if (item.item_uoms && item.item_uoms.length > 0) {
+	// Check for UOMs (excluding locked coverage UOM when direct fractional sale is disabled)
+	const selectableUoms = getSelectableItemUoms(item);
+	if (selectableUoms.length > 0) {
 		cartStore.setPendingItem(item, 1, "uom");
 		uiStore.showItemSelectionDialog = true;
 		return;
@@ -2405,13 +2420,17 @@ async function handlePaymentCompleted(paymentData) {
 				showSuccess(__("Invoice saved offline. Will sync when online"));
 			}
 		} else {
-			// Get item codes from cart before clearing
+			// Get item codes and active target doctype from cart before clearing
 			const soldItemCodes = cartStore.invoiceItems.map((item) => item.item_code);
+			const activeTargetDoctype =
+				cartStore.targetDoctype ||
+				(posSettingsStore.createOnlySalesOrder ? "Sales Order" : "Sales Invoice");
 
 			const result = await cartStore.submitInvoice({
 				isCreditSale: Boolean(paymentData.is_credit_sale),
 				receivableAccount: paymentData.receivable_account || null,
 				emitOfficialInvoice: Boolean(paymentData.emit_official_invoice),
+				createDeliveryNote: paymentData.create_delivery_note !== false,
 				deliveryData: {
 					requiresDelivery: paymentData.requires_delivery,
 					custom_fecha_entrega: paymentData.custom_fecha_entrega,
@@ -2423,6 +2442,8 @@ async function handlePaymentCompleted(paymentData) {
 			});
 
 			if (result) {
+				lastSubmittedDoctype.value =
+					result.doctype || result.message?.doctype || activeTargetDoctype;
 				uiStore.clearLastOfflinePrintDoc();
 
 				// If this online checkout originated from editing a still-queued
@@ -2688,7 +2709,8 @@ async function handleOptionSelected(option) {
 				}
 			}
 
-			if (variant.item_uoms && variant.item_uoms.length > 0) {
+			const selectableVariantUoms = getSelectableItemUoms(variant);
+			if (selectableVariantUoms.length > 0) {
 				cartStore.setPendingItem(variant, variantQty, "uom");
 				return;
 			}
@@ -2902,13 +2924,23 @@ function confirmPrintDraftPDF() {
 	const draft = lastSavedDraft.value;
 	const doctype = draft.doctype || "Quotation";
 	const name = draft.draft_id;
-	const format = doctype === "Quotation" ? "Cotización de Venta de Muebles" : (doctype === "Sales Order" ? "Nota de Pre-venta de Muebles" : null);
+	const format = posSettingsStore.getPrintFormatForDoctype(
+		doctype,
+		shiftStore.currentProfile?.print_format
+	);
 	printDocumentLetterPDF(doctype, name, format);
 }
 
-function handlePrintInvoicePDF(invoiceName) {
+function handlePrintInvoicePDF(invoiceName, doctypeHint = null) {
 	if (!invoiceName) return;
-	printDocumentLetterPDF("Sales Invoice", invoiceName, "Nota de Venta Muebles Ruffino");
+	const doctype =
+		doctypeHint ||
+		(posSettingsStore.createOnlySalesOrder ? "Sales Order" : "Sales Invoice");
+	const format = posSettingsStore.getPrintFormatForDoctype(
+		doctype,
+		shiftStore.currentProfile?.print_format
+	);
+	printDocumentLetterPDF(doctype, invoiceName, format);
 }
 
 async function handlePrintActiveDraftTicket() {
@@ -2942,7 +2974,10 @@ function handlePrintActiveDraftPDF() {
 	const draftId = cartStore.currentDraftId;
 	const isQuotation = draftId.includes("-QTN-") || draftId.includes("-COT-") || draftId.startsWith("QTN-") || draftId.startsWith("COT-") || draftId.startsWith("SAL-QTN-");
 	const doctype = isQuotation ? "Quotation" : "Sales Order";
-	const format = isQuotation ? "Cotización de Venta de Muebles" : "Nota de Pre-venta de Muebles";
+	const format = posSettingsStore.getPrintFormatForDoctype(
+		doctype,
+		shiftStore.currentProfile?.print_format
+	);
 	printDocumentLetterPDF(doctype, draftId, format);
 }
 

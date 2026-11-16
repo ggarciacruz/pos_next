@@ -94,6 +94,38 @@
 					</div>
 				</div>
 
+				<!-- Entrega de Mercadería en Orden de Venta (Nota de Entrega opcional) -->
+				<div
+					v-if="isSalesOrder && settingsStore.allowDeliveryNoteOnSalesOrder"
+					class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex flex-col gap-1 shrink-0"
+				>
+					<div class="flex items-center justify-between gap-2">
+						<label class="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-800">
+							<input
+								type="checkbox"
+								v-model="createDeliveryNote"
+								class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+							/>
+							<span class="flex items-center gap-1.5">
+								<svg class="w-4 h-4 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+								</svg>
+								{{ __("Entregar mercadería ahora (Generar Nota de Entrega)") }}
+							</span>
+						</label>
+						<MdxBadge :variant="createDeliveryNote ? 'success' : 'neutral'" size="sm">
+							{{ createDeliveryNote ? __("Inmediata") : __("Diferida") }}
+						</MdxBadge>
+					</div>
+					<p class="text-[11px] text-slate-500 leading-snug ps-6">
+						{{
+							createDeliveryNote
+								? __("Descuenta inventario de almacén al confirmar la orden.")
+								: __("Solo registra la Orden de Venta; la Nota de Entrega se emitirá después.")
+						}}
+					</p>
+				</div>
+
 				<!-- Toggle for Official Invoice (Facturado) -->
 				<div
 					v-if="!isSalesOrder && settingsStore.enableSiatFiscalFormat"
@@ -1981,6 +2013,7 @@ const walletPaymentMethods = ref(new Set()); // Set of mode_of_payment names tha
 
 // Delivery state for truck dispatch
 const requiresDelivery = ref(false);
+const createDeliveryNote = ref(true);
 const deliveryDate = ref("");
 const deliveryAddress = ref("");
 const deliveryPhone = ref("");
@@ -2876,7 +2909,10 @@ watch(show, (newVal) => {
 		deliveryPhone.value = defaultPhone;
 		billingNit.value = defaultNit;
 		billingRazonSocial.value = defaultRazonSocial;
-		requiresDelivery.value = isSalesOrder.value || Boolean(defaultAddr);
+		requiresDelivery.value =
+			(isSalesOrder.value && !settingsStore.allowDeliveryNoteOnSalesOrder) ||
+			Boolean(defaultAddr);
+		createDeliveryNote.value = true;
 		driverCollectionMode.value = "";
 
 		// Debug logging
@@ -3327,7 +3363,11 @@ function addCreditAccountPayment() {
 		paid_amount: 0,
 		outstanding_amount: props.grandTotal,
 		sales_team: selectedSalesPersons.value.length > 0 ? selectedSalesPersons.value : null,
-		delivery_date: isSalesOrder.value ? deliveryDate.value : null,
+		delivery_date: isSalesOrder.value ? deliveryDate.value || today : null,
+		create_delivery_note:
+			isSalesOrder.value && settingsStore.allowDeliveryNoteOnSalesOrder
+				? createDeliveryNote.value
+				: false,
 		// Despacho / Delivery fields
 		requires_delivery: requiresDelivery.value,
 		custom_fecha_entrega: requiresDelivery.value ? deliveryDate.value : null,
@@ -3399,7 +3439,11 @@ function completePayment() {
 		paid_amount: totalPaid.value,
 		outstanding_amount: outstanding,
 		sales_team: selectedSalesPersons.value.length > 0 ? selectedSalesPersons.value : null,
-		delivery_date: isSalesOrder.value ? deliveryDate.value : null,
+		delivery_date: isSalesOrder.value ? deliveryDate.value || today : null,
+		create_delivery_note:
+			isSalesOrder.value && settingsStore.allowDeliveryNoteOnSalesOrder
+				? createDeliveryNote.value
+				: false,
 		// Despacho / Delivery fields
 		requires_delivery: requiresDelivery.value,
 		custom_fecha_entrega: requiresDelivery.value ? deliveryDate.value : null,

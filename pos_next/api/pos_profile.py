@@ -96,23 +96,18 @@ def get_pos_profile_data(pos_profile):
 @frappe.whitelist()
 def get_pos_settings(pos_profile):
 	"""Get POS Settings for a given POS Profile"""
-	from pos_next.api.constants import DEFAULT_POS_SETTINGS, POS_SETTINGS_FIELDS
+	from pos_next.api.constants import (
+		DEFAULT_POS_SETTINGS,
+		attach_resolved_print_formats,
+		get_safe_pos_settings_dict,
+	)
 
 	if not pos_profile:
 		return DEFAULT_POS_SETTINGS.copy()
 
 	try:
-		# Get POS Settings linked to this POS Profile
-		pos_settings = frappe.db.get_value(
-			"POS Settings", {"pos_profile": pos_profile, "enabled": 1}, POS_SETTINGS_FIELDS, as_dict=True
-		)
-
-		if not pos_settings:
-			pos_settings = DEFAULT_POS_SETTINGS.copy()
-
-		pos_settings["user_can_cancel_invoice"] = cint(
-			bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
-		)
+		pos_settings = get_safe_pos_settings_dict(pos_profile, require_enabled=True)
+		attach_resolved_print_formats(pos_settings, pos_profile=pos_profile)
 		pos_settings["user_can_manage_stock"] = cint(
 			bool(
 				frappe.has_permission("Stock Entry", "create")

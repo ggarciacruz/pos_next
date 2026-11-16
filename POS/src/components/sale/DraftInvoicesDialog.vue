@@ -760,7 +760,10 @@ function handlePrintDraftPDF(draft) {
 	const isQuotation = isDraftQuotation(draft);
 	const doctype = draft.doctype || (isQuotation ? "Quotation" : "Sales Order");
 	const name = draft.draft_id;
-	const format = isQuotation ? "Cotización de Venta de Muebles" : null;
+	const format = posSettingsStore.getPrintFormatForDoctype(
+		doctype,
+		shiftStore.currentProfile?.print_format
+	);
 	let url = `/printview?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}`;
 	if (format) {
 		url += `&format=${encodeURIComponent(format)}`;

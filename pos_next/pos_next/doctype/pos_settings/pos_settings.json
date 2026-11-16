@@ -46,11 +46,19 @@
   "allow_quotation",
   "allow_select_sales_order",
   "create_only_sales_order",
+  "create_payment_on_sales_order",
+  "allow_delivery_note_on_sales_order",
   "column_break_operations",
   "allow_return_without_invoice",
   "return_validity_days",
   "allow_free_batch_return",
   "allow_print_draft_invoices",
+  "section_break_coverage",
+  "enable_coverage_calculator",
+  "coverage_uom",
+  "column_break_coverage",
+  "coverage_factor_mode",
+  "lock_coverage_uom_direct_sale",
   "section_break_pricing",
   "decimal_precision",
   "tax_inclusive",
@@ -60,6 +68,9 @@
   "fetch_coupon",
   "section_break_printing",
   "receipt_header_title",
+  "invoice_print_format",
+  "sales_order_print_format",
+  "quotation_print_format",
   "enable_siat_fiscal_format",
   "allow_print_last_invoice",
   "silent_print",
@@ -379,6 +390,22 @@
    "label": "Modo Solo Pre-ventas"
   },
   {
+   "default": "0",
+   "depends_on": "eval:doc.allow_sales_order || doc.create_only_sales_order",
+   "description": "Registrar y asentar automáticamente Asientos de Pago (Payment Entry) al confirmar una Orden de Venta en el POS",
+   "fieldname": "create_payment_on_sales_order",
+   "fieldtype": "Check",
+   "label": "Generar Asiento de Pago al Confirmar Orden de Venta"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.allow_sales_order || doc.create_only_sales_order",
+   "description": "Permitir generar y asentar Nota de Entrega (Delivery Note) directamente desde el cobro de Orden de Venta en el POS",
+   "fieldname": "allow_delivery_note_on_sales_order",
+   "fieldtype": "Check",
+   "label": "Permitir Generar Nota de Entrega desde Orden de Venta"
+  },
+  {
    "fieldname": "column_break_operations",
    "fieldtype": "Column Break"
   },
@@ -409,6 +436,49 @@
    "fieldname": "allow_print_draft_invoices",
    "fieldtype": "Check",
    "label": "Permitir Imprimir Pre-tickets"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_coverage",
+   "fieldtype": "Section Break",
+   "label": "Conversión de Cobertura y Superficie (Cajas / UOM)"
+  },
+  {
+   "default": "0",
+   "description": "Activar calculadora bidireccional de superficie/cobertura (ej. m2 por caja) y bloqueo opcional de fracciones en el POS",
+   "fieldname": "enable_coverage_calculator",
+   "fieldtype": "Check",
+   "label": "Habilitar Calculadora de Cobertura / Superficie"
+  },
+  {
+   "default": "",
+   "depends_on": "enable_coverage_calculator",
+   "description": "Unidad de medida de cobertura o superficie (ej. m2)",
+   "fieldname": "coverage_uom",
+   "fieldtype": "Link",
+   "label": "UOM de Cobertura",
+   "options": "UOM"
+  },
+  {
+   "fieldname": "column_break_coverage",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Multiply",
+   "depends_on": "enable_coverage_calculator",
+   "description": "Multiply: m2 por caja = 1 / conversion_factor (cuando conversion_factor de m2 < 1). Divide: m2 por caja = conversion_factor.",
+   "fieldname": "coverage_factor_mode",
+   "fieldtype": "Select",
+   "label": "Modo de Factor de Conversión",
+   "options": "Multiply\nDivide"
+  },
+  {
+   "default": "1",
+   "depends_on": "enable_coverage_calculator",
+   "description": "Impedir seleccionar la UOM de cobertura directamente en el carrito cuando el producto se inventaría en Cajas/Piezas enteras",
+   "fieldname": "lock_coverage_uom_direct_sale",
+   "fieldtype": "Check",
+   "label": "Bloquear Venta Fraccionada en UOM de Cobertura"
   },
   {
    "collapsible": 1,
@@ -471,6 +541,30 @@
    "fieldtype": "Select",
    "label": "Título del Comprobante",
    "options": "Recibo de Venta\nNota de Venta\nComprobante de Venta\nTicket de Venta\nFactura"
+  },
+  {
+   "default": "",
+   "description": "Formato de impresión PDF para Factura de Venta (si se deja vacío usa el del Perfil de POS o el predeterminado del DocType)",
+   "fieldname": "invoice_print_format",
+   "fieldtype": "Link",
+   "label": "Formato de Impresión (Factura de Venta)",
+   "options": "Print Format"
+  },
+  {
+   "default": "",
+   "description": "Formato de impresión PDF para Orden de Venta / Pre-venta (si se deja vacío usa el predeterminado del DocType)",
+   "fieldname": "sales_order_print_format",
+   "fieldtype": "Link",
+   "label": "Formato de Impresión (Orden de Venta)",
+   "options": "Print Format"
+  },
+  {
+   "default": "",
+   "description": "Formato de impresión PDF para Cotización (si se deja vacío usa el predeterminado del DocType)",
+   "fieldname": "quotation_print_format",
+   "fieldtype": "Link",
+   "label": "Formato de Impresión (Cotización)",
+   "options": "Print Format"
   },
   {
    "default": "0",

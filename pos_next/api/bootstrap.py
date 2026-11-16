@@ -251,24 +251,16 @@ def _get_pos_settings(pos_profile_doc):
 		dict: POS Settings with derived values
 	"""
 	try:
-		settings = (
-			frappe.db.get_value(
-				"POS Settings",
-				{"pos_profile": pos_profile_doc.name, "enabled": 1},
-				POS_SETTINGS_FIELDS,
-				as_dict=True,
-			)
-			or DEFAULT_POS_SETTINGS.copy()
-		)
+		from pos_next.api.constants import attach_resolved_print_formats, get_safe_pos_settings_dict
+
+		settings = get_safe_pos_settings_dict(pos_profile_doc.name, require_enabled=True)
 
 		# Derive from POS Profile (single source of truth)
 		settings["allow_write_off_change"] = (
 			1 if (pos_profile_doc.write_off_account and (pos_profile_doc.write_off_limit or 0) > 0) else 0
 		)
 		settings["disable_rounded_total"] = pos_profile_doc.disable_rounded_total or 0
-		settings["user_can_cancel_invoice"] = cint(
-			bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles())
-		)
+		attach_resolved_print_formats(settings, pos_profile=pos_profile_doc.name)
 		settings["user_can_manage_stock"] = cint(
 			bool(
 				frappe.has_permission("Stock Entry", "create")

@@ -129,7 +129,19 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	const appliedCoupon = ref(null);
 	const selectionMode = ref("uom"); // 'uom' or 'variant'
 	const currentDraftId = ref(null);
-	const targetDoctype = ref("Sales Invoice");
+	const targetDoctype = ref(
+		settingsStore.createOnlySalesOrder ? "Sales Order" : "Sales Invoice"
+	);
+
+	watch(
+		() => settingsStore.createOnlySalesOrder,
+		(onlySo) => {
+			if (onlySo && targetDoctype.value === "Sales Invoice") {
+				targetDoctype.value = "Sales Order";
+			}
+		},
+		{ immediate: true }
+	);
 
 	// Offer processing state management
 	const offerProcessingState = ref({
@@ -281,7 +293,9 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		appliedOffers.value = [];
 		appliedCoupon.value = null;
 		currentDraftId.value = null;
-		targetDoctype.value = "Sales Invoice";
+		targetDoctype.value = settingsStore.createOnlySalesOrder
+			? "Sales Order"
+			: "Sales Invoice";
 
 		// Reset offer processing state
 		offerProcessingState.value.lastCartHash = "";
@@ -293,6 +307,10 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	}
 
 	function setTargetDoctype(doctype) {
+		if (settingsStore.createOnlySalesOrder && doctype === "Sales Invoice") {
+			targetDoctype.value = "Sales Order";
+			return;
+		}
 		targetDoctype.value = doctype;
 	}
 
@@ -325,15 +343,25 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			.filter(Boolean);
 		const wasOffline = offlineState.isOffline;
 
+		const effectiveDoctype =
+			settingsStore.createOnlySalesOrder && targetDoctype.value === "Sales Invoice"
+				? "Sales Order"
+				: targetDoctype.value;
+		const effectiveDeliveryDate =
+			effectiveDoctype === "Sales Order" && !deliveryDate.value
+				? new Date().toISOString().split("T")[0]
+				: deliveryDate.value;
+
 		const result = await baseSubmitInvoice(
-			targetDoctype.value,
-			deliveryDate.value,
+			effectiveDoctype,
+			effectiveDeliveryDate,
 			writeOffAmount.value,
 			Boolean(options.isCreditSale),
 			options.receivableAccount || null,
 			currentDraftId.value,
 			Boolean(options.emitOfficialInvoice),
-			options.deliveryData || null
+			options.deliveryData || null,
+			options.createDeliveryNote !== undefined ? Boolean(options.createDeliveryNote) : true
 		);
 		// Reset write-off amount after successful submission
 		if (result) {
@@ -1446,6 +1474,10 @@ export const usePOSCartStore = defineStore("posCart", () => {
 				cartItem.is_rate_manually_edited = updates.is_rate_manually_edited;
 			if (updates.original_rate !== undefined)
 				cartItem.original_rate = updates.original_rate;
+			if (updates.custom_cantidad_m2 !== undefined)
+				cartItem.custom_cantidad_m2 = updates.custom_cantidad_m2;
+			if (updates.custom_precio_m2 !== undefined)
+				cartItem.custom_precio_m2 = updates.custom_precio_m2;
 
 			recalculateItem(cartItem);
 			rebuildIncrementalCache();

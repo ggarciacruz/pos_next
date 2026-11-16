@@ -839,23 +839,30 @@ function buildUomOptions() {
 		priceLabel: __("per {0}", [props.item.stock_uom]),
 	});
 
-	// Additional UOMs
+	// Additional UOMs (excluding locked coverage UOM when direct fractional sale is disabled)
+	const lockCov =
+		settingsStore.enableCoverageCalculator &&
+		settingsStore.lockCoverageUomDirectSale &&
+		settingsStore.coverageUom &&
+		props.item.stock_uom !== settingsStore.coverageUom;
 	if (props.item.item_uoms && props.item.item_uoms.length > 0) {
-		props.item.item_uoms.forEach((uomData) => {
-			uomOptions.push({
-				type: "uom",
-				uom: uomData.uom,
-				conversion_factor: uomData.conversion_factor,
-				label: uomData.uom,
-				description: __("1 {0} = {1} {2}", [
-					uomData.uom,
-					uomData.conversion_factor,
-					props.item.stock_uom,
-				]),
-				rate: getUomPrice(uomData.uom, uomData.conversion_factor),
-				priceLabel: __("per {0}", [uomData.uom]),
+		props.item.item_uoms
+			.filter((uomData) => !lockCov || uomData.uom !== settingsStore.coverageUom)
+			.forEach((uomData) => {
+				uomOptions.push({
+					type: "uom",
+					uom: uomData.uom,
+					conversion_factor: uomData.conversion_factor,
+					label: uomData.uom,
+					description: __("1 {0} = {1} {2}", [
+						uomData.uom,
+						uomData.conversion_factor,
+						props.item.stock_uom,
+					]),
+					rate: getUomPrice(uomData.uom, uomData.conversion_factor),
+					priceLabel: __("per {0}", [uomData.uom]),
+				});
 			});
-		});
 	}
 
 	return uomOptions;
@@ -884,9 +891,20 @@ function confirm() {
 		if (list.length === 0) return;
 
 		// Preserve secondary UOM / Batch / Serial flow if a single specialized variant was chosen
+		const singleVariantExtraUoms = (list[0].data?.item_uoms || []).filter((u) => {
+			if (
+				settingsStore.enableCoverageCalculator &&
+				settingsStore.lockCoverageUomDirectSale &&
+				settingsStore.coverageUom &&
+				list[0].data?.stock_uom !== settingsStore.coverageUom
+			) {
+				return u.uom !== settingsStore.coverageUom;
+			}
+			return true;
+		});
 		if (
 			list.length === 1 &&
-			(list[0].data?.item_uoms?.length > 0 ||
+			(singleVariantExtraUoms.length > 0 ||
 				list[0].data?.has_batch_no ||
 				list[0].data?.has_serial_no)
 		) {

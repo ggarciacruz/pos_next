@@ -90,12 +90,16 @@ def get_payment_history(invoice_name: str, include_metadata: bool = True) -> Dic
 	Raises:
 	    frappe.DoesNotExistError: If invoice doesn\'t exist
 	"""
-	# Validate and get invoice using ORM
+	# Validate and get invoice / sales order using ORM
 	if not invoice_name or not isinstance(invoice_name, str):
 		frappe.throw(_("Invalid invoice name provided"))
 
+	target_doctype = "Sales Invoice"
+	if not frappe.db.exists("Sales Invoice", invoice_name) and frappe.db.exists("Sales Order", invoice_name):
+		target_doctype = "Sales Order"
+
 	try:
-		invoice = frappe.get_doc("Sales Invoice", invoice_name)
+		invoice = frappe.get_doc(target_doctype, invoice_name)
 	except frappe.DoesNotExistError:
 		frappe.log_error(
 			title="Invoice Not Found",
@@ -230,13 +234,18 @@ def get_payment_history(invoice_name: str, include_metadata: bool = True) -> Dic
 
 			payments.append(payment_record)
 
-	# Calculate totals from invoice (most reliable source)
-	total_paid = flt(invoice.grand_total) - flt(invoice.outstanding_amount)
+	# Calculate totals from invoice / sales order (most reliable source)
+	if target_doctype == "Sales Order":
+		total_paid = flt(getattr(invoice, "advance_paid", 0) or 0)
+		outstanding_val = max(0.0, flt(invoice.grand_total) - total_paid)
+	else:
+		outstanding_val = flt(invoice.outstanding_amount)
+		total_paid = flt(invoice.grand_total) - outstanding_val
 
 	return {
 		"payments": payments,
 		"total_paid": total_paid,
-		"outstanding": flt(invoice.outstanding_amount),
+		"outstanding": outstanding_val,
 		"grand_total": flt(invoice.grand_total),
 		"payment_count": len(payments),
 		"currency": invoice.currency,
@@ -392,9 +401,13 @@ def create_payment_entry(
 	if amount <= 0:
 		frappe.throw(_("Payment amount must be greater than zero"))
 
-	# Get invoice using ORM with permission check
+	target_doctype = "Sales Invoice"
+	if not frappe.db.exists("Sales Invoice", invoice_name) and frappe.db.exists("Sales Order", invoice_name):
+		target_doctype = "Sales Order"
+
+	# Get invoice / sales order using ORM with permission check
 	try:
-		invoice = frappe.get_doc("Sales Invoice", invoice_name)
+		invoice = frappe.get_doc(target_doctype, invoice_name)
 	except frappe.DoesNotExistError:
 		frappe.throw(_("Invoice {0} does not exist").format(invoice_name))
 
@@ -405,20 +418,27 @@ def create_payment_entry(
 	if invoice.docstatus == 2:
 		frappe.throw(_("Cannot add payment to cancelled invoice"))
 
+	inv_outstanding = (
+		max(0.0, flt(invoice.grand_total) - flt(getattr(invoice, "advance_paid", 0) or 0))
+		if target_doctype == "Sales Order"
+		else flt(invoice.outstanding_amount)
+	)
+	inv_date = invoice.transaction_date if target_doctype == "Sales Order" else invoice.posting_date
+
 	# Validate amount doesn't exceed outstanding
-	if amount > flt(invoice.outstanding_amount) + AMOUNT_TOLERANCE:
+	if amount > inv_outstanding + AMOUNT_TOLERANCE:
 		frappe.throw(
 			_("Payment amount {0} exceeds outstanding amount {1}").format(
 				frappe.format_value(amount, {"fieldtype": "Currency"}),
-				frappe.format_value(invoice.outstanding_amount, {"fieldtype": "Currency"}),
+				frappe.format_value(inv_outstanding, {"fieldtype": "Currency"}),
 			)
 		)
 
 	# Validate posting date
 	posting_date = posting_date or nowdate()
-	if get_datetime(posting_date) < get_datetime(invoice.posting_date):
+	if get_datetime(posting_date) < get_datetime(inv_date):
 		frappe.throw(
-			_("Payment date {0} cannot be before invoice date {1}").format(posting_date, invoice.posting_date)
+			_("Payment date {0} cannot be before invoice date {1}").format(posting_date, inv_date)
 		)
 
 	# Validate mode of payment exists
@@ -444,7 +464,7 @@ def create_payment_entry(
 			payment_account = account_info.get("account")
 
 		pe = get_payment_entry(
-			"Sales Invoice",
+			target_doctype,
 			invoice_name,
 			party_amount=amount,
 			bank_account=payment_account,
@@ -457,7 +477,18 @@ def create_payment_entry(
 		if reference_no:
 			pe.reference_no = str(reference_no)[:140]
 		else:
-			pe.reference_no = f"POS-{invoice_name}"
+			open_shift_name = frappe.db.get_value(
+				"POS Opening Shift",
+				{
+					"user": frappe.session.user,
+					"pos_closing_shift": ["is", "not set"],
+					"docstatus": 1,
+					"status": "Open",
+				},
+				"name",
+				order_by="period_start_date desc",
+			)
+			pe.reference_no = str(open_shift_name or f"POS-{invoice_name}")[:140]
 
 		if remarks:
 			pe.remarks = str(remarks)[:500]
@@ -470,21 +501,25 @@ def create_payment_entry(
 		pe.insert()
 		pe.submit()
 
-		# Synchronize Sales Invoice paid_amount and custom_saldo_pendiente
-		# so dashboards, reports, and number cards always match real financial reality
-		actual_outstanding = flt(frappe.db.get_value("Sales Invoice", invoice_name, "outstanding_amount") or 0)
-		grand_total = flt(frappe.db.get_value("Sales Invoice", invoice_name, "grand_total") or 0)
-		actual_paid = max(0.0, grand_total - actual_outstanding)
-		frappe.db.set_value(
-			"Sales Invoice",
-			invoice_name,
-			{
+		if target_doctype == "Sales Invoice":
+			# Synchronize Sales Invoice paid_amount and custom_saldo_pendiente (when column exists)
+			actual_outstanding = flt(
+				frappe.db.get_value("Sales Invoice", invoice_name, "outstanding_amount") or 0
+			)
+			grand_total = flt(frappe.db.get_value("Sales Invoice", invoice_name, "grand_total") or 0)
+			actual_paid = max(0.0, grand_total - actual_outstanding)
+			si_updates = {
 				"paid_amount": actual_paid,
 				"base_paid_amount": actual_paid,
-				"custom_saldo_pendiente": actual_outstanding,
-			},
-			update_modified=False,
-		)
+			}
+			if frappe.db.has_column("Sales Invoice", "custom_saldo_pendiente"):
+				si_updates["custom_saldo_pendiente"] = actual_outstanding
+			frappe.db.set_value(
+				"Sales Invoice",
+				invoice_name,
+				si_updates,
+				update_modified=False,
+			)
 
 		return pe.name
 
@@ -638,6 +673,67 @@ def get_unpaid_invoices(
 	elif limit > MAX_INVOICE_LIMIT:
 		limit = MAX_INVOICE_LIMIT
 
+	from pos_next.api.constants import get_safe_pos_settings_dict
+
+	safe_settings = get_safe_pos_settings_dict(pos_profile, require_enabled=True)
+	if cint(safe_settings.get("create_only_sales_order")) and company:
+		orders = frappe.db.sql(
+			"""
+			SELECT
+				name,
+				%(default_profile)s AS pos_profile,
+				owner,
+				customer,
+				customer_name,
+				transaction_date AS posting_date,
+				TIME(creation) AS posting_time,
+				grand_total,
+				IFNULL(advance_paid, 0) AS paid_amount,
+				GREATEST(0, grand_total - IFNULL(advance_paid, 0)) AS outstanding_amount,
+				status,
+				creation,
+				currency,
+				'Sales Order' AS doctype
+			FROM `tabSales Order`
+			WHERE company = %(company)s
+				AND docstatus = 1
+				AND status NOT IN ('Closed', 'Completed', 'Cancelled')
+				AND grand_total > IFNULL(advance_paid, 0) + 0.01
+			ORDER BY transaction_date DESC, creation DESC
+			LIMIT %(limit)s
+			""",
+			{"default_profile": pos_profile, "company": company, "limit": limit},
+			as_dict=True,
+		)
+		for order in orders:
+			enrich_invoice_with_payment_history(order, include_metadata=True)
+		return enrich_invoices_with_scope_metadata(orders, company=company)
+
+	si_fields = [
+		"name",
+		"pos_profile",
+		"owner",
+		"customer",
+		"customer_name",
+		"posting_date",
+		"posting_time",
+		"grand_total",
+		"paid_amount",
+		"outstanding_amount",
+		"status",
+		"creation",
+		"currency",
+	]
+	for opt_col in (
+		"custom_fecha_entrega",
+		"custom_direccion_entrega",
+		"custom_telefono_contacto",
+		"custom_modalidad_cobro_chofer",
+		"custom_estado_entrega",
+	):
+		if frappe.db.has_column("Sales Invoice", opt_col):
+			si_fields.append(opt_col)
+
 	# Get all unpaid invoices (any invoice with outstanding > 0)
 	invoices = frappe.get_all(
 		"Sales Invoice",
@@ -648,26 +744,7 @@ def get_unpaid_invoices(
 			"outstanding_amount": [">", 0],
 			"is_return": 0,
 		},
-		fields=[
-			"name",
-			"pos_profile",
-			"owner",
-			"customer",
-			"customer_name",
-			"posting_date",
-			"posting_time",
-			"grand_total",
-			"paid_amount",
-			"outstanding_amount",
-			"status",
-			"creation",
-			"currency",
-			"custom_fecha_entrega",
-			"custom_direccion_entrega",
-			"custom_telefono_contacto",
-			"custom_modalidad_cobro_chofer",
-			"custom_estado_entrega",
-		],
+		fields=si_fields,
 		order_by="posting_date desc, posting_time desc, creation desc",
 		limit=limit,
 	)
@@ -701,20 +778,33 @@ def get_partial_payment_details(invoice_name: str) -> Dict:
 	if not invoice_name:
 		frappe.throw(_("Invoice name is required"))
 
-	# Permission check
-	if not frappe.has_permission("Sales Invoice", "read", invoice_name):
-		frappe.throw(_("You don't have permission to view this invoice"))
+	target_doctype = "Sales Invoice"
+	if not frappe.db.exists("Sales Invoice", invoice_name) and frappe.db.exists("Sales Order", invoice_name):
+		target_doctype = "Sales Order"
 
-	# Get invoice using ORM
+	# Get invoice / sales order using ORM
 	try:
-		invoice = frappe.get_doc("Sales Invoice", invoice_name)
+		invoice = frappe.get_doc(target_doctype, invoice_name)
 	except frappe.DoesNotExistError:
 		frappe.throw(_("Invoice {0} does not exist").format(invoice_name))
 
-	if invoice.pos_profile and not user_is_pos_manager():
+	inv_profile = getattr(invoice, "pos_profile", None)
+	if inv_profile and not user_is_pos_manager():
 		if not frappe.db.exists(
-			"POS Profile User", {"parent": invoice.pos_profile, "user": frappe.session.user}
+			"POS Profile User", {"parent": inv_profile, "user": frappe.session.user}
 		):
+			frappe.throw(_("You don't have permission to view this invoice"), frappe.PermissionError)
+	elif not frappe.has_permission(target_doctype, "read", invoice_name):
+		user_profiles = frappe.get_all(
+			"POS Profile User", filters={"user": frappe.session.user}, pluck="parent"
+		)
+		has_company_profile = bool(
+			user_profiles
+			and frappe.db.exists(
+				"POS Profile", {"name": ["in", user_profiles], "company": invoice.company}
+			)
+		)
+		if not has_company_profile:
 			frappe.throw(_("You don't have permission to view this invoice"), frappe.PermissionError)
 
 	# Get payment history
@@ -733,13 +823,20 @@ def get_partial_payment_details(invoice_name: str) -> Dict:
 		for item in invoice.items
 	]
 
+	creation_str = str(getattr(invoice, "creation", "") or "")
+	posting_time = (
+		getattr(invoice, "posting_time", None)
+		or (creation_str.split(" ")[1].split(".")[0] if " " in creation_str else "")
+	)
+
 	return {
 		"name": invoice.name,
-		"pos_profile": invoice.pos_profile,
+		"doctype": target_doctype,
+		"pos_profile": inv_profile,
 		"customer": invoice.customer,
 		"customer_name": invoice.customer_name,
-		"posting_date": invoice.posting_date,
-		"posting_time": invoice.posting_time,
+		"posting_date": getattr(invoice, "posting_date", None) or getattr(invoice, "transaction_date", None),
+		"posting_time": posting_time,
 		"grand_total": flt(invoice.grand_total),
 		"paid_amount": payment_data["total_paid"],
 		"outstanding_amount": payment_data["outstanding"],
@@ -805,30 +902,51 @@ def add_payment_to_partial_invoice(invoice_name: str, payments) -> Dict:
 	if not payments:
 		frappe.throw(_("At least one payment is required"))
 
-	# Permission check
-	if not frappe.has_permission("Sales Invoice", "write", invoice_name):
-		frappe.throw(_("You don't have permission to add payments to this invoice"))
+	target_doctype = "Sales Invoice"
+	if not frappe.db.exists("Sales Invoice", invoice_name) and frappe.db.exists("Sales Order", invoice_name):
+		target_doctype = "Sales Order"
 
 	# Validate total payment amount doesn't exceed outstanding
 	try:
-		invoice = frappe.get_doc("Sales Invoice", invoice_name)
+		invoice = frappe.get_doc(target_doctype, invoice_name)
 	except frappe.DoesNotExistError:
 		frappe.throw(_("Invoice {0} does not exist").format(invoice_name))
 
-	if invoice.pos_profile and not user_is_pos_manager():
+	inv_profile = getattr(invoice, "pos_profile", None)
+	if inv_profile and not user_is_pos_manager():
 		if not frappe.db.exists(
-			"POS Profile User", {"parent": invoice.pos_profile, "user": frappe.session.user}
+			"POS Profile User", {"parent": inv_profile, "user": frappe.session.user}
 		):
 			frappe.throw(
 				_("You don't have permission to add payments to this invoice"), frappe.PermissionError
 			)
+	elif not frappe.has_permission(target_doctype, "write", invoice_name):
+		user_profiles = frappe.get_all(
+			"POS Profile User", filters={"user": frappe.session.user}, pluck="parent"
+		)
+		has_company_profile = bool(
+			user_profiles
+			and frappe.db.exists(
+				"POS Profile", {"name": ["in", user_profiles], "company": invoice.company}
+			)
+		)
+		if not has_company_profile:
+			frappe.throw(
+				_("You don't have permission to add payments to this invoice"), frappe.PermissionError
+			)
+
+	inv_outstanding = (
+		max(0.0, flt(invoice.grand_total) - flt(getattr(invoice, "advance_paid", 0) or 0))
+		if target_doctype == "Sales Order"
+		else flt(invoice.outstanding_amount)
+	)
 
 	total_payment_amount = sum(flt(p.get("amount", 0)) for p in payments)
-	if total_payment_amount > flt(invoice.outstanding_amount) + AMOUNT_TOLERANCE:
+	if total_payment_amount > inv_outstanding + AMOUNT_TOLERANCE:
 		frappe.throw(
 			_("Total payment amount {0} exceeds outstanding amount {1}").format(
 				frappe.format_value(total_payment_amount, {"fieldtype": "Currency"}),
-				frappe.format_value(invoice.outstanding_amount, {"fieldtype": "Currency"}),
+				frappe.format_value(inv_outstanding, {"fieldtype": "Currency"}),
 			)
 		)
 
@@ -987,6 +1105,34 @@ def get_unpaid_summary(pos_profile: str, filter_profile: str = None) -> Dict:
 	if not target_profiles:
 		return {"count": 0, "total_outstanding": 0.0, "total_paid": 0.0, "total_grand_total": 0.0}
 
+	from pos_next.api.constants import get_safe_pos_settings_dict
+
+	safe_settings = get_safe_pos_settings_dict(pos_profile, require_enabled=True)
+	company = frappe.db.get_value("POS Profile", pos_profile, "company")
+	if cint(safe_settings.get("create_only_sales_order")) and company:
+		summary = frappe.db.sql(
+			"""
+			SELECT
+				COUNT(*) AS count,
+				COALESCE(SUM(GREATEST(0, grand_total - IFNULL(advance_paid, 0))), 0) AS total_outstanding,
+				COALESCE(SUM(IFNULL(advance_paid, 0)), 0) AS total_paid,
+				COALESCE(SUM(grand_total), 0) AS total_grand_total
+			FROM `tabSales Order`
+			WHERE company = %(company)s
+				AND docstatus = 1
+				AND status NOT IN ('Closed', 'Completed', 'Cancelled')
+				AND grand_total > IFNULL(advance_paid, 0) + 0.01
+			""",
+			{"company": company},
+			as_dict=True,
+		)[0]
+		return {
+			"count": cint(summary.get("count")),
+			"total_outstanding": flt(summary.get("total_outstanding")),
+			"total_paid": flt(summary.get("total_paid")),
+			"total_grand_total": flt(summary.get("total_grand_total")),
+		}
+
 	# Use direct SQL aggregation - critical for performance
 	summary = frappe.db.sql(
 		"""
@@ -1058,13 +1204,15 @@ def sync_payment_entry_references(doc, method=None):
 				actual_outstanding = flt(inv.outstanding_amount or 0)
 				grand_total = flt(inv.grand_total or 0)
 				actual_paid = max(0.0, grand_total - actual_outstanding)
+				si_updates = {
+					"paid_amount": actual_paid,
+					"base_paid_amount": actual_paid,
+				}
+				if frappe.db.has_column("Sales Invoice", "custom_saldo_pendiente"):
+					si_updates["custom_saldo_pendiente"] = actual_outstanding
 				frappe.db.set_value(
 					"Sales Invoice",
 					ref.reference_name,
-					{
-						"paid_amount": actual_paid,
-						"base_paid_amount": actual_paid,
-						"custom_saldo_pendiente": actual_outstanding,
-					},
+					si_updates,
 					update_modified=False,
 				)

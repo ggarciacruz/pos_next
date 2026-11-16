@@ -728,7 +728,14 @@ function handlePrint() {
 
 function handlePrintPDF() {
 	if (!invoiceData.value?.name) return;
-	const url = `/printview?doctype=Sales%20Invoice&name=${encodeURIComponent(invoiceData.value.name)}&format=Nota%20de%20Venta%20Muebles%20Ruffino`;
+	const dt =
+		invoiceData.value.doctype ||
+		(posSettingsStore.createOnlySalesOrder ? "Sales Order" : "Sales Invoice");
+	const format = posSettingsStore.getPrintFormatForDoctype(dt);
+	let url = `/printview?doctype=${encodeURIComponent(dt)}&name=${encodeURIComponent(invoiceData.value.name)}`;
+	if (format) {
+		url += `&format=${encodeURIComponent(format)}`;
+	}
 	window.open(url, "_blank");
 }
 

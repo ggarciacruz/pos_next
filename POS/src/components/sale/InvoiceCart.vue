@@ -193,6 +193,7 @@
 						>
 							<div class="flex items-center bg-gray-100 rounded-lg p-0.5">
 								<button
+									v-if="!settingsStore.createOnlySalesOrder"
 									type="button"
 									@click="selectDocType('Sales Invoice')"
 									class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md transition-all duration-200 flex items-center gap-1"
@@ -323,6 +324,7 @@
 							class="flex items-center bg-gray-100 rounded-xl p-0.5 h-10"
 						>
 							<button
+								v-if="!settingsStore.createOnlySalesOrder"
 								type="button"
 								@click="selectDocType('Sales Invoice')"
 								class="h-full px-2.5 text-xs font-semibold rounded-lg transition-all duration-200 flex items-center gap-1.5"
@@ -1129,7 +1131,11 @@
 							</span>
 						</div>
 						<div class="text-[10px] text-gray-400 font-medium truncate leading-none mt-0.5 select-none">
-							{{ item.item_group || '-' }}
+							<span v-if="getItemCoverageSummary(item)" class="text-slate-600 font-semibold tabular-nums">
+								{{ getItemCoverageSummary(item) }}
+							</span>
+							<span v-if="getItemCoverageSummary(item) && item.item_group"> · </span>
+							<span>{{ item.item_group || '-' }}</span>
 						</div>
 					</div>
 
@@ -1200,24 +1206,24 @@
 					</div>
 
 					<!-- UOM Selector Dropdown -->
-					<div class="relative shrink-0" @click.stop>
+					<div class="relative shrink-0 group/uom" @click.stop>
 						<button
 							type="button"
 							@click="toggleUomDropdown(item)"
-							:disabled="item.is_resolved_barcode || !item.item_uoms || item.item_uoms.length === 0"
+							:disabled="item.is_resolved_barcode || getSelectableItemUoms(item).length === 0"
 							:class="[
 								'h-6 text-[10px] sm:text-[11px] font-semibold rounded px-1.5 sm:px-2 transition-all flex items-center gap-1 min-w-[38px] border',
 								item.is_resolved_barcode
 									? 'bg-amber-100 text-amber-700 border-amber-300 cursor-not-allowed'
-									: item.item_uoms && item.item_uoms.length > 0
+									: getSelectableItemUoms(item).length > 0
 									? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 cursor-pointer'
 									: 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed opacity-60'
 							]"
-							:title="item.item_uoms && item.item_uoms.length > 0 ? __('Click to change unit') : __('Only one unit available')"
+							:title="getSelectableItemUoms(item).length > 0 ? __('Click to change unit') : __('Only one unit available')"
 						>
 							<span class="max-w-[60px] truncate">{{ item.uom || item.stock_uom || __("Nos", null, "UOM") }}</span>
 							<svg
-								v-if="item.item_uoms && item.item_uoms.length > 0"
+								v-if="getSelectableItemUoms(item).length > 0"
 								class="w-2.5 h-2.5 text-blue-500 transition-transform pointer-events-none"
 								:class="openUomDropdown === `${item.item_code}-${item.uom}` ? 'rotate-180' : ''"
 								fill="none"
@@ -1229,7 +1235,7 @@
 						</button>
 						<!-- Dropdown options -->
 						<div
-							v-if="openUomDropdown === `${item.item_code}-${item.uom}` && item.item_uoms && item.item_uoms.length > 0"
+							v-if="openUomDropdown === `${item.item_code}-${item.uom}` && getSelectableItemUoms(item).length > 0"
 							class="absolute top-full end-0 mt-0.5 bg-white border border-blue-300 rounded-lg shadow-xl z-50 min-w-[110px] overflow-hidden"
 						>
 							<button
@@ -1243,7 +1249,7 @@
 								{{ item.stock_uom || __("Nos", null, "UOM") }}
 							</button>
 							<button
-								v-for="uomData in item.item_uoms"
+								v-for="uomData in getSelectableItemUoms(item)"
 								:key="uomData.uom"
 								type="button"
 								@click="selectUom(item, uomData.uom)"
@@ -2275,12 +2281,51 @@ function handleQuantityBlur(item) {
 // UOM (Unit of Measure) Functions
 // ─────────────────────────────────────────────────────────────────────────────
 
+function getSelectableItemUoms(item) {
+	if (!item || !Array.isArray(item.item_uoms)) return [];
+	const lockCov =
+		settingsStore.enableCoverageCalculator &&
+		settingsStore.lockCoverageUomDirectSale &&
+		settingsStore.coverageUom &&
+		item.stock_uom !== settingsStore.coverageUom;
+	return item.item_uoms.filter(
+		(u) => u.uom !== item.stock_uom && (!lockCov || u.uom !== settingsStore.coverageUom)
+	);
+}
+
+function getItemCoverageSummary(item) {
+	if (
+		!settingsStore.enableCoverageCalculator ||
+		!settingsStore.coverageUom ||
+		!item ||
+		!item.stock_uom ||
+		item.stock_uom === settingsStore.coverageUom ||
+		item.is_free_item
+	) {
+		return "";
+	}
+	const covEntry = item.item_uoms?.find((u) => u.uom === settingsStore.coverageUom);
+	const rawFactor = Number(covEntry?.conversion_factor || 0);
+	if (!rawFactor || rawFactor <= 0) return "";
+	const factor = settingsStore.coverageFactorMode === "Divide" ? 1 / rawFactor : rawFactor;
+	const qty = Number(item.quantity || 0);
+	if (qty <= 0) return "";
+	const area = Number((qty * factor).toFixed(4));
+	const lineTotal = Number(item.amount ?? item.rate * qty ?? 0);
+	const netUnitRate = qty > 0 ? lineTotal / qty : Number(item.rate || 0);
+	const covPrice = netUnitRate / factor;
+	return `${area} ${settingsStore.coverageUom} · ${formatCurrency(covPrice)}/${settingsStore.coverageUom}`;
+}
+
 /**
  * Toggle UOM dropdown visibility for an item.
  * Uses unique key combining item_code + uom to handle same item with different UOMs.
  */
-function toggleUomDropdown(itemCode, uom) {
-	const key = `${itemCode}-${uom}`;
+function toggleUomDropdown(itemOrCode, uom) {
+	const key =
+		itemOrCode && typeof itemOrCode === "object"
+			? `${itemOrCode.item_code}-${itemOrCode.uom}`
+			: `${itemOrCode}-${uom}`;
 	openUomDropdown.value = openUomDropdown.value === key ? null : key;
 }
 
