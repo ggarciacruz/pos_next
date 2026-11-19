@@ -2,176 +2,103 @@
 	<MdxModal
 		v-model="show"
 		:title="__('Edit Item Details')"
-		size="md"
+		:size="dialogSize"
+		:bodyClass="isCompactViewport ? '!p-3 sm:!p-4' : '!p-4 sm:!p-5'"
 	>
-		<!-- Body Content -->
-		<div v-if="localItem" class="flex flex-col gap-4">
-			<!-- Item Header -->
-			<div class="flex items-center gap-3 pb-3.5 border-b border-slate-200">
-				<!-- Item Image -->
-				<div
-					class="w-14 h-14 bg-slate-50 border border-slate-200 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden"
+		<template v-if="localItem" #header-actions>
+			<div class="hidden sm:flex items-center gap-2">
+				<span
+					v-if="localItem.item_code && localItem.item_code !== localItem.item_name"
+					class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px] font-mono font-semibold text-slate-700"
 				>
-					<img
-						v-if="localItem.image"
-						:src="localItem.image"
-						:alt="localItem.item_name"
-						class="w-full h-full object-cover"
-					/>
-					<svg
-						v-else
-						class="h-7 w-7 text-slate-400"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-						/>
-					</svg>
-				</div>
-				<!-- Item Info -->
-				<div class="flex-1 min-w-0">
-					<h3 class="text-sm font-bold text-slate-900 truncate">
-						{{ localItem.item_name }}
-					</h3>
-					<p class="text-xs font-medium text-slate-500 truncate mt-0.5 tabular-nums">
-						{{ formatCurrency(localItem.price_list_rate || localItem.rate) }}
-						/
-						{{ localItem.stock_uom || __("Nos", null, "UOM") }}
-					</p>
-				</div>
+					{{ localItem.item_code }}
+				</span>
+				<span
+					v-if="localItem.is_stock_item"
+					class="px-2.5 py-0.5 rounded-md bg-white border border-slate-200 text-[11px] font-semibold tabular-nums"
+					:class="availableStockQty > 0 ? 'text-slate-700' : 'text-red-600'"
+				>
+					{{ currentWarehouseLabel }}: {{ availableStockSummary }}
+				</span>
 			</div>
+		</template>
 
-			<!-- Two Column Layout for Quantity, UOM, Rate, Warehouse -->
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-				<!-- Left Column: Quantity and Rate -->
-				<div class="flex flex-col gap-3.5">
-					<!-- Quantity Control -->
-					<div>
-						<label class="block text-xs font-bold text-slate-700 mb-1.5 text-start">
-							{{ __("Quantity") }}
-							<span
-								v-if="localItem?.is_resolved_barcode"
-								class="ms-1 text-[11px] font-semibold text-amber-600"
-								>({{ __("Locked") }})</span
-							>
-						</label>
-						<!-- For serial items, quantity is read-only (controlled by serial list) -->
-						<div
-							v-if="localItem?.has_serial_no && localSerials.length > 0"
-							class="w-full h-9 border border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center"
-						>
-							<span class="text-sm font-bold text-slate-700 tabular-nums">{{
-								localSerials.length
-							}}</span>
-						</div>
-						<!-- For resolved barcode items, quantity is read-only -->
-						<div
-							v-else-if="localItem?.is_resolved_barcode"
-							class="w-full h-9 border border-amber-200 rounded-xl bg-amber-50 flex items-center justify-center"
-						>
-							<span class="text-sm font-bold text-amber-700 tabular-nums">{{
-								localQuantity
-							}}</span>
-						</div>
-						<!-- For non-serial items, show quantity controls -->
-						<div
+		<!-- Body Content -->
+		<div v-if="localItem" class="h-full flex flex-col gap-3">
+			<!-- Compact Item Identity Strip + Dynamic Multi-UOM / Multi-Warehouse Selectors (only when >1 option) -->
+			<div
+				class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-2.5 border-b border-slate-200 shrink-0"
+			>
+				<div class="flex items-center gap-3 min-w-0 flex-1">
+					<!-- Item Image -->
+					<div
+						class="w-11 h-11 bg-slate-50 border border-slate-200 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden"
+					>
+						<img
+							v-if="localItem.image"
+							:src="localItem.image"
+							:alt="localItem.item_name"
+							class="w-full h-full object-cover"
+						/>
+						<svg
 							v-else
-							class="w-full h-9 border border-slate-200 rounded-xl bg-white flex items-center overflow-hidden"
+							class="h-5 w-5 text-slate-400"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
 						>
-							<button
-								type="button"
-								@click="decrementQuantity"
-								class="w-9 h-full bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-bold text-base transition-colors flex items-center justify-center border-e border-slate-200 touch-manipulation"
-							>
-								−
-							</button>
-							<div class="flex-1 h-full flex items-center justify-center px-2">
-								<input
-									v-model.number="localQuantity"
-									type="number"
-									min="0.0001"
-									step="any"
-									inputmode="decimal"
-									class="w-full text-center border-0 text-sm font-bold text-slate-900 focus:outline-none focus:ring-0 bg-transparent tabular-nums"
-									@input="handleQuantityInput"
-									@blur="handleQuantityBlur"
-									@keydown.enter="$event.target.blur()"
-								/>
-							</div>
-							<button
-								type="button"
-								@click="incrementQuantity"
-								class="w-9 h-full bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-bold text-base transition-colors flex items-center justify-center border-s border-slate-200 touch-manipulation"
-							>
-								+
-							</button>
-						</div>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+							/>
+						</svg>
 					</div>
 
-					<!-- Rate -->
-					<div>
-						<label class="block text-xs font-bold text-slate-700 mb-1.5 text-start">{{
-							__("Rate")
-						}}</label>
-						<div class="relative h-9">
-							<span
-								class="absolute inset-y-0 start-0 ps-3 flex items-center text-slate-400 text-xs font-bold"
-							>
-								{{ currencySymbol }}
-							</span>
-							<input
-								v-model.number="localRate"
-								type="number"
-								min="0"
-								step="0.01"
-								:readonly="!canEditRate"
-								:class="
-									canEditRate
-										? 'bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
-										: 'bg-slate-50 text-slate-500 cursor-not-allowed'
-								"
-								class="w-full h-9 border border-slate-200 rounded-xl ps-10 pe-3 text-sm font-bold text-slate-900 tabular-nums"
-								:title="rateEditDisabledReason"
-								@input="handleBoxRateInput"
-							/>
-						</div>
-						<!-- Compact warning when rate editing disabled due to pricing rules -->
-						<p
-							v-if="hasPricingRules && settingsStore.allowUserToEditRate"
-							class="mt-1 text-[11px] text-amber-600 flex items-center gap-1"
+					<!-- Item Name & Contextual Equivalence / List Price -->
+					<div class="min-w-0 flex-1">
+						<h3 class="text-sm sm:text-base font-bold text-slate-900 truncate">
+							{{ localItem.item_name }}
+						</h3>
+						<div
+							class="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-0.5 text-xs text-slate-500 tabular-nums"
 						>
-							<FeatherIcon name="lock" class="w-3 h-3" />
-							{{ __("Locked (offer applied)") }}
-						</p>
+							<span v-if="hasCoverageCalculator" class="font-semibold text-slate-700">
+								1 {{ currentUnitLabel }} = {{ formatArea(coveragePerUnit) }}
+								{{ settingsStore.coverageUom }}
+							</span>
+							<span v-if="hasCoverageCalculator" class="text-slate-300 select-none">|</span>
+							<span v-if="hasCoverageCalculator">
+								{{ __("List:") }} {{ formatCurrency(listCoverageRate) }} /
+								{{ settingsStore.coverageUom }} ({{ formatCurrency(originalPriceListRate) }} /
+								{{ currentUnitLabel }})
+							</span>
+							<span v-else>
+								{{ __("List:") }} {{ formatCurrency(originalPriceListRate) }} /
+								{{ currentUnitLabel }}
+							</span>
+							<span
+								v-if="localItem.is_stock_item"
+								class="sm:hidden font-semibold"
+								:class="availableStockQty > 0 ? 'text-slate-700' : 'text-red-600'"
+							>
+								· {{ availableStockSummary }}
+							</span>
+						</div>
 					</div>
 				</div>
 
-				<!-- Right Column: UOM and Warehouse -->
-				<div class="flex flex-col gap-3.5">
-					<!-- UOM Selector -->
-					<div>
-						<label class="block text-xs font-bold text-slate-700 mb-1.5 text-start">
+				<!-- Dynamic UOM / Warehouse Selectors ONLY when multiple options actually exist -->
+				<div
+					v-if="showUomSelector || showWarehouseSelector"
+					class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 lg:w-auto lg:min-w-[320px] shrink-0"
+				>
+					<div v-if="showUomSelector">
+						<label class="block text-[11px] font-bold text-slate-600 mb-1 text-start">
 							{{ __("UOM") }}
-							<span
-								v-if="localItem?.is_resolved_barcode"
-								class="ms-1 text-[11px] font-semibold text-amber-600"
-								>({{ __("Locked") }})</span
-							>
 						</label>
-						<!-- For resolved barcode items, UOM is read-only -->
-						<div
-							v-if="localItem?.is_resolved_barcode"
-							class="w-full h-9 border border-amber-200 rounded-xl bg-amber-50 flex items-center justify-center"
-						>
-							<span class="text-sm font-bold text-amber-700">{{ localUom }}</span>
-						</div>
 						<MdxSelect
-							v-else
 							v-model="localUom"
 							:options="uomOptions"
 							size="sm"
@@ -179,12 +106,10 @@
 							:teleport="true"
 						/>
 					</div>
-
-					<!-- Warehouse Selector -->
-					<div>
-						<label class="block text-xs font-bold text-slate-700 mb-1.5 text-start">{{
-							__("Warehouse")
-						}}</label>
+					<div v-if="showWarehouseSelector">
+						<label class="block text-[11px] font-bold text-slate-600 mb-1 text-start">
+							{{ __("Warehouse") }}
+						</label>
 						<MdxSelect
 							v-model="localWarehouse"
 							:options="warehouseOptions"
@@ -197,76 +122,419 @@
 				</div>
 			</div>
 
-			<!-- Coverage / Surface Area Calculator (Opt-in via POS Settings) -->
-			<div
-				v-if="hasCoverageCalculator"
-				class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col gap-3"
-			>
-				<div class="flex items-center justify-between gap-2">
-					<div class="flex items-center gap-1.5 min-w-0">
-						<svg
-							class="w-4 h-4 text-slate-600 shrink-0"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
+			<!-- ========================================================================= -->
+			<!-- ROW 1: PRIMARY CONTROLS (1. Quantity & Coverage  |  2. Selling Price)     -->
+			<!-- ========================================================================= -->
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch shrink-0">
+				<!-- BLOCK 1: QUANTITY & COVERAGE -->
+				<div
+					class="bg-slate-50/70 border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5"
+				>
+					<div class="flex items-center justify-between gap-2">
+						<div class="min-w-0">
+							<h4 class="text-xs sm:text-[13px] font-bold text-slate-900">
+								1. {{ __("Quantity to Sell") }}
+							</h4>
+							<p class="text-[11px] text-slate-500 mt-0.5">
+								<template v-if="hasCoverageCalculator">
+									{{
+										__("Enter {0} or surface in {1}; the other calculates automatically.", [
+											currentUnitLabel,
+											settingsStore.coverageUom,
+										])
+									}}
+								</template>
+								<template v-else>
+									{{ __("Specify the quantity in {0}.", [currentUnitLabel]) }}
+								</template>
+							</p>
+						</div>
+						<span
+							v-if="localItem?.is_resolved_barcode"
+							class="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-700 shrink-0"
 						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-							/>
-						</svg>
-						<span class="text-xs font-bold text-slate-800 truncate">
-							{{ __("Calculadora de Cobertura") }} ({{ settingsStore.coverageUom }})
+							{{ __("Locked") }}
 						</span>
 					</div>
-					<span
-						class="text-[11px] font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg px-2 py-0.5 tabular-nums shrink-0"
+
+					<!-- Paired Inputs when Coverage Calculator is Active (Units = Coverage Area) -->
+					<div
+						v-if="hasCoverageCalculator"
+						class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-end gap-2.5"
 					>
-						1 {{ localItem.stock_uom }} = {{ formatArea(coveragePerUnit) }}
-						{{ settingsStore.coverageUom }}
-					</span>
+						<!-- Primary Unit Stepper -->
+						<div>
+							<label class="block text-xs font-semibold text-slate-700 mb-1 text-start">
+								{{ __("Quantity in {0}", [currentUnitLabel]) }}
+							</label>
+							<div
+								v-if="localItem?.has_serial_no && localSerials.length > 0"
+								class="w-full h-10 border border-slate-200 rounded-xl bg-white flex items-center justify-center"
+							>
+								<span class="text-sm font-bold text-slate-700 tabular-nums">{{
+									localSerials.length
+								}}</span>
+							</div>
+							<div
+								v-else-if="localItem?.is_resolved_barcode"
+								class="w-full h-10 border border-amber-200 rounded-xl bg-amber-50 flex items-center justify-center"
+							>
+								<span class="text-sm font-bold text-amber-700 tabular-nums">{{
+									localQuantity
+								}}</span>
+							</div>
+							<div
+								v-else
+								class="w-full h-10 border border-slate-300 rounded-xl bg-white flex items-center overflow-hidden shadow-2xs"
+							>
+								<button
+									type="button"
+									@click="decrementQuantity"
+									class="w-10 h-full bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-bold text-base transition-colors flex items-center justify-center border-e border-slate-200 touch-manipulation"
+								>
+									−
+								</button>
+								<div class="flex-1 h-full flex items-center justify-center px-2">
+									<input
+										v-model.number="localQuantity"
+										type="number"
+										min="1"
+										step="1"
+										inputmode="numeric"
+										class="w-full text-center border-0 text-sm sm:text-base font-bold text-slate-900 focus:outline-none focus:ring-0 bg-transparent tabular-nums"
+										@input="handleQuantityInput"
+										@blur="handleQuantityBlur"
+										@keydown.enter="$event.target.blur()"
+									/>
+								</div>
+								<button
+									type="button"
+									@click="incrementQuantity"
+									class="w-10 h-full bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-bold text-base transition-colors flex items-center justify-center border-s border-slate-200 touch-manipulation"
+								>
+									+
+								</button>
+							</div>
+						</div>
+
+						<!-- Equality Visual Connector -->
+						<div
+							class="hidden sm:flex items-center justify-center h-10 text-slate-400 font-extrabold text-base select-none px-0.5"
+							aria-hidden="true"
+						>
+							=
+						</div>
+
+						<!-- Equivalent / Requested Surface Area Input -->
+						<div>
+							<label class="block text-xs font-semibold text-slate-700 mb-1 text-start">
+								{{ __("Surface ({0})", [settingsStore.coverageUom]) }}
+							</label>
+							<div class="relative h-10">
+								<input
+									v-model.number="localRequiredArea"
+									type="number"
+									min="0"
+									step="0.01"
+									inputmode="decimal"
+									:disabled="Boolean(localItem?.is_resolved_barcode)"
+									class="w-full h-10 bg-white border border-slate-300 rounded-xl px-3 pe-12 text-sm sm:text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 tabular-nums shadow-2xs"
+									@input="handleAreaInput"
+								/>
+								<span
+									class="absolute inset-y-0 end-0 pe-3 flex items-center text-slate-400 text-xs font-bold pointer-events-none"
+								>
+									{{ settingsStore.coverageUom }}
+								</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Standard Single Stepper when Coverage Calculator is Inactive -->
+					<div v-else>
+						<label class="block text-xs font-semibold text-slate-700 mb-1 text-start">
+							{{ __("Quantity") }} ({{ currentUnitLabel }})
+						</label>
+						<div
+							v-if="localItem?.has_serial_no && localSerials.length > 0"
+							class="w-full h-10 border border-slate-200 rounded-xl bg-white flex items-center justify-center"
+						>
+							<span class="text-sm font-bold text-slate-700 tabular-nums">{{
+								localSerials.length
+							}}</span>
+						</div>
+						<div
+							v-else-if="localItem?.is_resolved_barcode"
+							class="w-full h-10 border border-amber-200 rounded-xl bg-amber-50 flex items-center justify-center"
+						>
+							<span class="text-sm font-bold text-amber-700 tabular-nums">{{
+								localQuantity
+							}}</span>
+						</div>
+						<div
+							v-else
+							class="w-full h-10 border border-slate-300 rounded-xl bg-white flex items-center overflow-hidden shadow-2xs"
+						>
+							<button
+								type="button"
+								@click="decrementQuantity"
+								class="w-11 h-full bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-bold text-base transition-colors flex items-center justify-center border-e border-slate-200 touch-manipulation"
+							>
+								−
+							</button>
+							<div class="flex-1 h-full flex items-center justify-center px-2">
+								<input
+									v-model.number="localQuantity"
+									type="number"
+									min="0.0001"
+									step="any"
+									inputmode="decimal"
+									class="w-full text-center border-0 text-sm sm:text-base font-bold text-slate-900 focus:outline-none focus:ring-0 bg-transparent tabular-nums"
+									@input="handleQuantityInput"
+									@blur="handleQuantityBlur"
+									@keydown.enter="$event.target.blur()"
+								/>
+							</div>
+							<button
+								type="button"
+								@click="incrementQuantity"
+								class="w-11 h-full bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-bold text-base transition-colors flex items-center justify-center border-s border-slate-200 touch-manipulation"
+							>
+								+
+							</button>
+						</div>
+					</div>
+
+					<!-- Integer Unit Rounding Suggestions with explicit coverage delta -->
+					<div v-if="hasCoverageCalculator && boxRoundingOptions.length === 2" class="space-y-1.5">
+						<p class="text-[11px] font-semibold text-slate-600">
+							{{
+								__("Choose whole {0} to cover {1} {2}:", [
+									currentUnitLabel,
+									formatArea(pendingAreaTarget),
+									settingsStore.coverageUom,
+								])
+							}}
+						</p>
+						<div class="grid grid-cols-2 gap-2">
+							<button
+								v-for="opt in boxRoundingOptions"
+								:key="opt.units"
+								type="button"
+								@click="applyRoundedBoxes(opt.units)"
+								:class="
+									localQuantity === opt.units
+										? 'bg-slate-900 border-slate-900 text-white'
+										: 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+								"
+								class="px-3 py-1.5 rounded-xl border text-start transition-colors touch-manipulation flex items-center justify-between gap-2 cursor-pointer"
+							>
+								<span class="text-xs font-bold tabular-nums">
+									{{ opt.units }} {{ currentUnitLabel }}
+								</span>
+								<span
+									:class="
+										localQuantity === opt.units ? 'text-slate-300' : 'text-slate-500'
+									"
+									class="text-[11px] font-medium tabular-nums"
+								>
+									{{ formatArea(opt.area) }} {{ settingsStore.coverageUom }}
+									({{ opt.delta >= 0 ? "+" : "" }}{{ formatArea(opt.delta) }})
+								</span>
+							</button>
+						</div>
+					</div>
+
+					<!-- Universal Live Stock Exceeded Warning + 1-Click Adjust Button -->
+					<div
+						v-if="isExceedingStock"
+						class="flex flex-wrap items-center justify-between gap-2 bg-red-50/90 border border-red-200 rounded-xl px-3 py-2"
+					>
+						<div class="flex items-center gap-2 min-w-0">
+							<svg
+								class="w-4 h-4 text-red-600 shrink-0"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+								stroke-width="2"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+								/>
+							</svg>
+							<span class="text-[11px] font-semibold text-red-800 leading-tight">
+								{{
+									__("Exceeds available stock by {0} {1}", [
+										formatArea(stockShortfallQty),
+										currentUnitLabel,
+									])
+								}}
+								<template v-if="hasCoverageCalculator">
+									({{ formatArea(stockShortfallArea) }} {{ settingsStore.coverageUom }})
+								</template>
+							</span>
+						</div>
+						<button
+							v-if="maxAvailableWholeUnits > 0 && !localItem?.is_resolved_barcode"
+							type="button"
+							@click="adjustToMaxAvailableStock"
+							class="px-2.5 py-1 rounded-lg bg-white border border-red-200 hover:bg-red-100 text-[11px] font-bold text-red-700 transition-colors cursor-pointer shrink-0"
+						>
+							{{
+								__("Adjust to max ({0})", [
+									`${maxAvailableWholeUnits} ${currentUnitLabel}`,
+								])
+							}}
+						</button>
+					</div>
 				</div>
 
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-					<!-- Required Area Input -->
-					<div>
-						<label class="block text-[11px] font-semibold text-slate-600 mb-1 text-start">
-							{{ __("Área requerida") }} ({{ settingsStore.coverageUom }})
-						</label>
-						<div class="relative h-9">
-							<input
-								v-model.number="localRequiredArea"
-								type="number"
-								min="0"
-								step="0.01"
-								inputmode="decimal"
-								:disabled="Boolean(localItem?.is_resolved_barcode)"
-								class="w-full h-9 bg-white border border-slate-200 rounded-xl px-3 pe-12 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 tabular-nums"
-								@input="handleAreaInput"
-							/>
-							<span
-								class="absolute inset-y-0 end-0 pe-3 flex items-center text-slate-400 text-xs font-bold"
+				<!-- BLOCK 2: SELLING PRICE, TARGET TOTAL NEGOTIATION & OPTIONAL DISCOUNT -->
+				<div
+					class="bg-slate-50/70 border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5"
+				>
+					<div class="flex items-center justify-between gap-2">
+						<div class="min-w-0">
+							<h4 class="text-xs sm:text-[13px] font-bold text-slate-900">
+								2. {{ __("Selling Price") }}
+							</h4>
+							<p class="text-[11px] text-slate-500 mt-0.5">
+								<template v-if="hasCoverageCalculator && canEditRate">
+									{{
+										__("Edit the price per {0} or per {1}; both stay synchronized.", [
+											settingsStore.coverageUom,
+											currentUnitLabel,
+										])
+									}}
+								</template>
+								<template v-else-if="canEditRate">
+									{{ __("Adjust the unit selling price if needed.") }}
+								</template>
+								<template v-else>
+									{{ rateEditDisabledReason }}
+								</template>
+							</p>
+						</div>
+						<div class="flex items-center gap-1.5 shrink-0">
+							<button
+								v-if="canEditRate && isPriceModified"
+								type="button"
+								@click="resetToListPrice"
+								class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-[11px] font-semibold text-slate-700 transition-colors cursor-pointer"
 							>
-								{{ settingsStore.coverageUom }}
+								{{ __("Reset to list") }}
+							</button>
+							<span
+								v-if="hasPricingRules && settingsStore.allowUserToEditRate"
+								class="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-700 flex items-center gap-1"
+							>
+								<FeatherIcon name="lock" class="w-3 h-3" />
+								{{ __("Locked (offer applied)") }}
 							</span>
 						</div>
 					</div>
 
-					<!-- Bidirectional Price per Coverage UOM -->
-					<div>
-						<label class="block text-[11px] font-semibold text-slate-600 mb-1 text-start">
-							{{ __("Precio por {0}", [settingsStore.coverageUom]) }}
+					<!-- Paired Bidirectional Price Inputs when Coverage Calculator is Active -->
+					<div
+						v-if="hasCoverageCalculator"
+						class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-end gap-2.5"
+					>
+						<!-- Price per Coverage UOM -->
+						<div>
+							<label class="block text-xs font-semibold text-slate-700 mb-1 text-start">
+								{{ __("Price per {0}", [settingsStore.coverageUom]) }}
+							</label>
+							<div class="relative h-10">
+								<span
+									class="absolute inset-y-0 start-0 ps-3 flex items-center text-slate-400 text-xs font-bold pointer-events-none"
+								>
+									{{ currencySymbol }}
+								</span>
+								<input
+									v-model.number="localCoverageRate"
+									type="number"
+									min="0"
+									step="0.01"
+									inputmode="decimal"
+									:readonly="!canEditRate"
+									:class="
+										canEditRate
+											? 'bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
+											: 'bg-slate-100 text-slate-500 cursor-not-allowed'
+									"
+									class="w-full h-10 border border-slate-300 rounded-xl ps-10 pe-3 text-sm sm:text-base font-bold text-slate-900 tabular-nums shadow-2xs"
+									:title="rateEditDisabledReason"
+									@input="handleCoverageRateInput"
+								/>
+							</div>
+						</div>
+
+						<!-- Bidirectional SVG Connector -->
+						<div
+							class="hidden sm:flex items-center justify-center h-10 text-slate-400 px-0.5"
+							aria-hidden="true"
+						>
+							<svg
+								class="w-4 h-4"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+								stroke-width="2"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M7 16l-4-4m0 0l4-4m-4 4h18m-4 4l4-4m0 0l-4-4"
+								/>
+							</svg>
+						</div>
+
+						<!-- Price per Primary Unit -->
+						<div>
+							<label class="block text-xs font-semibold text-slate-700 mb-1 text-start">
+								{{ __("Price per {0}", [currentUnitLabel]) }}
+							</label>
+							<div class="relative h-10">
+								<span
+									class="absolute inset-y-0 start-0 ps-3 flex items-center text-slate-400 text-xs font-bold pointer-events-none"
+								>
+									{{ currencySymbol }}
+								</span>
+								<input
+									v-model.number="localRate"
+									type="number"
+									min="0"
+									step="0.01"
+									inputmode="decimal"
+									:readonly="!canEditRate"
+									:class="
+										canEditRate
+											? 'bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
+											: 'bg-slate-100 text-slate-500 cursor-not-allowed'
+									"
+									class="w-full h-10 border border-slate-300 rounded-xl ps-10 pe-3 text-sm sm:text-base font-bold text-slate-900 tabular-nums shadow-2xs"
+									:title="rateEditDisabledReason"
+									@input="handleBoxRateInput"
+								/>
+							</div>
+						</div>
+					</div>
+
+					<!-- Standard Unit Rate Input when Coverage Calculator is Inactive -->
+					<div v-else>
+						<label class="block text-xs font-semibold text-slate-700 mb-1 text-start">
+							{{ __("Price per {0}", [currentUnitLabel]) }}
 						</label>
-						<div class="relative h-9">
+						<div class="relative h-10">
 							<span
-								class="absolute inset-y-0 start-0 ps-3 flex items-center text-slate-400 text-xs font-bold"
+								class="absolute inset-y-0 start-0 ps-3 flex items-center text-slate-400 text-xs font-bold pointer-events-none"
 							>
 								{{ currencySymbol }}
 							</span>
 							<input
-								v-model.number="localCoverageRate"
+								v-model.number="localRate"
 								type="number"
 								min="0"
 								step="0.01"
@@ -277,84 +545,358 @@
 										? 'bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
 										: 'bg-slate-100 text-slate-500 cursor-not-allowed'
 								"
-								class="w-full h-9 border border-slate-200 rounded-xl ps-10 pe-3 text-sm font-bold text-slate-900 tabular-nums"
+								class="w-full h-10 border border-slate-300 rounded-xl ps-10 pe-3 text-sm sm:text-base font-bold text-slate-900 tabular-nums shadow-2xs"
 								:title="rateEditDisabledReason"
-								@input="handleCoverageRateInput"
+								@input="handleBoxRateInput"
 							/>
+						</div>
+					</div>
+
+					<!-- Universal Negotiation Row: Target Closed Line Total + Collapsible Discount -->
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-end">
+						<div v-if="canEditRate">
+							<label class="block text-[11px] font-semibold text-slate-600 mb-1 text-start">
+								{{ __("Target line total (negotiated)") }}
+							</label>
+							<div class="relative h-9">
+								<span
+									class="absolute inset-y-0 start-0 ps-3 flex items-center text-slate-400 text-xs font-bold pointer-events-none"
+								>
+									{{ currencySymbol }}
+								</span>
+								<input
+									v-model.number="targetLineTotal"
+									type="number"
+									min="0"
+									step="0.01"
+									inputmode="decimal"
+									class="w-full h-9 bg-white border border-slate-200 rounded-xl ps-10 pe-3 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 tabular-nums"
+									@input="handleTargetTotalInput"
+								/>
+							</div>
+						</div>
+
+						<!-- Collapsible Optional Discount -->
+						<div v-if="settingsStore.allowItemDiscount" :class="{ 'sm:col-span-2': !canEditRate }">
+							<div
+								v-if="!showDiscountSection && (!discountValue || discountValue <= 0)"
+								class="h-9 flex items-center justify-between bg-white border border-slate-200/80 rounded-xl px-3"
+							>
+								<span class="text-xs text-slate-500">{{ __("Item Discount") }}</span>
+								<button
+									type="button"
+									@click="showDiscountSection = true"
+									class="text-xs font-semibold text-slate-700 hover:text-slate-950 underline underline-offset-2 cursor-pointer"
+								>
+									+ {{ __("Add discount") }}
+								</button>
+							</div>
+							<div v-else class="flex items-center gap-1.5">
+								<div class="w-28 shrink-0">
+									<MdxSelect
+										v-model="discountType"
+										:options="discountTypeOptions"
+										size="sm"
+										:showSearch="false"
+										:teleport="true"
+										@update:modelValue="handleDiscountTypeChange"
+									/>
+								</div>
+								<div class="relative h-9 flex-1 min-w-0">
+									<input
+										v-model.number="discountValue"
+										type="number"
+										min="0"
+										:max="discountType === 'percentage' ? 100 : undefined"
+										step="0.01"
+										class="w-full h-9 bg-white border border-slate-200 rounded-xl px-2.5 pe-7 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 tabular-nums"
+										@input="calculateDiscount"
+									/>
+									<span
+										class="absolute inset-y-0 end-0 pe-2.5 flex items-center text-slate-400 text-xs font-bold pointer-events-none"
+									>
+										{{ discountType === "percentage" ? "%" : currencySymbol }}
+									</span>
+								</div>
+								<button
+									type="button"
+									@click="clearAndHideDiscount"
+									class="h-9 px-2 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-red-600 hover:border-red-200 transition-colors cursor-pointer shrink-0"
+									:title="__('Remove')"
+								>
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M6 18L18 6M6 6l12 12"
+										/>
+									</svg>
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- ========================================================================= -->
+			<!-- ROW 2: ASSISTANT & LIVE COMMERCIAL SUMMARY (Fills Full Screen, Zero Scroll)-->
+			<!-- ========================================================================= -->
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch flex-1 min-h-0">
+				<!-- BLOCK 3: COVERAGE DIMENSIONS & WASTE ASSISTANT (Opt-in via enable_coverage_calculator) -->
+				<div
+					v-if="hasCoverageCalculator"
+					class="bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between gap-3 min-h-0"
+				>
+					<div class="flex flex-col gap-3 min-h-0 flex-1">
+						<div class="flex items-center justify-between gap-2">
+							<div>
+								<h4 class="text-xs sm:text-[13px] font-bold text-slate-900">
+									3. {{ __("Area & Waste Assistant") }} ({{ __("Optional") }})
+								</h4>
+								<p class="text-[11px] text-slate-500 mt-0.5">
+									{{
+										__(
+											"Add cutting margin or calculate total {0} from room dimensions.",
+											[settingsStore.coverageUom]
+										)
+									}}
+								</p>
+							</div>
+							<button
+								v-if="hasActiveRooms || wastePercent > 0"
+								type="button"
+								@click="resetAssistant"
+								class="text-[11px] font-semibold text-slate-500 hover:text-slate-900 underline underline-offset-2 cursor-pointer shrink-0"
+							>
+								{{ __("Clear") }}
+							</button>
+						</div>
+
+						<!-- Waste / Margin Presets -->
+						<div>
+							<label class="block text-[11px] font-semibold text-slate-600 mb-1.5 text-start">
+								{{ __("Cutting waste / extra margin:") }}
+							</label>
+							<div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+								<button
+									v-for="preset in wastePresets"
+									:key="preset.value"
+									type="button"
+									:disabled="Boolean(localItem?.is_resolved_barcode)"
+									@click="applyWastePercent(preset.value)"
+									:class="
+										wastePercent === preset.value
+											? 'bg-slate-900 border-slate-900 text-white'
+											: 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+									"
+									class="px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-colors cursor-pointer touch-manipulation disabled:opacity-50"
+								>
+									{{ preset.label }}
+								</button>
+							</div>
+						</div>
+
+						<!-- Multi-Room / Section Dimension Calculator (Length x Width) -->
+						<div class="flex flex-col gap-1.5 min-h-0 flex-1">
+							<div class="flex items-center justify-between">
+								<label class="text-[11px] font-semibold text-slate-600">
+									{{ __("Calculate by dimensions (Length × Width):") }}
+								</label>
+								<button
+									v-if="roomDimensions.length < 6"
+									type="button"
+									:disabled="Boolean(localItem?.is_resolved_barcode)"
+									@click="addRoomRow"
+									class="text-[11px] font-bold text-slate-700 hover:text-slate-950 cursor-pointer disabled:opacity-50"
+								>
+									+ {{ __("Add space") }}
+								</button>
+							</div>
+
+							<div class="flex flex-col gap-1.5 overflow-y-auto max-h-36 pe-0.5">
+								<div
+									v-for="(room, idx) in roomDimensions"
+									:key="room.id"
+									class="grid grid-cols-[1.1fr_0.9fr_auto_0.9fr_auto_auto] items-center gap-1.5"
+								>
+									<input
+										v-model="room.label"
+										type="text"
+										:placeholder="__('Space {0}', [idx + 1])"
+										class="h-8 bg-slate-50 border border-slate-200 rounded-lg px-2 text-xs font-medium text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 min-w-0"
+									/>
+									<input
+										v-model.number="room.length"
+										type="number"
+										min="0"
+										step="0.01"
+										inputmode="decimal"
+										:placeholder="__('Length')"
+										class="h-8 bg-white border border-slate-200 rounded-lg px-2 text-xs font-bold text-slate-900 text-center focus:outline-none focus:border-blue-500 tabular-nums min-w-0"
+										@input="handleRoomsChange"
+									/>
+									<span class="text-slate-400 text-xs font-bold select-none">×</span>
+									<input
+										v-model.number="room.width"
+										type="number"
+										min="0"
+										step="0.01"
+										inputmode="decimal"
+										:placeholder="__('Width')"
+										class="h-8 bg-white border border-slate-200 rounded-lg px-2 text-xs font-bold text-slate-900 text-center focus:outline-none focus:border-blue-500 tabular-nums min-w-0"
+										@input="handleRoomsChange"
+									/>
+									<span
+										class="text-[11px] font-bold text-slate-700 tabular-nums text-end min-w-[54px]"
+									>
+										{{
+											room.length > 0 && room.width > 0
+												? `${formatArea(room.length * room.width)} ${settingsStore.coverageUom}`
+												: "—"
+										}}
+									</span>
+									<button
+										v-if="roomDimensions.length > 1"
+										type="button"
+										@click="removeRoomRow(idx)"
+										class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+										:title="__('Remove')"
+									>
+										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M6 18L18 6M6 6l12 12"
+											/>
+										</svg>
+									</button>
+									<span v-else class="w-7"></span>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
 
-				<!-- Integer Box Rounding Suggestions when requested area is fractional -->
-				<div v-if="boxRoundingOptions.length === 2" class="space-y-1.5 pt-0.5">
-					<p class="text-[11px] font-medium text-slate-600">
-						{{
-							__("Ajuste a {0} cerradas para cubrir {1} {2}:", [
-								localItem.stock_uom,
-								formatArea(pendingAreaTarget),
-								settingsStore.coverageUom,
-							])
-						}}
-					</p>
-					<div class="grid grid-cols-2 gap-2">
-						<button
-							v-for="opt in boxRoundingOptions"
-							:key="opt.units"
-							type="button"
-							@click="applyRoundedBoxes(opt.units)"
-							:class="
-								localQuantity === opt.units
-									? 'bg-slate-900 border-slate-900 text-white'
-									: 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-							"
-							class="px-2.5 py-2 rounded-xl border text-start transition-colors touch-manipulation"
+				<!-- BLOCK 4: LIVE COMMERCIAL BREAKDOWN (Universal for ALL clients) -->
+				<div
+					:class="[
+						'bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5',
+						!hasCoverageCalculator ? 'md:col-span-2' : '',
+					]"
+				>
+					<div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+						<h4 class="text-xs sm:text-[13px] font-bold text-slate-900">
+							{{ hasCoverageCalculator ? "4." : "3." }} {{ __("Commercial Line Summary") }}
+						</h4>
+						<MdxBadge
+							v-if="localItem.is_stock_item"
+							:variant="isExceedingStock ? 'danger' : 'success'"
+							size="sm"
 						>
-							<div class="text-xs font-bold tabular-nums">
-								{{ opt.units }} {{ localItem.stock_uom }}
-							</div>
-							<div
-								:class="
-									localQuantity === opt.units ? 'text-slate-300' : 'text-slate-500'
-								"
-								class="text-[11px] font-medium tabular-nums"
-							>
-								{{ formatArea(opt.area) }} {{ settingsStore.coverageUom }}
-							</div>
-						</button>
+							{{
+								isExceedingStock
+									? __("Short by {0} {1}", [
+											formatArea(stockShortfallQty),
+											currentUnitLabel,
+										])
+									: __("Stock available")
+							}}
+						</MdxBadge>
 					</div>
-				</div>
-				<div v-else class="flex items-center justify-between text-[11px] text-slate-600 pt-0.5">
-					<span>{{ __("Cobertura efectiva:") }}</span>
-					<span class="font-bold text-slate-900 tabular-nums">
-						{{ formatArea(effectiveCoverageArea) }} {{ settingsStore.coverageUom }}
-					</span>
+
+					<div class="flex flex-col gap-2 text-xs flex-1 justify-center">
+						<template v-if="hasCoverageCalculator">
+							<div class="flex items-center justify-between gap-2">
+								<span class="text-slate-500">{{ __("Net required surface:") }}</span>
+								<span class="font-semibold text-slate-800 tabular-nums">
+									{{ formatArea(effectiveNetArea) }} {{ settingsStore.coverageUom }}
+								</span>
+							</div>
+							<div v-if="wastePercent > 0" class="flex items-center justify-between gap-2">
+								<span class="text-slate-500">
+									{{ __("Waste margin (+{0}%):", [wastePercent]) }}
+								</span>
+								<span class="font-semibold text-slate-800 tabular-nums">
+									+{{ formatArea(wasteAreaAmount) }} {{ settingsStore.coverageUom }}
+								</span>
+							</div>
+							<div class="flex items-center justify-between gap-2">
+								<span class="text-slate-500">{{ __("Actual delivered coverage:") }}</span>
+								<span class="font-bold text-slate-900 tabular-nums">
+									{{ localQuantity }} {{ currentUnitLabel }} →
+									{{ formatArea(effectiveCoverageArea) }} {{ settingsStore.coverageUom }}
+								</span>
+							</div>
+							<div class="border-t border-slate-100 my-0.5"></div>
+						</template>
+
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-slate-500">{{ __("List price value:") }}</span>
+							<span class="font-semibold text-slate-700 tabular-nums">
+								{{ formatCurrency(listLineSubtotal) }}
+							</span>
+						</div>
+
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-slate-500">{{ __("Price adjustment vs list:") }}</span>
+							<span
+								class="font-bold tabular-nums"
+								:class="
+									priceVarianceAmount < -0.01
+										? 'text-emerald-700'
+										: priceVarianceAmount > 0.01
+											? 'text-slate-900'
+											: 'text-slate-500'
+								"
+							>
+								{{ priceVarianceLabel }}
+							</span>
+						</div>
+
+						<div
+							v-if="localItem.is_stock_item"
+							class="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-100"
+						>
+							<span class="text-slate-500">
+								{{ __("Availability in {0}:", [currentWarehouseLabel]) }}
+							</span>
+							<span
+								class="font-bold tabular-nums"
+								:class="isExceedingStock ? 'text-red-600' : 'text-slate-900'"
+							>
+								{{ availableStockSummary }}
+							</span>
+						</div>
+					</div>
 				</div>
 			</div>
 
-			<!-- Serial Numbers Section (only for serial items) -->
+			<!-- Serial Numbers Section (only for serialized items) -->
 			<div
 				v-if="localItem?.has_serial_no && localSerials.length > 0"
-				class="border-t border-slate-200 pt-3.5"
+				class="bg-slate-50/70 border border-slate-200 rounded-2xl p-3 shrink-0"
 			>
 				<div class="flex items-center justify-between mb-2">
 					<label class="block text-xs font-bold text-slate-700 text-start">
 						{{ __("Serial Numbers") }}
 					</label>
-					<MdxBadge variant="info" size="sm">{{ localSerials.length }}</MdxBadge>
+					<MdxBadge variant="neutral" size="sm">{{ localSerials.length }}</MdxBadge>
 				</div>
-				<div class="flex flex-col gap-1.5 max-h-36 overflow-y-auto">
+				<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 max-h-24 overflow-y-auto">
 					<div
 						v-for="(serial, index) in localSerials"
 						:key="serial"
-						class="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200/80 rounded-xl"
+						class="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-white border border-slate-200/80 rounded-xl"
 					>
-						<div class="flex items-center gap-2">
+						<div class="flex items-center gap-2 min-w-0">
 							<span
-								class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-white text-[11px] font-bold"
+								class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-white text-[11px] font-bold shrink-0"
 							>
 								{{ index + 1 }}
 							</span>
-							<span class="text-xs font-semibold text-slate-900 font-mono">{{
+							<span class="text-xs font-semibold text-slate-900 font-mono truncate">{{
 								serial
 							}}</span>
 						</div>
@@ -362,19 +904,14 @@
 							type="button"
 							@click="removeSerial(serial)"
 							:disabled="localSerials.length <= 1"
-							class="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+							class="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
 							:title="
 								localSerials.length <= 1
 									? __('Cannot remove last serial')
 									: __('Remove serial')
 							"
 						>
-							<svg
-								class="w-4 h-4"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path
 									stroke-linecap="round"
 									stroke-linejoin="round"
@@ -386,97 +923,45 @@
 					</div>
 				</div>
 			</div>
-
-			<!-- Item Discount Section (only if allowed by POS Profile) -->
-			<div
-				v-if="settingsStore.allowItemDiscount"
-				class="border-t border-slate-200 pt-3.5"
-			>
-				<label class="block text-xs font-bold text-slate-700 mb-2 text-start">{{
-					__("Item Discount")
-				}}</label>
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-					<!-- Discount Type -->
-					<div>
-						<label class="block text-[11px] font-semibold text-slate-600 mb-1 text-start">{{
-							__("Discount Type")
-						}}</label>
-						<MdxSelect
-							v-model="discountType"
-							:options="discountTypeOptions"
-							size="sm"
-							:showSearch="false"
-							:teleport="true"
-							@update:modelValue="handleDiscountTypeChange"
-						/>
-					</div>
-					<!-- Discount Value -->
-					<div>
-						<label class="block text-[11px] font-semibold text-slate-600 mb-1 text-start">{{
-							discountType === "percentage" ? __("Percentage") : __("Amount")
-						}}</label>
-						<div class="relative">
-							<input
-								v-model.number="discountValue"
-								type="number"
-								min="0"
-								:max="discountType === 'percentage' ? 100 : undefined"
-								step="0.01"
-								class="w-full h-9 border border-slate-200 rounded-xl px-3 pe-8 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 tabular-nums"
-								@input="calculateDiscount"
-							/>
-							<span
-								class="absolute inset-y-0 end-0 pe-3 flex items-center text-slate-400 text-xs font-bold"
-							>
-								{{ discountType === "percentage" ? "%" : currencySymbol }}
-							</span>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- Totals -->
-			<div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col gap-1.5">
-				<div class="flex items-center justify-between text-xs">
-					<span class="text-slate-500 font-medium">{{ __("Subtotal:") }}</span>
-					<span class="font-bold text-slate-800 tabular-nums">{{
-						formatCurrency(calculatedSubtotal)
-					}}</span>
-				</div>
-				<div
-					v-if="calculatedDiscount > 0"
-					class="flex items-center justify-between text-xs text-red-600"
-				>
-					<span class="font-medium">{{ __("Discount:") }}</span>
-					<span class="font-bold tabular-nums">-{{ formatCurrency(calculatedDiscount) }}</span>
-				</div>
-				<div
-					class="flex items-center justify-between pt-2 mt-0.5 border-t border-slate-200"
-				>
-					<span class="text-sm font-extrabold text-slate-900">{{ __("Total:") }}</span>
-					<span class="text-base font-black text-slate-900 tabular-nums">{{
-						formatCurrency(calculatedTotal)
-					}}</span>
-				</div>
-			</div>
 		</div>
 
-		<template #footer>
-			<div class="flex items-center justify-end gap-2 w-full">
-				<MdxButton variant="secondary" @click="cancel">
-					{{ __("Cancel") }}
-				</MdxButton>
-				<MdxButton
-					variant="primary"
-					:loading="isCheckingStock"
-					:disabled="!hasStock || isCheckingStock"
-					@click="updateItem"
+		<template #footer-left>
+			<div v-if="localItem" class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+				<span class="text-xs sm:text-sm font-semibold text-slate-600 tabular-nums">
+					{{ localQuantity }} {{ currentUnitLabel }}
+					<template v-if="hasCoverageCalculator">
+						({{ formatArea(effectiveCoverageArea) }} {{ settingsStore.coverageUom }})
+					</template>
+				</span>
+				<span
+					v-if="calculatedDiscount > 0"
+					class="text-xs font-semibold text-red-600 tabular-nums"
 				>
-					<span v-if="isCheckingStock">{{ __("Checking Stock...") }}</span>
-					<span v-else-if="!hasStock">{{ __("No Stock Available") }}</span>
-					<span v-else>{{ __("Update Item") }}</span>
-				</MdxButton>
+					{{ __("Discount:") }} -{{ formatCurrency(calculatedDiscount) }}
+				</span>
+				<div class="flex items-baseline gap-1.5">
+					<span class="text-xs sm:text-sm font-bold text-slate-700">{{ __("Total:") }}</span>
+					<span class="text-base sm:text-lg font-black text-slate-900 tabular-nums">
+						{{ formatCurrency(calculatedTotal) }}
+					</span>
+				</div>
 			</div>
+		</template>
+
+		<template #footer>
+			<MdxButton variant="secondary" @click="cancel">
+				{{ __("Cancel") }}
+			</MdxButton>
+			<MdxButton
+				variant="primary"
+				:loading="isCheckingStock"
+				:disabled="!hasStock || isCheckingStock"
+				@click="updateItem"
+			>
+				<span v-if="isCheckingStock">{{ __("Checking Stock...") }}</span>
+				<span v-else-if="!hasStock">{{ __("No Stock Available") }}</span>
+				<span v-else>{{ __("Update Item") }}</span>
+			</MdxButton>
 		</template>
 	</MdxModal>
 </template>
@@ -493,7 +978,7 @@ import {
 } from "@/utils/currency";
 import { FeatherIcon, createResource } from "frappe-ui";
 import { MdxBadge, MdxButton, MdxModal, MdxSelect } from "mdx_ui";
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 const { showSuccess, showError, showWarning } = useToast();
 const settingsStore = usePOSSettingsStore();
@@ -514,6 +999,35 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "update-item"]);
 
+// Viewport tracking to occupy full screen with standard margin on compact screens and avoid vertical scroll
+const viewportWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1280);
+const viewportHeight = ref(typeof window !== "undefined" ? window.innerHeight : 800);
+
+function updateViewport() {
+	if (typeof window === "undefined") return;
+	viewportWidth.value = window.innerWidth;
+	viewportHeight.value = window.innerHeight;
+}
+
+onMounted(() => {
+	updateViewport();
+	if (typeof window !== "undefined") {
+		window.addEventListener("resize", updateViewport);
+	}
+});
+
+onUnmounted(() => {
+	if (typeof window !== "undefined") {
+		window.removeEventListener("resize", updateViewport);
+	}
+});
+
+const isCompactViewport = computed(
+	() => viewportWidth.value < 1024 || viewportHeight.value < 680
+);
+
+const dialogSize = computed(() => "full");
+
 // Local state
 const localItem = ref(null);
 const localQuantity = ref(1);
@@ -522,6 +1036,8 @@ const localRate = ref(0);
 const localWarehouse = ref("");
 const discountType = ref("percentage");
 const discountValue = ref(0);
+const showDiscountSection = ref(false);
+const liveWarehouseStock = ref(null);
 const calculatedSubtotal = ref(0);
 const calculatedDiscount = ref(0);
 const calculatedTotal = ref(0);
@@ -538,6 +1054,19 @@ const localCoverageRate = ref(0);
 const pendingAreaTarget = ref(0);
 const isEditingCoverageRate = ref(false);
 const isEditingArea = ref(false);
+const targetLineTotal = ref(0);
+const isEditingTargetTotal = ref(false);
+const wastePercent = ref(0);
+const netAreaBase = ref(0);
+let nextRoomId = 2;
+const roomDimensions = ref([{ id: 1, label: "", length: null, width: null }]);
+
+const wastePresets = computed(() => [
+	{ value: 0, label: __("0% Exact") },
+	{ value: 5, label: "+5%" },
+	{ value: 10, label: __("+10% Std.") },
+	{ value: 15, label: __("+15% Diag.") },
+]);
 
 const getItemDetailsResource = createResource({
 	url: "pos_next.api.items.get_item_details",
@@ -594,10 +1123,46 @@ const boxRoundingOptions = computed(() => {
 	const lower = Math.max(1, Math.floor(exact + 1e-7));
 	const upper = Math.max(1, Math.ceil(exact - 1e-7));
 	if (lower === upper) return [];
+	const lowerArea = Math.round(lower * coveragePerUnit.value * 10000) / 10000;
+	const upperArea = Math.round(upper * coveragePerUnit.value * 10000) / 10000;
 	return [
-		{ units: lower, area: lower * coveragePerUnit.value },
-		{ units: upper, area: upper * coveragePerUnit.value },
+		{
+			units: lower,
+			area: lowerArea,
+			delta: Math.round((lowerArea - pendingAreaTarget.value) * 10000) / 10000,
+		},
+		{
+			units: upper,
+			area: upperArea,
+			delta: Math.round((upperArea - pendingAreaTarget.value) * 10000) / 10000,
+		},
 	];
+});
+
+const roomsTotalArea = computed(() => {
+	let sum = 0;
+	for (const r of roomDimensions.value) {
+		const l = Number.parseFloat(r.length);
+		const w = Number.parseFloat(r.width);
+		if (l > 0 && w > 0 && !Number.isNaN(l) && !Number.isNaN(w)) {
+			sum += l * w;
+		}
+	}
+	return Math.round(sum * 10000) / 10000;
+});
+
+const hasActiveRooms = computed(() => roomsTotalArea.value > 0);
+
+const effectiveNetArea = computed(() => {
+	if (!hasCoverageCalculator.value) return 0;
+	if (hasActiveRooms.value) return roomsTotalArea.value;
+	if (netAreaBase.value > 0) return netAreaBase.value;
+	return effectiveCoverageArea.value;
+});
+
+const wasteAreaAmount = computed(() => {
+	if (!hasCoverageCalculator.value || wastePercent.value <= 0) return 0;
+	return Math.round(effectiveNetArea.value * (wastePercent.value / 100) * 10000) / 10000;
 });
 
 function formatArea(val) {
@@ -653,6 +1218,101 @@ const warehouseOptions = computed(() => {
 	return [{ value: localWarehouse.value, label: localWarehouse.value || __("Default") }];
 });
 
+const showUomSelector = computed(
+	() => !localItem.value?.is_resolved_barcode && uomOptions.value.length > 1
+);
+
+const showWarehouseSelector = computed(() => warehouseOptions.value.length > 1);
+
+const currentUnitLabel = computed(
+	() => localUom.value || localItem.value?.stock_uom || __("Nos", null, "UOM")
+);
+
+const currentWarehouseLabel = computed(() => {
+	const found = warehouseOptions.value.find((w) => w.value === localWarehouse.value);
+	return found?.label || localWarehouse.value || __("Warehouse");
+});
+
+const availableStockQty = computed(() => {
+	if (liveWarehouseStock.value !== null && liveWarehouseStock.value !== undefined) {
+		return Number(liveWarehouseStock.value);
+	}
+	if (!localItem.value) return 0;
+	return Number(
+		localItem.value.original_stock ??
+			localItem.value.actual_qty ??
+			localItem.value.stock_qty ??
+			0
+	);
+});
+
+const availableStockSummary = computed(() => {
+	const qty = Math.floor(availableStockQty.value);
+	if (hasCoverageCalculator.value && qty > 0) {
+		const area = formatArea(qty * coveragePerUnit.value);
+		return `${qty} ${currentUnitLabel.value} (${area} ${settingsStore.coverageUom})`;
+	}
+	return `${qty} ${currentUnitLabel.value}`;
+});
+
+const listCoverageRate = computed(() => {
+	if (!hasCoverageCalculator.value || coveragePerUnit.value <= 0) return 0;
+	return roundCurrency(Number(originalPriceListRate.value || 0) / coveragePerUnit.value);
+});
+
+const maxAvailableWholeUnits = computed(() => {
+	const stock = Number(availableStockQty.value || 0);
+	if (stock <= 0) return 0;
+	return hasCoverageCalculator.value && settingsStore.lockCoverageUomDirectSale
+		? Math.floor(stock)
+		: Math.round(stock * 10000) / 10000;
+});
+
+const isExceedingStock = computed(() => {
+	if (!localItem.value?.is_stock_item) return false;
+	return Number(localQuantity.value || 0) > Math.max(0, Number(availableStockQty.value || 0)) + 1e-7;
+});
+
+const stockShortfallQty = computed(() => {
+	if (!isExceedingStock.value) return 0;
+	return (
+		Math.round(
+			Math.max(0, Number(localQuantity.value || 0) - Math.max(0, Number(availableStockQty.value || 0))) *
+				10000
+		) / 10000
+	);
+});
+
+const stockShortfallArea = computed(() => {
+	if (!hasCoverageCalculator.value || !isExceedingStock.value) return 0;
+	return Math.round(stockShortfallQty.value * coveragePerUnit.value * 10000) / 10000;
+});
+
+const listLineSubtotal = computed(() =>
+	roundCurrency(Number(originalPriceListRate.value || 0) * Number(localQuantity.value || 0))
+);
+
+const priceVarianceAmount = computed(() =>
+	roundCurrency(Number(calculatedTotal.value || 0) - listLineSubtotal.value)
+);
+
+const isPriceModified = computed(
+	() =>
+		Math.abs(Number(localRate.value || 0) - Number(originalPriceListRate.value || 0)) > 0.009 ||
+		Number(discountValue.value || 0) > 0
+);
+
+const priceVarianceLabel = computed(() => {
+	const diff = priceVarianceAmount.value;
+	if (Math.abs(diff) < 0.01) {
+		return __("List price (0%)");
+	}
+	const pct =
+		listLineSubtotal.value > 0 ? Math.abs((diff / listLineSubtotal.value) * 100).toFixed(1) : "0.0";
+	const sign = diff < 0 ? "-" : "+";
+	return `${sign}${formatCurrency(Math.abs(diff))} (${sign}${pct}%)`;
+});
+
 const discountTypeOptions = computed(() => [
 	{ value: "percentage", label: __("Percentage (%)") },
 	{ value: "amount", label: __("Amount") },
@@ -671,6 +1331,7 @@ watch(
 			// Store original price_list_rate for rate edit validation
 			originalPriceListRate.value = newItem.price_list_rate || newItem.rate || 0;
 			localWarehouse.value = newItem.warehouse || props.warehouses[0]?.name || "";
+			liveWarehouseStock.value = null;
 
 			// Initialize serial numbers
 			if (newItem.has_serial_no && newItem.serial_no) {
@@ -690,25 +1351,34 @@ watch(
 			if (newItem.discount_percentage && newItem.discount_percentage > 0) {
 				discountType.value = "percentage";
 				discountValue.value = newItem.discount_percentage;
+				showDiscountSection.value = true;
 			} else if (newItem.discount_amount && newItem.discount_amount > 0) {
 				discountType.value = "amount";
 				discountValue.value = newItem.discount_amount;
+				showDiscountSection.value = true;
 			} else {
 				discountType.value = "percentage";
 				discountValue.value = 0;
+				showDiscountSection.value = false;
 			}
 
-			// Reset stock check state
+			// Reset stock check & assistant state
 			hasStock.value = true;
 			isCheckingStock.value = false;
 			pendingAreaTarget.value = 0;
+			wastePercent.value = 0;
+			nextRoomId = 2;
+			roomDimensions.value = [{ id: 1, label: "", length: null, width: null }];
 
 			calculateTotals();
 			if (hasCoverageCalculator.value) {
-				localRequiredArea.value =
+				const initArea =
 					Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
+				localRequiredArea.value = initArea;
+				netAreaBase.value = initArea;
 			} else {
 				localRequiredArea.value = 0;
+				netAreaBase.value = 0;
 			}
 			isInitializingItem.value = false;
 		}
@@ -757,14 +1427,44 @@ function getSmartStep(quantity) {
 	return 0.01;
 }
 
+function syncQuantityToCoverageArea() {
+	if (!hasCoverageCalculator.value) return;
+	const area = Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
+	localRequiredArea.value = area;
+	netAreaBase.value = area;
+	wastePercent.value = 0;
+}
+
+function applyRequiredGrossArea(grossArea, preserveNetBase = null) {
+	if (!hasCoverageCalculator.value || !grossArea || grossArea <= 0 || Number.isNaN(grossArea)) {
+		pendingAreaTarget.value = 0;
+		return;
+	}
+	isEditingArea.value = true;
+	const roundedGross = Math.round(grossArea * 10000) / 10000;
+	localRequiredArea.value = roundedGross;
+	if (preserveNetBase !== null) {
+		netAreaBase.value = Math.round(preserveNetBase * 10000) / 10000;
+	}
+	const exactUnits = roundedGross / coveragePerUnit.value;
+	const lower = Math.max(1, Math.floor(exactUnits + 1e-7));
+	const upper = Math.max(1, Math.ceil(exactUnits - 1e-7));
+	if (lower === upper) {
+		pendingAreaTarget.value = 0;
+		localQuantity.value = lower;
+	} else {
+		pendingAreaTarget.value = roundedGross;
+		localQuantity.value = upper;
+	}
+	calculateTotals();
+	isEditingArea.value = false;
+}
+
 function incrementQuantity() {
 	const step = getSmartStep(localQuantity.value);
 	localQuantity.value = Math.round((localQuantity.value + step) * 10000) / 10000;
 	pendingAreaTarget.value = 0;
-	if (hasCoverageCalculator.value) {
-		localRequiredArea.value =
-			Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
-	}
+	syncQuantityToCoverageArea();
 	calculateTotals();
 }
 
@@ -775,22 +1475,17 @@ function decrementQuantity() {
 	if (newQty > 0) {
 		localQuantity.value = newQty;
 		pendingAreaTarget.value = 0;
-		if (hasCoverageCalculator.value) {
-			localRequiredArea.value =
-				Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
-		}
+		syncQuantityToCoverageArea();
 		calculateTotals();
 	}
 }
 
 function handleQuantityInput() {
 	// Allow any value during typing, just recalculate totals
-	// Don't validate or reset - let user type freely
 	if (localQuantity.value > 0 && !isNaN(localQuantity.value)) {
 		pendingAreaTarget.value = 0;
 		if (hasCoverageCalculator.value && !isEditingArea.value) {
-			localRequiredArea.value =
-				Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
+			syncQuantityToCoverageArea();
 		}
 		calculateTotals();
 	}
@@ -799,18 +1494,14 @@ function handleQuantityInput() {
 function handleQuantityBlur() {
 	// Validate and fix the quantity when user is done editing (leaves the field)
 	if (!localQuantity.value || localQuantity.value <= 0 || isNaN(localQuantity.value)) {
-		// If invalid, reset to 1
 		localQuantity.value = 1;
 	} else if (hasCoverageCalculator.value && settingsStore.lockCoverageUomDirectSale) {
-		// Enforce whole boxes when fractional coverage UOM direct sale is locked
 		localQuantity.value = Math.max(1, Math.round(localQuantity.value));
 	} else {
-		// Round to 4 decimal places for consistency
 		localQuantity.value = Math.round(localQuantity.value * 10000) / 10000;
 	}
 	if (hasCoverageCalculator.value && !pendingAreaTarget.value) {
-		localRequiredArea.value =
-			Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000;
+		syncQuantityToCoverageArea();
 	}
 	calculateTotals();
 }
@@ -820,21 +1511,12 @@ function handleAreaInput() {
 	const area = Number.parseFloat(localRequiredArea.value);
 	if (!area || area <= 0 || Number.isNaN(area)) {
 		pendingAreaTarget.value = 0;
+		netAreaBase.value = 0;
 		return;
 	}
-	isEditingArea.value = true;
-	const exactUnits = area / coveragePerUnit.value;
-	const lower = Math.max(1, Math.floor(exactUnits + 1e-7));
-	const upper = Math.max(1, Math.ceil(exactUnits - 1e-7));
-	if (lower === upper) {
-		pendingAreaTarget.value = 0;
-		localQuantity.value = lower;
-	} else {
-		pendingAreaTarget.value = area;
-		localQuantity.value = upper;
-	}
-	calculateTotals();
-	isEditingArea.value = false;
+	// Typing directly into Surface sets the clean net base (respecting any active waste %)
+	const netVal = wastePercent.value > 0 ? area / (1 + wastePercent.value / 100) : area;
+	applyRequiredGrossArea(area, netVal);
 }
 
 function applyRoundedBoxes(units) {
@@ -843,6 +1525,59 @@ function applyRoundedBoxes(units) {
 	if (hasCoverageCalculator.value) {
 		localRequiredArea.value = Math.round(units * coveragePerUnit.value * 10000) / 10000;
 	}
+	calculateTotals();
+}
+
+function applyWastePercent(pct) {
+	if (!hasCoverageCalculator.value) return;
+	wastePercent.value = pct;
+	const base =
+		roomsTotalArea.value > 0
+			? roomsTotalArea.value
+			: netAreaBase.value > 0
+				? netAreaBase.value
+				: effectiveCoverageArea.value;
+	if (!base || base <= 0) return;
+	const gross = base * (1 + pct / 100);
+	applyRequiredGrossArea(gross, base);
+}
+
+function handleRoomsChange() {
+	if (!hasCoverageCalculator.value) return;
+	const net = roomsTotalArea.value;
+	if (net <= 0) return;
+	const gross = net * (1 + wastePercent.value / 100);
+	applyRequiredGrossArea(gross, net);
+}
+
+function addRoomRow() {
+	if (roomDimensions.value.length >= 6) return;
+	roomDimensions.value.push({ id: nextRoomId++, label: "", length: null, width: null });
+}
+
+function removeRoomRow(index) {
+	if (roomDimensions.value.length <= 1) return;
+	roomDimensions.value.splice(index, 1);
+	handleRoomsChange();
+}
+
+function resetAssistant() {
+	wastePercent.value = 0;
+	nextRoomId = 2;
+	roomDimensions.value = [{ id: 1, label: "", length: null, width: null }];
+	const currentArea =
+		Math.round(Number(localQuantity.value || 1) * coveragePerUnit.value * 10000) / 10000;
+	netAreaBase.value = currentArea;
+	localRequiredArea.value = currentArea;
+	pendingAreaTarget.value = 0;
+	calculateTotals();
+}
+
+function adjustToMaxAvailableStock() {
+	if (maxAvailableWholeUnits.value <= 0) return;
+	localQuantity.value = maxAvailableWholeUnits.value;
+	pendingAreaTarget.value = 0;
+	syncQuantityToCoverageArea();
 	calculateTotals();
 }
 
@@ -856,9 +1591,33 @@ function handleCoverageRateInput() {
 	if (Number.isNaN(covRate) || covRate < 0) return;
 	isEditingCoverageRate.value = true;
 	discountValue.value = 0;
+	showDiscountSection.value = false;
 	localRate.value = roundCurrency(covRate * coveragePerUnit.value);
 	calculateTotals();
 	isEditingCoverageRate.value = false;
+}
+
+function handleTargetTotalInput() {
+	if (!canEditRate.value) return;
+	const desiredTotal = Number.parseFloat(targetLineTotal.value);
+	if (Number.isNaN(desiredTotal) || desiredTotal < 0 || !localQuantity.value || localQuantity.value <= 0) {
+		return;
+	}
+	isEditingTargetTotal.value = true;
+	discountValue.value = 0;
+	showDiscountSection.value = false;
+	localRate.value = roundCurrency(desiredTotal / localQuantity.value);
+	calculateTotals();
+	isEditingTargetTotal.value = false;
+}
+
+function resetToListPrice() {
+	if (!canEditRate.value) return;
+	localRate.value = roundCurrency(originalPriceListRate.value);
+	discountType.value = "percentage";
+	discountValue.value = 0;
+	showDiscountSection.value = false;
+	calculateTotals();
 }
 
 function getConversionFactorForUom(uom) {
@@ -932,6 +1691,7 @@ async function handleWarehouseChange() {
 	try {
 		// Check stock availability in the new warehouse
 		const availableStock = await getItemStock(localItem.value.item_code, localWarehouse.value);
+		liveWarehouseStock.value = availableStock;
 		const enforceStock = settingsStore.shouldEnforceStockValidation();
 
 		if (availableStock <= 0) {
@@ -983,6 +1743,13 @@ function handleDiscountTypeChange() {
 	calculateTotals();
 }
 
+function clearAndHideDiscount() {
+	discountType.value = "percentage";
+	discountValue.value = 0;
+	showDiscountSection.value = false;
+	calculateTotals();
+}
+
 function calculateDiscount() {
 	// Round to currency precision to prevent floating point precision issues (e.g., 10.000000000000002)
 	if (
@@ -1014,6 +1781,9 @@ function calculateDiscount() {
 function calculateTotals() {
 	calculatedSubtotal.value = localRate.value * localQuantity.value;
 	calculateDiscount();
+	if (!isEditingTargetTotal.value) {
+		targetLineTotal.value = roundCurrency(calculatedTotal.value);
+	}
 	if (hasCoverageCalculator.value && !isEditingCoverageRate.value) {
 		const netUnitRate =
 			localQuantity.value > 0
@@ -1094,9 +1864,9 @@ function updateItem() {
 		original_rate: isRateManuallyEdited ? originalPriceListRate.value : null,
 		...(hasCoverageCalculator.value
 			? {
-					custom_cantidad_m2:
+					coverage_qty:
 						Math.round(localQuantity.value * coveragePerUnit.value * 10000) / 10000,
-					custom_precio_m2: roundCurrency(netUnitRate / coveragePerUnit.value),
+					coverage_rate: roundCurrency(netUnitRate / coveragePerUnit.value),
 				}
 			: {}),
 	};

@@ -518,6 +518,7 @@ import {
 	roundCurrency,
 } from "@/utils/currency";
 import { clearAllDrafts, deleteDraft, getAllDrafts } from "@/utils/draftManager";
+import { parseFrappeDateTime } from "@/utils/date";
 import { printInvoice } from "@/utils/printInvoice";
 import { useToast } from "@/composables/useToast";
 import { usePOSShiftStore } from "@/stores/posShift";
@@ -825,7 +826,8 @@ async function confirmClearAll() {
 }
 
 function formatDateTime(dateStr) {
-	const date = new Date(dateStr);
+	const date = parseFrappeDateTime(dateStr);
+	if (!date) return "";
 	return date.toLocaleString(DEFAULT_LOCALE, {
 		month: "short",
 		day: "numeric",
@@ -851,9 +853,10 @@ function calculateTotal(items) {
 
 function getTimeAgo(createdAt) {
 	if (!createdAt) return "";
-	const date = new Date(createdAt);
+	const date = parseFrappeDateTime(createdAt);
+	if (!date) return "";
 	const now = new Date();
-	const diffMs = now - date;
+	const diffMs = Math.max(0, now - date);
 	const diffMins = Math.floor(diffMs / 60000);
 
 	if (diffMins < 1) return __("Just now");
@@ -868,9 +871,10 @@ function getTimeAgo(createdAt) {
 
 function getWaitingStatus(createdAt) {
 	if (!createdAt) return "normal";
-	const date = new Date(createdAt);
+	const date = parseFrappeDateTime(createdAt);
+	if (!date) return "normal";
 	const now = new Date();
-	const diffMins = Math.floor((now - date) / 60000);
+	const diffMins = Math.max(0, Math.floor((now - date) / 60000));
 	if (diffMins >= 20) return "critical";
 	if (diffMins >= 10) return "warning";
 	return "normal";

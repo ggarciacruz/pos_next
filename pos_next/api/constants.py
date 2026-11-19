@@ -45,6 +45,7 @@ POS_SETTINGS_FIELDS = [
 	"enable_shift_management",
 	"allow_sales_order",
 	"allow_quotation",
+	"quotation_validity_days",
 	"allow_select_sales_order",
 	"create_only_sales_order",
 	"create_payment_on_sales_order",
@@ -56,6 +57,7 @@ POS_SETTINGS_FIELDS = [
 	"invoice_print_format",
 	"sales_order_print_format",
 	"quotation_print_format",
+	"enable_delivery_dispatch",
 	"enable_session_lock",
 	"session_lock_timeout",
 	"show_variants_as_items",
@@ -97,6 +99,7 @@ DEFAULT_POS_SETTINGS = {
 	"enable_shift_management": 1,
 	"allow_sales_order": 0,
 	"allow_quotation": 0,
+	"quotation_validity_days": 3,
 	"allow_select_sales_order": 0,
 	"create_only_sales_order": 0,
 	"create_payment_on_sales_order": 0,
@@ -111,6 +114,7 @@ DEFAULT_POS_SETTINGS = {
 	"resolved_invoice_print_format": "",
 	"resolved_sales_order_print_format": "",
 	"resolved_quotation_print_format": "",
+	"enable_delivery_dispatch": 0,
 	"enable_session_lock": 0,
 	"session_lock_timeout": 5,
 	"show_variants_as_items": 0,
@@ -164,6 +168,20 @@ def get_safe_pos_settings_dict(pos_profile, require_enabled=True):
 		for k, v in row.items():
 			if v is not None:
 				merged[k] = v
+
+		# Backward-compatible multi-tenant guard: on unmigrated sites that already have
+		# delivery dispatch columns (e.g. fleet/truck dispatch tenants), keep it active.
+		if "enable_delivery_dispatch" not in existing_cols:
+			merged["enable_delivery_dispatch"] = (
+				1
+				if (
+					frappe.db.has_column("Sales Invoice", "custom_direccion_entrega")
+					or frappe.db.has_column("Sales Order", "custom_direccion_entrega")
+				)
+				else 0
+			)
+		if not merged.get("quotation_validity_days") or int(merged["quotation_validity_days"]) <= 0:
+			merged["quotation_validity_days"] = 3
 		return merged
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Safe POS Settings Lookup Error")

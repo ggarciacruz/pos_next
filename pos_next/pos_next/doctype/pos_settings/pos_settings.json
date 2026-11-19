@@ -44,6 +44,7 @@
   "enable_shift_management",
   "allow_sales_order",
   "allow_quotation",
+  "quotation_validity_days",
   "allow_select_sales_order",
   "create_only_sales_order",
   "create_payment_on_sales_order",
@@ -76,6 +77,7 @@
   "silent_print",
   "enable_whatsapp_send",
   "section_break_delivery",
+  "enable_delivery_dispatch",
   "use_delivery_charges",
   "auto_set_delivery_charges",
   "section_break_advanced",
@@ -376,6 +378,14 @@
    "label": "Permitir Crear Cotizaciones"
   },
   {
+   "default": "3",
+   "depends_on": "allow_quotation",
+   "description": "Cantidad de días calendario de vigencia al crear una cotización desde el POS",
+   "fieldname": "quotation_validity_days",
+   "fieldtype": "Int",
+   "label": "Días de Validez de Cotización"
+  },
+  {
    "default": "0",
    "description": "Seleccionar y facturar pedidos o preventas guardadas previamente",
    "fieldname": "allow_select_sales_order",
@@ -602,6 +612,13 @@
   },
   {
    "default": "0",
+   "description": "Mostrar sección de Despacho / Envío con datos de dirección, fecha de entrega y modalidad de cobro en el diálogo de pago",
+   "fieldname": "enable_delivery_dispatch",
+   "fieldtype": "Check",
+   "label": "Habilitar Despacho / Envío a Domicilio"
+  },
+  {
+   "default": "0",
    "description": "Permitir agregar recargo por costo de flete o despacho",
    "fieldname": "use_delivery_charges",
    "fieldtype": "Check",
@@ -743,7 +760,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-03 15:54:09.903964",
+ "modified": "2026-11-19 08:20:00.000000",
  "modified_by": "Administrator",
  "module": "POS Next",
  "name": "POS Settings",

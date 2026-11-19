@@ -114,8 +114,21 @@ def get_pos_settings(pos_profile):
 	# This helps UI reflect the actual state even if multiple POS Settings exist
 	from pos_next.api.constants import DEFAULT_POS_SETTINGS, attach_resolved_print_formats
 
+	has_dispatch_col = "enable_delivery_dispatch" in settings
 	for k, v in DEFAULT_POS_SETTINGS.items():
 		settings.setdefault(k, v)
+
+	if not has_dispatch_col:
+		settings["enable_delivery_dispatch"] = (
+			1
+			if (
+				frappe.db.has_column("Sales Invoice", "custom_direccion_entrega")
+				or frappe.db.has_column("Sales Order", "custom_direccion_entrega")
+			)
+			else 0
+		)
+	if not cint(settings.get("quotation_validity_days")):
+		settings["quotation_validity_days"] = 3
 
 	settings["_global_allow_negative_stock"] = cint(
 		frappe.db.get_single_value("Stock Settings", "allow_negative_stock") or 0

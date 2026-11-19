@@ -237,28 +237,36 @@ def get_taxes(pos_profile):
 
 @frappe.whitelist()
 def get_warehouses(pos_profile):
-	"""Get all warehouses for the company in POS Profile"""
+	"""Get operational warehouses for the company in POS Profile (filtered relationally, zero hardcoding)."""
 	try:
 		if not pos_profile:
 			return []
 
-		# Get the company from POS Profile
-		company = frappe.db.get_value("POS Profile", pos_profile, "company")
+		# Get company and configured profile warehouse from POS Profile
+		profile_info = frappe.db.get_value("POS Profile", pos_profile, ["company", "warehouse"], as_dict=True)
+		company = profile_info.get("company") if profile_info else None
+		profile_wh = profile_info.get("warehouse") if profile_info else None
 
 		if not company:
 			return []
 
-		# Get all active warehouses for the company
-		warehouses = frappe.get_list(
+		from pos_next.api.items import _filter_operational_warehouses
+
+		raw_warehouses = frappe.get_list(
 			"Warehouse",
 			filters={"company": company, "disabled": 0, "is_group": 0},
-			fields=["name", "warehouse_name"],
+			fields=["name", "warehouse_name", "warehouse_type"],
 			order_by="warehouse_name",
 			limit_page_length=0,
 		)
 
-		# Return warehouses with human-readable names
-		return warehouses
+		warehouses = _filter_operational_warehouses(
+			raw_warehouses,
+			company=company,
+			preferred_warehouses=[profile_wh] if profile_wh else None,
+		)
+
+		return [{"name": w.name, "warehouse_name": w.warehouse_name} for w in warehouses]
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Get Warehouses Error")
 		return []

@@ -802,6 +802,18 @@ def _get_pos_profile_allowed_item_groups(pos_profile_doc):
 	return result
 
 
+def _resolve_effective_stock_filter(pos_profile_doc, stock_filter=None) -> str:
+	"""Resolve effective stock filter ('all' | 'in_stock' | 'out_of_stock').
+
+	Explicit caller filter ('all', 'in_stock', 'out_of_stock') always wins;
+	when omitted (None/''), falls back to POS Profile.hide_unavailable_items.
+	"""
+	sf = (stock_filter or "").strip().lower()
+	if sf in ("all", "in_stock", "out_of_stock"):
+		return sf
+	return "in_stock" if getattr(pos_profile_doc, "hide_unavailable_items", 0) else "all"
+
+
 def _build_item_base_conditions(
 	pos_profile_doc,
 	item_group=None,
@@ -810,6 +822,7 @@ def _build_item_base_conditions(
 	exclude_templates=False,
 	hide_unavailable=False,
 	warehouse=None,
+	stock_filter=None,
 ):
 	"""Build base SQL conditions for POS item search with hierarchical item group support.
 
@@ -865,7 +878,13 @@ def _build_item_base_conditions(
 	extra_joins = ""
 	join_params = []
 
-	if hide_unavailable and warehouse:
+	effective_sf = (
+		(stock_filter or "").strip().lower()
+		if (stock_filter or "").strip().lower() in ("all", "in_stock", "out_of_stock")
+		else ("in_stock" if hide_unavailable else "all")
+	)
+
+	if effective_sf in ("in_stock", "out_of_stock") and warehouse:
 		warehouses = [warehouse]
 		if frappe.db.get_value("Warehouse", warehouse, "is_group"):
 			warehouses = frappe.db.get_descendants("Warehouse", warehouse) or [warehouse]
@@ -884,11 +903,50 @@ def _build_item_base_conditions(
 				warehouses = list(set(warehouses + factory_whs))
 
 		wh_placeholders = ", ".join(["%s"] * len(warehouses))
-		extra_joins = (
-			f"LEFT JOIN `tabBin` bin ON bin.item_code = i.name AND bin.warehouse IN ({wh_placeholders})"
-		)
-		join_params.extend(warehouses)
-		conditions.append("(i.is_stock_item = 0 OR i.has_variants = 1 OR bin.actual_qty > 0)")
+		if effective_sf == "in_stock":
+			conditions.append(
+				f"""(
+					i.is_stock_item = 0
+					OR (i.has_variants = 0 AND EXISTS (
+						SELECT 1 FROM `tabBin` b_sf
+						WHERE b_sf.item_code = i.name
+						  AND b_sf.warehouse IN ({wh_placeholders})
+						  AND b_sf.actual_qty > 0
+					))
+					OR (i.has_variants = 1 AND EXISTS (
+						SELECT 1 FROM `tabItem` iv
+						INNER JOIN `tabBin` bv ON bv.item_code = iv.name
+						WHERE iv.variant_of = i.name AND iv.disabled = 0
+						  AND bv.warehouse IN ({wh_placeholders})
+						  AND bv.actual_qty > 0
+					))
+				)"""
+			)
+			where_params.extend(warehouses)
+			where_params.extend(warehouses)
+		elif effective_sf == "out_of_stock":
+			conditions.append(
+				f"""(
+					i.is_stock_item = 1
+					AND (
+						(i.has_variants = 0 AND NOT EXISTS (
+							SELECT 1 FROM `tabBin` b_sf
+							WHERE b_sf.item_code = i.name
+							  AND b_sf.warehouse IN ({wh_placeholders})
+							  AND b_sf.actual_qty > 0
+						))
+						OR (i.has_variants = 1 AND NOT EXISTS (
+							SELECT 1 FROM `tabItem` iv
+							INNER JOIN `tabBin` bv ON bv.item_code = iv.name
+							WHERE iv.variant_of = i.name AND iv.disabled = 0
+							  AND bv.warehouse IN ({wh_placeholders})
+							  AND bv.actual_qty > 0
+						))
+					)
+				)"""
+			)
+			where_params.extend(warehouses)
+			where_params.extend(warehouses)
 
 	# Merge: join params come before WHERE params to match SQL placeholder order
 	return conditions, join_params + where_params, extra_joins
@@ -1213,6 +1271,65 @@ def _get_bundle_warehouse_availability_bulk(bundle_codes, warehouses):
 	return dict(result)
 
 
+def _filter_operational_warehouses(raw_warehouses, company=None, preferred_warehouses=None):
+	"""
+	Determine operational leaf warehouses strictly from relational database usage
+	(zero hardcoded warehouse names):
+	  1. Exclude Transit warehouses via standard `warehouse_type != "Transit"`.
+	  2. Keep warehouses referenced in `preferred_warehouses`, active `POS Profile`,
+	     `Item Default`, or `Bin` inventory records.
+	  3. Fall back to `Stock Settings.default_warehouse` or all non-Transit leaf
+	     warehouses on freshly initialized companies with no operational records yet.
+	"""
+	if not raw_warehouses:
+		return []
+
+	non_transit = [w for w in raw_warehouses if (w.get("warehouse_type") or "") != "Transit"]
+	if not non_transit:
+		return []
+
+	candidate_names = [w.get("name") for w in non_transit if w.get("name")]
+	if not candidate_names:
+		return non_transit
+
+	keep_names = {w for w in (preferred_warehouses or []) if w}
+
+	pf_filters = {"disabled": 0}
+	if company:
+		pf_filters["company"] = company
+	for pf_wh in frappe.get_all("POS Profile", filters=pf_filters, pluck="warehouse"):
+		if pf_wh:
+			keep_names.add(pf_wh)
+
+	id_whs = frappe.get_all(
+		"Item Default",
+		filters={"default_warehouse": ["in", candidate_names]},
+		pluck="default_warehouse",
+		distinct=True,
+	)
+	keep_names.update(id_whs or [])
+
+	bin_whs = frappe.get_all(
+		"Bin",
+		filters={"warehouse": ["in", candidate_names]},
+		pluck="warehouse",
+		distinct=True,
+	)
+	keep_names.update(bin_whs or [])
+
+	filtered = [w for w in non_transit if w.get("name") in keep_names]
+	if filtered:
+		return filtered
+
+	default_stock_wh = frappe.db.get_single_value("Stock Settings", "default_warehouse")
+	if default_stock_wh:
+		fallback = [w for w in non_transit if w.get("name") == default_stock_wh]
+		if fallback:
+			return fallback
+
+	return non_transit
+
+
 def _is_factory_warehouse(warehouse_name):
 	wh_lower = (warehouse_name or "").lower()
 	return not wh_lower or "fábrica" in wh_lower or "fabrica" in wh_lower
@@ -1295,22 +1412,11 @@ def _resolve_item_warehouses_and_stock(
 		filters=wh_filters,
 		fields=["name", "warehouse_name", "warehouse_type"],
 	)
-	boilerplate_names = {
-		"las mercancías en tránsito",
-		"trabajo en proceso",
-		"productos terminados",
-		"sucursales",
-		"goods in transit",
-		"work in progress",
-		"finished goods",
-		"stores",
-	}
-	active_warehouses = [
-		w
-		for w in raw_warehouses
-		if (w.get("warehouse_type") or "") != "Transit"
-		and (w.get("warehouse_name") or "").strip().lower() not in boilerplate_names
-	]
+	active_warehouses = _filter_operational_warehouses(
+		raw_warehouses,
+		company=company,
+		preferred_warehouses=[default_warehouse] if default_warehouse else None,
+	)
 	wh_name_map = {w.name: (w.warehouse_name or w.name) for w in raw_warehouses}
 	active_wh_names = [w.name for w in active_warehouses]
 
@@ -1469,6 +1575,7 @@ def get_items(
 	include_variants=0,
 	show_variants_as_items=0,
 	brand=None,
+	stock_filter=None,
 ):
 	"""Get items for POS with stock, price, and tax details.
 
@@ -1511,6 +1618,7 @@ def get_items(
 			exclude_variants = not int(include_variants)
 			exclude_templates = False
 		hide_unavailable = getattr(pos_profile_doc, "hide_unavailable_items", 0)
+		effective_sf = _resolve_effective_stock_filter(pos_profile_doc, stock_filter)
 		conditions, params, extra_joins = _build_item_base_conditions(
 			pos_profile_doc,
 			item_group,
@@ -1519,6 +1627,7 @@ def get_items(
 			exclude_templates=exclude_templates,
 			hide_unavailable=hide_unavailable,
 			warehouse=pos_profile_doc.warehouse,
+			stock_filter=effective_sf,
 		)
 
 		# Build column list with table alias
@@ -1840,12 +1949,15 @@ def get_items(
 			if resolved_item_data:
 				items[0].update(resolved_item_data)
 
-		# Post-filter: hide unavailable bundles
+		# Post-filter: apply stock_filter to product bundles
 		# The SQL-level filter exempts non-stock items (is_stock_item=0) since they
 		# have no Bin rows. Bundles are non-stock items whose availability is computed
-		# from component stock. Filter them out here if they have 0 availability.
-		if hide_unavailable and bundle_availability_map:
-			items = [item for item in items if not item.get("is_bundle") or item.get("actual_qty", 0) > 0]
+		# from component stock.
+		if bundle_availability_map:
+			if effective_sf == "in_stock":
+				items = [item for item in items if not item.get("is_bundle") or item.get("actual_qty", 0) > 0]
+			elif effective_sf == "out_of_stock":
+				items = [item for item in items if not item.get("is_bundle") or item.get("actual_qty", 0) <= 0]
 
 		return items
 	except Exception as e:
@@ -1855,7 +1967,13 @@ def get_items(
 
 @frappe.whitelist()
 def get_items_bulk(
-	pos_profile, item_groups=None, start=0, limit=2000, include_variants=0, show_variants_as_items=0
+	pos_profile,
+	item_groups=None,
+	start=0,
+	limit=2000,
+	include_variants=0,
+	show_variants_as_items=0,
+	stock_filter=None,
 ):
 	"""
 	Fetch items from multiple item groups in a SINGLE query.
@@ -1884,12 +2002,14 @@ def get_items_bulk(
 			exclude_variants = not int(include_variants)
 			exclude_templates = False
 		hide_unavailable = getattr(pos_profile_doc, "hide_unavailable_items", 0)
+		effective_sf = _resolve_effective_stock_filter(pos_profile_doc, stock_filter)
 		conditions, params, extra_joins = _build_item_base_conditions(
 			pos_profile_doc,
 			exclude_variants=exclude_variants,
 			exclude_templates=exclude_templates,
 			hide_unavailable=hide_unavailable,
 			warehouse=pos_profile_doc.warehouse,
+			stock_filter=effective_sf,
 		)
 
 		if item_groups:
@@ -2057,9 +2177,12 @@ def get_items_bulk(
 			if item.get("variant_of") and item_code in attributes_map:
 				item["attributes"] = attributes_map[item_code]
 
-		# Post-filter: hide unavailable bundles
-		if hide_unavailable and bundle_availability_map:
-			items = [item for item in items if not item.get("is_bundle") or item.get("actual_qty", 0) > 0]
+		# Post-filter: apply stock_filter to product bundles
+		if bundle_availability_map:
+			if effective_sf == "in_stock":
+				items = [item for item in items if not item.get("is_bundle") or item.get("actual_qty", 0) > 0]
+			elif effective_sf == "out_of_stock":
+				items = [item for item in items if not item.get("is_bundle") or item.get("actual_qty", 0) <= 0]
 
 		return items
 	except Exception as e:
@@ -2068,7 +2191,14 @@ def get_items_bulk(
 
 
 @frappe.whitelist()
-def get_items_count(pos_profile, item_group=None, brand=None, include_variants=0, show_variants_as_items=0):
+def get_items_count(
+	pos_profile,
+	item_group=None,
+	brand=None,
+	include_variants=0,
+	show_variants_as_items=0,
+	stock_filter=None,
+):
 	"""
 	Get total count of POS-eligible items for progress tracking and smart pagination.
 
@@ -2094,6 +2224,7 @@ def get_items_count(pos_profile, item_group=None, brand=None, include_variants=0
 			exclude_variants = not int(include_variants)
 			exclude_templates = False
 		hide_unavailable = getattr(pos_profile_doc, "hide_unavailable_items", 0)
+		effective_sf = _resolve_effective_stock_filter(pos_profile_doc, stock_filter)
 		conditions, params, extra_joins = _build_item_base_conditions(
 			pos_profile_doc,
 			item_group,
@@ -2102,6 +2233,7 @@ def get_items_count(pos_profile, item_group=None, brand=None, include_variants=0
 			exclude_templates=exclude_templates,
 			hide_unavailable=hide_unavailable,
 			warehouse=pos_profile_doc.warehouse,
+			stock_filter=effective_sf,
 		)
 
 		where_clause = " AND ".join(conditions)
@@ -2522,22 +2654,11 @@ def get_item_warehouse_availability(
 			fields=["name", "warehouse_name", "company", "warehouse_type"],
 			order_by="warehouse_name",
 		)
-		boilerplate_names = {
-			"las mercancías en tránsito",
-			"trabajo en proceso",
-			"productos terminados",
-			"sucursales",
-			"goods in transit",
-			"work in progress",
-			"finished goods",
-			"stores",
-		}
-		warehouses = [
-			w
-			for w in raw_warehouses
-			if (w.get("warehouse_type") or "") != "Transit"
-			and (w.get("warehouse_name") or "").strip().lower() not in boilerplate_names
-		]
+		warehouses = _filter_operational_warehouses(
+			raw_warehouses,
+			company=company,
+			preferred_warehouses=[profile_warehouse] if profile_warehouse else None,
+		)
 		if not warehouses:
 			return []
 
@@ -2569,6 +2690,11 @@ def get_item_warehouse_availability(
 		# ---------------------------------------------------------------------
 		if regular_items:
 			bin_tbl = DocType("Bin")
+			qty_condition = (
+				fn.Sum(bin_tbl.actual_qty) != 0
+				if cint(include_zero_stock)
+				else fn.Sum(bin_tbl.actual_qty) > 0
+			)
 			query = (
 				frappe.qb.from_(bin_tbl)
 				.select(
@@ -2578,7 +2704,7 @@ def get_item_warehouse_availability(
 				)
 				.where(bin_tbl.item_code.isin(regular_items))
 				.where(bin_tbl.warehouse.isin(warehouse_names))
-				.having(fn.Sum(bin_tbl.actual_qty) > 0)
+				.having(qty_condition)
 			)
 
 			# Group by item_code too when multiple items requested
@@ -4379,24 +4505,14 @@ def get_pos_inventory_report(pos_profile):
 	company_warehouses = frappe.get_all(
 		"Warehouse",
 		filters={"company": company, "is_group": 0, "disabled": 0},
-		fields=["name", "warehouse_name"],
+		fields=["name", "warehouse_name", "warehouse_type"],
 		order_by="warehouse_name asc",
 	)
-	_system_noise_wh = {
-		"las mercancías en tránsito",
-		"productos terminados",
-		"trabajo en proceso",
-		"sucursales",
-		"bienes en tránsito",
-		"work in progress",
-		"finished goods",
-		"goods in transit",
-	}
-	company_warehouses = [
-		w
-		for w in company_warehouses
-		if (w.warehouse_name or w.name).strip().lower() not in _system_noise_wh
-	]
+	company_warehouses = _filter_operational_warehouses(
+		company_warehouses,
+		company=company,
+		preferred_warehouses=[pos_profile_doc.warehouse] if pos_profile_doc.warehouse else None,
+	)
 	wh_names_list = [w.name for w in company_warehouses]
 
 	# Resolve allowed item groups if POS Profile filters by item_groups

@@ -817,6 +817,19 @@
 													)
 												"
 											/>
+											<NumberField
+												v-if="settings.allow_quotation"
+												v-model="settings.quotation_validity_days"
+												:label="__('Días de Validez de Cotización')"
+												:description="
+													__(
+														'Cantidad de días calendario de vigencia al crear una cotización desde el POS (por defecto: 3)'
+													)
+												"
+												:min="1"
+												:max="365"
+												:step="1"
+											/>
 											<SelectField
 												v-model="settings.receipt_header_title"
 												:label="__('Receipt Header Title')"
@@ -1330,6 +1343,7 @@ const settings = ref({
 	enable_shift_management: 1,
 	allow_sales_order: 0,
 	allow_quotation: 0,
+	quotation_validity_days: 3,
 	silent_print: 0,
 	enable_whatsapp_send: 1,
 	receipt_header_title: "Recibo de Venta",

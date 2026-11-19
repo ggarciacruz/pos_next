@@ -220,6 +220,59 @@
 						</button>
 					</div>
 				</div>
+				<!-- Quick 1-Click Stock Filter Pill -->
+				<button
+					type="button"
+					@click="toggleQuickInStock"
+					:class="[
+						'px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition-[background-color,border-color,color,box-shadow] duration-75 touch-manipulation border flex items-center gap-1.5 flex-shrink-0 whitespace-nowrap',
+						stockFilter === 'in_stock'
+							? 'bg-emerald-50 border-emerald-400 text-emerald-700 shadow-sm'
+							: stockFilter === 'out_of_stock'
+								? 'bg-rose-50 border-rose-300 text-rose-700 shadow-sm'
+								: 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50 active:bg-gray-100',
+					]"
+					:title="
+						stockFilter === 'in_stock'
+							? __('Mostrando solo productos en stock (clic para ver todos)')
+							: stockFilter === 'out_of_stock'
+								? __('Mostrando productos agotados (clic para ver todos)')
+								: __('Clic para mostrar solo productos en stock en esta sucursal')
+					"
+				>
+					<svg
+						class="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							v-if="stockFilter === 'in_stock'"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2.2"
+							d="M5 13l4 4L19 7"
+						/>
+						<path
+							v-else-if="stockFilter === 'out_of_stock'"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M18.364 5.636l-12.728 12.728M5.636 5.636l12.728 12.728"
+						/>
+						<path
+							v-else
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+						/>
+					</svg>
+					<span class="hidden md:inline">{{
+						stockFilter === "out_of_stock" ? __("Agotados") : __("En stock")
+					}}</span>
+				</button>
+
 				<div class="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 flex-shrink-0">
 					<button
 						@click="setViewMode('grid')"
@@ -315,7 +368,78 @@
 					>
 						<div class="py-2">
 							<div
-								class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase border-b border-gray-100"
+								class="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase border-b border-gray-100"
+							>
+								{{ __("Disponibilidad") }}
+							</div>
+							<div class="py-1 border-b border-gray-100">
+								<button
+									type="button"
+									@click="handleStockFilterSelect('all')"
+									:class="[
+										'w-full px-3 py-1.5 text-sm transition-colors flex items-center justify-between',
+										stockFilter === 'all'
+											? 'bg-blue-50 text-blue-700 font-medium'
+											: 'text-gray-700 hover:bg-gray-50',
+									]"
+								>
+									<span>{{ __("Todos los productos") }}</span>
+									<svg
+										v-if="stockFilter === 'all'"
+										class="w-4 h-4 text-blue-600"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7" />
+									</svg>
+								</button>
+								<button
+									type="button"
+									@click="handleStockFilterSelect('in_stock')"
+									:class="[
+										'w-full px-3 py-1.5 text-sm transition-colors flex items-center justify-between',
+										stockFilter === 'in_stock'
+											? 'bg-emerald-50 text-emerald-700 font-medium'
+											: 'text-gray-700 hover:bg-gray-50',
+									]"
+								>
+									<span>{{ __("Solo en stock") }}</span>
+									<svg
+										v-if="stockFilter === 'in_stock'"
+										class="w-4 h-4 text-emerald-600"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7" />
+									</svg>
+								</button>
+								<button
+									type="button"
+									@click="handleStockFilterSelect('out_of_stock')"
+									:class="[
+										'w-full px-3 py-1.5 text-sm transition-colors flex items-center justify-between',
+										stockFilter === 'out_of_stock'
+											? 'bg-rose-50 text-rose-700 font-medium'
+											: 'text-gray-700 hover:bg-gray-50',
+									]"
+								>
+									<span>{{ __("Agotados (0)") }}</span>
+									<svg
+										v-if="stockFilter === 'out_of_stock'"
+										class="w-4 h-4 text-rose-600"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7" />
+									</svg>
+								</button>
+							</div>
+
+							<div
+								class="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase border-b border-gray-100"
 							>
 								{{ __("Sort Items") }}
 							</div>
@@ -614,7 +738,22 @@
 							>
 								{{ item.item_group }}
 							</p>
-							<p class="text-[9px] sm:text-[10px] text-gray-500 leading-tight">
+							<div v-if="getItemCoverageInfo(item)" class="leading-tight space-y-0.5">
+								<p class="text-[9.5px] sm:text-[10.5px] tabular-nums">
+									<span class="font-bold text-slate-900">{{
+										formatCurrency(getItemCoverageInfo(item).coverageRate)
+									}}</span>
+									<span class="text-slate-500 font-medium"
+										>/ {{ getItemCoverageInfo(item).coverageUom }}</span
+									>
+								</p>
+								<p class="text-[8.5px] sm:text-[9px] text-slate-500 tabular-nums truncate">
+									{{ formatCurrency(item.rate || item.price_list_rate || 0) }} /
+									{{ item.uom || item.stock_uom || __("Nos", null, "UOM") }} ·
+									{{ getItemCoverageInfo(item).factor }} {{ getItemCoverageInfo(item).coverageUom }}
+								</p>
+							</div>
+							<p v-else class="text-[9px] sm:text-[10px] text-gray-500 leading-tight tabular-nums">
 								<span class="font-semibold text-blue-600">{{
 									formatCurrency(item.rate || item.price_list_rate || 0)
 								}}</span>
@@ -972,8 +1111,18 @@
 								</div>
 							</td>
 
-							<td class="px-2 sm:px-3 py-2 whitespace-nowrap w-[70px] sm:w-[100px]">
-								<div class="text-xs sm:text-sm font-semibold text-blue-600">
+							<td class="px-2 sm:px-3 py-2 whitespace-nowrap w-[70px] sm:w-[115px]">
+								<template v-if="getItemCoverageInfo(item)">
+									<div class="text-xs sm:text-sm font-bold text-slate-900 tabular-nums">
+										{{ formatCurrency(getItemCoverageInfo(item).coverageRate) }} /
+										{{ getItemCoverageInfo(item).coverageUom }}
+									</div>
+									<div class="text-[10px] text-slate-500 tabular-nums">
+										{{ formatCurrency(item.rate || item.price_list_rate || 0) }} /
+										{{ item.uom || item.stock_uom || __("Nos", null, "UOM") }}
+									</div>
+								</template>
+								<div v-else class="text-xs sm:text-sm font-semibold text-blue-600 tabular-nums">
 									{{ formatCurrency(item.rate || item.price_list_rate || 0) }}
 								</div>
 							</td>
@@ -1274,6 +1423,7 @@ const {
 	cacheStats,
 	sortBy,
 	sortOrder,
+	stockFilter,
 	totalServerItems,
 } = storeToRefs(itemStore);
 
@@ -1710,6 +1860,29 @@ function formatCurrency(amount) {
 	return formatCurrencyUtil(Number.parseFloat(amount || 0), props.currency);
 }
 
+function getItemCoverageInfo(item) {
+	if (
+		!settingsStore.enableCoverageCalculator ||
+		!settingsStore.coverageUom ||
+		!item ||
+		!item.stock_uom ||
+		item.stock_uom === settingsStore.coverageUom
+	) {
+		return null;
+	}
+	const covEntry = item.item_uoms?.find((u) => u.uom === settingsStore.coverageUom);
+	const rawFactor = Number(covEntry?.conversion_factor || 0);
+	if (!rawFactor || rawFactor <= 0) return null;
+	const factor = settingsStore.coverageFactorMode === "Divide" ? 1 / rawFactor : rawFactor;
+	if (!factor || factor <= 0) return null;
+	const unitRate = Number(item.rate || item.price_list_rate || 0);
+	return {
+		factor: Number(factor.toFixed(4)),
+		coverageUom: settingsStore.coverageUom,
+		coverageRate: unitRate > 0 ? unitRate / factor : 0,
+	};
+}
+
 // Show warehouse availability dialog
 function showWarehouseAvailability(item) {
 	warehouseDialogItem.value = {
@@ -1838,9 +2011,21 @@ function getPaginationRange() {
 	return range;
 }
 
-// Sort dropdown functions
+// Sort & Stock availability dropdown functions
 function toggleSortDropdown() {
 	showSortDropdown.value = !showSortDropdown.value;
+}
+
+async function toggleQuickInStock() {
+	currentPage.value = 1;
+	const nextMode = stockFilter.value === "all" ? "in_stock" : "all";
+	await itemStore.setStockFilter(nextMode);
+}
+
+async function handleStockFilterSelect(mode) {
+	currentPage.value = 1;
+	showSortDropdown.value = false;
+	await itemStore.setStockFilter(mode);
 }
 
 function handleSortToggle(field) {

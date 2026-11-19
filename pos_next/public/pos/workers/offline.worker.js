@@ -18,6 +18,7 @@
  */
 
 import { logger } from "../utils/logger";
+import { getLocalDateString } from "../utils/date";
 import { generateOfflineId } from "../utils/offline/uuid";
 
 const log = logger.create("OfflineWorker");
@@ -1272,7 +1273,7 @@ async function getCachedOffers(posProfile) {
 		}
 
 		const db = await initDB();
-		const today = new Date().toISOString().split("T")[0];
+		const today = getLocalDateString();
 
 		// Get offers for specific profile
 		const allOffers = await db

@@ -24,12 +24,8 @@ export function useResponsivePayment() {
 		window.removeEventListener("resize", updateViewportDimensions);
 	});
 
-	// Dynamic dialog size based on viewport (mapped to MdxModal sizes)
-	const dynamicDialogSize = computed(() => {
-		const width = viewportWidth.value;
-		if (width < 1024) return "full"; // Mobile (6.5"+) & tablet portrait: full screen modal
-		return "xl"; // Desktop (1000px max-width in MdxModal)
-	});
+	// Standardized full-screen MdxModal size with uniform margin on all 4 sides
+	const dynamicDialogSize = computed(() => "full");
 
 	// Check if we're on a mobile device (for mobile-specific behavior)
 	const isMobileView = computed(() => viewportWidth.value < 1024);

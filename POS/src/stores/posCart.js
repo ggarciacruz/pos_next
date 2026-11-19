@@ -4,6 +4,7 @@ import { usePOSSettingsStore } from "@/stores/posSettings";
 import { usePOSShiftStore } from "@/stores/posShift";
 import { useStockStore } from "@/stores/stock";
 import { parseError } from "@/utils/errorHandler";
+import { getLocalDateString } from "@/utils/date";
 import { shouldValidateItemStock, checkStockAvailability } from "@/utils/stockValidator";
 import { offlineState } from "@/utils/offline/offlineState";
 import { useToast } from "@/composables/useToast";
@@ -349,7 +350,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 				: targetDoctype.value;
 		const effectiveDeliveryDate =
 			effectiveDoctype === "Sales Order" && !deliveryDate.value
-				? new Date().toISOString().split("T")[0]
+				? getLocalDateString()
 				: deliveryDate.value;
 
 		const result = await baseSubmitInvoice(
@@ -1474,10 +1475,10 @@ export const usePOSCartStore = defineStore("posCart", () => {
 				cartItem.is_rate_manually_edited = updates.is_rate_manually_edited;
 			if (updates.original_rate !== undefined)
 				cartItem.original_rate = updates.original_rate;
-			if (updates.custom_cantidad_m2 !== undefined)
-				cartItem.custom_cantidad_m2 = updates.custom_cantidad_m2;
-			if (updates.custom_precio_m2 !== undefined)
-				cartItem.custom_precio_m2 = updates.custom_precio_m2;
+			if (updates.coverage_qty !== undefined)
+				cartItem.coverage_qty = updates.coverage_qty;
+			if (updates.coverage_rate !== undefined)
+				cartItem.coverage_rate = updates.coverage_rate;
 
 			recalculateItem(cartItem);
 			rebuildIncrementalCache();

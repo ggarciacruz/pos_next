@@ -43,6 +43,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		enable_shift_management: 1,
 		allow_sales_order: 0,
 		allow_quotation: 0,
+		quotation_validity_days: 3,
 		allow_select_sales_order: 0,
 		create_only_sales_order: 0,
 		create_payment_on_sales_order: 0,
@@ -74,6 +75,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		silent_print: 0,
 		enable_whatsapp_send: 1,
 		// Delivery
+		enable_delivery_dispatch: 0,
 		use_delivery_charges: 0,
 		auto_set_delivery_charges: 0,
 		// Advanced Settings
@@ -162,6 +164,10 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	);
 	const allowSalesOrder = computed(() => Boolean(settings.value.allow_sales_order));
 	const allowQuotation = computed(() => Boolean(settings.value.allow_quotation));
+	const quotationValidityDays = computed(() => {
+		const days = Number.parseInt(settings.value.quotation_validity_days, 10);
+		return Number.isFinite(days) && days > 0 ? days : 3;
+	});
 	const allowSelectSalesOrder = computed(() => Boolean(settings.value.allow_select_sales_order));
 	const createOnlySalesOrder = computed(() => Boolean(settings.value.create_only_sales_order));
 	const createPaymentOnSalesOrder = computed(() =>
@@ -255,6 +261,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	);
 
 	// Computed - Delivery
+	const enableDeliveryDispatch = computed(() =>
+		Boolean(settings.value.enable_delivery_dispatch)
+	);
 	const useDeliveryCharges = computed(() => Boolean(settings.value.use_delivery_charges));
 	const autoSetDeliveryCharges = computed(() =>
 		Boolean(settings.value.auto_set_delivery_charges)
@@ -399,6 +408,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			enable_shift_management: 1,
 			allow_sales_order: 0,
 			allow_quotation: 0,
+			quotation_validity_days: 3,
 			allow_select_sales_order: 0,
 			create_only_sales_order: 0,
 			create_payment_on_sales_order: 0,
@@ -425,6 +435,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			allow_print_last_invoice: 0,
 			silent_print: 0,
 			enable_whatsapp_send: 1,
+			enable_delivery_dispatch: 0,
 			use_delivery_charges: 0,
 			auto_set_delivery_charges: 0,
 			use_limit_search: 0,
@@ -545,6 +556,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		enableShiftManagement,
 		allowSalesOrder,
 		allowQuotation,
+		quotationValidityDays,
 		allowSelectSalesOrder,
 		createOnlySalesOrder,
 		createPaymentOnSalesOrder,
@@ -580,6 +592,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		enableWhatsappSend,
 
 		// Computed - Delivery
+		enableDeliveryDispatch,
 		useDeliveryCharges,
 		autoSetDeliveryCharges,
 

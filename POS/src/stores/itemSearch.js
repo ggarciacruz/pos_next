@@ -99,9 +99,38 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 	const posProfile = ref(null);
 	const cartItems = ref([]);
 
-	// Sorting state - for user-triggered sorting filters
+	// Sorting & Stock availability filter state
 	const sortBy = ref(null); // Options: 'name', 'quantity', 'item_group', 'brand', null (no sorting)
 	const sortOrder = ref("asc"); // Options: 'asc', 'desc'
+	const stockFilter = ref("all"); // Options: 'all' | 'in_stock' | 'out_of_stock'
+
+	function resolveInitialStockFilter(profileName) {
+		try {
+			const saved = localStorage.getItem(`pos_stock_filter:${profileName || "default"}`);
+			if (saved === "all" || saved === "in_stock" || saved === "out_of_stock") {
+				return saved;
+			}
+		} catch {}
+		return shiftStore.currentProfile?.hide_unavailable_items ? "in_stock" : "all";
+	}
+
+	function filterCachedByStock(items) {
+		if (stockFilter.value === "all" || !Array.isArray(items)) return items || [];
+		return items.filter((it) => {
+			const serverEntry = stockStore.server.get(it.item_code);
+			const qty = Number(serverEntry?.qty ?? it.actual_qty ?? 0);
+			const vInStock = Number(serverEntry?.variants_in_stock ?? it.variants_in_stock ?? 0);
+			if (stockFilter.value === "in_stock") {
+				if (!it.is_stock_item) return true;
+				return it.has_variants ? vInStock > 0 : qty > 0;
+			}
+			if (stockFilter.value === "out_of_stock") {
+				if (!it.is_stock_item) return false;
+				return it.has_variants ? vInStock <= 0 : qty <= 0;
+			}
+			return true;
+		});
+	}
 
 	// Lazy loading state - dynamically adjusted based on device performance
 	const currentOffset = ref(0);
@@ -200,8 +229,8 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 			// Convert group names to group objects format
 			const groupObjects = groups.map((g) => ({ item_group: g }));
 
-			// Reuse the standard fetch function
-			const items = await fetchItemsFromGroups(profile, groupObjects);
+			// Reuse the standard fetch function (always unfiltered for offline cache)
+			const items = await fetchItemsFromGroups(profile, groupObjects, null, "all");
 
 			if (items.length > 0) {
 				await offlineWorker.cacheItems(items);
@@ -504,8 +533,8 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		// Key format: "itemGroup_version_searchTerm"
 		// This ensures cache invalidates when data or filters change
 		const filterKey = `${selectedItemGroup.value || "all"}_${selectedBrand.value || "all"}_${
-			allItemsVersion.value
-		}_${searchTerm.value || ""}`;
+			stockFilter.value
+		}_${allItemsVersion.value}_${searchTerm.value || ""}`;
 
 		// Step 3: Check cache for filtered results
 		let list;
@@ -779,6 +808,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				? call("pos_next.api.items.get_items_count", {
 						pos_profile: profile,
 						show_variants_as_items: getShowVariantsFlag(),
+						stock_filter: stockFilter.value,
 				  })
 						.then((r) => r?.message ?? r ?? 0)
 						.catch((countErr) => {
@@ -819,24 +849,33 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				log.info("Offline mode - loading from cache");
 				if (stats.cacheReady && stats.items > 0) {
 					try {
-						// Load first page from cache for display
 						const limit = itemsPerPage.value;
-						const cached = await offlineWorker.searchCachedItems("", limit);
-
-						if (cached && cached.length > 0) {
-							replaceAllItems(cached);
-							totalItemsLoaded.value = cached.length;
-							currentOffset.value = cached.length;
-							// Use server count if available (excludes variants), fallback to IndexedDB count
-							totalServerItems.value =
-								cacheStats.value?.totalServerItems || stats.items;
-							hasMore.value = cached.length >= limit;
-							log.success(
-								`Loaded ${cached.length} items from cache (offline, total: ${stats.items})`
-							);
+						if (stockFilter.value !== "all") {
+							const allCached = await offlineWorker.searchCachedItems("", 10000);
+							const filtered = filterCachedByStock(allCached);
+							const slice = filtered.slice(0, limit);
+							replaceAllItems(slice);
+							totalItemsLoaded.value = slice.length;
+							currentOffset.value = slice.length;
+							totalServerItems.value = filtered.length;
+							hasMore.value = filtered.length > slice.length;
 						} else {
-							replaceAllItems([]);
-							log.warn("No items in cache");
+							const cached = await offlineWorker.searchCachedItems("", limit);
+
+							if (cached && cached.length > 0) {
+								replaceAllItems(cached);
+								totalItemsLoaded.value = cached.length;
+								currentOffset.value = cached.length;
+								totalServerItems.value =
+									cacheStats.value?.totalServerItems || stats.items;
+								hasMore.value = cached.length >= limit;
+								log.success(
+									`Loaded ${cached.length} items from cache (offline, total: ${stats.items})`
+								);
+							} else {
+								replaceAllItems([]);
+								log.warn("No items in cache");
+							}
 						}
 					} catch (cacheError) {
 						log.error("Cache load failed in offline mode", cacheError);
@@ -851,12 +890,9 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 			}
 
 			// ====================================================================
-			// STRATEGY B: ONLINE MODE - Cache First (if fresh)
+			// STRATEGY B: ONLINE MODE - Cache First (if fresh and unfiltered)
 			// ====================================================================
-			// Use cache if we already have fresh data from server this session
-			// This prevents redundant server fetches on page refreshes/navigations
-			// Condition: serverDataFresh=true AND cache is ready
-			if (!shouldFetchFromServer && stats.cacheReady && stats.items > 0) {
+			if (!shouldFetchFromServer && stats.cacheReady && stats.items > 0 && stockFilter.value === "all") {
 				log.info("Using cached items (already fetched from server this session)");
 				try {
 					// Load first page from cache for display
@@ -984,6 +1020,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					start: 0,
 					limit: unfilteredLimit,
 					show_variants_as_items: getShowVariantsFlag(),
+					stock_filter: stockFilter.value,
 				});
 				const list = response?.message || response || [];
 
@@ -1014,12 +1051,21 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 							}
 						);
 					}
+				} else {
+					replaceAllItems([]);
+					totalItemsLoaded.value = 0;
+					currentOffset.value = 0;
+					hasMore.value = false;
+					serverDataFresh.value = true;
 				}
 
 				// Start background sync for large catalogs to cache ALL items to IndexedDB
-				// Small catalogs already loaded everything
-				if (!isSmallCatalog) {
-					startBackgroundCacheSync(profile, [], list.length);
+				if (!isSmallCatalog || stockFilter.value !== "all") {
+					startBackgroundCacheSync(
+						profile,
+						[],
+						stockFilter.value === "all" ? list.length : 0
+					);
 				}
 			}
 		} catch (error) {
@@ -1051,7 +1097,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 	 * - Load only what's needed for current view (max 100 items)
 	 * - Server handles item_group filtering efficiently via DB index
 	 */
-	async function fetchItemsFromGroups(profile, itemGroups, limit = null) {
+	async function fetchItemsFromGroups(profile, itemGroups, limit = null, stockFilterOverride = null) {
 		if (!itemGroups?.length) return [];
 
 		const effectiveLimit = limit || itemsPerPage.value;
@@ -1069,6 +1115,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				start: 0,
 				limit: effectiveLimit,
 				show_variants_as_items: getShowVariantsFlag(),
+				stock_filter: stockFilterOverride || stockFilter.value,
 			});
 			const items = response?.message || response || [];
 			log.info(`Fetched ${items.length} items from ${firstGroup}`);
@@ -1107,6 +1154,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					start: start,
 					limit: effectiveLimit,
 					show_variants_as_items: getShowVariantsFlag(),
+					stock_filter: stockFilter.value,
 				});
 				return response?.message || response || [];
 			} else {
@@ -1117,6 +1165,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					start: start,
 					limit: effectiveLimit,
 					show_variants_as_items: getShowVariantsFlag(),
+					stock_filter: stockFilter.value,
 				});
 				return response?.message || response || [];
 			}
@@ -1143,6 +1192,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				start: start,
 				limit: effectiveLimit,
 				show_variants_as_items: getShowVariantsFlag(),
+				stock_filter: stockFilter.value,
 			});
 			return response?.message || response || [];
 		} catch (error) {
@@ -1170,13 +1220,33 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		try {
 			let items = [];
 
-			// Cache-first: Use IndexedDB when cache is ready or offline
-			// Background sync fills IndexedDB with ALL items, so pagination
-			// from cache is instant and doesn't require network round-trips
-			if (isOffline() || cacheReady.value) {
+			// Cache-first ONLY when offline or when unfiltered ('all')
+			// When online with an active stock filter ('in_stock' / 'out_of_stock'),
+			// fetch directly from server SQL so live warehouse stock pagination is 100% exact.
+			if (isOffline() || (cacheReady.value && stockFilter.value === "all")) {
 				try {
-					// Use group-aware cache query when a specific group is selected
-					if (selectedItemGroup.value) {
+					if (stockFilter.value !== "all") {
+						let raw = [];
+						if (selectedItemGroup.value) {
+							const groupsToFilter = Array.from(
+								getGroupsToFilter(selectedItemGroup.value)
+							);
+							raw = await offlineWorker.searchCachedItemsByGroup(
+								groupsToFilter,
+								10000,
+								0
+							);
+						} else if (selectedBrand.value) {
+							raw = await offlineWorker.searchCachedItemsByBrand(
+								selectedBrand.value,
+								10000,
+								0
+							);
+						} else {
+							raw = await offlineWorker.searchCachedItems("", 10000, 0);
+						}
+						items = filterCachedByStock(raw).slice(start, start + pageSize);
+					} else if (selectedItemGroup.value) {
 						const groupsToFilter = Array.from(
 							getGroupsToFilter(selectedItemGroup.value)
 						);
@@ -1202,12 +1272,15 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					return;
 				}
 				// Cache returned empty — if offline, nothing more we can do
-				if (isOffline()) return;
+				if (isOffline()) {
+					replaceAllItems([]);
+					return;
+				}
 				// If online, fall through to server fetch
 				log.debug(`Cache empty for page ${page}, falling back to server`);
 			}
 
-			// Server fetch: when cache isn't ready or cache returned empty
+			// Server fetch: when cache isn't ready, cache returned empty, or stockFilter !== 'all'
 			if (selectedItemGroup.value) {
 				items = await fetchItemsForGroup(
 					posProfile.value,
@@ -1230,6 +1303,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					start: start,
 					limit: pageSize,
 					show_variants_as_items: getShowVariantsFlag(),
+					stock_filter: stockFilter.value,
 				});
 				items = response?.message || response || [];
 			}
@@ -1332,6 +1406,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					start: currentOffset.value,
 					limit: itemsPerPage.value,
 					show_variants_as_items: getShowVariantsFlag(),
+					stock_filter: stockFilter.value,
 				});
 				list = response?.message || response || [];
 			}
@@ -1698,7 +1773,8 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					// 3. Then search server for fresh results in background
 
 					log.debug(`Searching cache for: "${term}"`);
-					const cached = await offlineWorker.searchCachedItems(term, searchLimit);
+					const rawCached = await offlineWorker.searchCachedItems(term, searchLimit);
+					const cached = filterCachedByStock(rawCached);
 
 					if (cached && cached.length > 0) {
 						// Show cached results immediately (instant!)
@@ -1720,6 +1796,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 						start: 0,
 						limit: searchLimit, // Dynamically adjusted based on device performance
 						show_variants_as_items: getShowVariantsFlag(),
+						stock_filter: stockFilter.value,
 					});
 					const serverResults = response?.message || response || [];
 
@@ -1906,7 +1983,22 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					try {
 						let items = [];
 						let totalCount = 0;
-						if (group) {
+						if (stockFilter.value !== "all") {
+							let raw = [];
+							if (group) {
+								const groupsToFilter = Array.from(getGroupsToFilter(group));
+								raw = await offlineWorker.searchCachedItemsByGroup(
+									groupsToFilter,
+									10000,
+									0
+								);
+							} else {
+								raw = await offlineWorker.searchCachedItems("", 10000, 0);
+							}
+							const filtered = filterCachedByStock(raw);
+							items = filtered.slice(0, pageSize);
+							totalCount = filtered.length;
+						} else if (group) {
 							// Get expanded groups (parent + children)
 							const groupsToFilter = Array.from(getGroupsToFilter(group));
 							const [cached, count] = await Promise.all([
@@ -1934,7 +2026,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 							totalItemsLoaded.value = items.length;
 							currentOffset.value = items.length;
 							totalServerItems.value = totalCount;
-							hasMore.value = items.length >= pageSize;
+							hasMore.value = totalCount > items.length;
 							log.info(
 								`Loaded ${items.length} cached items for group: ${
 									group || "All Items"
@@ -1942,6 +2034,10 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 							);
 						} else {
 							replaceAllItems([]);
+							totalItemsLoaded.value = 0;
+							currentOffset.value = 0;
+							totalServerItems.value = 0;
+							hasMore.value = false;
 							log.warn(
 								`No cached items for group: ${group || "All Items"} (offline)`
 							);
@@ -1970,6 +2066,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					pos_profile: posProfile.value,
 					item_group: group || undefined,
 					show_variants_as_items: getShowVariantsFlag(),
+					stock_filter: stockFilter.value,
 				}).catch((err) => {
 					log.warn("Could not fetch item count:", err.message);
 					return 0;
@@ -1989,6 +2086,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 						start: 0,
 						limit: pageSize,
 						show_variants_as_items: getShowVariantsFlag(),
+						stock_filter: stockFilter.value,
 					});
 					items = response?.message || response || [];
 					log.info(`Loaded ${items.length} items for "All Items" tab`);
@@ -2003,7 +2101,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					totalItemsLoaded.value = items.length;
 					currentOffset.value = items.length;
 					hasMore.value = items.length >= pageSize;
-				} else if (group && cacheSyncing.value) {
+				} else if (group && cacheSyncing.value && stockFilter.value === "all") {
 					// Server returned 0 but sync is still caching items — try cache fallback
 					try {
 						const groupsToFilter = Array.from(getGroupsToFilter(group));
@@ -2024,6 +2122,11 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					} catch (cacheErr) {
 						log.warn("Cache fallback for group tab failed:", cacheErr.message);
 					}
+				} else {
+					replaceAllItems([]);
+					totalItemsLoaded.value = 0;
+					currentOffset.value = 0;
+					hasMore.value = false;
 				}
 			} catch (error) {
 				log.error(`Failed to load items for group ${group || "All Items"}`, error);
@@ -2095,6 +2198,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				} else {
 					filtered = await offlineWorker.searchCachedItems("", 5000, 0);
 				}
+				filtered = filterCachedByStock(filtered);
 
 				const pageItems = filtered.slice(0, pageSize);
 
@@ -2111,6 +2215,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 				item_group: undefined,
 				brand: brand || undefined,
 				show_variants_as_items: getShowVariantsFlag(),
+				stock_filter: stockFilter.value,
 			}).catch((err) => {
 				log.warn("Could not fetch item count:", err.message);
 				return 0;
@@ -2128,6 +2233,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					start: 0,
 					limit: pageSize,
 					show_variants_as_items: getShowVariantsFlag(),
+					stock_filter: stockFilter.value,
 				});
 				items = response?.message || response || [];
 				log.info(`Loaded ${items.length} items for "All Items" tab`);
@@ -2179,6 +2285,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		}
 
 		posProfile.value = profile;
+		stockFilter.value = resolveInitialStockFilter(profile);
 		serverDataFresh.value = false;
 
 		if (posProfileUpdateCleanup) {
@@ -2494,6 +2601,33 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 
 	attachRealtimeItemListener();
 
+	async function setStockFilter(mode) {
+		const normalized = ["all", "in_stock", "out_of_stock"].includes(mode) ? mode : "all";
+		if (stockFilter.value === normalized && serverDataFresh.value) return;
+		stockFilter.value = normalized;
+		try {
+			localStorage.setItem(`pos_stock_filter:${posProfile.value || "default"}`, normalized);
+		} catch {}
+		clearBaseCache();
+
+		if (!posProfile.value) return;
+
+		if (searchTerm.value?.trim()) {
+			if (searchDebounceTimer) {
+				clearTimeout(searchDebounceTimer);
+				searchDebounceTimer = null;
+			}
+			searchItems(searchTerm.value);
+			return;
+		}
+
+		if (selectedBrand.value) {
+			await setSelectedBrand(selectedBrand.value);
+		} else {
+			await setSelectedItemGroup(selectedItemGroup.value);
+		}
+	}
+
 	// Stock delegates - Smart & minimal!
 	const applyStockUpdates = (updates) => stockStore.update(updates);
 	const refreshStockFromServer = (codes, wh) => stockStore.refresh(codes, wh);
@@ -2524,6 +2658,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		cacheStats,
 		sortBy,
 		sortOrder,
+		stockFilter,
 
 		// ========================================================================
 		// COMPUTED PROPERTIES
@@ -2554,6 +2689,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		upsertCatalogItem,
 		setSortFilter,
 		clearSortFilter,
+		setStockFilter,
 
 		// ========================================================================
 		// STOCK ACTIONS - Delegates to stock store

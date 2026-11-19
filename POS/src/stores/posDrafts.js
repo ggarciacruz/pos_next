@@ -9,14 +9,17 @@ import { useToast } from "@/composables/useToast";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { call } from "@/utils/apiWrapper";
+import { getLocalDateOffsetString, getLocalDateString, parseFrappeDateTime } from "@/utils/date";
 import { isOffline } from "@/utils/offline";
 import { usePOSShiftStore } from "./posShift";
+import { usePOSSettingsStore } from "./posSettings";
 import { session } from "@/data/session";
 
 export const usePOSDraftsStore = defineStore("posDrafts", () => {
 	// Use custom toast
 	const { showSuccess, showError, showWarning } = useToast();
 	const shiftStore = usePOSShiftStore();
+	const settingsStore = usePOSSettingsStore();
 
 	// State
 	const draftsCount = ref(0);
@@ -59,19 +62,28 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					customer: draft.customer
 						? { name: draft.customer, customer_name: draft.customer_name || draft.customer }
 						: null,
-					created_at: draft.creation,
-					items: (draft.items || []).map((item) => ({
-						item_code: item.item_code,
-						item_name: item.item_name,
-						rate: item.rate,
-						price_list_rate: item.price_list_rate,
-						quantity: item.qty || item.quantity,
-						uom: item.uom,
-						stock_uom: item.stock_uom || item.uom,
-						custom_medida: item.custom_medida || "",
-						image: item.image,
-						so_detail: item.name, // Link to Sales Order Item child row ID
-					})),
+					customer_name: draft.customer_name || draft.customer || "",
+					transaction_date: draft.transaction_date || null,
+					created_at: draft.creation || draft.modified || draft.transaction_date,
+					grand_total: Number(draft.grand_total || 0),
+					items: (draft.items || []).map((item) => {
+						const q = Number(item.qty ?? item.quantity ?? 0);
+						const r = Number(item.rate ?? 0);
+						return {
+							item_code: item.item_code,
+							item_name: item.item_name,
+							rate: r,
+							price_list_rate: item.price_list_rate,
+							qty: q,
+							quantity: q,
+							amount: Number(item.amount ?? q * r),
+							uom: item.uom,
+							stock_uom: item.stock_uom || item.uom,
+							custom_medida: item.custom_medida || "",
+							image: item.image,
+							so_detail: item.name, // Link to Sales Order Item child row ID
+						};
+					}),
 					applied_offers: draft.applied_offers || [],
 				}));
 
@@ -84,26 +96,36 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					customer: draft.party_name
 						? { name: draft.party_name, customer_name: draft.customer_name || draft.party_name }
 						: null,
-					created_at: draft.creation,
-					items: (draft.items || []).map((item) => ({
-						item_code: item.item_code,
-						item_name: item.item_name,
-						rate: item.rate,
-						price_list_rate: item.price_list_rate,
-						quantity: item.qty || item.quantity,
-						uom: item.uom,
-						stock_uom: item.stock_uom || item.uom,
-						custom_medida: item.custom_medida || "",
-						image: item.image,
-						so_detail: item.name, // Will be mapped to quotation_item during checkout
-					})),
+					customer_name: draft.customer_name || draft.party_name || "",
+					transaction_date: draft.transaction_date || null,
+					created_at: draft.creation || draft.modified || draft.transaction_date,
+					valid_till: draft.valid_till || null,
+					grand_total: Number(draft.grand_total || 0),
+					items: (draft.items || []).map((item) => {
+						const q = Number(item.qty ?? item.quantity ?? 0);
+						const r = Number(item.rate ?? 0);
+						return {
+							item_code: item.item_code,
+							item_name: item.item_name,
+							rate: r,
+							price_list_rate: item.price_list_rate,
+							qty: q,
+							quantity: q,
+							amount: Number(item.amount ?? q * r),
+							uom: item.uom,
+							stock_uom: item.stock_uom || item.uom,
+							custom_medida: item.custom_medida || "",
+							image: item.image,
+							so_detail: item.name, // Will be mapped to quotation_item during checkout
+						};
+					}),
 					applied_offers: draft.applied_offers || [],
 				}));
 
 				const allDrafts = [...mappedDrafts, ...mappedQuotations];
 				allDrafts.sort((a, b) => {
-					const dateA = a.created_at ? new Date(a.created_at) : 0;
-					const dateB = b.created_at ? new Date(b.created_at) : 0;
+					const dateA = parseFrappeDateTime(a.created_at)?.getTime() || 0;
+					const dateB = parseFrappeDateTime(b.created_at)?.getTime() || 0;
 					return dateB - dateA;
 				});
 				drafts.value = allDrafts;
@@ -143,7 +165,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 
 		try {
 			if (!isOffline()) {
-				const today = new Date().toISOString().split("T")[0];
+				const today = getLocalDateString();
 				const formattedItems = invoiceItems.map(item => ({
 					item_code: item.item_code,
 					item_name: item.item_name,
@@ -173,7 +195,8 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					}));
 				} else if (doctype === "Quotation") {
 					invoiceData.transaction_date = today;
-					invoiceData.valid_till = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]; // Valid for 3 days
+					const validityDays = settingsStore.quotationValidityDays || 3;
+					invoiceData.valid_till = getLocalDateOffsetString(validityDays);
 				}
 
 				// If we are updating an existing server draft
@@ -190,13 +213,37 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					throw new Error("Invalid server draft response");
 				}
 
+				const normalizedItems = invoiceItems.map((item) => {
+					const q = Number(item.quantity ?? item.qty ?? 1) || 1;
+					const r = Number(item.rate ?? item.price ?? 0) || 0;
+					return {
+						...item,
+						qty: q,
+						quantity: q,
+						rate: r,
+						amount: Number(item.amount ?? q * r) || q * r,
+					};
+				});
+				const computedTotal = normalizedItems.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+				const computedUnits = normalizedItems.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
+
 				const savedDraft = {
 					draft_id: serverDoc.name,
 					doctype: serverDoc.doctype || doctype,
+					docstatus: serverDoc.docstatus ?? (submit ? 1 : 0),
 					owner: serverDoc.owner || session.user,
 					customer: customer || serverDoc.customer || serverDoc.party_name,
-					created_at: serverDoc.creation,
-					items: invoiceItems,
+					customer_name:
+						customer?.customer_name ||
+						serverDoc.customer_name ||
+						(typeof customer === "string" ? customer : "") ||
+						serverDoc.party_name ||
+						"",
+					created_at: serverDoc.transaction_date || serverDoc.creation || today,
+					valid_till: serverDoc.valid_till || invoiceData.valid_till || null,
+					grand_total: Number(serverDoc.grand_total ?? serverDoc.rounded_total ?? computedTotal) || computedTotal,
+					total_qty: Number(serverDoc.total_qty ?? computedUnits) || computedUnits,
+					items: normalizedItems,
 					applied_offers: appliedOffers,
 				};
 
@@ -204,10 +251,28 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 				showSuccess(doctype === "Quotation" ? __("Quotation created successfully") : __("Invoice saved as draft successfully"));
 				return savedDraft;
 			} else {
+				const normalizedOfflineItems = invoiceItems.map((item) => {
+					const q = Number(item.quantity ?? item.qty ?? 1) || 1;
+					const r = Number(item.rate ?? item.price ?? 0) || 0;
+					return {
+						...item,
+						qty: q,
+						quantity: q,
+						rate: r,
+						amount: Number(item.amount ?? q * r) || q * r,
+					};
+				});
+				const offlineTotal = normalizedOfflineItems.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+				const offlineUnits = normalizedOfflineItems.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
+
 				const draftData = {
+					doctype: doctype,
 					pos_profile: posProfile,
 					customer: customer,
-					items: invoiceItems,
+					customer_name: customer?.customer_name || (typeof customer === "string" ? customer : ""),
+					grand_total: offlineTotal,
+					total_qty: offlineUnits,
+					items: normalizedOfflineItems,
 					applied_offers: appliedOffers,
 					owner: session.user,
 				};

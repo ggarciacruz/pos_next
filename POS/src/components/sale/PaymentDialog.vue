@@ -5,22 +5,25 @@
 		:size="dynamicDialogSize"
 		:bodyClass="isMobileView ? '!p-2.5' : '!p-3.5'"
 	>
-		<!-- Two Column Layout - responsive on mobile (6.5"+) and desktop -->
+		<!-- Two Column Layout: Wide Order Detail Left + Compact Calculator Right Rail -->
 		<div
 			:class="[
-				'grid grid-cols-1 lg:grid-cols-5 items-start lg:items-stretch',
+				'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_430px] items-start lg:items-stretch lg:h-full',
 				dynamicGap,
 			]"
 		>
-			<!-- Left Column (2/5): Delivery + Sales Person + Invoice Summary -->
+			<!-- Left Column (Majority Width): Delivery + Billing + Full Item Summary & Totals -->
 			<div
 				:class="[
-					'lg:col-span-2 flex flex-col min-h-0',
+					'min-w-0 flex flex-col min-h-0',
 					isSmallMobile ? 'gap-1.5' : 'gap-2',
 				]"
 			>
-				<!-- Despacho / Entrega en Camión (Compacto & Sobrio) -->
-				<div class="bg-slate-50 border border-slate-200 rounded-xl p-2 flex flex-col gap-1.5 shrink-0">
+				<!-- Despacho / Entrega a Domicilio (Opt-in via POS Settings.enable_delivery_dispatch) -->
+				<div
+					v-if="settingsStore.enableDeliveryDispatch"
+					class="bg-slate-50 border border-slate-200 rounded-xl p-2 flex flex-col gap-1.5 shrink-0"
+				>
 					<div class="flex items-center justify-between">
 						<label class="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-800">
 							<input
@@ -32,7 +35,7 @@
 								<svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
 								</svg>
-								{{ __("Despacho en Camión") }}
+								{{ __("Despacho / Envío a Domicilio") }}
 							</span>
 						</label>
 						<MdxBadge v-if="requiresDelivery" variant="info" size="sm">
@@ -72,7 +75,7 @@
 							<input
 								type="text"
 								v-model="deliveryAddress"
-								:placeholder="__('Ej: La Ramada, Pasillo 4, Puesto 18')"
+								:placeholder="__('Dirección o referencia de entrega')"
 								class="flex-1 min-w-0 h-7 border border-slate-200 rounded-lg px-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
 							/>
 						</div>
@@ -162,9 +165,9 @@
 						</label>
 					</div>
 
-					<!-- Inline NIT / CI and Razón Social inputs when Emitir Factura is active -->
-					<div v-if="emitOfficialInvoice" class="mt-2.5 pt-2.5 border-t border-slate-200/80 space-y-2">
-						<div>
+					<!-- Inline NIT / CI and Razón Social inputs in 1 horizontal row on desktop/tablet -->
+					<div v-if="emitOfficialInvoice" class="mt-2 pt-2 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+						<div class="sm:col-span-4">
 							<label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">
 								{{ __("NIT / CI *") }}
 							</label>
@@ -175,7 +178,7 @@
 								class="w-full px-2.5 py-1.5 text-xs font-medium text-slate-900 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
 							/>
 						</div>
-						<div>
+						<div class="sm:col-span-8">
 							<label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">
 								{{ __("Razón Social / Nombre Factura *") }}
 							</label>
@@ -705,45 +708,81 @@
 							</div>
 						</div>
 
-						<!-- Items List (scrollable, compact so all controls fit without clipping) -->
+						<!-- Column Header for Items Table (Desktop / Tablet) -->
 						<div
 							v-if="items.length > 0"
-							class="flex-1 overflow-y-auto divide-y divide-slate-100 min-h-[52px] max-h-28 lg:max-h-36"
+							class="hidden sm:grid sm:grid-cols-12 gap-2 px-3.5 py-1.5 bg-slate-50/70 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0"
+						>
+							<div class="sm:col-span-7 text-start">{{ __("Artículo / Detalle") }}</div>
+							<div class="sm:col-span-3 text-end">{{ __("Cant. × P. Unit.") }}</div>
+							<div class="sm:col-span-2 text-end">{{ __("Subtotal") }}</div>
+						</div>
+
+						<!-- Items List (expands to fill full available height on desktop) -->
+						<div
+							v-if="items.length > 0"
+							class="flex-1 overflow-y-auto divide-y divide-slate-100 min-h-[72px] max-h-52 lg:max-h-none"
 						>
 							<div
 								v-for="(item, index) in items"
 								:key="index"
 								:class="[
-									'px-3 py-1.5 flex flex-col gap-0.5',
+									'px-3.5 py-2 flex flex-col gap-1',
 									item.is_free_item ? 'bg-emerald-50/60' : 'hover:bg-slate-50/70',
 								]"
 							>
 								<!-- Main Item -->
-								<div class="flex items-start justify-between gap-2">
-									<div class="flex-1 min-w-0 text-start">
+								<div class="grid grid-cols-1 sm:grid-cols-12 items-start sm:items-center gap-1 sm:gap-2">
+									<div class="sm:col-span-7 min-w-0 text-start">
 										<div
 											:class="[
-												'font-bold text-xs lg:text-sm truncate',
+												'font-bold text-xs lg:text-sm leading-snug break-words',
 												item.is_free_item
 													? 'text-emerald-700'
 													: 'text-slate-900',
 											]"
-											:title="getItemTitle(item)"
 										>
-											{{ getItemTitle(item) }}<span v-if="item.custom_medida || item.medida" class="text-slate-500 font-semibold text-xs ml-1">({{ item.custom_medida || item.medida }})</span><span
-												v-if="item.is_free_item"
-												class="text-xs font-bold"
+											<span>{{ getItemTitle(item) }}</span>
+											<span
+												v-if="item.item_name && item.item_name !== getItemTitle(item) && !getItemTitle(item).includes(item.item_name)"
+												class="font-medium text-slate-700 ms-1.5"
 											>
-												({{ __("Free") }})</span>
+												· {{ item.item_name }}
+											</span>
+											<span
+												v-if="item.custom_medida || item.medida"
+												class="text-slate-500 font-semibold text-xs ms-1"
+											>
+												({{ item.custom_medida || item.medida }})
+											</span>
+											<span
+												v-if="item.is_free_item"
+												class="text-xs font-bold ms-1"
+											>
+												({{ __("Free") }})
+											</span>
 										</div>
-										<!-- Subtitle: Item Group + Price × Qty -->
-										<div class="flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
-											<span class="text-slate-400 font-semibold truncate max-w-[120px]">{{ item.item_group || '-' }}</span>
-											<span>·</span>
-											<span>{{ formatCurrency(item.rate || item.price_list_rate) }} × {{ item.qty || item.quantity }}</span>
+										<!-- Subtitle: Full Item Group + UOM (plus Price × Qty on mobile) -->
+										<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500 mt-0.5 tabular-nums">
+											<span v-if="item.item_group" class="text-slate-500 font-medium truncate max-w-full sm:max-w-[360px] xl:max-w-[520px]">
+												{{ item.item_group }}
+											</span>
+											<span v-if="item.uom || item.stock_uom" class="text-slate-400">
+												({{ item.uom || item.stock_uom }})
+											</span>
+											<span class="sm:hidden text-slate-600 font-semibold">
+												· {{ item.qty || item.quantity }} × {{ formatCurrency(item.rate || item.price_list_rate) }}
+											</span>
 										</div>
 									</div>
-									<div class="text-xs lg:text-sm font-bold text-slate-900 text-end tabular-nums">
+
+									<!-- Qty × Unit Price (Tablet / Desktop) -->
+									<div class="hidden sm:block sm:col-span-3 text-xs text-slate-600 font-medium text-end tabular-nums whitespace-nowrap">
+										{{ item.qty || item.quantity }} × {{ formatCurrency(item.rate || item.price_list_rate) }}
+									</div>
+
+									<!-- Line Subtotal -->
+									<div class="sm:col-span-2 text-xs lg:text-sm font-bold text-slate-900 text-end tabular-nums whitespace-nowrap">
 										{{
 											formatCurrency(
 												item.amount ||
@@ -805,13 +844,13 @@
 
 						<!-- Amounts Breakdown -->
 						<div class="border-t border-slate-200 bg-slate-50 px-3 py-2 space-y-1 shrink-0">
-							<!-- Additional Discount Row (1 sola fila compacta: MdxSegmentedControl + Stepper) -->
+							<!-- Additional Discount Row (proporcional y alineado en 1 fila en escritorio) -->
 							<div
 								v-if="settingsStore.allowAdditionalDiscount"
-								class="pb-1.5 mb-1 border-b border-dashed border-slate-200"
+								class="pb-2 mb-1 border-b border-dashed border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
 							>
 								<!-- Label with calculated amount -->
-								<div class="flex items-center justify-between gap-2 mb-1">
+								<div class="flex items-center justify-between md:justify-start gap-2 min-w-0">
 									<div class="flex items-center gap-1.5 min-w-0">
 										<svg
 											class="w-3.5 h-3.5 text-slate-500 flex-shrink-0"
@@ -848,8 +887,8 @@
 										-{{ formatCurrency(calculatedAdditionalDiscount) }}
 									</span>
 								</div>
-								<!-- Form Controls en 1 sola línea horizontal -->
-								<div class="grid grid-cols-12 gap-1.5 items-center">
+								<!-- Form Controls compactos y proporcionados -->
+								<div class="grid grid-cols-12 gap-1.5 items-center w-full md:w-[300px] shrink-0">
 									<!-- Unit Selectors (MdxSegmentedControl) -->
 									<div class="col-span-5">
 										<MdxSegmentedControl
@@ -1161,12 +1200,12 @@
 				</div>
 				<!-- End Left Column -->
 
-				<!-- Right Column (3/5): Payment Methods + Quick Amounts + Numpad -->
+				<!-- Right Column (Compact Ergonomic Rail): Payment Methods + Quick Amounts + Numpad -->
 				<div
 					ref="rightColumnRef"
 					:class="[
-						'lg:col-span-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col justify-between',
-						isSmallMobile ? 'p-2' : 'p-2.5 lg:p-3',
+						'min-w-0 bg-slate-50 rounded-xl border border-slate-200 flex flex-col',
+						isSmallMobile ? 'p-2' : 'p-2.5 lg:p-3.5',
 					]"
 				>
 					<!-- Payment Methods -->
@@ -1631,7 +1670,7 @@
 					<!-- Numeric Keypad (Desktop only — Sobriedad Corporativa Slate) -->
 					<div
 						:class="[
-							'hidden lg:block bg-white rounded-xl border border-slate-200',
+							'hidden lg:block bg-white rounded-xl border border-slate-200 lg:mt-auto',
 							isCompactMode ? 'p-2.5' : 'p-3',
 						]"
 					>
@@ -1847,6 +1886,7 @@ import {
 } from "@/utils/currency";
 import { offlineWorker } from "@/utils/offline/workerClient";
 import { logger } from "@/utils/logger";
+import { getLocalDateString } from "@/utils/date";
 import { createResource, call } from "frappe-ui";
 import {
 	MdxBadge,
@@ -2018,7 +2058,7 @@ const deliveryDate = ref("");
 const deliveryAddress = ref("");
 const deliveryPhone = ref("");
 const driverCollectionMode = ref("");
-const today = new Date().toISOString().split("T")[0];
+const today = getLocalDateString();
 const isSalesOrder = computed(() => props.targetDoctype === "Sales Order");
 const emitOfficialInvoice = ref(false);
 const billingNit = ref("");
@@ -2909,9 +2949,10 @@ watch(show, (newVal) => {
 		deliveryPhone.value = defaultPhone;
 		billingNit.value = defaultNit;
 		billingRazonSocial.value = defaultRazonSocial;
-		requiresDelivery.value =
-			(isSalesOrder.value && !settingsStore.allowDeliveryNoteOnSalesOrder) ||
-			Boolean(defaultAddr);
+		requiresDelivery.value = settingsStore.enableDeliveryDispatch
+			? (isSalesOrder.value && !settingsStore.allowDeliveryNoteOnSalesOrder) ||
+				Boolean(defaultAddr)
+			: false;
 		createDeliveryNote.value = true;
 		driverCollectionMode.value = "";
 

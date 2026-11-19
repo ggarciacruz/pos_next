@@ -543,7 +543,13 @@
 						{{ __("Print Ticket (Thermal)") }}
 					</MdxButton>
 					<MdxButton variant="primary" @click="handlePrintPDF">
-						{{ __("Print PDF (Letter Size)") }}
+						{{
+							invoice?.doctype === "Quotation"
+								? __("Imprimir Cotización (PDF)")
+								: invoice?.doctype === "Sales Order"
+									? __("Imprimir Orden de Venta (PDF)")
+									: __("Print PDF (Letter Size)")
+						}}
 					</MdxButton>
 					<button
 						v-if="posSettingsStore.enableWhatsappSend"

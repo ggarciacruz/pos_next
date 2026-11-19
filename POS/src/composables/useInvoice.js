@@ -6,6 +6,7 @@ import { usePOSShiftStore } from "@/stores/posShift";
 import { CoalescingMutex } from "@/utils/mutex";
 import { logger } from "@/utils/logger";
 import { roundCurrency } from "@/utils/currency";
+import { getLocalDateString } from "@/utils/date";
 import { sessionUser } from "@/data/session";
 
 const log = logger.create("Invoice");
@@ -771,10 +772,8 @@ export function useInvoice() {
 			is_rate_manually_edited: item.is_rate_manually_edited || 0,
 			original_rate: item.original_rate || null,
 			is_free_item: item.is_free_item || 0,
-			custom_cantidad_m2:
-				item.custom_cantidad_m2 !== undefined ? item.custom_cantidad_m2 : undefined,
-			custom_precio_m2:
-				item.custom_precio_m2 !== undefined ? item.custom_precio_m2 : undefined,
+			coverage_qty: item.coverage_qty !== undefined ? item.coverage_qty : undefined,
+			coverage_rate: item.coverage_rate !== undefined ? item.coverage_rate : undefined,
 			sales_order: (isSalesOrder && item.so_detail) ? draftId : undefined,
 			so_detail: isSalesOrder ? (item.so_detail || undefined) : undefined,
 			prevdoc_docname:
@@ -976,7 +975,7 @@ export function useInvoice() {
 		};
 
 		if (targetDoctype === "Sales Order") {
-			const today = new Date().toISOString().split("T")[0];
+			const today = getLocalDateString();
 			invoiceData.delivery_date = today;
 			invoiceData.transaction_date = today;
 		}
@@ -1080,7 +1079,7 @@ export function useInvoice() {
 				}
 
 				if (targetDoctype === "Sales Order") {
-					const today = new Date().toISOString().split("T")[0];
+					const today = getLocalDateString();
 					invoiceData.transaction_date = today;
 					invoiceData.delivery_date = deliveryDate || today;
 				}

@@ -810,12 +810,103 @@
 			<!-- Print Pre-ticket / Quotation Confirmation Dialog (mdx_ui) -->
 			<MdxModal
 				v-model="showPrintDraftConfirmDialog"
-				:title="lastSavedDraft?.doctype === 'Quotation' ? __('Print Quotation') : __('Print Pre-ticket')"
+				:title="isSavedDraftQuotation ? __('Cotización Generada') : __('Pre-venta Registrada')"
 				size="md"
 			>
-				<p class="text-sm text-slate-600 py-1 text-start">
-					{{ lastSavedDraft?.doctype === 'Quotation' ? __("Quotation saved successfully. Do you want to print the quotation?") : __("Pre-sale saved successfully. Do you want to print the pre-ticket?") }}
-				</p>
+				<div class="space-y-3.5 text-start py-0.5">
+					<!-- Cabecera de confirmación del documento -->
+					<div class="flex items-start gap-3">
+						<div class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center shrink-0">
+							<svg v-if="isSavedDraftQuotation" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+							</svg>
+							<svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+							</svg>
+						</div>
+						<div class="min-w-0 flex-1">
+							<div class="flex items-center flex-wrap gap-2">
+								<span class="text-sm font-bold text-slate-900 font-mono">
+									{{ lastSavedDraft?.draft_id || "" }}
+								</span>
+								<MdxBadge :variant="isSavedDraftQuotation ? 'info' : 'warning'" size="sm">
+									{{ isSavedDraftQuotation ? __("COTIZACIÓN") : __("PRE-VENTA") }}
+								</MdxBadge>
+							</div>
+							<p class="text-xs text-slate-500 mt-1 leading-relaxed">
+								{{
+									isSavedDraftQuotation
+										? __("Proforma informativa guardada correctamente. No descuenta inventario ni registra cobro en caja.")
+										: __("Orden de pre-venta registrada correctamente para su posterior atención o cobro en caja.")
+								}}
+							</p>
+						</div>
+					</div>
+
+					<!-- Tarjeta de resumen estructurado -->
+					<div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+							<div>
+								<span class="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+									{{ __("Cliente") }}
+								</span>
+								<span class="font-semibold text-slate-900 truncate block mt-0.5">
+									{{ savedDraftCustomerLabel }}
+								</span>
+							</div>
+							<div v-if="isSavedDraftQuotation && savedDraftValidTillDisplay">
+								<span class="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+									{{ __("Vigencia de Cotización") }}
+								</span>
+								<span class="font-semibold text-slate-900 block mt-0.5 tabular-nums">
+									{{ __("Hasta el {0}", [savedDraftValidTillDisplay]) }}
+								</span>
+							</div>
+							<div v-else>
+								<span class="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+									{{ __("Resumen de Artículos") }}
+								</span>
+								<span class="font-semibold text-slate-900 block mt-0.5 tabular-nums">
+									{{ savedDraftItems.length }} {{ savedDraftItems.length === 1 ? __("ítem") : __("ítems") }} ({{ savedDraftTotalUnits }} {{ __("unid.") }})
+								</span>
+							</div>
+						</div>
+
+						<!-- Desglose compacto de ítems cotizados -->
+						<div
+							v-if="savedDraftItems.length > 0"
+							class="border-t border-slate-200 pt-2 max-h-36 overflow-y-auto divide-y divide-slate-200/70"
+						>
+							<div
+								v-for="(it, idx) in savedDraftItems"
+								:key="`${it.code}-${idx}`"
+								class="py-1.5 flex items-baseline justify-between gap-3 text-xs"
+							>
+								<div class="min-w-0 flex-1">
+									<span class="font-semibold text-slate-800">{{ it.code }}</span>
+									<span v-if="it.name && it.name !== it.code" class="text-slate-600"> · {{ it.name }}</span>
+								</div>
+								<div class="shrink-0 text-end tabular-nums">
+									<span class="text-slate-500 me-1.5">{{ it.qty }} × {{ formatCurrency(it.rate) }}</span>
+									<span class="font-bold text-slate-900">{{ formatCurrency(it.lineTotal) }}</span>
+								</div>
+							</div>
+						</div>
+
+						<!-- Total cotizado -->
+						<div class="border-t border-slate-200 pt-2.5 flex items-center justify-between">
+							<span class="text-xs font-bold uppercase tracking-wide text-slate-700">
+								{{ isSavedDraftQuotation ? __("Total Cotizado") : __("Total Pre-venta") }}
+								<span class="font-normal text-slate-500 normal-case">
+									({{ savedDraftItems.length }} {{ savedDraftItems.length === 1 ? __("ítem") : __("ítems") }} · {{ savedDraftTotalUnits }} {{ __("unid.") }})
+								</span>
+							</span>
+							<span class="text-base font-extrabold text-slate-900 tabular-nums">
+								{{ formatCurrency(savedDraftTotalAmount) }}
+							</span>
+						</div>
+					</div>
+				</div>
 
 				<template #footer>
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
@@ -830,7 +921,9 @@
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
 								</svg>
 							</template>
-							<span class="truncate">{{ __("Print Ticket (Thermal)") }}</span>
+							<span class="truncate">
+								{{ isSavedDraftQuotation ? __("Imprimir Cotización (Ticket)") : __("Imprimir Pre-ticket (Térmico)") }}
+							</span>
 						</MdxButton>
 						<MdxButton
 							variant="primary"
@@ -843,7 +936,9 @@
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
 								</svg>
 							</template>
-							<span class="truncate">{{ __("Print PDF (Letter Size)") }}</span>
+							<span class="truncate">
+								{{ isSavedDraftQuotation ? __("Imprimir Cotización (PDF)") : __("Imprimir Pre-venta (PDF)") }}
+							</span>
 						</MdxButton>
 						<MdxButton
 							variant="ghost"
@@ -866,7 +961,9 @@
 									<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
 								</svg>
 							</template>
-							<span class="truncate">{{ __("Enviar por WhatsApp") }}</span>
+							<span class="truncate">
+								{{ isSavedDraftQuotation ? __("Enviar Cotización por WhatsApp") : __("Enviar Pre-venta por WhatsApp") }}
+							</span>
 						</MdxButton>
 					</div>
 				</template>
@@ -944,7 +1041,9 @@
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
 								</svg>
 							</template>
-							<span class="truncate">{{ __("Print PDF (Letter Size)") }}</span>
+							<span class="truncate">
+								{{ lastSubmittedDoctype === "Sales Order" ? __("Imprimir Orden de Venta (PDF)") : __("Print PDF (Letter Size)") }}
+							</span>
 						</MdxButton>
 						<MdxButton
 							variant="ghost"
@@ -981,11 +1080,24 @@
 			<!-- WhatsApp Send Receipt Dialog (mdx_ui) -->
 			<MdxModal
 				v-model="showWhatsAppDialog"
-				:title="__('Enviar Comprobante por WhatsApp')"
+				:title="
+					whatsAppDoc?.doctype === 'Quotation'
+						? __('Enviar Cotización por WhatsApp')
+						: whatsAppDoc?.doctype === 'Sales Order'
+							? __('Enviar Pre-venta por WhatsApp')
+							: __('Enviar Comprobante por WhatsApp')
+				"
 				size="md"
 			>
 				<div v-if="whatsAppLoading" class="py-8 flex flex-col items-center justify-center">
-					<MdxLoadingSpinner size="md" :text="__('Preparando detalle de la venta...')" />
+					<MdxLoadingSpinner
+						size="md"
+						:text="
+							whatsAppDoc?.doctype === 'Quotation'
+								? __('Preparando detalle de la cotización...')
+								: __('Preparando detalle del documento...')
+						"
+					/>
 				</div>
 				<div v-else class="space-y-4 text-start">
 					<!-- Customer & Document Badge -->
@@ -1175,6 +1287,7 @@ import { useSessionLock } from "@/composables/useSessionLock";
 import { usePOSEvents } from "@/composables/usePOSEvents";
 import { useLocale } from "@/composables/useLocale";
 import { session } from "@/data/session";
+import { getLocalDateString } from "@/utils/date";
 import { useUserData } from "@/data/user";
 import { parseError } from "@/utils/errorHandler";
 import { cleanupUserSession } from "@/utils/sessionCleanup";
@@ -1314,6 +1427,69 @@ function getSelectableItemUoms(item) {
 // Dialog state for printing saved draft
 const showPrintDraftConfirmDialog = ref(false);
 const lastSavedDraft = ref(null);
+
+const isSavedDraftQuotation = computed(() => {
+	const d = lastSavedDraft.value;
+	if (!d) return false;
+	const id = String(d.draft_id || "");
+	return (
+		d.doctype === "Quotation" ||
+		id.includes("QTN-") ||
+		id.includes("COT-")
+	);
+});
+
+const savedDraftCustomerLabel = computed(() => {
+	const d = lastSavedDraft.value;
+	if (!d) return __("Cliente General");
+	return (
+		d.customer_name ||
+		d.customer?.customer_name ||
+		d.customer?.name ||
+		(typeof d.customer === "string" ? d.customer : "") ||
+		__("Cliente General")
+	);
+});
+
+const savedDraftItems = computed(() => {
+	const raw = lastSavedDraft.value?.items || [];
+	return raw.map((it) => {
+		const qty = Number(it.quantity ?? it.qty ?? 1) || 1;
+		const rate = Number(it.rate ?? it.price ?? it.price_list_rate ?? 0) || 0;
+		const lineTotal = Number(it.amount ?? qty * rate) || qty * rate;
+		return {
+			code: it.item_code || "",
+			name: it.item_name || it.item_code || "",
+			qty: Number.isInteger(qty) ? qty : Number(qty.toFixed(2)),
+			rate,
+			lineTotal,
+		};
+	});
+});
+
+const savedDraftTotalUnits = computed(() => {
+	const sum = savedDraftItems.value.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
+	return Number.isInteger(sum) ? sum : Number(sum.toFixed(2));
+});
+
+const savedDraftTotalAmount = computed(() => {
+	const d = lastSavedDraft.value;
+	if (!d) return 0;
+	const explicit = Number(d.grand_total);
+	if (!Number.isNaN(explicit) && explicit > 0) return explicit;
+	return savedDraftItems.value.reduce((acc, it) => acc + (Number(it.lineTotal) || 0), 0);
+});
+
+const savedDraftValidTillDisplay = computed(() => {
+	const raw = lastSavedDraft.value?.valid_till;
+	if (!raw) return "";
+	const str = String(raw).slice(0, 10);
+	const parts = str.split("-");
+	if (parts.length === 3) {
+		return `${parts[2]}/${parts[1]}/${parts[0]}`;
+	}
+	return str;
+});
 
 // Dialog state for sending receipt via WhatsApp
 const showWhatsAppDialog = ref(false);
@@ -2884,9 +3060,17 @@ async function confirmPrintDraft() {
 	try {
 		const draft = lastSavedDraft.value;
 		const itemsList = draft.items || [];
-		const grandTotal = itemsList.reduce((total, item) => total + (item.amount || (item.price * item.qty) || 0), 0);
-
-		const isQuotation = draft.doctype === "Quotation" || (draft.draft_id && (draft.draft_id.startsWith("QTN-") || draft.draft_id.startsWith("COT-")));
+		const computedTotal = itemsList.reduce((total, item) => {
+			const q = Number(item.quantity ?? item.qty ?? 0) || 0;
+			const r = Number(item.rate ?? item.price ?? 0) || 0;
+			return total + (Number(item.amount ?? q * r) || 0);
+		}, 0);
+		const grandTotal = Number(draft.grand_total) || computedTotal;
+		const draftIdStr = String(draft.draft_id || "");
+		const isQuotation =
+			draft.doctype === "Quotation" ||
+			draftIdStr.includes("QTN-") ||
+			draftIdStr.includes("COT-");
 
 		const invoiceData = {
 			name: draft.draft_id,
@@ -2895,7 +3079,12 @@ async function confirmPrintDraft() {
 			payments: [],
 			grand_total: grandTotal,
 			posting_date: draft.created_at,
-			customer_name: draft.customer?.customer_name || draft.customer?.name || draft.customer || "S/N",
+			customer_name:
+				draft.customer_name ||
+				draft.customer?.customer_name ||
+				draft.customer?.name ||
+				draft.customer ||
+				"S/N",
 			status: isQuotation ? "Quotation" : "Draft",
 			header: isQuotation ? "Quotation" : "Draft",
 			footer: isQuotation
@@ -2954,7 +3143,7 @@ async function handlePrintActiveDraftTicket() {
 			items: cartStore.invoiceItems,
 			payments: [],
 			grand_total: cartStore.grandTotal,
-			posting_date: new Date().toISOString().split("T")[0],
+			posting_date: getLocalDateString(),
 			customer_name: cartStore.customer?.customer_name || cartStore.customer?.name || cartStore.customer || "S/N",
 			status: isQuotation ? "Quotation" : "Draft",
 			header: isQuotation ? "Quotation" : "Draft",
@@ -3007,14 +3196,17 @@ async function confirmWhatsAppDraft() {
 	if (!lastSavedDraft.value) return;
 	const draft = lastSavedDraft.value;
 	const itemsList = draft.items || [];
-	const grandTotal = itemsList.reduce(
-		(total, item) => total + (item.amount || item.price * item.qty || 0),
-		0
-	);
+	const computedTotal = itemsList.reduce((total, item) => {
+		const q = Number(item.quantity ?? item.qty ?? 0) || 0;
+		const r = Number(item.rate ?? item.price ?? 0) || 0;
+		return total + (Number(item.amount ?? q * r) || 0);
+	}, 0);
+	const grandTotal = Number(draft.grand_total) || computedTotal;
+	const draftIdStr = String(draft.draft_id || "");
 	const isQuotation =
 		draft.doctype === "Quotation" ||
-		(draft.draft_id &&
-			(draft.draft_id.startsWith("QTN-") || draft.draft_id.startsWith("COT-")));
+		draftIdStr.includes("QTN-") ||
+		draftIdStr.includes("COT-");
 
 	await handleWhatsAppInvoice({
 		name: draft.draft_id,
@@ -3026,6 +3218,7 @@ async function confirmWhatsAppDraft() {
 		posting_date: draft.created_at,
 		customer: draft.customer?.name || draft.customer,
 		customer_name:
+			draft.customer_name ||
 			draft.customer?.customer_name ||
 			draft.customer?.name ||
 			draft.customer ||
@@ -3051,7 +3244,7 @@ async function handleWhatsAppActiveDraft() {
 		items: cartStore.invoiceItems,
 		payments: [],
 		grand_total: cartStore.grandTotal,
-		posting_date: new Date().toISOString().split("T")[0],
+		posting_date: getLocalDateString(),
 		customer: cartStore.customer?.name || cartStore.customer,
 		customer_name:
 			cartStore.customer?.customer_name ||
