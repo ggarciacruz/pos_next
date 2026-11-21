@@ -63,6 +63,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		allow_duplicate_customer_names: 0,
 		fetch_coupon: 0,
 		// Printing
+		default_print_mode: "Thermal Ticket (80mm)",
 		receipt_header_title: "Recibo de Venta",
 		invoice_print_format: "",
 		sales_order_print_format: "",
@@ -211,6 +212,12 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	const fetchCoupon = computed(() => Boolean(settings.value.fetch_coupon));
 
 	// Computed - Printing
+	const defaultPrintMode = computed(
+		() => settings.value.default_print_mode || "Thermal Ticket (80mm)"
+	);
+	const usePdfAsDefaultPrint = computed(
+		() => defaultPrintMode.value === "PDF Print Format (Letter)"
+	);
 	const receiptHeaderTitle = computed(
 		() => settings.value.receipt_header_title || "Recibo de Venta"
 	);
@@ -424,6 +431,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			allow_customer_purchase_order: 0,
 			allow_duplicate_customer_names: 0,
 			fetch_coupon: 0,
+			default_print_mode: "Thermal Ticket (80mm)",
 			receipt_header_title: "Recibo de Venta",
 			invoice_print_format: "",
 			sales_order_print_format: "",
@@ -578,6 +586,8 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		fetchCoupon,
 
 		// Computed - Printing
+		defaultPrintMode,
+		usePdfAsDefaultPrint,
 		receiptHeaderTitle,
 		invoicePrintFormat,
 		salesOrderPrintFormat,

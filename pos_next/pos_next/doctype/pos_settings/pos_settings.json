@@ -68,6 +68,7 @@
   "allow_duplicate_customer_names",
   "fetch_coupon",
   "section_break_printing",
+  "default_print_mode",
   "receipt_header_title",
   "invoice_print_format",
   "sales_order_print_format",
@@ -543,6 +544,14 @@
    "fieldname": "section_break_printing",
    "fieldtype": "Section Break",
    "label": "Impresión de Comprobantes"
+  },
+  {
+   "default": "Thermal Ticket (80mm)",
+   "description": "Define qué acción ejecuta el botón Impresión en Historial de Ventas, Gestión de Ventas y post-venta: Ticket Térmico 80mm o Formato PDF Tamaño Carta de ERPNext.",
+   "fieldname": "default_print_mode",
+   "fieldtype": "Select",
+   "label": "Modo de Impresión Predeterminado",
+   "options": "Thermal Ticket (80mm)\nPDF Print Format (Letter)"
   },
   {
    "default": "Recibo de Venta",

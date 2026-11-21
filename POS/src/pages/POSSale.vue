@@ -1013,7 +1013,7 @@
 							fullWidth
 							@click="
 								() => {
-									handlePrintInvoice({ name: uiStore.lastInvoiceName });
+									handlePrintInvoice({ name: uiStore.lastInvoiceName, doctype: lastSubmittedDoctype, _forceThermal: true });
 									uiStore.showSuccessDialog = false;
 								}
 							"
@@ -1296,6 +1296,7 @@ import { cacheOfflineReceiptPayload } from "@/utils/offline/offlineReceiptCache"
 import { cacheInvoiceHistory, getCachedInvoiceHistory } from "@/utils/offline/sync";
 import {
 	hydrateLocalOnlyInvoice,
+	isLocalOnlyInvoiceName,
 	printInvoice,
 	printInvoiceByName,
 	printWithSilentFallback,
@@ -3098,6 +3099,36 @@ async function confirmPrintDraft() {
 	}
 }
 
+function inferPosDocumentDoctype(docOrObj, doctypeHint = null) {
+	if (doctypeHint) return doctypeHint;
+	if (docOrObj && typeof docOrObj === "object" && docOrObj.doctype) {
+		return docOrObj.doctype;
+	}
+	const rawName =
+		typeof docOrObj === "string"
+			? docOrObj
+			: docOrObj?.name || docOrObj?.draft_id || "";
+	const upperName = String(rawName).trim().toUpperCase();
+	if (
+		upperName.includes("-QTN-") ||
+		upperName.includes("-COT-") ||
+		upperName.startsWith("QTN-") ||
+		upperName.startsWith("COT-") ||
+		upperName.startsWith("SAL-QTN-")
+	) {
+		return "Quotation";
+	}
+	if (
+		upperName.includes("-ORD-") ||
+		upperName.startsWith("SO-") ||
+		upperName.startsWith("OV-") ||
+		upperName.startsWith("SAL-ORD-")
+	) {
+		return "Sales Order";
+	}
+	return posSettingsStore.createOnlySalesOrder ? "Sales Order" : "Sales Invoice";
+}
+
 function printDocumentLetterPDF(doctype, name, printFormat = null) {
 	if (!doctype || !name) return;
 	let url = `/printview?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}`;
@@ -3816,10 +3847,31 @@ function handleViewInvoice(invoice) {
 	showInvoiceDetail.value = true;
 }
 
-// Centralized print handler - uses printInvoice.js utilities
-async function handlePrintInvoice(invoiceData) {
+// Centralized print handler - routes between Letter/PDF format and thermal 80mm receipt
+async function handlePrintInvoice(rawInvoiceData) {
 	try {
-		invoiceData = await hydrateLocalOnlyInvoice(invoiceData || {});
+		let invoiceData =
+			typeof rawInvoiceData === "string"
+				? { name: rawInvoiceData }
+				: { ...(rawInvoiceData || {}) };
+		const forceThermal = Boolean(invoiceData._forceThermal);
+
+		if (
+			posSettingsStore.usePdfAsDefaultPrint &&
+			!forceThermal &&
+			invoiceData?.name &&
+			!isLocalOnlyInvoiceName(invoiceData.name)
+		) {
+			const doctype = inferPosDocumentDoctype(invoiceData);
+			const format = posSettingsStore.getPrintFormatForDoctype(
+				doctype,
+				invoiceData.print_format || shiftStore.currentProfile?.print_format
+			);
+			printDocumentLetterPDF(doctype, invoiceData.name, format);
+			return;
+		}
+
+		invoiceData = await hydrateLocalOnlyInvoice(invoiceData);
 		const offlineSnapshot = uiStore.lastOfflinePrintDoc;
 		if (
 			invoiceData?.name &&

@@ -831,6 +831,16 @@
 												:step="1"
 											/>
 											<SelectField
+												v-model="settings.default_print_mode"
+												:label="__('Modo de Impresión Predeterminado')"
+												:options="defaultPrintModeOptions"
+												:description="
+													__(
+														'Define si el botón Impresión abre el Ticket Térmico (80mm) o el Formato PDF Tamaño Carta de ERPNext'
+													)
+												"
+											/>
+											<SelectField
 												v-model="settings.receipt_header_title"
 												:label="__('Receipt Header Title')"
 												:options="receiptTitleOptions"
@@ -1344,6 +1354,10 @@ const settings = ref({
 	allow_sales_order: 0,
 	allow_quotation: 0,
 	quotation_validity_days: 3,
+	default_print_mode: "Thermal Ticket (80mm)",
+	invoice_print_format: "",
+	sales_order_print_format: "",
+	quotation_print_format: "",
 	silent_print: 0,
 	enable_whatsapp_send: 1,
 	receipt_header_title: "Recibo de Venta",
@@ -1355,6 +1369,11 @@ const settings = ref({
 	cost_price_visibility: "Managers Only",
 	tax_inclusive: 0,
 });
+
+const defaultPrintModeOptions = [
+	{ label: "Ticket Térmico (80mm)", value: "Thermal Ticket (80mm)" },
+	{ label: "Formato PDF / Carta (ERPNext)", value: "PDF Print Format (Letter)" },
+];
 
 const costPriceVisibilityOptions = [
 	{ label: "Solo Administradores / Gerentes", value: "Managers Only" },

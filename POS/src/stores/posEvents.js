@@ -272,6 +272,7 @@ export const usePOSEventsStore = defineStore("posEvents", () => {
 			"allow_return",
 			"allow_write_off_change",
 			"allow_partial_payment",
+			"default_print_mode",
 			"silent_print",
 			"enable_whatsapp_send",
 			"enable_siat_fiscal_format",
