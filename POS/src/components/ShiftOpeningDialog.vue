@@ -32,7 +32,7 @@
 							<div class="flex justify-between items-start">
 								<div class="text-start">
 									<h3 class="font-semibold text-slate-900">
-										{{ profile.name }}
+										{{ cleanProfileName(profile.name) }}
 									</h3>
 									<p class="text-sm text-slate-500 mt-1">
 										{{ profile.company }}
@@ -68,7 +68,7 @@
 					<div class="flex items-center justify-between">
 						<div class="text-start">
 							<h3 class="font-semibold text-slate-900">
-								{{ selectedProfile?.name }}
+								{{ cleanProfileName(selectedProfile?.name) }}
 							</h3>
 							<p class="text-sm text-slate-500">{{ selectedProfile?.company }}</p>
 						</div>
@@ -87,7 +87,7 @@
 							<span>{{ __("Modo Vendedor (Preventa & Cotizaciones)") }}</span>
 						</div>
 						<p class="text-xs text-blue-700">
-							{{ __("Operación comercial sin arqueo de efectivo. Las ventas se cobran en la caja principal por un cajero autorizaciones.") }}
+							{{ __("Operación comercial sin arqueo de efectivo. Las ventas se cobran en la caja principal por un cajero autorizado.") }}
 						</p>
 					</div>
 
@@ -176,7 +176,7 @@
 								:tag="'p'"
 								:inner="
 									__('&lt;strong&gt;POS Profile:&lt;/strong&gt; {0}', [
-										existingShift.pos_profile?.name,
+										cleanProfileName(existingShift.pos_profile?.name),
 									])
 								"
 							/>
@@ -281,6 +281,10 @@ const open = computed({
 
 const { createOpeningShift, getOpeningDialogData, checkOpeningShift } = useShift();
 const { formatDateTime } = useFormatters();
+
+function cleanProfileName(name) {
+	return name ? String(name).replace(/\s*-\s*[A-Z0-9]{2,5}$/, "").trim() : "";
+}
 
 const step = ref(1);
 const selectedProfile = ref(null);

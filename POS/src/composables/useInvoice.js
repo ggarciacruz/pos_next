@@ -993,7 +993,9 @@ export function useInvoice() {
 		draftId = null,
 		emitOfficialInvoice = false,
 		deliveryData = null,
-		createDeliveryNote = true
+		createDeliveryNote = true,
+		billingNit = null,
+		billingRazonSocial = null
 	) {
 		/**
 		 * Two-step submission process with mutex protection:
@@ -1057,6 +1059,8 @@ export function useInvoice() {
 						invoiceData.naming_series = "CF-.YYYY.-";
 						invoiceData.taxes_and_charges =
 							shiftStore.currentProfile?.taxes_and_charges || "IVA Débito Fiscal - NE";
+						if (billingNit) invoiceData.tax_id = billingNit;
+						if (billingRazonSocial) invoiceData.billing_razon_social = billingRazonSocial;
 					} else {
 						invoiceData.naming_series = "SF-.YYYY.-";
 						invoiceData.taxes_and_charges = "";

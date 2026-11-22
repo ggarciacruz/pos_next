@@ -36,7 +36,7 @@
 								<h3
 									class="text-start text-sm md:text-base font-medium text-gray-900"
 								>
-									{{ closingData.pos_profile }}
+									{{ cleanProfileName(closingData.pos_profile) }}
 								</h3>
 								<p class="text-start text-xs md:text-sm text-gray-500 mt-1">
 									{{ formatDateTime(closingData.period_start_date) }}
@@ -1036,6 +1036,10 @@ const open = computed({
 
 const { getClosingShiftData, submitClosingShift } = useShift();
 const { formatCurrency, formatQuantity, formatDateTime, formatTime } = useFormatters();
+
+function cleanProfileName(name) {
+	return name ? String(name).replace(/\s*-\s*[A-Z0-9]{2,5}$/, "").trim() : "";
+}
 const { showSuccess, showWarning } = useToast();
 const posSettingsStore = usePOSSettingsStore();
 const { hideExpectedAmount } = storeToRefs(posSettingsStore);

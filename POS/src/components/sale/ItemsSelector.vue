@@ -1835,7 +1835,7 @@ function selectItem(item, autoAdd = false) {
 			showError(
 				__('"{0}" is out of stock in warehouse "{1}".', [
 					item.item_name,
-					item.warehouse || "",
+					getItemWarehouseName(item),
 				])
 			);
 			return false;

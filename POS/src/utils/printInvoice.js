@@ -34,16 +34,32 @@ function getPOSPrintSettings(invoiceData = {}) {
 		// Store unmounted or called outside component tree
 	}
 
-	const headerTitle =
+	const docSeries = String(invoiceData.naming_series || "");
+	const docName = String(invoiceData.name || "");
+	const isExplicitNonFiscal =
+		invoiceData.emit_official_invoice === false ||
+		docSeries.startsWith("SF-") ||
+		docSeries.startsWith("NV-") ||
+		docName.startsWith("SF-") ||
+		docName.startsWith("NV-");
+
+	const isFiscal = isExplicitNonFiscal
+		? false
+		: Boolean(
+				invoiceData.enable_siat_fiscal_format ??
+				storeSettings?.enableSiatFiscalFormat ??
+				0
+		  );
+
+	const rawHeaderTitle =
 		invoiceData.receipt_header_title ||
 		storeSettings?.receiptHeaderTitle ||
 		"Recibo de Venta";
 
-	const isFiscal = Boolean(
-		invoiceData.enable_siat_fiscal_format ??
-		storeSettings?.enableSiatFiscalFormat ??
-		0
-	);
+	const headerTitle =
+		!isFiscal && /^factura$/i.test(String(rawHeaderTitle).trim())
+			? "Nota de Venta"
+			: rawHeaderTitle;
 
 	const enableWhatsappSend = Boolean(
 		invoiceData.enable_whatsapp_send ??
@@ -184,10 +200,17 @@ function receiptDocFromQueuedInvoice(offlineId, raw) {
 		name: offlineId,
 		doctype: "Sales Invoice",
 		is_offline: true,
+		naming_series: raw.naming_series,
+		emit_official_invoice: raw.emit_official_invoice,
+		tax_id: raw.billing_nit || raw.tax_id || "",
+		billing_razon_social: raw.billing_razon_social || "",
 		pos_profile: raw.pos_profile,
 		posting_date: raw.posting_date || new Date().toISOString().slice(0, 10),
 		company: raw.company,
-		customer_name: raw.customer,
+		customer_name:
+			raw.emit_official_invoice && raw.billing_razon_social
+				? raw.billing_razon_social
+				: raw.customer,
 		items: items.map((item) => ({
 			...item,
 			quantity: item.quantity ?? item.qty,
@@ -236,7 +259,7 @@ const companyInfoCache = {};
 export async function hydrateInvoiceItemsWithMedidas(invoiceData) {
 	if (!invoiceData) return invoiceData;
 
-	// Resolve company phone and address
+	// Resolve company phone, address and NIT (tax_id)
 	const company = invoiceData.company;
 	if (company) {
 		if (companyInfoCache[company]) {
@@ -244,24 +267,39 @@ export async function hydrateInvoiceItemsWithMedidas(invoiceData) {
 			invoiceData.company_phone = info.phone;
 			invoiceData.company_address = info.address;
 			invoiceData.company_city = info.city;
+			if (!invoiceData.company_tax_id && info.tax_id) {
+				invoiceData.company_tax_id = info.tax_id;
+			}
 		} else {
 			try {
-				const res = await call("frappe.client.get_value", {
-					doctype: "Address",
-					filters: { is_your_company_address: 1 },
-					fieldname: ["phone", "address_line1", "city"],
-				});
+				const [res, companyRes] = await Promise.all([
+					call("frappe.client.get_value", {
+						doctype: "Address",
+						filters: { is_your_company_address: 1 },
+						fieldname: ["phone", "address_line1", "city"],
+					}),
+					call("frappe.client.get_value", {
+						doctype: "Company",
+						filters: { name: company },
+						fieldname: "tax_id",
+					}).catch(() => null),
+				]);
 				const addressData = res?.message || res;
-				if (addressData) {
+				const companyTaxId = companyRes?.message?.tax_id || companyRes?.tax_id || "";
+				if (addressData || companyTaxId) {
 					const info = {
-						phone: addressData.phone || "",
-						address: addressData.address_line1 || "",
-						city: addressData.city || "",
+						phone: addressData?.phone || "",
+						address: addressData?.address_line1 || "",
+						city: addressData?.city || "",
+						tax_id: companyTaxId,
 					};
 					companyInfoCache[company] = info;
 					invoiceData.company_phone = info.phone;
 					invoiceData.company_address = info.address;
 					invoiceData.company_city = info.city;
+					if (!invoiceData.company_tax_id && info.tax_id) {
+						invoiceData.company_tax_id = info.tax_id;
+					}
 				}
 			} catch (err) {
 				log.warn("Failed to fetch company address details:", err);
@@ -441,7 +479,13 @@ export function buildReceiptHTML(invoiceData) {
 
 	if (isInvoice) {
 		const invoiceNumber = getInvoiceNumber(invoiceData.name);
-		const customerName = (invoiceData.customer_name || invoiceData.customer || "CLIENTE GENERAL").toUpperCase();
+		const customerName = (
+			invoiceData.billing_razon_social ||
+			invoiceData.custom_razon_social ||
+			invoiceData.customer_name ||
+			invoiceData.customer ||
+			"CLIENTE GENERAL"
+		).toUpperCase();
 		const customerTaxId = invoiceData.tax_id || invoiceData.customer_tax_id || "";
 		const amountInWords = numberToSpanishWords(invoiceData.grand_total);
 		const companyName = invoiceData.company || "";

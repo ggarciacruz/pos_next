@@ -2500,6 +2500,12 @@ async function handlePaymentCompleted(paymentData) {
 				custom_telefono_contacto: paymentData.custom_telefono_contacto || null,
 				custom_modalidad_cobro_chofer: paymentData.custom_modalidad_cobro_chofer || null,
 				custom_estado_entrega: paymentData.custom_estado_entrega || null,
+				emit_official_invoice: Boolean(paymentData.emit_official_invoice),
+				tax_id: paymentData.emit_official_invoice ? (paymentData.billing_nit || null) : null,
+				billing_nit: paymentData.emit_official_invoice ? (paymentData.billing_nit || null) : null,
+				billing_razon_social: paymentData.emit_official_invoice
+					? (paymentData.billing_razon_social || null)
+					: null,
 			};
 
 			if (paymentData.emit_official_invoice) {
@@ -2544,16 +2550,27 @@ async function handlePaymentCompleted(paymentData) {
 				name: offlineReceiptName,
 				doctype: "Sales Invoice",
 				is_offline: true,
+				naming_series: invoiceData.naming_series,
+				emit_official_invoice: Boolean(paymentData.emit_official_invoice),
+				tax_id: paymentData.emit_official_invoice ? (paymentData.billing_nit || "") : "",
+				billing_razon_social: paymentData.emit_official_invoice
+					? (paymentData.billing_razon_social || "")
+					: "",
 				pos_profile: cartStore.posProfile,
 				posting_date: new Date().toISOString().slice(0, 10),
 				company: shiftStore.profileCompany || undefined,
-				customer_name: customerLabel,
+				customer_name:
+					paymentData.emit_official_invoice && paymentData.billing_razon_social
+						? paymentData.billing_razon_social
+						: customerLabel,
 				items: preparedItems.map((item) => ({
 					...item,
 					quantity: item.qty ?? item.quantity,
 				})),
 				grand_total: grandTotal,
-				total_taxes_and_charges: cartStore.totalTax,
+				total_taxes_and_charges: paymentData.emit_official_invoice
+					? (cartStore.totalTax > 0 ? cartStore.totalTax : Number((grandTotal * 0.13).toFixed(2)))
+					: 0,
 				payments: invoiceData.payments,
 				paid_amount: paidAmount,
 				change_amount: paymentData.change_amount || 0,
@@ -2607,6 +2624,8 @@ async function handlePaymentCompleted(paymentData) {
 				isCreditSale: Boolean(paymentData.is_credit_sale),
 				receivableAccount: paymentData.receivable_account || null,
 				emitOfficialInvoice: Boolean(paymentData.emit_official_invoice),
+				billingNit: paymentData.billing_nit || null,
+				billingRazonSocial: paymentData.billing_razon_social || null,
 				createDeliveryNote: paymentData.create_delivery_note !== false,
 				deliveryData: {
 					requiresDelivery: paymentData.requires_delivery,

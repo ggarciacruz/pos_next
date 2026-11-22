@@ -1012,6 +1012,17 @@ def update_invoice(data):
 		# ========================================================================
 		invoice_doc.set_missing_values(for_validate=True)
 
+		# Preserve explicit fiscal NIT / Razón Social sent at checkout (avoids async race & supports walk-in billing)
+		if doctype == "Sales Invoice":
+			explicit_nit = cstr(data.get("tax_id") or data.get("billing_nit") or "").strip()
+			if explicit_nit and invoice_doc.meta.has_field("tax_id"):
+				invoice_doc.tax_id = explicit_nit
+			explicit_razon = cstr(data.get("billing_razon_social") or "").strip()
+			if explicit_razon:
+				invoice_doc.customer_name = explicit_razon
+				if invoice_doc.meta.has_field("title"):
+					invoice_doc.title = explicit_razon
+
 		# Calculate totals and apply discounts (with rounding disabled)
 		invoice_doc.calculate_taxes_and_totals()
 		if invoice_doc.grand_total is None:

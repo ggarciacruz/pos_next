@@ -6,7 +6,7 @@
 			:show-hamburger="hasOpenShift"
 			logo="/assets/pos_next/pos/icon.svg"
 			app-name="MANDOX POS"
-			:subtitle="profileName"
+			:subtitle="displayProfileName"
 			@toggle-menu="$emit('toggle-menu')"
 			@toggle-collapse="toggleNavbar"
 		>
@@ -336,7 +336,7 @@
 					<!-- User Menu -->
 					<UserMenu
 						:user-name="userName"
-						:profile-name="profileName"
+						:profile-name="displayProfileName"
 						:profile-image="userImage"
 						@logout="$emit('logout')"
 						@menu-opened="$emit('menu-opened')"
@@ -385,10 +385,13 @@ import StatusBadge from "@/components/common/StatusBadge.vue";
 import UserMenu from "@/components/common/UserMenu.vue";
 import { DEFAULT_LOCALE } from "@/utils/currency";
 import MdxNavbar from "mdx_ui/components/MdxNavbar.vue";
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 const showCacheTooltip = ref(false);
 const navbarCollapsed = ref(false);
+const displayProfileName = computed(() =>
+	props.profileName ? String(props.profileName).replace(/\s*-\s*[A-Z0-9]{2,5}$/, "").trim() : ""
+);
 
 const emit = defineEmits([
 	"sync-click",
