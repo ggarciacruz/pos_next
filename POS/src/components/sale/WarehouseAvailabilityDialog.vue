@@ -1407,7 +1407,7 @@
 
 									<!-- Sell Button -->
 									<button
-										v-if="warehouse.available_qty > 0 || !settingsStore.shouldEnforceStockValidation()"
+										v-if="warehouse.available_qty > 0"
 										type="button"
 										@click="sellFromWarehouse(warehouse)"
 										class="flex-1 sm:flex-initial sm:ms-auto justify-center px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
@@ -1417,6 +1417,12 @@
 										</svg>
 										<span>{{ __("Vender de aquí") }}</span>
 									</button>
+									<span
+										v-else
+										class="flex-1 sm:flex-initial sm:ms-auto justify-center px-3 py-1.5 text-xs font-medium text-slate-400 bg-slate-100 border border-slate-200 rounded-lg cursor-not-allowed flex items-center gap-1 select-none"
+									>
+										<span>{{ __("Sin stock") }}</span>
+									</span>
 								</div>
 
 								<!-- Actual vs Available -->
@@ -2818,6 +2824,10 @@ function sellFromWarehouse(w) {
 		itemSearchStore.searchResults?.find((i) => i.item_code === targetCode) ||
 		selectedItemObj.value;
 
+	const targetWarehouse = w.warehouse || w.name;
+	const profileWh = shiftStore.profileWarehouse || shiftStore.currentProfile?.warehouse || "";
+	const availQty = Number(w.available_qty ?? w.actual_qty ?? 0);
+
 	const itemToSell = {
 		...(catalogItem || {
 			item_code: targetCode,
@@ -2829,8 +2839,12 @@ function sellFromWarehouse(w) {
 			rate: w.rate || 0,
 			price_list_rate: w.rate || 0,
 		}),
-		warehouse: w.warehouse || w.name,
-		actual_qty: w.actual_qty ?? w.available_qty ?? 0,
+		warehouse: targetWarehouse,
+		actual_qty: availQty,
+		stock_qty: availQty,
+		original_stock: availQty,
+		warehouse_stock_qty: availQty,
+		is_external_warehouse: Boolean(profileWh && targetWarehouse && targetWarehouse !== profileWh),
 	};
 
 	try {

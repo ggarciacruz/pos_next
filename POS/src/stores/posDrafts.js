@@ -79,6 +79,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 							amount: Number(item.amount ?? q * r),
 							uom: item.uom,
 							stock_uom: item.stock_uom || item.uom,
+							warehouse: item.warehouse || "",
 							custom_medida: item.custom_medida || "",
 							image: item.image,
 							so_detail: item.name, // Link to Sales Order Item child row ID
@@ -114,6 +115,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 							amount: Number(item.amount ?? q * r),
 							uom: item.uom,
 							stock_uom: item.stock_uom || item.uom,
+							warehouse: item.warehouse || "",
 							custom_medida: item.custom_medida || "",
 							image: item.image,
 							so_detail: item.name, // Will be mapped to quotation_item during checkout
@@ -173,6 +175,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					rate: item.rate,
 					price_list_rate: item.price_list_rate,
 					uom: item.uom,
+					warehouse: item.warehouse || shiftStore.profileWarehouse || "",
 					custom_medida: item.custom_medida || "",
 					delivery_date: today, // Required for Sales Order Item
 				}));
@@ -299,12 +302,21 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 	async function loadDraft(draft) {
 		try {
 			showSuccess(__("Draft invoice loaded successfully"));
+			const profileWh = shiftStore.profileWarehouse || shiftStore.currentProfile?.warehouse || "";
 
 			return {
-				items: (draft.items || []).map(item => ({
-					...item,
-					so_detail: item.so_detail,
-				})),
+				items: (draft.items || []).map(item => {
+					const q = Number(item.qty ?? item.quantity ?? 1) || 1;
+					const resolvedWh = item.warehouse || profileWh || "";
+					return {
+						...item,
+						qty: q,
+						quantity: q,
+						warehouse: resolvedWh,
+						is_external_warehouse: Boolean(profileWh && resolvedWh && resolvedWh !== profileWh),
+						so_detail: item.so_detail,
+					};
+				}),
 				customer: draft.customer,
 				applied_offers: draft.applied_offers || [],
 			};
@@ -319,16 +331,19 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 		try {
 			if (!isOffline() && !draftId.startsWith("DRAFT-")) {
 				await call("pos_next.api.invoices.delete_invoice", {
-					invoice: draftId
+					invoice: draftId,
+					pos_profile: shiftStore.profileName || "",
 				});
 			} else {
 				await deleteDraft(draftId);
 			}
 			await loadDrafts();
-			showSuccess(__("Draft deleted successfully"));
+			showSuccess(__("Documento descartado correctamente"));
+			return true;
 		} catch (error) {
 			console.error("Error deleting draft:", error);
-			showError(__("Failed to delete draft"));
+			showError(error?.message || __("No se pudo descartar el documento"));
+			return false;
 		}
 	}
 

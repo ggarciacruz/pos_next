@@ -188,7 +188,7 @@
 
 						<!-- Document Type Card -->
 						<div
-							v-if="settingsStore.allowSalesOrder"
+							v-if="canCheckout && settingsStore.allowSalesOrder"
 							class="flex items-center bg-white border border-gray-200 rounded-xl p-1.5 shadow-sm flex-shrink-0"
 						>
 							<div class="flex items-center bg-gray-100 rounded-lg p-0.5">
@@ -320,7 +320,7 @@
 
 						<!-- Document Type Toggle (Sales Invoice / Sales Order) -->
 						<div
-							v-if="settingsStore.allowSalesOrder"
+							v-if="canCheckout && settingsStore.allowSalesOrder"
 							class="flex items-center bg-gray-100 rounded-xl p-0.5 h-10"
 						>
 							<button
@@ -526,7 +526,7 @@
 					type="button"
 					@click="emit('print-active-ticket')"
 					class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-yellow-800 bg-yellow-100 hover:bg-yellow-200 rounded-md border border-yellow-300 transition-colors shadow-2xs"
-					:title="__('Imprimir Ticket Térmico')"
+					:title="__('Imprimir Ticket')"
 				>
 					<svg class="w-3.5 h-3.5 text-yellow-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -537,7 +537,7 @@
 					type="button"
 					@click="emit('print-active-pdf')"
 					class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-2xs transition-colors"
-					:title="__('Imprimir PDF Tamaño Carta')"
+					:title="__('Imprimir PDF')"
 				>
 					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -886,6 +886,7 @@
 						type="button"
 						@click="$emit('show-drafts')"
 						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 active:bg-purple-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
+						:class="{ 'col-span-2': !canCheckout && !settingsStore.enableShiftManagement }"
 						:title="__('View draft invoices')"
 					>
 						<div
@@ -912,26 +913,16 @@
 
 					<!-- Sales History -->
 					<button
+						v-if="canCheckout"
 						type="button"
 						@click="handleInvoiceHistory"
-						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
-						:class="!canCheckout ? 'opacity-80 cursor-not-allowed' : 'hover:border-gray-300 hover:bg-gray-50'"
+						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
 						:title="__('View sales history')"
 					>
 						<div
-							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors"
-							:class="!canCheckout ? 'bg-gray-100' : 'bg-gray-50 group-hover:bg-gray-100'"
+							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors bg-gray-50 group-hover:bg-gray-100"
 						>
 							<svg
-								v-if="!canCheckout"
-								class="w-5 h-5 text-gray-400"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-							>
-								<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-							</svg>
-							<svg
-								v-else
 								class="w-5 h-5 text-gray-600"
 								fill="none"
 								stroke="currentColor"
@@ -952,26 +943,16 @@
 
 					<!-- Return Sale -->
 					<button
+						v-if="canCheckout && settingsStore.allowReturn"
 						type="button"
 						@click="handleReturnInvoice"
-						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
-						:class="!canCheckout ? 'opacity-80 cursor-not-allowed' : 'hover:border-red-300 hover:bg-red-50'"
+						class="flex flex-col items-center justify-center p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-red-300 hover:bg-red-50 active:bg-gray-100 transition-colors shadow-sm hover:shadow touch-manipulation group"
 						:title="__('Process return sale')"
 					>
 						<div
-							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors"
-							:class="!canCheckout ? 'bg-gray-100' : 'bg-red-50 group-hover:bg-red-100'"
+							class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-colors bg-red-50 group-hover:bg-red-100"
 						>
 							<svg
-								v-if="!canCheckout"
-								class="w-5 h-5 text-gray-400"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-							>
-								<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-							</svg>
-							<svg
-								v-else
 								class="w-5 h-5 text-red-600"
 								fill="none"
 								stroke="currentColor"
@@ -1062,6 +1043,8 @@
 						item.item_code +
 						'-' +
 						(item.uom || '') +
+						'-' +
+						(item.warehouse || 'local') +
 						(item.is_free_item ? '-free' : '')
 					"
 					@click="item.is_free_item ? null : openEditDialog(item)"
@@ -1130,12 +1113,22 @@
 								{{ __("-{0}%", [Number(item.discount_percentage).toFixed(0)]) }}
 							</span>
 						</div>
-						<div class="text-[10px] text-gray-400 font-medium truncate leading-none mt-0.5 select-none">
+						<div class="text-[10px] text-gray-400 font-medium leading-tight mt-0.5 select-none flex items-center flex-wrap gap-1.5">
 							<span v-if="getItemCoverageSummary(item)" class="text-slate-600 font-semibold tabular-nums">
 								{{ getItemCoverageSummary(item) }}
 							</span>
-							<span v-if="getItemCoverageSummary(item) && item.item_group"> · </span>
-							<span>{{ item.item_group || '-' }}</span>
+							<span v-if="getItemCoverageSummary(item) && item.item_group">·</span>
+							<span class="truncate">{{ item.item_group || '-' }}</span>
+							<span
+								v-if="getExternalWarehouseLabel(item)"
+								class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-300 text-[9px] font-semibold shrink-0"
+								:title="__('Despacho desde almacén externo: {0}', [getExternalWarehouseLabel(item)])"
+							>
+								<svg class="w-2.5 h-2.5 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+								</svg>
+								<span>{{ __("Origen: {0}", [getExternalWarehouseLabel(item)]) }}</span>
+							</span>
 						</div>
 					</div>
 
@@ -1225,7 +1218,7 @@
 							<svg
 								v-if="getSelectableItemUoms(item).length > 0"
 								class="w-2.5 h-2.5 text-blue-500 transition-transform pointer-events-none"
-								:class="openUomDropdown === `${item.item_code}-${item.uom}` ? 'rotate-180' : ''"
+								:class="openUomDropdown === `${item.item_code}-${item.uom}-${item.warehouse || ''}` ? 'rotate-180' : ''"
 								fill="none"
 								stroke="currentColor"
 								viewBox="0 0 24 24"
@@ -1235,7 +1228,7 @@
 						</button>
 						<!-- Dropdown options -->
 						<div
-							v-if="openUomDropdown === `${item.item_code}-${item.uom}` && getSelectableItemUoms(item).length > 0"
+							v-if="openUomDropdown === `${item.item_code}-${item.uom}-${item.warehouse || ''}` && getSelectableItemUoms(item).length > 0"
 							class="absolute top-full end-0 mt-0.5 bg-white border border-blue-300 rounded-lg shadow-xl z-50 min-w-[110px] overflow-hidden"
 						>
 							<button
@@ -1281,7 +1274,7 @@
 					<button
 						v-if="!item.is_free_item"
 						type="button"
-						@click.stop="$emit('remove-item', item.item_code, item.uom)"
+						@click.stop="$emit('remove-item', item.item_code, item.uom, item.warehouse)"
 						class="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-600 hover:bg-red-50 rounded transition-colors shrink-0 touch-manipulation active:scale-90"
 						:title="__('Remove item')"
 					>
@@ -1360,35 +1353,62 @@
 
 			<!-- Action Buttons -->
 			<div class="space-y-1.5 pt-0.5">
-				<!-- Checkout Button (100% width) -->
-				<button
-					type="button"
-					@click="handleProceedToPayment"
-					:disabled="items.length === 0"
-					class="w-full h-11 font-bold text-white transition-all touch-manipulation active:scale-[0.99] flex items-center justify-center gap-2 rounded-xl text-sm shadow-sm"
-					:class="[
-						items.length === 0
-							? 'bg-gray-300 cursor-not-allowed'
-							: !canCheckout
-								? 'bg-gray-400 opacity-80 cursor-not-allowed shadow-none'
+				<!-- Cashier Mode: Primary Checkout + Compact Secondary Pre-venta / Cotización -->
+				<template v-if="canCheckout">
+					<button
+						type="button"
+						@click="handleProceedToPayment"
+						:disabled="items.length === 0"
+						class="w-full h-11 font-bold text-white transition-all touch-manipulation active:scale-[0.99] flex items-center justify-center gap-2 rounded-xl text-sm shadow-sm"
+						:class="[
+							items.length === 0
+								? 'bg-gray-300 cursor-not-allowed'
 								: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm hover:shadow active:scale-[0.99]'
-					]"
-					:aria-label="__('Proceed to payment')"
-				>
-					<svg v-if="!canCheckout" class="w-4 h-4 text-yellow-200" fill="currentColor" viewBox="0 0 20 20">
-						<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-					</svg>
-					<svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-					</svg>
-					<span v-if="!canCheckout">{{ __("Solo Cajero (Cobro Deshabilitado)") }}</span>
-					<span v-else>{{ __("Vender / Cobrar") }}</span>
-				</button>
+						]"
+						:aria-label="__('Proceed to payment')"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+						</svg>
+						<span>{{ __("Vender / Cobrar") }}</span>
+					</button>
 
-				<!-- Pre-venta & Cotización (Dual compact row) -->
+					<div
+						v-if="settingsStore.allowSalesOrder || settingsStore.allowQuotation"
+						class="grid gap-2"
+						:class="
+							settingsStore.allowSalesOrder && settingsStore.allowQuotation
+								? 'grid-cols-2'
+								: 'grid-cols-1'
+						"
+					>
+						<button
+							v-if="settingsStore.allowSalesOrder"
+							type="button"
+							@click="$emit('save-draft', true)"
+							class="h-8 px-2.5 rounded-lg font-bold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 border border-orange-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] touch-manipulation"
+							:title="__('Guardar como Pre-venta (Orden de Venta)')"
+						>
+							<span class="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0"></span>
+							<span class="truncate">{{ __("Pre-venta") }}</span>
+						</button>
+						<button
+							v-if="settingsStore.allowQuotation"
+							type="button"
+							@click="$emit('save-quotation', true)"
+							class="h-8 px-2.5 rounded-lg font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 border border-blue-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] touch-manipulation"
+							:title="__('Guardar como Cotización')"
+						>
+							<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+							<span class="truncate">{{ __("Cotización") }}</span>
+						</button>
+					</div>
+				</template>
+
+				<!-- Vendor Mode (!canCheckout): Large Primary Pre-venta & Secondary Cotización -->
 				<div
-					v-if="settingsStore.allowSalesOrder || settingsStore.allowQuotation"
-					class="grid gap-2"
+					v-else-if="settingsStore.allowSalesOrder || settingsStore.allowQuotation"
+					class="grid gap-2.5"
 					:class="
 						settingsStore.allowSalesOrder && settingsStore.allowQuotation
 							? 'grid-cols-2'
@@ -1399,20 +1419,24 @@
 						v-if="settingsStore.allowSalesOrder"
 						type="button"
 						@click="$emit('save-draft', true)"
-						class="h-8 px-2.5 rounded-lg font-bold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 border border-orange-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] touch-manipulation"
+						class="h-12 px-4 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow active:scale-[0.99] touch-manipulation"
 						:title="__('Guardar como Pre-venta (Orden de Venta)')"
 					>
-						<span class="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0"></span>
+						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+						</svg>
 						<span class="truncate">{{ __("Pre-venta") }}</span>
 					</button>
 					<button
 						v-if="settingsStore.allowQuotation"
 						type="button"
 						@click="$emit('save-quotation', true)"
-						class="h-8 px-2.5 rounded-lg font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 border border-blue-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] touch-manipulation"
+						class="h-12 px-4 rounded-xl font-bold text-sm text-slate-700 bg-white hover:bg-slate-50 active:bg-slate-100 border border-slate-300 transition-all flex items-center justify-center gap-2 shadow-2xs active:scale-[0.99] touch-manipulation"
 						:title="__('Guardar como Cotización')"
 					>
-						<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+						<svg class="w-4 h-4 shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+						</svg>
 						<span class="truncate">{{ __("Cotización") }}</span>
 					</button>
 				</div>
@@ -1572,6 +1596,7 @@
 import { usePOSCartStore } from "@/stores/posCart";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import { usePOSOffersStore } from "@/stores/posOffers";
+import { usePOSShiftStore } from "@/stores/posShift";
 import { useCustomerSearchStore } from "@/stores/customerSearch";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
 import { useFormatters } from "@/composables/useFormatters";
@@ -1596,6 +1621,7 @@ import EditItemDialog from "./EditItemDialog.vue";
 const cartStore = usePOSCartStore(); // Pinia store for cart state management
 const settingsStore = usePOSSettingsStore(); // Pinia store for POS settings
 const offersStore = usePOSOffersStore(); // Pinia store for offers/promotions
+const shiftStore = usePOSShiftStore(); // Pinia store for active shift warehouse
 const customerSearchStore = useCustomerSearchStore(); // Pinia store for customer search
 const bootstrapStore = useBootstrapStore();
 const { showWarning } = useToast();
@@ -1605,6 +1631,15 @@ const showPromoButtons = ref(false); // Cambiar a true si el cliente desea habil
 const cartContainerRef = ref(null);
 const cartWidth = ref(420);
 let cartResizeObserver = null;
+
+function getExternalWarehouseLabel(item) {
+	const itemWh = (item?.warehouse || "").trim();
+	const profileWh = (shiftStore.profileWarehouse || shiftStore.currentProfile?.warehouse || "").trim();
+	if (!itemWh) return "";
+	if (profileWh && itemWh === profileWh) return "";
+	if (!profileWh && !item?.is_external_warehouse) return "";
+	return itemWh.replace(/\s*-\s*[A-Z0-9]{2,5}$/, "").trim();
+}
 
 function getItemTitle(item) {
 	if (!item) return "";
@@ -2207,7 +2242,7 @@ function incrementQuantity(item) {
 
 	const step = getSmartStep(item.quantity);
 	const newQty = Math.round((item.quantity + step) * 10000) / 10000;
-	emit("update-quantity", item.item_code, newQty, item.uom);
+	emit("update-quantity", item.item_code, newQty, item.uom, item.warehouse);
 }
 
 /**
@@ -2225,9 +2260,9 @@ function decrementQuantity(item) {
 
 	if (newQty <= 0) {
 		// If quantity would be 0 or negative, remove the item
-		emit("remove-item", item.item_code, item.uom);
+		emit("remove-item", item.item_code, item.uom, item.warehouse);
 	} else {
-		emit("update-quantity", item.item_code, newQty, item.uom);
+		emit("update-quantity", item.item_code, newQty, item.uom, item.warehouse);
 	}
 }
 
@@ -2249,10 +2284,10 @@ function updateQuantity(item, value) {
 	if (isNaN(qty)) return;
 
 	// If quantity is zero or negative, remove the item from the cart
-	if (qty <= 0) return emit("remove-item", item.item_code, item.uom);
+	if (qty <= 0) return emit("remove-item", item.item_code, item.uom, item.warehouse);
 
 	// For positive numbers, update quantity immediately (no rounding here while typing)
-	emit("update-quantity", item.item_code, qty, item.uom);
+	emit("update-quantity", item.item_code, qty, item.uom, item.warehouse);
 }
 
 /**
@@ -2267,12 +2302,12 @@ function handleQuantityBlur(item) {
 	// When user leaves the input field, round and validate
 	if (!item.quantity || item.quantity <= 0) {
 		// If quantity is 0 or invalid, remove the item
-		emit("remove-item", item.item_code, item.uom);
+		emit("remove-item", item.item_code, item.uom, item.warehouse);
 	} else {
 		// Round to 4 decimal places for consistency
 		const roundedQty = Math.round(item.quantity * 10000) / 10000;
 		if (roundedQty !== item.quantity) {
-			emit("update-quantity", item.item_code, roundedQty, item.uom);
+			emit("update-quantity", item.item_code, roundedQty, item.uom, item.warehouse);
 		}
 	}
 }
@@ -2321,11 +2356,11 @@ function getItemCoverageSummary(item) {
  * Toggle UOM dropdown visibility for an item.
  * Uses unique key combining item_code + uom to handle same item with different UOMs.
  */
-function toggleUomDropdown(itemOrCode, uom) {
+function toggleUomDropdown(itemOrCode, uom, warehouse = "") {
 	const key =
 		itemOrCode && typeof itemOrCode === "object"
-			? `${itemOrCode.item_code}-${itemOrCode.uom}`
-			: `${itemOrCode}-${uom}`;
+			? `${itemOrCode.item_code}-${itemOrCode.uom}-${itemOrCode.warehouse || ""}`
+			: `${itemOrCode}-${uom}-${warehouse || ""}`;
 	openUomDropdown.value = openUomDropdown.value === key ? null : key;
 }
 
@@ -2340,9 +2375,9 @@ async function selectUom(item, newUom) {
 	}
 
 	const currentUom = item.uom || item.stock_uom;
-	await cartStore.changeItemUOM(item.item_code, newUom, currentUom);
+	await cartStore.changeItemUOM(item.item_code, newUom, currentUom, item.warehouse);
 	openUomDropdown.value = null;
-	emit("update-uom", item.item_code, newUom);
+	emit("update-uom", item.item_code, newUom, item.warehouse);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2368,12 +2403,13 @@ function openEditDialog(item) {
  * @param {Object} updatedItem - Updated item data from dialog
  */
 async function handleUpdateItem(updatedItem) {
-	// Get the original UOM from selectedItem (before any changes)
+	// Get the original UOM and warehouse from selectedItem (before any changes)
 	const originalUom = selectedItem.value?.uom || selectedItem.value?.stock_uom;
-	// Use store method to update item, passing original UOM to identify correct item
-	await cartStore.updateItemDetails(updatedItem.item_code, updatedItem, originalUom);
+	const originalWarehouse = selectedItem.value?.warehouse;
+	// Use store method to update item, passing original UOM & warehouse to identify correct line
+	await cartStore.updateItemDetails(updatedItem.item_code, updatedItem, originalUom, originalWarehouse);
 	// Also emit for parent component compatibility
-	emit("edit-item", updatedItem);
+	emit("edit-item", updatedItem, originalUom, originalWarehouse);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

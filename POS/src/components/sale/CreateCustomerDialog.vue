@@ -236,6 +236,7 @@ import { usePOSPermissions } from "@/composables/usePermissions";
 import { useToast } from "@/composables/useToast";
 import { useCountriesStore } from "@/stores/countries";
 import { usePOSSettingsStore } from "@/stores/posSettings";
+import { parseError } from "@/utils/errorHandler";
 import { logger } from "@/utils/logger";
 import { createResource } from "frappe-ui";
 import { MdxButton, MdxModal } from "mdx_ui";
@@ -249,7 +250,7 @@ const log = logger.create("CreateCustomerDialog");
 
 const countriesStore = useCountriesStore();
 const settingsStore = usePOSSettingsStore();
-const { canCreateCustomer } = usePOSPermissions();
+const { canCreateCustomer, canEditCustomer } = usePOSPermissions();
 const { showSuccess, showError } = useToast();
 
 // =============================================================================
@@ -420,7 +421,8 @@ const createCustomerResource = createResource({
 	},
 	onError: (error) => {
 		log.error("Error creating customer", error);
-		showError(error.message || __("Failed to create customer"));
+		const parsed = parseError(error);
+		showError(parsed.message || __("Failed to create customer"), parsed.title || null);
 	},
 });
 
@@ -444,25 +446,19 @@ const updateCustomerResource = createResource({
 	},
 	onError: (error) => {
 		log.error("Error updating customer", error);
-		showError(error.message || __("Failed to update customer"));
+		const parsed = parseError(error);
+		showError(parsed.message || __("Failed to update customer"), parsed.title || null);
 	},
 });
 
-const sellingSettingsResource = createResource({
-	url: "frappe.client.get_value",
+const customerDefaultsResource = createResource({
+	url: "pos_next.api.customers.get_customer_form_defaults",
 	makeParams: () => ({
-		doctype: "Selling Settings",
-		fieldname: ["customer_group", "territory"],
+		pos_profile: props.posProfile || "",
 	}),
 	auto: false,
-	onError: (err) => log.error("Error loading Selling Settings", err),
+	onError: (err) => log.error("Error loading customer form defaults", err),
 });
-
-function pickDefault(settingsValue, list, fallbackFn = null) {
-	if (settingsValue && list.includes(settingsValue)) return settingsValue;
-	if (fallbackFn) return fallbackFn(list) || list[0] || "";
-	return list[0] || "";
-}
 
 /** Helper to create list fetch resources */
 const createListResource = (doctype, onSuccess) =>
@@ -478,24 +474,6 @@ const createListResource = (doctype, onSuccess) =>
 		onSuccess: (data) => data?.length && onSuccess(data.map((d) => d.name)),
 		onError: (err) => log.error(`Error loading ${doctype}`, err),
 	});
-
-const customerGroupsResource = createListResource("Customer Group", (names) => {
-	customerGroups.value = names;
-	if (!customerData.value.customer_group && names.length > 0) {
-		const settingsDefault = sellingSettingsResource.data?.customer_group;
-		customerData.value.customer_group = pickDefault(settingsDefault, names);
-	}
-});
-
-const territoriesResource = createListResource("Territory", (names) => {
-	territories.value = names;
-	if (!customerData.value.territory && names.length > 0) {
-		const settingsDefault = sellingSettingsResource.data?.territory;
-		customerData.value.territory = pickDefault(settingsDefault, names, (list) =>
-			list.find((n) => n === "All Territories")
-		);
-	}
-});
 
 const governoratesResource = createListResource("Governorate", (names) => {
 	governorates.value = names;
@@ -539,21 +517,6 @@ const districtsResource = createResource({
 	onError: (err) => log.error("Error loading Districts", err),
 });
 
-const posProfileResource = createResource({
-	url: "frappe.client.get_value",
-	makeParams: () => ({
-		doctype: "POS Profile",
-		filters: { name: props.posProfile },
-		fieldname: ["country"],
-	}),
-	auto: false,
-	onSuccess: (data) => setCountryFromName(data?.country || "Bolivia"),
-	onError: (err) => {
-		log.error("Error loading POS Profile", err);
-		selectedCountryCode.value = "+591";
-	},
-});
-
 // =============================================================================
 // Dialog Lifecycle
 // =============================================================================
@@ -562,32 +525,51 @@ const loadDialogData = async () => {
 	// Lazy load countries (non-blocking)
 	countriesStore.loadCountries();
 
-	await sellingSettingsResource.reload();
-
 	if (!isEditMode.value) {
 		customerData.value.customer_group = "";
 		customerData.value.territory = "";
 	}
 
-	// Load form options
-	await Promise.all([
-		territoriesResource.reload(),
-		customerGroupsResource.reload(),
-	]);
-	checkPermissions();
+	let defaults = null;
+	try {
+		defaults = await customerDefaultsResource.reload();
+		customerGroups.value = defaults?.customer_groups || [];
+		territories.value = defaults?.territories || [];
 
-	// Set country from POS Profile
-	if (props.posProfile) {
-		await posProfileResource.reload();
-	} else {
-		selectedCountryCode.value = "+591";
+		if (!isEditMode.value) {
+			customerData.value.customer_group =
+				defaults?.customer_group || customerGroups.value[0] || "";
+			customerData.value.territory =
+				defaults?.territory || territories.value[0] || "";
+		}
+
+		if (!isEditMode.value || !selectedCountryCode.value) {
+			setCountryFromName(defaults?.country || "Bolivia");
+		}
+	} catch (err) {
+		log.error("Error loading customer form defaults", err);
+		if (!selectedCountryCode.value) {
+			selectedCountryCode.value = "+591";
+		}
 	}
+
+	await checkPermissions(defaults);
 };
 
-const checkPermissions = async () => {
+const checkPermissions = async (defaults = null) => {
 	checkingPermission.value = true;
 	try {
-		hasPermission.value = await canCreateCustomer();
+		if (
+			defaults &&
+			typeof defaults.can_create === "boolean" &&
+			typeof defaults.can_write === "boolean"
+		) {
+			hasPermission.value = isEditMode.value ? defaults.can_write : defaults.can_create;
+		} else {
+			hasPermission.value = isEditMode.value
+				? await canEditCustomer()
+				: await canCreateCustomer();
+		}
 	} catch (err) {
 		log.error("Permission check failed", err);
 		hasPermission.value = false;
@@ -608,7 +590,7 @@ const handleCreate = async () => {
 };
 
 const resetForm = () => {
-	const settings = sellingSettingsResource.data || {};
+	const defaults = customerDefaultsResource.data || {};
 	Object.assign(customerData.value, {
 		customer_name: "",
 		tax_id: "",
@@ -616,10 +598,8 @@ const resetForm = () => {
 		primary_address: "",
 		mobile_no: "",
 		email_id: "",
-		customer_group: pickDefault(settings.customer_group, customerGroups.value),
-		territory: pickDefault(settings.territory, territories.value, (list) =>
-			list.find((n) => n === "All Territories")
-		),
+		customer_group: defaults.customer_group || customerGroups.value[0] || "",
+		territory: defaults.territory || territories.value[0] || "",
 		custom_governorate: "",
 		custom_district: "",
 	});

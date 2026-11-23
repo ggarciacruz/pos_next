@@ -32,10 +32,11 @@ export const useStockStore = defineStore("stock", () => {
 	// Get event store instance
 	const eventsStore = usePOSEventsStore();
 	// ========================================================================
-	// STATE - Just 2 Maps, that's it!
+	// STATE - Server cache + Local & External Reservations
 	// ========================================================================
-	const server = ref(new Map()); // item_code -> { qty, warehouse, ts }
-	const reserved = ref(new Map()); // item_code -> qty
+	const server = ref(new Map()); // item_code -> { qty, other_qty, warehouse, ts }
+	const reserved = ref(new Map()); // item_code -> qty reserved from active POS warehouse
+	const reservedOther = ref(new Map()); // item_code -> qty reserved from external warehouses
 	const warehouse = ref(null); // Current warehouse
 	const refreshing = ref(false); // Loading state
 
@@ -48,11 +49,20 @@ export const useStockStore = defineStore("stock", () => {
 		return (server.value.get(itemCode)?.qty || 0) - (reserved.value.get(itemCode) || 0);
 	};
 
+	const getDisplayOtherStock = (itemCode, fallbackOtherQty = 0) => {
+		const base = server.value.has(itemCode)
+			? (server.value.get(itemCode)?.other_qty ?? fallbackOtherQty)
+			: fallbackOtherQty;
+		return Math.max(0, Number(base || 0) - (reservedOther.value.get(itemCode) || 0));
+	};
+
 	const getStockInfo = (itemCode) => ({
 		code: itemCode,
 		server: server.value.get(itemCode)?.qty || 0,
 		reserved: reserved.value.get(itemCode) || 0,
+		reservedOther: reservedOther.value.get(itemCode) || 0,
 		display: getDisplayStock(itemCode),
+		displayOther: getDisplayOtherStock(itemCode),
 		warehouse: server.value.get(itemCode)?.warehouse || warehouse.value,
 	});
 
@@ -75,14 +85,16 @@ export const useStockStore = defineStore("stock", () => {
 		});
 
 	// Update reservations from cart
-	const reserve = (cartItems) => {
+	const reserve = (cartItems, activeWarehouse = null) => {
 		reserved.value.clear();
+		reservedOther.value.clear();
 
 		// Early return for empty or invalid cart
 		if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
 			return;
 		}
 
+		const defaultWh = activeWarehouse || warehouse.value || "";
 		const variantMeta = new Map();
 		cartItems.forEach((cartItem) => {
 			// Skip items with missing item_code
@@ -94,6 +106,16 @@ export const useStockStore = defineStore("stock", () => {
 
 			const factor = Number(cartItem.conversion_factor) || 1;
 			const itemCode = cartItem.item_code;
+			const itemWh = cartItem.warehouse || defaultWh;
+			const isExternal =
+				Boolean(defaultWh && itemWh && itemWh !== defaultWh) ||
+				Boolean(!defaultWh && cartItem.is_external_warehouse);
+
+			if (isExternal) {
+				const currentOther = reservedOther.value.get(itemCode) || 0;
+				reservedOther.value.set(itemCode, currentOther + quantity * factor);
+				return;
+			}
 
 			const current = reserved.value.get(itemCode) || 0;
 			reserved.value.set(itemCode, current + quantity * factor);
@@ -108,7 +130,7 @@ export const useStockStore = defineStore("stock", () => {
 			}
 		});
 
-		// Propagate physical stock reservations up to parent template cards
+		// Propagate local physical stock reservations up to parent template cards
 		variantMeta.forEach((meta, variantCode) => {
 			const reservedVariantQty = reserved.value.get(variantCode) || 0;
 			const serverVariantQty = server.value.has(variantCode)
@@ -150,6 +172,7 @@ export const useStockStore = defineStore("stock", () => {
 
 		// Snapshot current reservations to restore after fetch
 		const reservationSnapshot = new Map(reserved.value);
+		const reservationOtherSnapshot = new Map(reservedOther.value);
 
 		try {
 			const codesToRefresh = itemCodes || Array.from(server.value.keys());
@@ -171,12 +194,14 @@ export const useStockStore = defineStore("stock", () => {
 
 			// Restore reservations after fetch completes
 			reserved.value = reservationSnapshot;
+			reservedOther.value = reservationOtherSnapshot;
 
 			log.success(`Refreshed ${stockData.length} items`);
 		} catch (error) {
 			log.error("Refresh failed", error);
 			// Restore reservations even on error
 			reserved.value = reservationSnapshot;
+			reservedOther.value = reservationOtherSnapshot;
 		} finally {
 			refreshing.value = false;
 		}
@@ -205,11 +230,13 @@ export const useStockStore = defineStore("stock", () => {
 		// State
 		server,
 		reserved,
+		reservedOther,
 		warehouse,
 		refreshing,
 
 		// Getters
 		getDisplayStock,
+		getDisplayOtherStock,
 		getStockInfo,
 
 		// Actions
@@ -218,10 +245,14 @@ export const useStockStore = defineStore("stock", () => {
 		update,
 		refresh,
 		setWarehouse: (targetWarehouse) => (warehouse.value = targetWarehouse),
-		clear: () => reserved.value.clear(),
+		clear: () => {
+			reserved.value.clear();
+			reservedOther.value.clear();
+		},
 		reset: () => {
 			server.value.clear();
 			reserved.value.clear();
+			reservedOther.value.clear();
 		},
 	};
 });

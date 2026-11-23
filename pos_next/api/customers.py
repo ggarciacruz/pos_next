@@ -113,6 +113,137 @@ def get_customers(search_term="", pos_profile=None, limit=20, modified_since=Non
 		frappe.throw(_("Error fetching customers: {0}").format(str(e)))
 
 
+def _resolve_leaf_customer_group(customer_group=None, pos_profile=None):
+	"""Resolve a valid non-group (leaf) Customer Group for POS customer creation."""
+	candidate = (customer_group or "").strip()
+	if candidate and frappe.db.exists("Customer Group", candidate):
+		if not frappe.db.get_value("Customer Group", candidate, "is_group"):
+			return candidate
+
+	if pos_profile and frappe.db.exists("POS Profile", pos_profile):
+		try:
+			profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+			for row in getattr(profile_doc, "customer_groups", None) or []:
+				group_name = getattr(row, "customer_group", None)
+				if group_name and frappe.db.exists("Customer Group", group_name):
+					if not frappe.db.get_value("Customer Group", group_name, "is_group"):
+						return group_name
+			profile_group = getattr(profile_doc, "customer_group", None)
+			if profile_group and frappe.db.exists("Customer Group", profile_group):
+				if not frappe.db.get_value("Customer Group", profile_group, "is_group"):
+					return profile_group
+		except Exception:
+			pass
+
+	settings_group = frappe.db.get_single_value("Selling Settings", "customer_group")
+	if settings_group and frappe.db.exists("Customer Group", settings_group):
+		if not frappe.db.get_value("Customer Group", settings_group, "is_group"):
+			return settings_group
+
+	individual_group = frappe.db.get_value(
+		"Customer Group", {"name": "Individual", "is_group": 0}, "name"
+	)
+	if individual_group:
+		return individual_group
+
+	return (
+		frappe.db.get_value("Customer Group", {"is_group": 0}, "name", order_by="lft asc")
+		or frappe.db.get_value("Customer Group", {}, "name", order_by="lft asc")
+	)
+
+
+def _resolve_country_for_pos(pos_profile=None, company=None):
+	"""Resolve country from POS Profile, Company, or System Settings without extra permissions."""
+	country = None
+	if pos_profile and frappe.db.exists("POS Profile", pos_profile):
+		country = frappe.db.get_value("POS Profile", pos_profile, "country")
+		if not company:
+			company = frappe.db.get_value("POS Profile", pos_profile, "company")
+	if not country and company and frappe.db.exists("Company", company):
+		country = frappe.db.get_value("Company", company, "country")
+	if not country:
+		country = frappe.db.get_single_value("System Settings", "country")
+	return (country or "Bolivia").strip()
+
+
+def _resolve_leaf_territory(territory=None, pos_profile=None, company=None):
+	"""Resolve a valid non-group (leaf) Territory for POS customer creation."""
+	candidate = (territory or "").strip()
+	if candidate and frappe.db.exists("Territory", candidate):
+		if not frappe.db.get_value("Territory", candidate, "is_group"):
+			return candidate
+
+	if pos_profile and frappe.db.exists("POS Profile", pos_profile):
+		profile_territory = None
+		if frappe.db.has_column("POS Profile", "territory"):
+			profile_territory = frappe.db.get_value("POS Profile", pos_profile, "territory")
+		if profile_territory and frappe.db.exists("Territory", profile_territory):
+			if not frappe.db.get_value("Territory", profile_territory, "is_group"):
+				return profile_territory
+
+	settings_territory = frappe.db.get_single_value("Selling Settings", "territory")
+	if settings_territory and frappe.db.exists("Territory", settings_territory):
+		if not frappe.db.get_value("Territory", settings_territory, "is_group"):
+			return settings_territory
+
+	leaf_territories = frappe.get_all(
+		"Territory",
+		filters={"is_group": 0},
+		pluck="name",
+		order_by="lft asc",
+		ignore_permissions=True,
+	)
+	if leaf_territories:
+		country = _resolve_country_for_pos(pos_profile=pos_profile, company=company).lower()
+		for leaf in leaf_territories:
+			if leaf.lower() == country:
+				return leaf
+		for leaf in leaf_territories:
+			leaf_lower = leaf.lower()
+			if country and (country in leaf_lower or leaf_lower in country):
+				return leaf
+		return leaf_territories[0]
+
+	return frappe.db.get_value("Territory", {}, "name", order_by="lft asc")
+
+
+@frappe.whitelist()
+def get_customer_form_defaults(pos_profile=None):
+	"""Return safe customer creation defaults and leaf options without requiring Selling Settings/POS Profile read permissions."""
+	if not (
+		frappe.has_permission("Customer", "read")
+		or frappe.has_permission("Customer", "create")
+		or frappe.has_permission("Customer", "write")
+	):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	country = _resolve_country_for_pos(pos_profile=pos_profile)
+	customer_groups = frappe.get_all(
+		"Customer Group",
+		filters={"is_group": 0},
+		pluck="name",
+		order_by="lft asc",
+	)
+	territories = frappe.get_all(
+		"Territory",
+		filters={"is_group": 0},
+		pluck="name",
+		order_by="lft asc",
+	)
+
+	return {
+		"customer_group": _resolve_leaf_customer_group(pos_profile=pos_profile),
+		"territory": _resolve_leaf_territory(pos_profile=pos_profile),
+		"country": country,
+		"customer_groups": customer_groups,
+		"territories": territories,
+		"can_create": bool(frappe.has_permission("Customer", "create")),
+		"can_write": bool(
+			frappe.has_permission("Customer", "write") or frappe.has_permission("Customer", "create")
+		),
+	}
+
+
 @frappe.whitelist()
 def create_customer(
 	customer_name,
@@ -135,8 +266,8 @@ def create_customer(
 	    customer_name (str): Customer name (required)
 	    mobile_no (str): Mobile number (optional)
 	    email_id (str): Email address (optional)
-	    customer_group (str): Customer group (default: from Selling Settings)
-	    territory (str): Territory (default: from Selling Settings)
+	    customer_group (str): Customer group (default: non-group from POS Profile / Selling Settings)
+	    territory (str): Territory (default: non-group from POS Profile / Selling Settings / Country)
 	    company (str): Company (optional, used to auto-assign loyalty program)
 	    pos_profile (str): POS Profile (optional, preferred for context-aware loyalty assignment)
 	    custom_governorate (str): Governorate (optional)
@@ -152,7 +283,7 @@ def create_customer(
 	if not frappe.has_permission("Customer", "create"):
 		frappe.throw(_("You don't have permission to create customers"), frappe.PermissionError)
 
-	if not customer_name:
+	if not customer_name or not customer_name.strip():
 		frappe.throw(_("Customer name is required"))
 
 	_ensure_customer_billing_fields()
@@ -163,22 +294,10 @@ def create_customer(
 		pos_profile=pos_profile,
 	)
 
-	resolved_customer_group = customer_group
-	if not resolved_customer_group:
-		resolved_customer_group = frappe.db.get_single_value("Selling Settings", "customer_group")
-	if not resolved_customer_group:
-		resolved_customer_group = (
-			frappe.db.get_value("Customer Group", {"is_group": 0}, "name", order_by="lft")
-			or "All Customer Groups"
-		)
-
-	resolved_territory = territory
-	if not resolved_territory:
-		resolved_territory = frappe.db.get_single_value("Selling Settings", "territory")
-	if not resolved_territory:
-		resolved_territory = (
-			frappe.db.get_value("Territory", {"is_group": 0}, "name", order_by="lft") or "All Territories"
-		)
+	resolved_customer_group = _resolve_leaf_customer_group(customer_group, pos_profile=pos_profile)
+	resolved_territory = _resolve_leaf_territory(
+		territory, pos_profile=pos_profile, company=company
+	)
 
 	customer_dict = {
 		"doctype": "Customer",
@@ -204,7 +323,7 @@ def create_customer(
 	frappe.flags.pos_next_customer_company = company
 	frappe.flags.pos_next_customer_pos_profile = pos_profile
 	try:
-		customer.insert()
+		customer.insert(ignore_permissions=True)
 		if primary_address and primary_address.strip():
 			customer.db_set("primary_address", primary_address.strip(), update_modified=False)
 			customer.primary_address = primary_address.strip()
@@ -257,10 +376,10 @@ def update_customer(
 		doc.primary_address = primary_address.strip() or None
 	if customer_meta.has_field("custom_razon_social") and custom_razon_social is not None:
 		doc.custom_razon_social = custom_razon_social.strip() or None
-	if customer_group and frappe.db.exists("Customer Group", customer_group):
+	if customer_group and frappe.db.get_value("Customer Group", customer_group, "is_group") == 0:
 		doc.customer_group = customer_group
 	if territory and frappe.db.exists("Territory", territory):
-		doc.territory = territory
+		doc.territory = _resolve_leaf_territory(territory)
 	if customer_meta.has_field("custom_governorate") and custom_governorate is not None:
 		doc.custom_governorate = custom_governorate or None
 	if customer_meta.has_field("custom_district") and custom_district is not None:

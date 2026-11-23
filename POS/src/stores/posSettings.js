@@ -271,7 +271,7 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		} else {
 			noLetterhead = Boolean(settings.value.resolved_invoice_no_letterhead);
 		}
-		let url = `/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}`;
+		let url = `/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}&language=es`;
 		if (format) {
 			url += `&format=${encodeURIComponent(format)}`;
 		}

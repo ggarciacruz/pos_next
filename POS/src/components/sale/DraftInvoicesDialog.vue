@@ -1,7 +1,7 @@
 <template>
 	<MdxModal
 		v-model="show"
-		size="6xl"
+		size="full"
 		:noPadding="true"
 	>
 		<!-- Header -->
@@ -39,10 +39,10 @@
 					:loading="isRefreshing"
 					@click="refreshData"
 				>
-					<template #icon>
+					<span class="inline-flex items-center gap-1.5">
 						<svg
-							class="w-4 h-4"
-							:class="{ 'animate-spin': isRefreshing }"
+							v-if="!isRefreshing"
+							class="w-3.5 h-3.5"
 							fill="none"
 							stroke="currentColor"
 							viewBox="0 0 24 24"
@@ -54,8 +54,8 @@
 								d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
 							/>
 						</svg>
-					</template>
-					{{ __("Actualizar") }}
+						<span>{{ __("Actualizar") }}</span>
+					</span>
 				</MdxButton>
 
 				<!-- Close Button -->
@@ -81,373 +81,394 @@
 			</div>
 		</template>
 
-		<!-- Body Content (Scrollable) -->
-		<div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
-						<div class="flex flex-col gap-3">
-							<!-- Search and Tabs Header -->
-							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-3">
-								<!-- Tabs -->
-								<div class="flex bg-gray-100 p-0.5 rounded-lg w-full sm:w-auto">
-									<button
-										type="button"
-										@click="activeTab = 'all'"
-										class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
-										:class="activeTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-									>
-										{{ __("Todos") }}
-									</button>
-									<button
-										type="button"
-										@click="activeTab = 'pre_sales'"
-										class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
-										:class="activeTab === 'pre_sales' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-									>
-										{{ __("Ordenes de Venta") }}
-									</button>
-									<button
-										type="button"
-										@click="activeTab = 'quotations'"
-										class="flex-1 sm:flex-initial px-4 py-1.5 text-center text-xs font-semibold transition-all rounded-md cursor-pointer focus:outline-none"
-										:class="activeTab === 'quotations' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-									>
-										{{ __("Cotizaciones") }}
-									</button>
-								</div>
+		<!-- Body Content (Pinned Toolbar + Full-Height Scrollable Area) -->
+		<div class="flex-1 min-h-0 flex flex-col bg-slate-50/50">
+			<!-- Search and Segmented Filter Header (mdx_ui) -->
+			<div class="shrink-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+				<!-- Standardized Segmented Switcher (mdx_ui) -->
+				<div class="w-full lg:w-auto min-w-0">
+					<MdxSegmentedControl
+						v-model="activeTab"
+						:options="draftTabOptions"
+						size="sm"
+						:full-width="false"
+						:scrollable="true"
+					/>
+				</div>
 
-								<!-- Controls: Search and Queue Sort -->
-								<div class="flex items-center gap-2 w-full sm:w-auto">
-									<!-- Queue Sorting Button -->
-									<button
-										type="button"
-										@click="sortByWaiting = !sortByWaiting"
-										class="h-8.5 px-3 text-xs font-bold rounded-lg border transition-all flex items-center gap-2 cursor-pointer focus:outline-none flex-shrink-0"
-										:class="
-											sortByWaiting
-												? 'bg-amber-50 text-amber-700 border-amber-300 shadow-sm'
-												: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-										"
-									>
-										<!-- Clock/Waiting icon -->
-										<svg
-											class="w-3.5 h-3.5"
-											:class="sortByWaiting ? 'text-amber-600 animate-pulse' : 'text-gray-400'"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											stroke-width="2.5"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-											/>
-										</svg>
-										<span>{{ sortByWaiting ? 'Mayor Espera' : 'Recientes' }}</span>
-									</button>
+				<!-- Controls: Pending Filter, Queue Sort & Standardized Search Input (mdx_ui) -->
+				<div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+					<!-- Only Pending Filter -->
+					<button
+						type="button"
+						@click="onlyPending = !onlyPending"
+						class="h-9 px-3 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer focus:outline-none shrink-0"
+						:class="
+							onlyPending
+								? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+								: 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+						"
+					>
+						<svg
+							class="w-3.5 h-3.5"
+							:class="onlyPending ? 'text-white' : 'text-slate-400'"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							stroke-width="2.2"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+							/>
+						</svg>
+						<span>{{ __("Solo pendientes") }}</span>
+					</button>
 
-									<!-- Instant Search Box -->
-									<div class="relative w-full sm:w-72 flex-shrink-0">
-										<div class="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
-											<svg
-												class="w-4 h-4 text-gray-400"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-												/>
-											</svg>
-										</div>
-										<input
-											type="text"
-											v-model="searchQuery"
-											:placeholder="__('Buscar por número o cliente...')"
-											class="w-full h-8.5 ps-9 pe-8 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
-										/>
-										<button
-											v-if="searchQuery"
-											type="button"
-											@click="searchQuery = ''"
-											class="absolute inset-y-0 end-0 pe-2.5 flex items-center text-gray-400 hover:text-gray-600"
-										>
-											<svg
-												class="w-3.5 h-3.5"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M6 18L18 6M6 6l12 12"
-												/>
-											</svg>
-										</button>
-									</div>
-								</div>
+					<!-- Queue Sorting Button -->
+					<button
+						type="button"
+						@click="sortByWaiting = !sortByWaiting"
+						class="h-9 px-3 text-xs font-bold rounded-lg border transition-all flex items-center gap-2 cursor-pointer focus:outline-none shrink-0"
+						:class="
+							sortByWaiting
+								? 'bg-amber-50 text-amber-800 border-amber-300 shadow-2xs'
+								: 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+						"
+					>
+						<svg
+							class="w-3.5 h-3.5"
+							:class="sortByWaiting ? 'text-amber-600 animate-pulse' : 'text-slate-400'"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							stroke-width="2.5"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+							/>
+						</svg>
+						<span>{{ sortByWaiting ? __("Mayor Espera") : __("Recientes") }}</span>
+					</button>
+
+					<!-- Standardized Instant Search Box (mdx_ui) -->
+					<div class="flex-1 lg:w-72 xl:w-80 min-w-[200px] draft-search-box">
+						<MdxSearchInput
+							v-model="searchQuery"
+							:placeholder="__('Buscar por número o cliente...')"
+							:debounce="80"
+							:enable-shortcut-listener="false"
+							:shortcut-key="''"
+						/>
+					</div>
+				</div>
+			</div>
+
+			<!-- Scrollable List / Vertically Centered Empty State -->
+			<div class="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 flex flex-col pos-draft-canvas">
+				<!-- Empty State -->
+				<div
+					v-if="filteredDrafts.length === 0"
+					class="flex-1 flex flex-col items-center justify-center text-center py-12"
+				>
+					<div
+						class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-2xs"
+					>
+						<svg
+							class="h-8 w-8 text-slate-400"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+							/>
+						</svg>
+					</div>
+					<p class="text-sm font-semibold text-slate-700">
+						{{
+							searchQuery
+								? __("No se encontraron resultados")
+								: activeTab === "quotations"
+								? __("No hay cotizaciones")
+								: activeTab === "pre_sales"
+								? __("No hay órdenes de venta")
+								: __("No hay documentos pendientes")
+						}}
+					</p>
+					<p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+						{{
+							searchQuery
+								? __("Intente buscar con términos diferentes o borre el filtro")
+								: activeTab === "quotations"
+								? __("Cree cotizaciones en el mostrador para recuperarlas aquí")
+								: activeTab === "pre_sales"
+								? __("Guarde las ventas como órdenes de venta para continuar más tarde")
+								: __("Las órdenes de venta y cotizaciones registradas aparecerán aquí")
+						}}
+					</p>
+				</div>
+
+				<!-- Drafts Horizontal List Layout -->
+				<div v-else class="flex flex-col gap-3">
+					<div
+						v-for="draft in paginatedDrafts"
+						:key="draft.draft_id"
+						class="px-4 py-3.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4"
+						:class="
+							isDraftAlreadyProcessed(draft)
+								? 'pos-draft-card pos-draft-card--processed cursor-not-allowed select-none'
+								: isDraftQuotation(draft)
+								? 'pos-draft-card pos-draft-card--quotation group cursor-pointer'
+								: 'pos-draft-card group cursor-pointer'
+						"
+						@click="handleDraftClick(draft)"
+					>
+						<!-- Zone 1: Doc ID, Type & Status -->
+						<div class="w-full lg:w-[240px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4">
+							<div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+								<h4
+									class="text-sm md:text-base font-extrabold tabular-nums transition-colors"
+									:class="
+										isDraftAlreadyProcessed(draft)
+											? 'text-slate-600'
+											: 'text-slate-900 group-hover:text-blue-600'
+									"
+								>
+									{{ draft.draft_id }}
+								</h4>
+								<MdxBadge
+									:variant="isDraftQuotation(draft) ? 'info' : 'neutral'"
+									size="sm"
+								>
+									{{ isDraftQuotation(draft) ? __("Cotización") : __("Pre-venta") }}
+								</MdxBadge>
+								<MdxBadge
+									v-if="isDraftAlreadyProcessed(draft)"
+									variant="success"
+									size="sm"
+								>
+									{{ isDraftQuotation(draft) ? __("Ordenada") : __("Vendido") }}
+								</MdxBadge>
+								<MdxBadge
+									v-else-if="draft.docstatus === 1"
+									variant="warning"
+									size="sm"
+									:dot="true"
+								>
+									{{ __("Pendiente") }}
+								</MdxBadge>
+								<MdxBadge
+									v-else
+									variant="neutral"
+									size="sm"
+								>
+									{{ __("Borrador") }}
+								</MdxBadge>
+							</div>
+							<div class="flex items-center gap-2 flex-wrap">
+								<p class="text-xs text-slate-500">
+									{{ formatDateTime(draft.created_at) }}
+								</p>
+								<span
+									v-if="!isDraftAlreadyProcessed(draft)"
+									class="inline-flex items-center gap-1.5 text-[10px] font-extrabold px-2 py-0.5 rounded-md border uppercase tracking-wider"
+									:class="
+										getWaitingStatus(draft.created_at) === 'critical'
+											? 'bg-red-50 text-red-700 border-red-200'
+											: getWaitingStatus(draft.created_at) === 'warning'
+											? 'bg-amber-50 text-amber-700 border-amber-200'
+											: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+									"
+								>
+									<span class="relative flex h-1.5 w-1.5 shrink-0">
+										<span
+											v-if="getWaitingStatus(draft.created_at) === 'critical'"
+											class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"
+										></span>
+										<span
+											class="relative inline-flex rounded-full h-1.5 w-1.5"
+											:class="
+												getWaitingStatus(draft.created_at) === 'critical'
+													? 'bg-red-500'
+													: getWaitingStatus(draft.created_at) === 'warning'
+													? 'bg-amber-500'
+													: 'bg-emerald-500'
+											"
+										></span>
+									</span>
+									{{ getTimeAgo(draft.created_at) }}
+								</span>
+							</div>
+						</div>
+
+						<!-- Zone 2: Customer & Salesperson -->
+						<div class="w-full lg:w-[230px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 min-w-0">
+							<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+								{{ __("Cliente") }}
+							</span>
+							<p
+								class="text-sm font-bold truncate leading-snug mt-0.5"
+								:class="isDraftAlreadyProcessed(draft) ? 'text-slate-600' : 'text-slate-900'"
+							>
+								{{ draft.customer?.customer_name || draft.customer?.name || draft.customer }}
+							</p>
+							<div v-if="draft.owner" class="text-xs text-slate-500 mt-1 flex items-center gap-1 truncate">
+								<span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider">{{ __("Vendedor:") }}</span>
+								<span class="font-semibold text-slate-600 truncate">
+									{{ userNamesMap[draft.owner] || draft.owner.split("@")[0].toUpperCase() }}
+								</span>
+							</div>
+						</div>
+
+						<!-- Zone 3: Items Summary -->
+						<div class="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 flex flex-col justify-center">
+							<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1.5">
+								{{ __("Detalle de Items") }} ({{ draft.items?.length || 0 }})
+							</span>
+							<div class="flex flex-wrap gap-1.5 max-h-16 overflow-y-auto">
+								<span
+									v-for="(item, idx) in draft.items"
+									:key="idx"
+									class="text-[11px] border px-2.5 py-1 rounded-lg truncate max-w-full font-medium"
+									:class="
+										isDraftAlreadyProcessed(draft)
+											? 'bg-white border-slate-200 text-slate-600'
+											: 'bg-slate-50 border-slate-200 text-slate-700'
+									"
+								>
+									{{ item.item_name || item.item_code }}{{ (item.custom_medida || item.medida) ? " (" + (item.custom_medida || item.medida) + ")" : "" }}
+									<span class="text-slate-900 font-extrabold ms-1">x{{ item.quantity || item.qty }}</span>
+								</span>
+							</div>
+						</div>
+
+						<!-- Zone 4: Amount & Quick Actions -->
+						<div class="w-full lg:w-auto shrink-0 flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-3.5">
+							<div class="flex flex-col lg:items-end shrink-0 whitespace-nowrap">
+								<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none whitespace-nowrap">
+									{{
+										isDraftAlreadyProcessed(draft)
+											? (isDraftQuotation(draft) ? __("Total Cotizado") : __("Vendido"))
+											: __("Total a Cobrar")
+									}}
+								</span>
+								<span
+									class="text-base md:text-lg font-extrabold tabular-nums whitespace-nowrap mt-1"
+									:class="isDraftAlreadyProcessed(draft) ? 'text-slate-500' : 'text-slate-900'"
+								>
+									{{ formatCurrency(calculateTotal(draft.items)) }}
+								</span>
 							</div>
 
-							<!-- Empty State -->
-							<div v-if="filteredDrafts.length === 0" class="text-center py-12">
-								<div
-									class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-gray-100"
+							<div class="flex items-center gap-1.5 shrink-0" @click.stop>
+								<MdxButton
+									v-if="!isDraftAlreadyProcessed(draft)"
+									variant="primary"
+									size="sm"
+									@click.stop="handleDraftClick(draft)"
+								>
+									{{ bootstrapStore.canCheckout() ? __("Cobrar") : __("Cargar") }}
+								</MdxButton>
+								<button
+									v-if="props.allowPrintDraftInvoices"
+									type="button"
+									@click.stop="handlePrintDraft(draft)"
+									class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-lg transition-all touch-manipulation shadow-2xs"
+									:title="__('Imprimir Ticket')"
 								>
 									<svg
-										class="h-8 w-8 text-gray-400"
+										class="w-4 h-4"
 										fill="none"
 										stroke="currentColor"
 										viewBox="0 0 24 24"
+										stroke-width="2"
 									>
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+											d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
 										/>
 									</svg>
-								</div>
-								<p class="text-sm font-semibold text-gray-700">
-									{{ searchQuery ? __("No se encontraron resultados") : (activeTab === 'quotations' ? __("No hay cotizaciones") : __("No hay órdenes de venta")) }}
-								</p>
-								<p class="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-									{{ searchQuery ? __("Intente buscar con términos diferentes o borre el filtro") : (activeTab === 'quotations' ? __("Cree cotizaciones en el mostrador para recuperarlas aquí") : __("Guarde las ventas como órdenes de venta para continuar más tarde")) }}
-								</p>
-							</div>
-
-							<!-- Drafts Horizontal List Layout -->
-							<div v-else class="flex flex-col gap-3">
-								<div
-									v-for="draft in paginatedDrafts"
-									:key="draft.draft_id"
-									:class="
-										isDraftAlreadyProcessed(draft)
-											? 'bg-gray-50/50 border-gray-150 opacity-70 cursor-not-allowed select-none'
-											: 'bg-white border-gray-200 hover:border-blue-500 hover:shadow-md cursor-pointer'
-									"
-									class="border rounded-xl p-4.5 transition-all duration-200 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 group bg-white border-gray-200 hover:border-blue-500 hover:shadow-md cursor-pointer"
-									@click="handleDraftClick(draft)"
+								</button>
+								<button
+									type="button"
+									@click.stop="handlePrintDraftPDF(draft)"
+									class="h-8 px-2.5 inline-flex items-center justify-center gap-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-700 hover:text-red-700 rounded-lg transition-all touch-manipulation shadow-2xs"
+									:title="__('Abrir PDF Tamaño Carta')"
 								>
-									<!-- Left Section: Doc info -->
-									<div class="w-full lg:w-[220px] flex-shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-gray-100 pb-3 lg:pb-0 lg:pe-4">
-										<div class="flex items-center gap-2 mb-1.5 flex-wrap">
-											<h4 class="text-sm md:text-base font-extrabold text-gray-900 group-hover:text-blue-600 transition-colors">
-												{{ draft.draft_id }}
-											</h4>
-											<span
-												class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider"
-												:class="isDraftQuotation(draft) ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-orange-50 text-orange-700 border-orange-200'"
-											>
-												{{ isDraftQuotation(draft) ? __('Cotización') : __('Pre-venta') }}
-											</span>
-											<!-- Processed Checkmark Badge -->
-											<span
-												v-if="isDraftAlreadyProcessed(draft)"
-												class="inline-flex items-center justify-center p-0.5 rounded-full bg-green-50 text-green-600 border border-green-200"
-												:title="__('Procesado')"
-											>
-												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
-													<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-												</svg>
-											</span>
-											<!-- Regular Doc Status Badge -->
-											<span
-												v-else
-												class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider"
-												:class="draft.docstatus === 1 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'"
-											>
-												{{ draft.docstatus === 1 ? __('Validada') : __('Borrador') }}
-											</span>
-										</div>
-										<p class="text-xs text-gray-500">
-											{{ formatDateTime(draft.created_at) }}
-										</p>
-										<div class="mt-2">
-											<span
-												class="inline-flex items-center gap-1.5 text-[10px] font-extrabold px-2 py-0.5 rounded-md border uppercase tracking-wider transition-all"
-												:class="
-													getWaitingStatus(draft.created_at) === 'critical'
-														? 'bg-red-50 text-red-700 border-red-200 shadow-sm'
-														: getWaitingStatus(draft.created_at) === 'warning'
-														? 'bg-amber-50 text-amber-700 border-amber-200'
-														: 'bg-green-50 text-green-700 border-green-200'
-												"
-											>
-												<!-- Modern status indicator dot -->
-												<span class="relative flex h-1.5 w-1.5 flex-shrink-0">
-													<span
-														v-if="getWaitingStatus(draft.created_at) === 'critical'"
-														class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"
-													></span>
-													<span
-														class="relative inline-flex rounded-full h-1.5 w-1.5"
-														:class="
-															getWaitingStatus(draft.created_at) === 'critical'
-																? 'bg-red-500'
-																: getWaitingStatus(draft.created_at) === 'warning'
-																? 'bg-amber-500'
-																: 'bg-green-500'
-														"
-													></span>
-												</span>
-												{{ getTimeAgo(draft.created_at) }}
-											</span>
-										</div>
-									</div>
-
-									<!-- Middle Section: Customer info -->
-									<div class="w-full lg:w-[240px] flex-shrink-0 flex items-center gap-3 border-b lg:border-b-0 lg:border-r border-gray-100 pb-3 lg:pb-0 lg:pe-4">
-										<div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 border border-blue-100">
-											<svg
-												class="w-5 h-5 text-blue-600"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2.5"
-													d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-												/>
-											</svg>
-										</div>
-										<div class="min-w-0">
-											<span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">
-												{{ __("Cliente") }}
-											</span>
-											<p class="text-sm md:text-base font-extrabold text-gray-800 truncate leading-snug">
-												{{ draft.customer?.customer_name || draft.customer?.name || draft.customer }}
-											</p>
-											<!-- Vendedor -->
-											<div v-if="draft.owner" class="text-xs text-gray-500 mt-1 flex items-center gap-1">
-												<span class="font-bold text-gray-400 uppercase text-[9px] tracking-wider">{{ __("Vendedor:") }}</span>
-												<span class="font-semibold text-gray-700">{{ userNamesMap[draft.owner] || draft.owner.split('@')[0].toUpperCase() }}</span>
-											</div>
-										</div>
-									</div>
-
-									<!-- Right Section: Items list (condensed badges) -->
-									<div class="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-gray-100 pb-3 lg:pb-0 lg:px-4 flex flex-col justify-center">
-										<span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">
-											{{ __("Detalle de Items") }} ({{ draft.items?.length || 0 }})
-										</span>
-										<div class="flex flex-wrap gap-1.5 max-h-16 overflow-y-auto">
-											<span
-												v-for="(item, idx) in draft.items"
-												:key="idx"
-												class="text-[11px] bg-gray-50 border border-gray-200 text-gray-700 px-2 py-0.5 rounded-lg truncate max-w-full font-medium"
-											>
-												{{ item.item_name || item.item_code }}{{ (item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : '' }} <span class="text-blue-600 font-bold">x{{ item.quantity || item.qty }}</span>
-											</span>
-										</div>
-									</div>
-
-									<!-- Far Right Section: Total & Quick Actions -->
-									<div class="w-full lg:w-[180px] flex-shrink-0 flex items-center justify-between lg:justify-end gap-4 lg:ps-4">
-										<div class="flex flex-col lg:items-end">
-											<span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider leading-none">
-												{{ __("Total a Cobrar") }}
-											</span>
-											<span class="text-base md:text-lg font-extrabold text-blue-600 mt-1">
-												{{ formatCurrency(calculateTotal(draft.items)) }}
-											</span>
-										</div>
-
-										<div class="flex items-center gap-1.5" @click.stop>
-											<button
-												v-if="props.allowPrintDraftInvoices"
-												@click.stop="handlePrintDraft(draft)"
-												class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-yellow-100 text-gray-600 hover:text-yellow-800 rounded-xl transition-all touch-manipulation"
-												:title="__('Imprimir Ticket Térmico')"
-											>
-												<svg
-													class="w-4.5 h-4.5"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2.5"
-														d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-													/>
-												</svg>
-											</button>
-											<button
-												@click.stop="handlePrintDraftPDF(draft)"
-												class="w-9 h-9 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 rounded-xl transition-all touch-manipulation"
-												:title="__('Imprimir PDF Tamaño Carta')"
-											>
-												<svg
-													class="w-4.5 h-4.5"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													stroke-width="2.5"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-													/>
-												</svg>
-											</button>
-											<button
-												v-if="posSettingsStore.enableWhatsappSend"
-												type="button"
-												@click.stop="handleWhatsAppDraft(draft)"
-												class="w-9 h-9 flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-800 rounded-xl transition-all touch-manipulation"
-												:title="__('Enviar por WhatsApp')"
-											>
-												<svg class="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
-													<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-												</svg>
-											</button>
-											<button
-												@click.stop="handleDeleteDraft(draft.draft_id)"
-												class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-700 rounded-xl transition-all touch-manipulation"
-												:title="__('Delete draft')"
-											>
-												<svg
-													class="w-4.5 h-4.5"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2.5"
-														d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-													/>
-												</svg>
-											</button>
-										</div>
-									</div>
-								</div>
+									<svg
+										class="w-3.5 h-3.5 text-red-600 shrink-0"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+										stroke-width="2"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+										/>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M14 2v6h6M9 15h6M9 11h2"
+										/>
+									</svg>
+									<span class="text-[11px] font-extrabold tracking-tight">PDF</span>
+								</button>
+								<button
+									v-if="posSettingsStore.enableWhatsappSend"
+									type="button"
+									@click.stop="handleWhatsAppDraft(draft)"
+									class="w-8 h-8 flex items-center justify-center bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-600 hover:text-emerald-700 rounded-lg transition-all touch-manipulation shadow-2xs"
+									:title="__('Enviar por WhatsApp')"
+								>
+									<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+										<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+									</svg>
+								</button>
+								<button
+									v-if="canDiscardDrafts && !isDraftAlreadyProcessed(draft)"
+									type="button"
+									@click.stop="handleDeleteDraft(draft.draft_id)"
+									class="w-8 h-8 flex items-center justify-center bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-600 hover:text-red-700 rounded-lg transition-all touch-manipulation shadow-2xs"
+									:title="__('Anular / descartar documento')"
+								>
+									<svg
+										class="w-4 h-4"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+										stroke-width="2"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+										/>
+									</svg>
+								</button>
 							</div>
 						</div>
 					</div>
+				</div>
+			</div>
+		</div>
 
 		<!-- Footer (Actions & Pagination) -->
 		<template #footer>
-			<div class="flex justify-between items-center w-full gap-3">
-				<!-- Left: Clear All Button -->
-				<MdxButton
-					v-if="drafts.length > 0"
-					variant="danger"
-					size="sm"
-					@click="showClearAllDialog = true"
-				>
-					{{ __("Limpiar Todo") }}
-				</MdxButton>
-				<div v-else></div>
+			<div
+				class="flex items-center w-full gap-3"
+				:class="totalPages > 1 ? 'justify-between' : 'justify-end'"
+			>
+				<div v-if="totalPages > 1" class="hidden sm:block"></div>
 
 				<!-- Center: Pagination Controls -->
 				<div v-if="totalPages > 1" class="flex items-center gap-3">
@@ -490,23 +511,11 @@
 		v-model="showDeleteDialog"
 		variant="danger"
 		icon="trash"
-		:title="__('Delete Draft?')"
-		:message="__('Permanently delete this draft invoice?')"
-		:cancel-text="__('Cancel')"
-		:confirm-text="__('Delete')"
+		:title="__('¿Anular / Descartar Documento?')"
+		:message="__('¿Desea anular y retirar este documento pendiente de la bandeja?')"
+		:cancel-text="__('Cancelar')"
+		:confirm-text="__('Sí, descartar')"
 		@confirm="confirmDeleteDraft"
-	/>
-
-	<!-- Clear All Drafts Confirmation (mdx_ui) -->
-	<MdxConfirmDialog
-		v-model="showClearAllDialog"
-		variant="danger"
-		icon="trash"
-		:title="__('Clear All Drafts?')"
-		:message="__('Permanently delete all {0} draft invoices?', [drafts.length])"
-		:cancel-text="__('Cancel')"
-		:confirm-text="__('Clear All')"
-		@confirm="confirmClearAll"
 	/>
 </template>
 
@@ -517,22 +526,35 @@ import {
 	formatCurrency as formatCurrencyUtil,
 	roundCurrency,
 } from "@/utils/currency";
-import { clearAllDrafts, deleteDraft, getAllDrafts } from "@/utils/draftManager";
+import { deleteDraft, getAllDrafts } from "@/utils/draftManager";
 import { parseFrappeDateTime } from "@/utils/date";
 import { printInvoice } from "@/utils/printInvoice";
 import { useToast } from "@/composables/useToast";
+import { useBootstrapStore } from "@/stores/bootstrap";
 import { usePOSShiftStore } from "@/stores/posShift";
 import { usePOSDraftsStore } from "@/stores/posDrafts";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import { call } from "frappe-ui";
-import { MdxButton, MdxConfirmDialog, MdxModal } from "mdx_ui";
+import {
+	MdxBadge,
+	MdxButton,
+	MdxConfirmDialog,
+	MdxModal,
+	MdxSearchInput,
+	MdxSegmentedControl,
+} from "mdx_ui";
 import { db } from "@/utils/offline/db";
 import { onMounted, ref, watch, computed } from "vue";
 
 const { showSuccess, showError, showWarning } = useToast();
+const bootstrapStore = useBootstrapStore();
 const shiftStore = usePOSShiftStore();
 const draftsStore = usePOSDraftsStore();
 const posSettingsStore = usePOSSettingsStore();
+
+const canDiscardDrafts = computed(
+	() => bootstrapStore.canCheckout() && posSettingsStore.canCancelInvoice
+);
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -551,7 +573,6 @@ const emit = defineEmits(["update:modelValue", "load-draft", "drafts-updated", "
 const show = ref(props.modelValue);
 const drafts = ref([]);
 const showDeleteDialog = ref(false);
-const showClearAllDialog = ref(false);
 const draftToDelete = ref(null);
 const activeTab = ref("all"); // "all", "pre_sales" or "quotations"
 const searchQuery = ref("");
@@ -559,10 +580,15 @@ const isRefreshing = ref(false);
 const currentPage = ref(1);
 const pageSize = 10;
 const sortByWaiting = ref(false);
+const onlyPending = ref(false);
 
 const sortedDrafts = computed(() => {
 	const list = [...filteredDrafts.value];
 	list.sort((a, b) => {
+		const procA = isDraftAlreadyProcessed(a) ? 1 : 0;
+		const procB = isDraftAlreadyProcessed(b) ? 1 : 0;
+		if (procA !== procB) return procA - procB;
+
 		const dateA = a.created_at ? new Date(a.created_at) : 0;
 		const dateB = b.created_at ? new Date(b.created_at) : 0;
 		return sortByWaiting.value ? dateA - dateB : dateB - dateA;
@@ -580,7 +606,7 @@ const paginatedDrafts = computed(() => {
 	return sortedDrafts.value.slice(start, end);
 });
 
-watch([activeTab, searchQuery, sortByWaiting], () => {
+watch([activeTab, searchQuery, sortByWaiting, onlyPending], () => {
 	currentPage.value = 1;
 });
 
@@ -596,28 +622,59 @@ async function refreshData() {
 	}
 }
 
+const searchMatchedDrafts = computed(() => {
+	const q = (searchQuery.value || "").toLowerCase().trim();
+
+	return drafts.value.filter((draft) => {
+		if (onlyPending.value && isDraftAlreadyProcessed(draft)) {
+			return false;
+		}
+		if (!q) return true;
+
+		const matchesId = draft.draft_id && String(draft.draft_id).toLowerCase().includes(q);
+		const custName =
+			draft.customer?.customer_name || draft.customer?.name || draft.customer || "";
+		const matchesCustomer = String(custName).toLowerCase().includes(q);
+		return Boolean(matchesId || matchesCustomer);
+	});
+});
+
+const draftTabOptions = computed(() => {
+	const list = searchMatchedDrafts.value;
+	let quotationsCount = 0;
+	for (const draft of list) {
+		if (isDraftQuotation(draft)) {
+			quotationsCount += 1;
+		}
+	}
+	const preSalesCount = list.length - quotationsCount;
+
+	return [
+		{
+			value: "all",
+			label: __("Todos"),
+			badge: list.length,
+		},
+		{
+			value: "pre_sales",
+			label: __("Órdenes de Venta"),
+			badge: preSalesCount,
+		},
+		{
+			value: "quotations",
+			label: __("Cotizaciones"),
+			badge: quotationsCount,
+		},
+	];
+});
+
 const filteredDrafts = computed(() => {
-	return drafts.value.filter(draft => {
+	if (activeTab.value === "all") {
+		return searchMatchedDrafts.value;
+	}
+	return searchMatchedDrafts.value.filter((draft) => {
 		const isQuotation = isDraftQuotation(draft);
-		
-		// Filter by tab
-		if (activeTab.value !== "all") {
-			const matchesTab = activeTab.value === "quotations" ? isQuotation : !isQuotation;
-			if (!matchesTab) return false;
-		}
-
-		// Filter by search query
-		if (searchQuery.value.trim()) {
-			const q = searchQuery.value.toLowerCase().trim();
-			const matchesId = draft.draft_id && draft.draft_id.toLowerCase().includes(q);
-			
-			const custName = draft.customer?.customer_name || draft.customer?.name || draft.customer || "";
-			const matchesCustomer = custName.toLowerCase().includes(q);
-
-			return matchesId || matchesCustomer;
-		}
-
-		return true;
+		return activeTab.value === "quotations" ? isQuotation : !isQuotation;
 	});
 });
 
@@ -646,7 +703,7 @@ function isDraftAlreadyProcessed(draft) {
 
 function handleDraftClick(draft) {
 	if (isDraftAlreadyProcessed(draft)) {
-		showWarning(__("Este documento ya ha sido facturado o procesado."));
+		showWarning(__("Este documento ya ha sido vendido o procesado."));
 		return;
 	}
 	emit("load-draft", draft);
@@ -760,15 +817,11 @@ function handlePrintDraftPDF(draft) {
 	if (!draft || !draft.draft_id) return;
 	const isQuotation = isDraftQuotation(draft);
 	const doctype = draft.doctype || (isQuotation ? "Quotation" : "Sales Order");
-	const name = draft.draft_id;
-	const format = posSettingsStore.getPrintFormatForDoctype(
+	const url = posSettingsStore.buildLetterPdfUrl(
 		doctype,
-		shiftStore.currentProfile?.print_format
+		draft.draft_id,
+		shiftStore.currentProfile?.print_format || ""
 	);
-	let url = `/printview?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}`;
-	if (format) {
-		url += `&format=${encodeURIComponent(format)}`;
-	}
 	window.open(url, "_blank");
 }
 
@@ -793,36 +846,14 @@ function handleDeleteDraft(draftId) {
 }
 
 async function confirmDeleteDraft() {
-	try {
-		await draftsStore.deleteDraft(draftToDelete.value);
-		await loadDrafts();
-		showDeleteDialog.value = false;
-		draftToDelete.value = null;
-
-		// Notify parent to update count
-		emit("drafts-updated");
-
-		showSuccess(__("Draft invoice deleted"));
-	} catch (error) {
-		console.error("Error deleting draft:", error);
-		showError(__("Failed to delete draft"));
+	const deleted = await draftsStore.deleteDraft(draftToDelete.value);
+	showDeleteDialog.value = false;
+	draftToDelete.value = null;
+	if (!deleted) {
+		return;
 	}
-}
-
-async function confirmClearAll() {
-	try {
-		await clearAllDrafts();
-		await loadDrafts();
-		showClearAllDialog.value = false;
-
-		// Notify parent to update count
-		emit("drafts-updated");
-
-		showSuccess(__("All draft invoices deleted"));
-	} catch (error) {
-		console.error("Error clearing drafts:", error);
-		showError(__("Failed to clear drafts"));
-	}
+	await loadDrafts();
+	emit("drafts-updated");
 }
 
 function formatDateTime(dateStr) {
@@ -880,3 +911,39 @@ function getWaitingStatus(createdAt) {
 	return "normal";
 }
 </script>
+
+<style scoped>
+.draft-search-box :deep(.mdx-search) {
+	max-width: none;
+}
+
+.pos-draft-canvas {
+	background-color: #eef2f6;
+}
+
+.pos-draft-card {
+	background-color: #ffffff;
+	border: 1px solid #cbd5e1;
+	border-left: 4px solid #2563eb;
+	border-radius: 0.875rem;
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+	transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.pos-draft-card--quotation {
+	border-left-color: #0284c7;
+}
+
+.pos-draft-card:not(.pos-draft-card--processed):hover {
+	border-color: #60a5fa;
+	border-left-color: #1d4ed8;
+	box-shadow: 0 6px 16px -4px rgba(15, 23, 42, 0.12), 0 2px 6px -2px rgba(37, 99, 235, 0.08);
+}
+
+.pos-draft-card--processed {
+	background-color: #f8fafc;
+	border: 1px solid #cbd5e1;
+	border-left: 4px solid #94a3b8;
+	box-shadow: none;
+}
+</style>

@@ -218,10 +218,17 @@ export function useInvoice() {
 	});
 
 	// Actions
-	function addItem(item, quantity = 1) {
+	const sameWarehouse = (a, b, fallback = "") =>
+		(a || fallback || "") === (b || fallback || "");
+
+	function addItem(item, quantity = 1, defaultWarehouse = "") {
 		const itemUom = item.uom || item.stock_uom;
 		const existingItem = invoiceItems.value.find(
-			(i) => i.item_code === item.item_code && i.uom === itemUom
+			(i) =>
+				i.item_code === item.item_code &&
+				i.uom === itemUom &&
+				sameWarehouse(i.warehouse, item.warehouse, defaultWarehouse) &&
+				Boolean(i.is_free_item) === Boolean(item.is_free_item)
 		);
 
 		if (existingItem) {
@@ -253,6 +260,12 @@ export function useInvoice() {
 				existingItem.original_stock = item.original_stock;
 				existingItem.actual_qty = item.original_stock;
 			}
+			if (item.warehouse_stock_qty !== undefined) {
+				existingItem.warehouse_stock_qty = item.warehouse_stock_qty;
+			}
+			if (item.is_external_warehouse !== undefined) {
+				existingItem.is_external_warehouse = Boolean(item.is_external_warehouse);
+			}
 			recalculateItem(existingItem);
 
 			// Update cache incrementally (new values - old values)
@@ -264,7 +277,8 @@ export function useInvoice() {
 			_cachedTotalDiscount.value += (existingItem.discount_amount || 0) - oldDiscount;
 		} else {
 			const totalWarehouseStock =
-				item.original_stock ?? item.actual_qty ?? item.stock_qty ?? 0;
+				item.warehouse_stock_qty ?? item.original_stock ?? item.actual_qty ?? item.stock_qty ?? 0;
+			const resolvedWh = item.warehouse || defaultWarehouse || "";
 			const newItem = {
 				item_code: item.item_code,
 				item_name: item.item_name,
@@ -281,7 +295,15 @@ export function useInvoice() {
 				stock_uom: item.stock_uom,
 				custom_medida: item.custom_medida || "",
 				conversion_factor: item.conversion_factor || 1,
-				warehouse: item.warehouse,
+				warehouse: resolvedWh,
+				warehouse_stock_qty:
+					item.warehouse_stock_qty !== undefined
+						? item.warehouse_stock_qty
+						: totalWarehouseStock,
+				is_external_warehouse: Boolean(
+					item.is_external_warehouse ||
+						(defaultWarehouse && resolvedWh && resolvedWh !== defaultWarehouse)
+				),
 				actual_batch_qty: item.actual_batch_qty || 0,
 				has_batch_no: item.has_batch_no || 0,
 				has_serial_no: item.has_serial_no || 0,
@@ -320,18 +342,16 @@ export function useInvoice() {
 	 * Removes an item from the invoice
 	 * @param {string} itemCode - The item code to remove
 	 * @param {string|null} uom - Optional UOM to match when same item exists with different UOMs.
-	 *                            If provided, only removes the item with matching item_code AND uom.
-	 *                            If null, removes the first item matching item_code.
+	 * @param {string|null} warehouse - Optional warehouse to match when same item exists across warehouses.
 	 */
-	function removeItem(itemCode, uom = null) {
-		let itemToRemove;
-		if (uom) {
-			itemToRemove = invoiceItems.value.find(
-				(i) => i.item_code === itemCode && i.uom === uom
-			);
-		} else {
-			itemToRemove = invoiceItems.value.find((i) => i.item_code === itemCode);
-		}
+	function removeItem(itemCode, uom = null, warehouse = null) {
+		const hasWarehouseFilter = warehouse !== null && warehouse !== undefined;
+		const matchesLine = (i) =>
+			i.item_code === itemCode &&
+			(!uom || i.uom === uom) &&
+			(!hasWarehouseFilter || (i.warehouse || "") === (warehouse || ""));
+
+		const itemToRemove = invoiceItems.value.find(matchesLine);
 
 		if (itemToRemove) {
 			// Update cache incrementally (subtract removed item values)
@@ -352,10 +372,8 @@ export function useInvoice() {
 			}
 		}
 
-		if (uom) {
-			invoiceItems.value = invoiceItems.value.filter(
-				(i) => !(i.item_code === itemCode && i.uom === uom)
-			);
+		if (uom || hasWarehouseFilter) {
+			invoiceItems.value = invoiceItems.value.filter((i) => !matchesLine(i));
 		} else {
 			invoiceItems.value = invoiceItems.value.filter((i) => i.item_code !== itemCode);
 		}
@@ -366,16 +384,16 @@ export function useInvoice() {
 	 * @param {string} itemCode - The item code to update
 	 * @param {number} quantity - The new quantity value
 	 * @param {string|null} uom - Optional UOM to match when same item exists with different UOMs.
-	 *                            If provided, only updates the item with matching item_code AND uom.
-	 *                            If null, updates the first item matching item_code.
+	 * @param {string|null} warehouse - Optional warehouse to match when same item exists across warehouses.
 	 */
-	function updateItemQuantity(itemCode, quantity, uom = null) {
-		let item;
-		if (uom) {
-			item = invoiceItems.value.find((i) => i.item_code === itemCode && i.uom === uom);
-		} else {
-			item = invoiceItems.value.find((i) => i.item_code === itemCode);
-		}
+	function updateItemQuantity(itemCode, quantity, uom = null, warehouse = null) {
+		const hasWarehouseFilter = warehouse !== null && warehouse !== undefined;
+		const item = invoiceItems.value.find(
+			(i) =>
+				i.item_code === itemCode &&
+				(!uom || i.uom === uom) &&
+				(!hasWarehouseFilter || (i.warehouse || "") === (warehouse || ""))
+		);
 
 		if (item) {
 			// Store old values before update for incremental cache adjustment

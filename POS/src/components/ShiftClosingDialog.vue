@@ -500,7 +500,7 @@
 												:for="`payment-${idx}`"
 												class="text-start text-sm md:text-base font-semibold text-slate-900 cursor-pointer"
 											>
-												{{ payment.mode_of_payment }}
+												{{ __(payment.mode_of_payment) }}
 											</label>
 										</div>
 
@@ -537,7 +537,9 @@
 									:key="idx"
 									:class="[
 										'border rounded-xl p-3 md:p-5 transition-all',
-										payment.difference === 0
+										!payment._touched || payment.closing_amount === null || payment.closing_amount === ''
+											? 'border-slate-200 bg-slate-50'
+											: payment.difference === 0
 											? 'border-green-200 bg-green-50'
 											: payment.difference > 0
 											? 'border-blue-200 bg-blue-50'
@@ -561,7 +563,7 @@
 												<h4
 													class="text-start text-sm md:text-base font-semibold text-gray-900"
 												>
-													{{ payment.mode_of_payment }}
+													{{ __(payment.mode_of_payment) }}
 												</h4>
 												<TranslatedHTML
 													:tag="'p'"
@@ -581,15 +583,20 @@
 										</div>
 
 										<!-- Status Badge -->
-										<div
-											v-if="
-												payment.closing_amount !== null &&
-												payment.closing_amount !== undefined
-											"
-											class="flex-shrink-0"
-										>
+										<div class="flex-shrink-0">
 											<span
-												v-if="payment.difference === 0"
+												v-if="
+													!payment._touched ||
+													payment.closing_amount === null ||
+													payment.closing_amount === undefined ||
+													payment.closing_amount === ''
+												"
+												class="inline-flex items-center px-2 md:px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
+											>
+												{{ __("Pendiente") }}
+											</span>
+											<span
+												v-else-if="payment.difference === 0"
 												class="inline-flex items-center px-2 md:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
 											>
 												{{ __("✓ Balanced") }}
@@ -705,8 +712,10 @@
 									<!-- Difference Alert -->
 									<div
 										v-if="
+											payment._touched &&
 											payment.closing_amount !== null &&
 											payment.closing_amount !== undefined &&
+											payment.closing_amount !== '' &&
 											payment.difference !== 0
 										"
 										class="text-start mt-2 md:mt-3 p-2 md:p-3 rounded-lg"
@@ -927,72 +936,69 @@
 				</div>
 			</div>
 
-		<template #footer>
-			<div
-				class="flex flex-col sm:flex-row justify-between w-full items-stretch sm:items-center gap-2 sm:gap-0"
+		<template #footer-left>
+			<MdxButton
+				variant="secondary"
+				@click="closeDialog"
+				:disabled="submitResource.loading"
 			>
-				<!-- Left side - Cancel/Close button -->
-				<MdxButton
-					variant="secondary"
-					@click="closeDialog"
-					:disabled="submitResource.loading"
-					class="order-2 sm:order-1"
+				{{ showSuccessReport ? __("Close") : __("Cancel") }}
+			</MdxButton>
+		</template>
+
+		<template #footer>
+			<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+				<!-- Validation Warning (only when fields are still missing) -->
+				<div
+					v-if="!canSubmit && closingData && !showSuccessReport"
+					class="text-xs md:text-sm text-amber-600 font-medium text-center sm:text-end"
 				>
-					{{ showSuccessReport ? __("Close") : __("Cancel") }}
-				</MdxButton>
+					{{ __("Falta registrar monto real en: {0}", [missingPaymentModes.join(", ")]) }}
+				</div>
+
+				<!-- Success message (shown in report view) -->
+				<div
+					v-if="showSuccessReport"
+					class="text-xs md:text-sm text-green-700 font-medium text-center sm:text-end inline-flex items-center justify-center gap-1.5"
+				>
+					<svg class="w-4 h-4 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+					</svg>
+					<span>{{ __("Shift closed successfully") }}</span>
+				</div>
 
 				<div
-					class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 order-1 sm:order-2"
+					v-if="eodPrintFailed"
+					class="text-xs md:text-sm text-amber-600 font-medium text-center sm:text-end"
 				>
-					<!-- Validation Warning (only in entry mode) -->
-					<div
-						v-if="!canSubmit && closingData && !showSuccessReport"
-						class="text-xs md:text-sm text-amber-600 font-medium text-center sm:text-end"
-					>
-						{{ __("Please enter all closing amounts") }}
-					</div>
-
-					<!-- Success message (shown in report view) -->
-					<div
-						v-if="showSuccessReport"
-						class="text-xs md:text-sm text-green-600 font-medium text-center sm:text-end"
-					>
-						{{ __("✓ Shift closed successfully") }}
-					</div>
-
-					<div
-						v-if="eodPrintFailed"
-						class="text-xs md:text-sm text-amber-600 font-medium text-center sm:text-end"
-					>
-						{{ __("EOD report pending print") }}
-					</div>
-
-					<!-- Submit/Close button (only shown in entry mode) -->
-					<MdxButton
-						v-if="!showSuccessReport"
-						variant="primary"
-						@click="submitClosing"
-						:loading="submitResource.loading"
-						:disabled="!canSubmit"
-					>
-						{{
-							submitResource.loading
-								? __("Closing Shift...")
-								: !canCheckout
-									? __("Finalizar Jornada de Ventas")
-									: __("Close Shift")
-						}}
-					</MdxButton>
-
-					<MdxButton
-						v-if="eodPrintFailed"
-						variant="primary"
-						@click="retryEodPrint"
-						:loading="retryPrintLoading"
-					>
-						{{ __("Print EOD Report") }}
-					</MdxButton>
+					{{ __("EOD report pending print") }}
 				</div>
+
+				<!-- Submit/Close button (only shown in entry mode) -->
+				<MdxButton
+					v-if="!showSuccessReport"
+					variant="primary"
+					@click="submitClosing"
+					:loading="submitResource.loading"
+					:disabled="!canSubmit"
+				>
+					{{
+						submitResource.loading
+							? __("Closing Shift...")
+							: !canCheckout
+								? __("Finalizar Jornada de Ventas")
+								: __("Close Shift")
+					}}
+				</MdxButton>
+
+				<MdxButton
+					v-if="showSuccessReport && closedShiftName"
+					variant="primary"
+					@click="handleManualEodPrint"
+					:loading="retryPrintLoading"
+				>
+					{{ __("Print EOD Report") }}
+				</MdxButton>
 			</div>
 		</template>
 	</MdxModal>
@@ -1009,6 +1015,7 @@ import { useToast } from "../composables/useToast";
 import { usePOSSettingsStore } from "../stores/posSettings";
 import { usePOSShiftStore } from "../stores/posShift";
 import { printEODReport } from "../utils/printEod";
+import { qzConnected } from "../utils/qzTray";
 import TranslatedHTML from "./common/TranslatedHTML.vue";
 import { useBootstrapStore } from "../stores/bootstrap";
 
@@ -1053,6 +1060,7 @@ const showInvoiceDetails = ref(false);
 const showSuccessReport = ref(false); // Track if shift is closed and showing report
 const errorMessage = ref(""); // User-friendly error message
 const eodPrintFailed = ref(null);
+const closedShiftName = ref(null);
 const retryPrintLoading = ref(false);
 const showIdleWarning = ref(false);
 let _idleWarningTimer = null;
@@ -1088,6 +1096,14 @@ watch(open, async (isOpen) => {
 			_idleWarningTimer = null;
 		}
 		eodPrintFailed.value = null;
+		closedShiftName.value = null;
+		if (showSuccessReport.value) {
+			showSuccessReport.value = false;
+			closingData.value = null;
+			showInvoiceDetails.value = false;
+			errorMessage.value = "";
+			emit("shift-closed");
+		}
 	}
 }, { immediate: true });
 
@@ -1109,14 +1125,18 @@ async function loadClosingData() {
 
 		// Make payment_reconciliation reactive
 		if (data.payment_reconciliation) {
-			data.payment_reconciliation = data.payment_reconciliation.map((payment) =>
-				reactive({
+			data.payment_reconciliation = data.payment_reconciliation.map((payment) => {
+				const expectedVal = Number.parseFloat(payment.expected_amount) || 0;
+				const openingVal = Number.parseFloat(payment.opening_amount) || 0;
+				const autoZeroReady = !hideExpectedAmount.value && expectedVal === 0 && openingVal === 0;
+
+				return reactive({
 					...payment,
-					closing_amount: payment.closing_amount ?? null,
+					closing_amount: autoZeroReady ? 0 : null,
 					difference: 0,
-					_touched: false,
-				})
-			);
+					_touched: autoZeroReady,
+				});
+			});
 
 			// Calculate initial differences
 			data.payment_reconciliation.forEach((payment) => {
@@ -1138,30 +1158,48 @@ async function loadClosingData() {
 }
 
 function calculateDifference(payment) {
+	if (
+		payment.closing_amount === null ||
+		payment.closing_amount === undefined ||
+		String(payment.closing_amount).trim() === ""
+	) {
+		payment.difference = 0;
+		return;
+	}
 	const closing = Number.parseFloat(payment.closing_amount) || 0;
 	const expected = Number.parseFloat(payment.expected_amount) || 0;
-	payment.difference = closing - expected;
+	payment.difference = Math.round((closing - expected) * 100) / 100;
 }
 
 // New function to handle closing amount updates with proper reactivity
 function updateClosingAmount(payment, value) {
-	payment.closing_amount = value;
-	payment._touched = true;
+	const trimmed = value === null || value === undefined ? "" : String(value).trim();
+	payment.closing_amount = trimmed === "" ? null : value;
+	payment._touched = trimmed !== "";
 	calculateDifference(payment);
 }
+
+const missingPaymentModes = computed(() => {
+	if (!closingData.value || !closingData.value.payment_reconciliation) return [];
+	if (!canCheckout.value) return [];
+
+	return closingData.value.payment_reconciliation
+		.filter(
+			(payment) =>
+				!payment._touched ||
+				payment.closing_amount === null ||
+				payment.closing_amount === undefined ||
+				String(payment.closing_amount).trim() === "" ||
+				Number.isNaN(Number(payment.closing_amount))
+		)
+		.map((payment) => __(payment.mode_of_payment));
+});
 
 const canSubmit = computed(() => {
 	if (!closingData.value || !closingData.value.payment_reconciliation) return false;
 	if (!canCheckout.value) return true; // Vendor role: shift closing is always ready to submit
 
-	// Check if all closing amounts have been manually entered
-	return closingData.value.payment_reconciliation.every(
-		(payment) =>
-			payment._touched &&
-			payment.closing_amount !== null &&
-			payment.closing_amount !== undefined &&
-			payment.closing_amount !== ""
-	);
+	return missingPaymentModes.value.length === 0;
 });
 
 async function submitClosing() {
@@ -1181,13 +1219,21 @@ async function submitClosing() {
 		const result = await submitResource.submit({ closing_shift: closingData.value });
 		const closingShiftName = result?.name ?? submitResource.data?.name;
 		if (closingShiftName) {
-			try {
-				await printEODReport(closingShiftName);
+			closedShiftName.value = closingShiftName;
+			if (qzConnected.value || posSettingsStore.silentPrint) {
+				try {
+					await printEODReport(closingShiftName, { manual: false });
+					eodPrintFailed.value = null;
+				} catch (err) {
+					console.warn("[eod] silent print failed", err);
+					showWarning(__("EOD report did not print. Use the Reprint button to retry."));
+					eodPrintFailed.value = { closingShiftName };
+					showSuccessReport.value = true;
+					return;
+				}
+			} else {
 				eodPrintFailed.value = null;
-			} catch (err) {
-				console.warn("[eod] print failed", err);
-				showWarning(__("EOD report did not print. Use the Reprint button to retry."));
-				eodPrintFailed.value = { closingShiftName };
+				showSuccess(__("Shift closed successfully"));
 				showSuccessReport.value = true;
 				return;
 			}
@@ -1211,18 +1257,17 @@ async function submitClosing() {
 	}
 }
 
-async function retryEodPrint() {
-	const closingShiftName = eodPrintFailed.value?.closingShiftName;
-	if (!closingShiftName) return;
+async function handleManualEodPrint() {
+	const targetName = closedShiftName.value || eodPrintFailed.value?.closingShiftName;
+	if (!targetName) return;
 
 	retryPrintLoading.value = true;
 	try {
-		await printEODReport(closingShiftName);
+		await printEODReport(targetName, { manual: true });
 		eodPrintFailed.value = null;
 		showSuccess(__("EOD report printed successfully"));
-		closeDialog();
 	} catch (err) {
-		console.warn("[eod] retry print failed", err);
+		console.warn("[eod] manual print failed", err);
 		showWarning(__("EOD report did not print. Please check QZ Tray and retry."));
 	} finally {
 		retryPrintLoading.value = false;
@@ -1232,15 +1277,16 @@ async function retryEodPrint() {
 function closeDialog() {
 	// Emit shift-closed event if we're closing from success report
 	if (showSuccessReport.value) {
+		showSuccessReport.value = false;
 		emit("shift-closed");
 	}
 
 	open.value = false;
 	closingData.value = null;
 	showInvoiceDetails.value = false;
-	showSuccessReport.value = false; // Reset report view
 	errorMessage.value = ""; // Clear error messages
 	eodPrintFailed.value = null;
+	closedShiftName.value = null;
 }
 
 // UI State Computed Properties

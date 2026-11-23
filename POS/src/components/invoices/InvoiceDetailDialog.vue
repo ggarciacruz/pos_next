@@ -616,23 +616,27 @@
 				</div>
 				<div class="flex flex-wrap sm:flex-nowrap gap-2 justify-end">
 					<MdxButton variant="secondary" @click="handlePrint">
-						<svg class="w-4 h-4 me-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-							/>
-						</svg>
-						{{ __("Print Ticket (Thermal)") }}
+						<span class="inline-flex items-center gap-1.5">
+							<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+								/>
+							</svg>
+							<span>{{ __("Print Ticket (Thermal)") }}</span>
+						</span>
 					</MdxButton>
 					<MdxButton variant="primary" @click="handlePrintPDF">
 						{{
 							invoice?.doctype === "Quotation"
-								? __("Imprimir Cotización (PDF)")
+								? __("Imprimir Cotización PDF")
 								: invoice?.doctype === "Sales Order"
-									? __("Imprimir Orden de Venta (PDF)")
-									: __("Print PDF (Letter Size)")
+									? __("Imprimir Orden de Venta PDF")
+									: String(invoice?.name || "").toUpperCase().startsWith("CF-")
+										? __("Imprimir Factura PDF")
+										: __("Print PDF (Letter Size)")
 						}}
 					</MdxButton>
 					<button

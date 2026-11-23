@@ -121,10 +121,19 @@ export function translate(msg: string, replace?: Record<string, string>, ctx?: s
     translated = "Pre-venta guardada exitosamente. ¿Desea imprimir el pre-ticket?"
   } else if (translated === "Print Quotation") {
     translated = "Imprimir Cotización"
-  } else if (translated === "Print Ticket (Thermal)") {
-    translated = "Imprimir Ticket (Térmico)"
-  } else if (translated === "Print PDF (Letter Size)") {
-    translated = "Imprimir Nota de Venta (Media Carta)"
+  } else if (
+    msg === "Print Ticket (Thermal)" ||
+    translated === "Print Ticket (Thermal)" ||
+    translated === "Imprimir Ticket (Térmico)"
+  ) {
+    translated = "Imprimir Ticket"
+  } else if (
+    msg === "Print PDF (Letter Size)" ||
+    translated === "Print PDF (Letter Size)" ||
+    translated === "Imprimir Nota de Venta (Media Carta)" ||
+    translated === "Imprimir PDF (Hoja Carta)"
+  ) {
+    translated = "Imprimir Nota de Venta PDF"
   } else if (translated.startsWith("Quick amounts for")) {
     translated = translated.replace("Quick amounts for", "Cobro rápido para")
   } else if (translated === "Exact amount only") {
@@ -197,6 +206,18 @@ export function translate(msg: string, replace?: Record<string, string>, ctx?: s
     translated = "1 artículo"
   } else if (msg === "{0} items" && translated === "{0} items") {
     translated = "{0} artículos"
+  } else if (msg === "Print EOD Report" && translated === "Print EOD Report") {
+    translated = "Imprimir Reporte de Cierre"
+  } else if (msg === "EOD report pending print" && translated === "EOD report pending print") {
+    translated = "Reporte de cierre pendiente de impresión"
+  } else if (msg === "EOD report did not print. Use the Reprint button to retry." && translated === "EOD report did not print. Use the Reprint button to retry.") {
+    translated = "No se pudo imprimir automáticamente con QZ Tray. Use Imprimir Reporte de Cierre para imprimir desde el navegador."
+  } else if (msg === "EOD report did not print. Please check QZ Tray and retry." && translated === "EOD report did not print. Please check QZ Tray and retry.") {
+    translated = "No se pudo imprimir el reporte de cierre. Verifique su impresora e intente nuevamente."
+  } else if (msg === "EOD report printed successfully" && translated === "EOD report printed successfully") {
+    translated = "Reporte de cierre enviado a impresión"
+  } else if (msg === "Shift closed successfully" && translated === "Shift closed successfully") {
+    translated = "Turno cerrado con éxito"
   }
 
   // Handle any label ending with colon whose base word is translated

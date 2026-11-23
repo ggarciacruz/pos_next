@@ -1601,7 +1601,7 @@ const selectedFilterLabel = computed(() => selectedBrand.value || selectedItemGr
 watch(
 	() =>
 		`${props.cartItems.length}-${props.cartItems
-			.map((i) => `${i.item_code}:${i.quantity || 0}:${i.amount || 0}`)
+			.map((i) => `${i.item_code}:${i.quantity || 0}:${i.amount || 0}:${i.warehouse || ""}`)
 			.join("|")}`,
 	() => {
 		itemStore.setCartItems(props.cartItems);

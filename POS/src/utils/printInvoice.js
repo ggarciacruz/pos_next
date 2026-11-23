@@ -398,28 +398,109 @@ const RECEIPT_STYLES = `
 	}
 `;
 
+const MOP_ES_MAP = {
+	Cash: "Efectivo",
+	"Wire Transfer": "Transferencia bancaria",
+	"Bank Draft": "Giro bancario",
+	"Credit Card": "Tarjeta de crédito",
+	Cheque: "Cheque",
+	Check: "Cheque",
+	QR: "QR",
+};
+
+function translateModeOfPayment(mode) {
+	if (!mode) return "";
+	const trimmed = String(mode).trim();
+	return MOP_ES_MAP[trimmed] || __(trimmed);
+}
+
+function resolveReceiptDocumentMeta(invoiceData = {}) {
+	const name = String(invoiceData.name || "").toUpperCase();
+	const isQuotation =
+		invoiceData.doctype === "Quotation" ||
+		invoiceData.header === "Quotation" ||
+		name.startsWith("QTN-") ||
+		name.startsWith("COT-") ||
+		name.includes("-QTN-");
+	const isSalesOrder =
+		invoiceData.doctype === "Sales Order" ||
+		invoiceData.header === "Draft" ||
+		name.startsWith("SAL-ORD-") ||
+		name.startsWith("PRE-");
+	const isInvoice = !isQuotation && !isSalesOrder;
+	const { headerTitle, isFiscal, enableWhatsappSend } = getPOSPrintSettings(invoiceData);
+
+	const effectiveTitle = isQuotation
+		? __("Cotización")
+		: isSalesOrder
+		? __("Pre-venta")
+		: isFiscal
+		? __("Factura")
+		: headerTitle || __("Nota de Venta");
+
+	const docLabel = `${effectiveTitle} #:`;
+	const displayHeader = isQuotation
+		? __("COTIZACIÓN")
+		: isSalesOrder
+		? __("PRE-VENTA")
+		: effectiveTitle.toUpperCase();
+
+	return { isQuotation, isSalesOrder, isInvoice, isFiscal, enableWhatsappSend, docLabel, displayHeader };
+}
+
+function formatPrintDateTime(data = {}) {
+	let date = null;
+	const postingDate = data?.posting_date ? String(data.posting_date).trim() : "";
+	const postingTime = data?.posting_time ? String(data.posting_time).trim() : "";
+	const creationStr = data?.creation ? String(data.creation).trim() : "";
+
+	if (postingDate && /^\d{4}-\d{2}-\d{2}$/.test(postingDate) && postingTime) {
+		const timeClean = postingTime.split(".")[0];
+		const parts = timeClean.split(":").map((p) => p.padStart(2, "0"));
+		while (parts.length < 3) parts.push("00");
+		date = new Date(`${postingDate}T${parts.slice(0, 3).join(":")}`);
+	} else if (creationStr) {
+		date = new Date(creationStr.replace(" ", "T").split(".")[0]);
+	} else if (postingDate && /^\d{4}-\d{2}-\d{2}$/.test(postingDate)) {
+		const [y, m, d] = postingDate.split("-").map(Number);
+		const now = new Date();
+		date = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+	} else if (postingDate) {
+		date = new Date(postingDate);
+	} else {
+		date = new Date();
+	}
+
+	if (Number.isNaN(date.getTime())) {
+		date = new Date();
+	}
+
+	const day = String(date.getDate()).padStart(2, "0");
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const year = date.getFullYear();
+	const hours = String(date.getHours()).padStart(2, "0");
+	const minutes = String(date.getMinutes()).padStart(2, "0");
+	return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
 /**
  * Inner receipt HTML (no shell). Used for local/offline invoices and QZ Tray.
  */
 export function buildReceiptHTML(invoiceData) {
-	const isQuotation = invoiceData.doctype === "Quotation" || invoiceData.header === "Quotation" || (invoiceData.name && (invoiceData.name.startsWith("QTN-") || invoiceData.name.startsWith("COT-")));
-	const isSalesOrder = invoiceData.doctype === "Sales Order" || invoiceData.header === "Draft" || (invoiceData.name && (invoiceData.name.startsWith("SAL-ORD-") || invoiceData.name.startsWith("PRE-")));
-	const isInvoice = !isQuotation && !isSalesOrder;
+	const {
+		isInvoice,
+		isFiscal,
+		docLabel,
+		displayHeader,
+	} = resolveReceiptDocumentMeta(invoiceData);
+	const useCompactLayout = !isInvoice || !isFiscal;
 	const currencySymbol = getCurrencySymbol(invoiceData.currency || "BOB");
 	const owner = invoiceData.owner || session.user || "Administrator";
 	const sellerName = invoiceData.owner_name || owner.split("@")[0].toUpperCase();
 
-	function formatPrintDate(dateStr) {
-		const date = new Date(dateStr || Date.now());
-		const day = String(date.getDate()).padStart(2, '0');
-		const month = String(date.getMonth() + 1).padStart(2, '0');
-		const year = date.getFullYear();
-		const hours = String(date.getHours()).padStart(2, '0');
-		const minutes = String(date.getMinutes()).padStart(2, '0');
-		return `${day}/${month}/${year} ${hours}:${minutes}`;
-	}
-
 	const items = invoiceData.items || [];
+	const defaultWh = (invoiceData.pos_warehouse || "").trim();
+	const cleanWarehouseName = (wh) => (wh ? String(wh).replace(/\s*-\s*[A-Z0-9]{2,5}$/, "").trim() : "");
 	const paidAmount = derivePaidAmount(invoiceData);
 	const itemsHtml = items
 		.map((item) => {
@@ -430,32 +511,43 @@ export function buildReceiptHTML(invoiceData) {
 			const qty = item.quantity || item.qty || 0;
 			const displayRate = item.price_list_rate || item.rate || 0;
 			const subtotal = qty * displayRate;
+			const lineTotal = item.amount != null ? Number(item.amount) : subtotal;
+			const itemWh = (item.warehouse || "").trim();
+			const isExternalWh = Boolean(
+				itemWh && ((defaultWh && itemWh !== defaultWh) || (!defaultWh && item.is_external_warehouse))
+			);
+			const cleanWh = isExternalWh ? cleanWarehouseName(itemWh) : "";
 
-			if (!isInvoice) {
-				// Formato de una sola línea ultra-compacta para pre-ventas y cotizaciones
+			if (useCompactLayout) {
+				// Formato resumido unificado (Nota de Venta, Pre-venta y Cotización)
 				const qtyText = qty !== 1 ? `x${qty}` : "";
 				const customMedida = item.custom_medida || item.medida || "";
 				const measureText = customMedida ? `(${customMedida})` : "";
+				const freeText = isFree ? __("(GRATIS)") : "";
 				const discountText = hasDiscount ? `[Desc: -${formatCurrency(item.discount_amount || 0)}]` : "";
-				
-				const leftParts = [item.item_code, measureText, qtyText, discountText].filter(Boolean).join(" ");
+				const originText = cleanWh ? `[Origen: ${cleanWh}]` : "";
+
+				const leftParts = [item.item_code, measureText, qtyText, freeText, originText, discountText]
+					.filter(Boolean)
+					.join(" ");
 
 				return `
 						<div class="item-row" style="margin-bottom: 4px; font-size: 11px; color: black; font-weight: bold;">
 							<div style="display: flex; justify-content: space-between; align-items: baseline;">
 								<span style="word-break: break-word; padding-right: 8px;">${leftParts}</span>
-								<span style="white-space: nowrap;">${formatCurrency(subtotal)}</span>
+								<span style="white-space: nowrap;">${formatCurrency(lineTotal)}</span>
 							</div>
 						</div>`;
 			}
 
-			// Formato estándar para facturas
+			// Formato estándar detallado para facturas fiscales
 			const customMedida = item.custom_medida || item.medida || "";
 			return `
 						<div class="item-row" style="margin-bottom: 8px; font-size: 11px;">
 							<div class="item-name" style="font-weight: bold;">
 								${item.item_code} - ${item.item_name} ${isFree ? __("(GRATIS)") : ""}
 								${customMedida ? `<div style="font-size: 9px; color: #555; font-weight: normal; margin-top: 1px;">Medida: ${customMedida}</div>` : ""}
+								${cleanWh ? `<div style="font-size: 9px; color: #333; font-weight: normal; margin-top: 1px;">Origen: ${cleanWh}</div>` : ""}
 							</div>
 							<div class="item-details" style="display: flex; justify-content: space-between; font-size: 10px; margin-top: 2px;">
 								<span>${qty} × ${formatCurrency(displayRate)}</span>
@@ -473,118 +565,87 @@ export function buildReceiptHTML(invoiceData) {
 		})
 		.join("");
 
-	const { headerTitle, isFiscal } = getPOSPrintSettings(invoiceData);
-	const docLabel = isQuotation ? __("Cotización #:") : (isSalesOrder ? __("Pre-venta #:") : `${headerTitle} #:`);
-	const displayHeader = isQuotation ? __("COTIZACIÓN") : (isSalesOrder ? __("PRE-VENTA") : headerTitle.toUpperCase());
-
-	if (isInvoice) {
-		const invoiceNumber = getInvoiceNumber(invoiceData.name);
-		const customerName = (
+	if (useCompactLayout) {
+		const customerLabel = (
 			invoiceData.billing_razon_social ||
 			invoiceData.custom_razon_social ||
 			invoiceData.customer_name ||
 			invoiceData.customer ||
-			"CLIENTE GENERAL"
+			""
 		).toUpperCase();
-		const customerTaxId = invoiceData.tax_id || invoiceData.customer_tax_id || "";
-		const amountInWords = numberToSpanishWords(invoiceData.grand_total);
-		const companyName = invoiceData.company || "";
-		const companyAddress = invoiceData.company_address || "";
-		const companyPhone = invoiceData.company_phone || "";
-		const companyCity = invoiceData.company_city || "";
+		const defaultFooter = isInvoice ? __("¡Gracias por su compra!") : __("¡Gracias por su preferencia!");
 
-		if (!isFiscal) {
-			// ================================================================
-			// FORMATO COMERCIAL LIMPIO: RECIBO / NOTA DE VENTA (POR DEFECTO)
-			// ================================================================
-			return `
-			<div class="receipt" style="font-family: monospace, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #000;">
-				<div class="header" style="text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed #000;">
-					<div class="company-name" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${companyName}</div>
-					${companyAddress ? `<div style="font-size: 9.5px; font-weight: normal; margin-bottom: 1px;">${companyAddress}</div>` : ""}
-					${companyPhone ? `<div style="font-size: 9.5px; font-weight: normal; margin-bottom: 1px;">Tel: ${companyPhone}</div>` : ""}
-					${companyCity ? `<div style="font-size: 9.5px; font-weight: normal; margin-bottom: 2px;">${companyCity}</div>` : ""}
-					<div style="font-size: 13px; font-weight: bold; letter-spacing: 0.5px; margin-top: 6px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0;">
-						${displayHeader}
-					</div>
+		return `
+			<div class="receipt">
+				<div class="header" style="text-align: center; margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
+					<div class="company-name" style="font-size: 15px; font-weight: bold; margin-bottom: 2px;">${invoiceData.company || ""}</div>
+					${invoiceData.company_address ? `<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">${invoiceData.company_address}</div>` : ""}
+					${invoiceData.company_phone ? `<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">Teléfono: ${invoiceData.company_phone}</div>` : ""}
+					<div style="font-size: 11px; font-weight: bold; letter-spacing: 0.5px; margin-top: 2px;">${displayHeader}</div>
 				</div>
 
-				<div class="invoice-info" style="font-size: 10.5px; margin-bottom: 8px; line-height: 1.4; border-bottom: 1px dashed #000; padding-bottom: 6px;">
-					<div style="display: flex; justify-content: space-between;"><span><strong>N° Venta:</strong></span><span>${invoiceNumber}</span></div>
-					<div style="display: flex; justify-content: space-between;"><span><strong>Fecha:</strong></span><span>${formatPrintDate(invoiceData.posting_date || invoiceData.creation)}</span></div>
-					<div style="display: flex; justify-content: space-between;"><span><strong>Cliente:</strong></span><span>${customerName}</span></div>
-					${customerTaxId && customerTaxId !== "0" ? `<div style="display: flex; justify-content: space-between;"><span><strong>NIT / CI:</strong></span><span>${customerTaxId}</span></div>` : ""}
-					${sellerName ? `<div style="display: flex; justify-content: space-between;"><span><strong>Vendedor:</strong></span><span>${sellerName}</span></div>` : ""}
+				${invoiceData.is_offline ? `<div class="offline-badge" style="text-align: center; font-size: 10px; font-weight: bold; border: 1px dashed #000; padding: 3px; margin-bottom: 6px;">${__("OFFLINE — PENDING SYNC")}</div>` : ""}
+
+				<div class="invoice-info" style="font-size: 10px; margin-bottom: 6px; line-height: 1.3; border-bottom: 1px dashed #000; padding-bottom: 4px;">
+					<div style="display: flex; justify-content: space-between;"><span>${docLabel}</span><span><strong>${invoiceData.name}</strong></span></div>
+					<div style="display: flex; justify-content: space-between;"><span>${__("Fecha:")}</span><span>${formatPrintDateTime(invoiceData)}</span></div>
+					${
+						customerLabel
+							? `<div style="display: flex; justify-content: space-between;"><span>${__("Cliente:")}</span><span>${customerLabel}</span></div>`
+							: ""
+					}
+					${
+						sellerName
+							? `<div style="display: flex; justify-content: space-between;"><span>${__("Vendedor:")}</span><span>${sellerName}</span></div>`
+							: ""
+					}
 				</div>
 
-				<div class="items-table">
+				<div class="items-table" style="margin-bottom: 6px; padding: 4px 0;">
 					${itemsHtml}
 				</div>
 
-				<div class="totals" style="margin-top: 8px; border-top: 1px dashed #000; padding-top: 6px;">
+				<div class="totals">
 					${
 						invoiceData.discount_amount
-							? `
-					<div class="total-row" style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; color: #28a745;"><span>${__("Descuento Adicional")}${
-						invoiceData.additional_discount_percentage
-							? ` (${Number(invoiceData.additional_discount_percentage).toFixed(1)}%)`
-							: ""
-					}:</span><span>-${formatCurrency(Math.abs(invoiceData.discount_amount))}</span></div>`
+							? `<div class="total-row" style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10.5px;"><span>${__("Descuento:")}</span><span>-${formatCurrency(Math.abs(invoiceData.discount_amount))}</span></div>`
 							: ""
 					}
-					<div class="total-row grand-total" style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; border-top: 2px solid #000; padding-top: 6px; margin-top: 4px;">
-						<span>${__("TOTAL A PAGAR {0}:", [currencySymbol])}</span><span>${formatCurrency(invoiceData.grand_total)}</span>
+					<div class="total-row grand-total" style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; border-top: 1px solid #000; padding-top: 4px;">
+						<span>${__("TOTAL {0}:", [currencySymbol])}</span>
+						<span>${formatCurrency(invoiceData.grand_total)}</span>
 					</div>
 				</div>
 
-				<div style="font-size: 9.5px; font-style: italic; margin-top: 6px; line-height: 1.3; font-weight: normal; text-align: center; border-bottom: 1px dashed #000; padding-bottom: 6px;">
-					${amountInWords}
-				</div>
-
-				${
-					invoiceData.payments && invoiceData.payments.length > 0
-						? `
-				<div class="payments" style="margin-top: 8px; padding-bottom: 6px; border-bottom: 1px dashed #000;">
-					<div style="font-weight: bold; margin-bottom: 4px; font-size: 11px;">${__("Detalle Pagos:")}</div>
-					${invoiceData.payments
-						.map(
-							(p) =>
-								`<div class="payment-row" style="display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 10px;"><span>${
-									p.mode_of_payment
-								}:</span><span>${formatCurrency(p.amount)}</span></div>`
-						)
-						.join("")}
-					<div class="payment-row total-paid" style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; font-size: 10.5px;"><span>${__("Total Pagado:")}</span><span>${formatCurrency(
-								paidAmount
-						  )}</span></div>
-					${
-						invoiceData.change_amount && invoiceData.change_amount > 0
-							? `<div class="payment-row" style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 2px; font-size: 10.5px;"><span>${__(
-									"Cambio:"
-							  )}</span><span>${formatCurrency(
-									invoiceData.change_amount
-							  )}</span></div>`
-							: ""
-					}
-				</div>`
-						: ""
-				}
-
-				<div class="footer" style="text-align: center; font-size: 10.5px; font-weight: bold; line-height: 1.4; margin-top: 14px; padding-top: 4px; color: #111;">
-					<div>${invoiceData.footer || __("¡GRACIAS POR SU COMPRA!")}</div>
+				<div class="footer" style="text-align: center; margin-top: 8px; padding-top: 4px; border-top: 1px dashed #000; font-size: 9px; font-weight: normal;">
+					<div>${invoiceData.footer || defaultFooter}</div>
 				</div>
 			</div>`;
-		}
+	}
 
-		// ================================================================
-		// FORMATO FISCAL TRIBUTARIO SIAT (CUANDO ENABLE_SIAT_FISCAL_FORMAT = 1)
-		// ================================================================
-		const cuf = getCUF(invoiceData);
-		const companyTaxId = invoiceData.company_tax_id || invoiceData.company_nit || "102384729023";
-		const qrData = `https://siat.impuestos.gob.bo/consulta/QR?nit=${companyTaxId}&cuf=${cuf}&numero=${invoiceNumber}&fecha=${invoiceData.posting_date || new Date().toISOString().slice(0,10)}&monto=${formatCurrency(invoiceData.grand_total)}`;
-		const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrData)}`;
+	// ================================================================
+	// FORMATO FISCAL TRIBUTARIO SIAT (CUANDO ENABLE_SIAT_FISCAL_FORMAT = 1)
+	// ================================================================
+	const invoiceNumber = getInvoiceNumber(invoiceData.name);
+	const customerName = (
+		invoiceData.billing_razon_social ||
+		invoiceData.custom_razon_social ||
+		invoiceData.customer_name ||
+		invoiceData.customer ||
+		"CLIENTE GENERAL"
+	).toUpperCase();
+	const customerTaxId = invoiceData.tax_id || invoiceData.customer_tax_id || "";
+	const amountInWords = numberToSpanishWords(invoiceData.grand_total);
+	const companyName = invoiceData.company || "";
+	const companyAddress = invoiceData.company_address || "";
+	const companyPhone = invoiceData.company_phone || "";
+	const companyCity = invoiceData.company_city || "";
+	const cuf = getCUF(invoiceData);
+	const companyTaxId = invoiceData.company_tax_id || invoiceData.company_nit || "102384729023";
+	const qrData = `https://siat.impuestos.gob.bo/consulta/QR?nit=${companyTaxId}&cuf=${cuf}&numero=${invoiceNumber}&fecha=${invoiceData.posting_date || new Date().toISOString().slice(0,10)}&monto=${formatCurrency(invoiceData.grand_total)}`;
+	const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrData)}`;
 
-		return `
+	return `
 			<div class="receipt">
 				<div class="header" style="text-align: center; margin-bottom: 12px; padding-bottom: 8px;">
 					<div class="company-name" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${companyName}</div>
@@ -605,7 +666,7 @@ export function buildReceiptHTML(invoiceData) {
 				</div>
 
 				<div class="invoice-info" style="font-size: 10.5px; margin-bottom: 10px; line-height: 1.4; border-bottom: 1px dashed #000; padding-bottom: 8px;">
-					<div style="display: flex; justify-content: space-between;"><span><strong>Fecha:</strong></span><span>${new Date(invoiceData.posting_date || Date.now()).toLocaleDateString()}</span></div>
+					<div style="display: flex; justify-content: space-between;"><span><strong>Fecha:</strong></span><span>${formatPrintDateTime(invoiceData)}</span></div>
 					<div style="display: flex; justify-content: space-between;"><span><strong>Nombre/Razón Social:</strong></span><span>${customerName}</span></div>
 					<div style="display: flex; justify-content: space-between;"><span><strong>NIT/CI:</strong></span><span>${customerTaxId || "0"}</span></div>
 					${
@@ -668,7 +729,7 @@ export function buildReceiptHTML(invoiceData) {
 						.map(
 							(p) =>
 								`<div class="payment-row" style="display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 10px;"><span>${
-									p.mode_of_payment
+									translateModeOfPayment(p.mode_of_payment)
 								}:</span><span>${formatCurrency(p.amount)}</span></div>`
 						)
 						.join("")}
@@ -698,52 +759,6 @@ export function buildReceiptHTML(invoiceData) {
 					<div>${invoiceData.footer || __("¡Gracias por su preferencia!")}</div>
 				</div>
 			</div>`;
-	}
-
-	// For Quotations and Sales Orders (Pre-ventas / Cotizaciones)
-	return `
-			<div class="receipt">
-				<div class="header" style="text-align: center; margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
-					<div class="company-name" style="font-size: 15px; font-weight: bold; margin-bottom: 2px;">${invoiceData.company || ""}</div>
-					${invoiceData.company_address ? `<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">${invoiceData.company_address}</div>` : ""}
-					${invoiceData.company_phone ? `<div style="font-size: 9px; font-weight: normal; margin-bottom: 1px;">Teléfono: ${invoiceData.company_phone}</div>` : ""}
-					<div style="font-size: 11px; font-weight: bold; letter-spacing: 0.5px; margin-top: 2px;">${displayHeader}</div>
-				</div>
-
-				${invoiceData.is_offline ? `<div class="offline-badge" style="text-align: center; font-size: 10px; font-weight: bold; border: 1px dashed #000; padding: 3px; margin-bottom: 6px;">${__("OFFLINE — PENDING SYNC")}</div>` : ""}
-
-				<div class="invoice-info" style="font-size: 10px; margin-bottom: 6px; line-height: 1.3; border-bottom: 1px dashed #000; padding-bottom: 4px;">
-					<div style="display: flex; justify-content: space-between;"><span>${docLabel}</span><span><strong>${invoiceData.name}</strong></span></div>
-					<div style="display: flex; justify-content: space-between;"><span>${__("Fecha:")}</span><span>${formatPrintDate(invoiceData.posting_date)}</span></div>
-					${
-						invoiceData.customer_name || invoiceData.customer
-							? `<div style="display: flex; justify-content: space-between;"><span>${__("Cliente:")}</span><span>${(
-									invoiceData.customer_name || invoiceData.customer
-							  ).toUpperCase()}</span></div>`
-							: ""
-					}
-					${
-						sellerName
-							? `<div style="display: flex; justify-content: space-between;"><span>${__("Vendedor:")}</span><span>${sellerName}</span></div>`
-							: ""
-					}
-				</div>
-
-				<div class="items-table" style="margin-bottom: 6px; padding: 4px 0;">
-					${itemsHtml}
-				</div>
-
-				<div class="totals">
-					<div class="total-row grand-total" style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; border-top: 1px solid #000; padding-top: 4px;">
-						<span>${__("TOTAL {0}:", [currencySymbol])}</span>
-						<span>${formatCurrency(invoiceData.grand_total)}</span>
-					</div>
-				</div>
-
-				<div class="footer" style="text-align: center; margin-top: 8px; padding-top: 4px; border-top: 1px dashed #000; font-size: 9px; font-weight: normal;">
-					<div>${invoiceData.footer || __("¡Gracias por su preferencia!")}</div>
-				</div>
-			</div>`;
 }
 
 function buildReceiptDocumentHTML(invoiceData, { includeControls = false } = {}) {
@@ -758,7 +773,7 @@ function buildReceiptDocumentHTML(invoiceData, { includeControls = false } = {})
 	const waSummary = encodeURIComponent(buildWhatsAppReceiptMessage(invoiceData));
 	const waHref = waPhone ? `https://wa.me/${waPhone}?text=${waSummary}` : `https://wa.me/?text=${waSummary}`;
 
-	const { headerTitle, enableWhatsappSend } = getPOSPrintSettings(invoiceData);
+	const { displayHeader, enableWhatsappSend } = resolveReceiptDocumentMeta(invoiceData);
 	const waBtn = enableWhatsappSend
 		? `<a href="${waHref}" target="_blank" rel="noopener noreferrer" style="padding: 9px 16px; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 6px; background: #16a34a; color: #fff; text-decoration: none; display: inline-block;">WhatsApp</a>`
 		: "";
@@ -780,7 +795,7 @@ function buildReceiptDocumentHTML(invoiceData, { includeControls = false } = {})
 		<html>
 		<head>
 			<meta charset="UTF-8">
-			<title>${headerTitle} - ${invoiceData.name}</title>
+			<title>${displayHeader} - ${invoiceData.name}</title>
 			<style>${RECEIPT_STYLES}</style>
 		</head>
 		<body>

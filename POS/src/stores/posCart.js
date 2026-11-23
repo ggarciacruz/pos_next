@@ -114,9 +114,21 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	const offersStore = usePOSOffersStore();
 	const settingsStore = usePOSSettingsStore();
 	const stockStore = useStockStore();
+	const shiftStore = usePOSShiftStore();
 
-	function getTotalWarehouseStock(item) {
+	function getTotalWarehouseStock(item, currentWarehouse = null) {
 		if (!item) return 0;
+		const profileWh = currentWarehouse || shiftStore.profileWarehouse || stockStore.warehouse || "";
+		const itemWh = item.warehouse || profileWh;
+		const isExternal =
+			Boolean(profileWh && itemWh && itemWh !== profileWh) ||
+			Boolean(item.is_external_warehouse);
+
+		if (isExternal) {
+			return Number(
+				item.warehouse_stock_qty ?? item.original_stock ?? item.actual_qty ?? item.stock_qty ?? 0
+			);
+		}
 		if (stockStore.server.has(item.item_code)) {
 			return Number(stockStore.server.get(item.item_code)?.qty ?? 0);
 		}
@@ -170,11 +182,11 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	function generateCartHash() {
 		const items = invoiceItems.value;
 		const parts = [
-			// Item details: code, quantity, uom, discount
+			// Item details: code, quantity, uom, warehouse, discount
 			items
 				.map(
 					(i) =>
-						`${i.item_code}:${i.quantity}:${i.uom || ""}:${i.discount_percentage || 0}`
+						`${i.item_code}:${i.quantity}:${i.uom || ""}:${i.warehouse || ""}:${i.discount_percentage || 0}`
 				)
 				.join("|"),
 			// Total item count
@@ -199,18 +211,25 @@ export const usePOSCartStore = defineStore("posCart", () => {
 
 	// Actions
 	function addItem(item, qty = 1, _autoAdd = false, currentProfile = null, options = {}) {
-		if (currentProfile && shouldValidateItemStock(item)) {
-			// Account for quantity already in the cart for this item
+		const profileWh = currentProfile?.warehouse || shiftStore.profileWarehouse || "";
+		const warehouse = item.warehouse || profileWh;
+
+		if ((currentProfile || profileWh) && shouldValidateItemStock(item)) {
+			// Account for quantity already in the cart for this item + uom + warehouse
 			const itemUom = item.uom || item.stock_uom;
 			const existing = invoiceItems.value.find(
-				(i) => i.item_code === item.item_code && i.uom === itemUom
+				(i) =>
+					i.item_code === item.item_code &&
+					i.uom === itemUom &&
+					(i.warehouse || profileWh || "") === (warehouse || "") &&
+					Boolean(i.is_free_item) === Boolean(item.is_free_item)
 			);
 			const totalQty = (existing ? existing.quantity : 0) + qty;
-			const warehouse = item.warehouse || currentProfile.warehouse;
+			const actualQty = getTotalWarehouseStock(item, profileWh);
 
 			if (settingsStore.shouldEnforceStockValidation()) {
 				const check = checkStockAvailability(
-					{ ...item, original_stock: getTotalWarehouseStock(item) },
+					{ ...item, original_stock: actualQty },
 					totalQty,
 					warehouse
 				);
@@ -218,7 +237,6 @@ export const usePOSCartStore = defineStore("posCart", () => {
 					throw new Error(check.error);
 				}
 			} else if (!options.suppressStockWarning) {
-				const actualQty = getTotalWarehouseStock(item);
 				if (actualQty <= 0) {
 					showWarning(
 						__('"{0}" agregado sin stock en almacén (se venderá en negativo).', [
@@ -238,7 +256,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			}
 		}
 
-		addItemToInvoice(item, qty);
+		addItemToInvoice(item, qty, profileWh);
 	}
 
 	/**
@@ -246,41 +264,48 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	 * Wraps useInvoice.updateItemQuantity to enforce stock limits
 	 * when the user clicks +/- or types a new quantity.
 	 */
-	function updateItemQuantity(itemCode, quantity, uom = null) {
-		const item = uom
-			? invoiceItems.value.find((i) => i.item_code === itemCode && i.uom === uom)
-			: invoiceItems.value.find((i) => i.item_code === itemCode);
+	function updateItemQuantity(itemCode, quantity, uom = null, warehouse = null) {
+		const hasWh = warehouse !== null && warehouse !== undefined;
+		const item = invoiceItems.value.find(
+			(i) =>
+				i.item_code === itemCode &&
+				(!uom || i.uom === uom) &&
+				(!hasWh || (i.warehouse || "") === (warehouse || ""))
+		);
 
-		if (!item) return baseUpdateItemQuantity(itemCode, quantity, uom);
+		if (!item) return baseUpdateItemQuantity(itemCode, quantity, uom, warehouse);
 
 		const newQty = Number.parseFloat(quantity) || 1;
+		const profileWh = shiftStore.profileWarehouse || stockStore.warehouse || "";
 
 		// Only validate when quantity is increasing
 		if (newQty > item.quantity && shouldValidateItemStock(item)) {
+			const actualQty = getTotalWarehouseStock(item, profileWh);
 			if (settingsStore.shouldEnforceStockValidation()) {
-				const check = checkStockAvailability({
-					...item,
-					original_stock: getTotalWarehouseStock(item),
-				}, newQty);
+				const check = checkStockAvailability(
+					{
+						...item,
+						original_stock: actualQty,
+					},
+					newQty,
+					item.warehouse || profileWh
+				);
 				if (!check.available) {
 					showWarning(check.error);
 					return;
 				}
-			} else {
-				const actualQty = getTotalWarehouseStock(item);
-				if (newQty > actualQty) {
-					showWarning(
-						__(
-							'"{0}" supera el stock disponible ({1}). Se venderá en negativo.',
-							[item.item_name || item.item_code, Math.floor(actualQty)]
-						),
-						__("Aviso de stock")
-					);
-				}
+			} else if (newQty > actualQty) {
+				showWarning(
+					__(
+						'"{0}" supera el stock disponible ({1}). Se venderá en negativo.',
+						[item.item_name || item.item_code, Math.floor(actualQty)]
+					),
+					__("Aviso de stock")
+				);
 			}
 		}
 
-		baseUpdateItemQuantity(itemCode, quantity, uom);
+		baseUpdateItemQuantity(itemCode, quantity, uom, warehouse);
 	}
 
 	function clearCart() {
@@ -1321,22 +1346,33 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	 * @param {string|null} uom - Optional UOM to match
 	 * @returns {Object|undefined} Cart item or undefined
 	 */
-	function findCartItem(itemCode, uom = null) {
+	function findCartItem(itemCode, uom = null, warehouse = null) {
+		const hasWh = warehouse !== null && warehouse !== undefined;
 		return invoiceItems.value.find(
-			(item) => item.item_code === itemCode && (!uom || item.uom === uom)
+			(item) =>
+				item.item_code === itemCode &&
+				(!uom || item.uom === uom) &&
+				(!hasWh || (item.warehouse || "") === (warehouse || ""))
 		);
 	}
 
 	/**
-	 * Find an existing cart item with target UOM (for merge detection)
+	 * Find an existing cart item with target UOM & same warehouse (for merge detection)
 	 * @param {string} itemCode - Item code
 	 * @param {string} targetUom - Target UOM to find
 	 * @param {Object} excludeItem - Item to exclude from search
+	 * @param {string|null} warehouse - Warehouse constraint
 	 * @returns {Object|undefined} Existing item or undefined
 	 */
-	function findItemWithUom(itemCode, targetUom, excludeItem = null) {
+	function findItemWithUom(itemCode, targetUom, excludeItem = null, warehouse = null) {
+		const targetWh = excludeItem ? excludeItem.warehouse || "" : warehouse || "";
+		const checkWh = Boolean(excludeItem) || (warehouse !== null && warehouse !== undefined);
 		return invoiceItems.value.find(
-			(item) => item.item_code === itemCode && item.uom === targetUom && item !== excludeItem
+			(item) =>
+				item.item_code === itemCode &&
+				item.uom === targetUom &&
+				item !== excludeItem &&
+				(!checkWh || (item.warehouse || "") === targetWh)
 		);
 	}
 
@@ -1389,13 +1425,13 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	 * @param {string} newUom - New UOM to change to
 	 * @param {string|null} currentUom - Current UOM (required when same item has multiple UOMs)
 	 */
-	async function changeItemUOM(itemCode, newUom, currentUom = null) {
+	async function changeItemUOM(itemCode, newUom, currentUom = null, warehouse = null) {
 		try {
-			const cartItem = findCartItem(itemCode, currentUom);
+			const cartItem = findCartItem(itemCode, currentUom, warehouse);
 			if (!cartItem || cartItem.uom === newUom) return;
 
 			// Check for existing item to merge with
-			const existingItem = findItemWithUom(itemCode, newUom, cartItem);
+			const existingItem = findItemWithUom(itemCode, newUom, cartItem, warehouse);
 			if (existingItem) {
 				const totalQty = mergeItems(cartItem, existingItem, cartItem.quantity);
 				showSuccess(__("Merged into {0} (Total: {1})", [newUom, totalQty]));
@@ -1418,18 +1454,22 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	 * @param {string} itemCode - Item code
 	 * @param {Object} updates - Updated details
 	 * @param {string|null} currentUom - Current UOM (required when same item has multiple UOMs)
+	 * @param {string|null} currentWarehouse - Current warehouse (required when same item exists across warehouses)
 	 */
-	async function updateItemDetails(itemCode, updates, currentUom = null) {
+	async function updateItemDetails(itemCode, updates, currentUom = null, currentWarehouse = null) {
 		try {
-			const cartItem = findCartItem(itemCode, currentUom);
+			const cartItem = findCartItem(itemCode, currentUom, currentWarehouse);
 			if (!cartItem) {
 				throw new Error("Item not found in cart");
 			}
 
+			const profileWh = shiftStore.profileWarehouse || stockStore.warehouse || "";
+
 			// Handle UOM change with potential merge
 			if (updates.uom && updates.uom !== cartItem.uom) {
-				const existingItem = findItemWithUom(itemCode, updates.uom, cartItem);
-				if (existingItem) {
+				const targetWh = updates.warehouse !== undefined ? updates.warehouse : cartItem.warehouse;
+				const existingItem = findItemWithUom(itemCode, updates.uom, cartItem, targetWh);
+				if (existingItem && (existingItem.warehouse || "") === (targetWh || "")) {
 					const qtyToMerge = updates.quantity ?? cartItem.quantity;
 					const totalQty = mergeItems(cartItem, existingItem, qtyToMerge);
 					showSuccess(__("Merged into {0} (Total: {1})", [updates.uom, totalQty]));
@@ -1449,6 +1489,17 @@ export const usePOSCartStore = defineStore("posCart", () => {
 				}
 			}
 
+			// Apply warehouse change metadata first so validation uses target warehouse stock
+			if (updates.warehouse !== undefined) {
+				cartItem.warehouse = updates.warehouse;
+				cartItem.is_external_warehouse = Boolean(
+					profileWh && updates.warehouse && updates.warehouse !== profileWh
+				);
+			}
+			if (updates.warehouse_stock_qty !== undefined) {
+				cartItem.warehouse_stock_qty = updates.warehouse_stock_qty;
+			}
+
 			// Validate stock if quantity is being increased
 			if (
 				updates.quantity !== undefined &&
@@ -1456,7 +1507,11 @@ export const usePOSCartStore = defineStore("posCart", () => {
 				settingsStore.shouldEnforceStockValidation() &&
 				shouldValidateItemStock(cartItem)
 			) {
-				const check = checkStockAvailability(cartItem, updates.quantity);
+				const check = checkStockAvailability(
+					{ ...cartItem, original_stock: getTotalWarehouseStock(cartItem, profileWh) },
+					updates.quantity,
+					cartItem.warehouse || profileWh
+				);
 				if (!check.available) {
 					throw new Error(check.error);
 				}
@@ -1464,7 +1519,6 @@ export const usePOSCartStore = defineStore("posCart", () => {
 
 			// Apply other updates
 			if (updates.quantity !== undefined) cartItem.quantity = updates.quantity;
-			if (updates.warehouse !== undefined) cartItem.warehouse = updates.warehouse;
 			if (updates.discount_percentage !== undefined)
 				cartItem.discount_percentage = updates.discount_percentage;
 			if (updates.discount_amount !== undefined)

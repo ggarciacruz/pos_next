@@ -786,7 +786,8 @@ def update_invoice(data):
 			if pos_profile_doc:
 				if pos_profile_doc.warehouse:
 					for item in invoice_doc.get("items", []):
-						item.warehouse = pos_profile_doc.warehouse
+						if not item.get("warehouse"):
+							item.warehouse = pos_profile_doc.warehouse
 
 				if pos_profile_doc.company and not invoice_doc.get("company"):
 					invoice_doc.company = pos_profile_doc.company
@@ -962,14 +963,24 @@ def update_invoice(data):
 			)
 
 		# Set invoice flags BEFORE calculations
+		item_warehouses = {d.get("warehouse") for d in invoice_doc.get("items", []) if d.get("warehouse")}
+		resolved_header_wh = (
+			next(iter(item_warehouses))
+			if len(item_warehouses) == 1
+			else (
+				pos_profile_doc.warehouse
+				if not item_warehouses and pos_profile_doc and pos_profile_doc.warehouse
+				else None
+			)
+		)
 		if doctype == "Sales Invoice":
 			invoice_doc.is_pos = 1
 			invoice_doc.update_stock = 1
-			if pos_profile_doc and pos_profile_doc.warehouse:
-				invoice_doc.set_warehouse = pos_profile_doc.warehouse
+			if invoice_doc.meta.has_field("set_warehouse"):
+				invoice_doc.set_warehouse = resolved_header_wh
 		elif doctype == "Sales Order":
-			if pos_profile_doc and pos_profile_doc.warehouse and invoice_doc.meta.has_field("set_warehouse"):
-				invoice_doc.set_warehouse = pos_profile_doc.warehouse
+			if invoice_doc.meta.has_field("set_warehouse"):
+				invoice_doc.set_warehouse = resolved_header_wh
 
 		# ========================================================================
 		# ROUNDING CONFIGURATION
@@ -1451,9 +1462,26 @@ def submit_invoice(invoice=None, data=None):
 		invoice_doc.flags.ignore_permissions = True
 		frappe.flags.ignore_account_permission = True
 
-		# Ensure update_stock is set for Sales Invoice
+		# Ensure update_stock is set for Sales Invoice and preserve per-line warehouse selection
+		pos_profile_wh = None
+		if pos_profile:
+			pos_profile_wh = frappe.db.get_value("POS Profile", pos_profile, "warehouse")
+
+		for item in invoice_doc.get("items", []):
+			if not item.get("warehouse") and pos_profile_wh:
+				item.warehouse = pos_profile_wh
+
+		item_warehouses = {d.get("warehouse") for d in invoice_doc.get("items", []) if d.get("warehouse")}
+		resolved_header_wh = (
+			next(iter(item_warehouses))
+			if len(item_warehouses) == 1
+			else (pos_profile_wh if not item_warehouses and pos_profile_wh else None)
+		)
+
 		if doctype == "Sales Invoice":
 			invoice_doc.update_stock = 1
+			if invoice_doc.meta.has_field("set_warehouse"):
+				invoice_doc.set_warehouse = resolved_header_wh
 		elif doctype == "Sales Order":
 			invoice_doc.flags.skip_auto_so_hooks = True
 			tx_date = invoice_doc.get("transaction_date") or invoice.get("posting_date") or nowdate()
@@ -1462,17 +1490,8 @@ def submit_invoice(invoice=None, data=None):
 				deliv_date = tx_date
 			invoice_doc.transaction_date = tx_date
 			invoice_doc.delivery_date = deliv_date
-			if pos_profile:
-				try:
-					pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
-					if pos_profile_doc.warehouse:
-						if invoice_doc.meta.has_field("set_warehouse"):
-							invoice_doc.set_warehouse = pos_profile_doc.warehouse
-						for item in invoice_doc.get("items", []):
-							if not item.get("warehouse"):
-								item.warehouse = pos_profile_doc.warehouse
-				except Exception:
-					pass
+			if invoice_doc.meta.has_field("set_warehouse"):
+				invoice_doc.set_warehouse = resolved_header_wh
 			for item in invoice_doc.get("items", []):
 				if not item.get("delivery_date") or item.get("delivery_date") < tx_date:
 					item.delivery_date = deliv_date
@@ -2125,6 +2144,11 @@ def get_invoice(invoice_name, doctype: str = None):
 
 	data = invoice.as_dict()
 	data["doctype"] = target_doctype
+	data["pos_warehouse"] = (
+		frappe.db.get_value("POS Profile", invoice.pos_profile, "warehouse")
+		if getattr(invoice, "pos_profile", None)
+		else None
+	)
 	data["public_pdf_url"] = _build_public_pdf_path(invoice)
 
 	if target_doctype == "Sales Order":
