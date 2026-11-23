@@ -97,9 +97,116 @@
 					</div>
 				</div>
 
-				<!-- Entrega de Mercadería en Orden de Venta (Nota de Entrega opcional) -->
+				<!-- Control de Entregas / Retiros Pendientes (Opt-in via POS Settings.enable_pickup_tracking) -->
 				<div
-					v-if="isSalesOrder && settingsStore.allowDeliveryNoteOnSalesOrder"
+					v-if="settingsStore.enablePickupTracking && !props.isOffline"
+					class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex flex-col gap-2 shrink-0"
+				>
+					<div class="flex items-center justify-between gap-2 flex-wrap">
+						<span class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+							<svg class="w-4 h-4 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+							</svg>
+							{{ __("Entrega de Mercadería") }}
+						</span>
+						<div class="inline-flex rounded-lg bg-slate-200/80 p-0.5">
+							<button
+								type="button"
+								@click="pickupMode = 'full'"
+								:class="[
+									'px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors cursor-pointer',
+									pickupMode === 'full'
+										? 'bg-white text-slate-900 shadow-xs'
+										: 'text-slate-600 hover:text-slate-900',
+								]"
+							>
+								{{ __("Se lleva todo hoy") }}
+							</button>
+							<button
+								type="button"
+								@click="enablePendingPickupMode"
+								:class="[
+									'px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors cursor-pointer',
+									pickupMode === 'pending'
+										? 'bg-slate-900 text-white shadow-xs'
+										: 'text-slate-600 hover:text-slate-900',
+								]"
+							>
+								{{ __("Queda pendiente / parcial") }}
+							</button>
+						</div>
+					</div>
+
+					<p v-if="pickupMode === 'full'" class="text-[11px] text-slate-500 leading-snug">
+						{{ __("Descuenta el 100% del stock al cobrar. Sin saldos pendientes.") }}
+					</p>
+
+					<div v-else class="flex flex-col gap-1.5 pt-1.5 border-t border-slate-200/80">
+						<div class="flex items-center justify-between gap-2 text-[11px]">
+							<span class="text-slate-600">
+								{{ __("Stock reservado al 100% en la venta. Indica cuánto retira hoy:") }}
+							</span>
+							<button
+								type="button"
+								@click="setAllPickupTodayZero"
+								class="text-[11px] font-semibold text-slate-700 hover:text-slate-900 underline cursor-pointer shrink-0"
+							>
+								{{ __("Dejar todo (0)") }}
+							</button>
+						</div>
+
+						<div class="max-h-32 overflow-y-auto divide-y divide-slate-200/70 bg-white border border-slate-200 rounded-lg">
+							<div
+								v-for="row in pickupRows"
+								:key="row.key"
+								class="px-2.5 py-1.5 flex items-center justify-between gap-2 text-xs"
+							>
+								<div class="min-w-0 flex-1">
+									<div class="font-semibold text-slate-800 truncate">{{ row.item_name }}</div>
+									<div class="text-[11px] text-slate-500 tabular-nums">
+										{{ __("Vendido:") }} {{ formatPickupQty(row.qty_sold) }} {{ row.uom }}
+										<span class="mx-1">·</span>
+										<span class="font-semibold text-slate-700">
+											{{ __("Pendiente:") }} {{ formatPickupQty(Math.max(0, row.qty_sold - (Number(row.qty_delivered_now) || 0))) }}
+										</span>
+									</div>
+								</div>
+								<div class="flex items-center gap-1.5 shrink-0">
+									<label class="text-[10px] font-semibold text-slate-500 uppercase">{{ __("Hoy:") }}</label>
+									<input
+										type="number"
+										min="0"
+										:max="row.qty_sold"
+										step="any"
+										v-model.number="row.qty_delivered_now"
+										@blur="clampPickupRow(row)"
+										class="w-16 h-7 px-2 text-xs font-semibold text-right tabular-nums text-slate-900 bg-slate-50 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+									/>
+								</div>
+							</div>
+						</div>
+
+						<div class="flex items-center justify-between gap-2 flex-wrap">
+							<input
+								v-model="pickupNotes"
+								type="text"
+								:placeholder="__('Nota opcional (ej: retira su albañil la próxima semana)')"
+								class="flex-1 min-w-[180px] h-7 px-2 text-[11px] text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+							/>
+							<MdxBadge :variant="totalPickupPending > 0 ? 'warning' : 'success'" size="sm">
+								{{
+									totalPickupPending > 0
+										? __("Pendiente: {0}", [formatPickupQty(totalPickupPending)])
+										: __("Todo entregado hoy")
+								}}
+							</MdxBadge>
+						</div>
+					</div>
+				</div>
+
+				<!-- Entrega de Mercadería en Orden de Venta (Nota de Entrega opcional cuando pickup tracking está apagado) -->
+				<div
+					v-else-if="isSalesOrder && settingsStore.allowDeliveryNoteOnSalesOrder"
 					class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex flex-col gap-1 shrink-0"
 				>
 					<div class="flex items-center justify-between gap-2">
@@ -2054,6 +2161,86 @@ const walletPaymentMethods = ref(new Set()); // Set of mode_of_payment names tha
 // Delivery state for truck dispatch
 const requiresDelivery = ref(false);
 const createDeliveryNote = ref(true);
+// Parallel pickup / pending delivery custody state
+const pickupMode = ref("full"); // 'full' | 'pending'
+const pickupRows = ref([]);
+const pickupNotes = ref("");
+
+function formatPickupQty(val) {
+	const n = Number(val || 0);
+	if (!Number.isFinite(n)) return "0";
+	return Math.abs(n - Math.round(n)) < 1e-6 ? String(Math.round(n)) : n.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function initPickupRowsFromCart() {
+	const grouped = new Map();
+	for (const it of props.items || []) {
+		if (!it?.item_code) continue;
+		const qty = Number(it.quantity ?? it.qty ?? 0);
+		if (qty <= 0) continue;
+		const uom = (it.uom || it.stock_uom || "").trim();
+		const key = `${it.item_code}::${uom}`;
+		if (!grouped.has(key)) {
+			grouped.set(key, {
+				key,
+				item_code: it.item_code,
+				item_name: it.item_name || it.item_code,
+				uom,
+				qty_sold: 0,
+				qty_delivered_now: 0,
+			});
+		}
+		grouped.get(key).qty_sold = Math.round((grouped.get(key).qty_sold + qty) * 10000) / 10000;
+	}
+	pickupRows.value = Array.from(grouped.values());
+}
+
+function enablePendingPickupMode() {
+	pickupMode.value = "pending";
+	if (pickupRows.value.length === 0) {
+		initPickupRowsFromCart();
+	}
+	createDeliveryNote.value = true;
+}
+
+function setAllPickupTodayZero() {
+	pickupRows.value.forEach((row) => {
+		row.qty_delivered_now = 0;
+	});
+}
+
+function clampPickupRow(row) {
+	let v = Number(row.qty_delivered_now);
+	if (!Number.isFinite(v) || v < 0) v = 0;
+	if (v > row.qty_sold) v = row.qty_sold;
+	row.qty_delivered_now = Math.round(v * 10000) / 10000;
+}
+
+const totalPickupPending = computed(() =>
+	pickupRows.value.reduce((sum, row) => {
+		const delivered = Math.max(0, Math.min(row.qty_sold, Number(row.qty_delivered_now) || 0));
+		return sum + Math.max(0, row.qty_sold - delivered);
+	}, 0)
+);
+
+function buildPickupTrackingPayload() {
+	if (!settingsStore.enablePickupTracking || props.isOffline || pickupMode.value !== "pending") {
+		return null;
+	}
+	pickupRows.value.forEach(clampPickupRow);
+	if (totalPickupPending.value <= 0.0001) {
+		return null;
+	}
+	return {
+		is_pending: 1,
+		notes: pickupNotes.value.trim(),
+		items: pickupRows.value.map((r) => ({
+			item_code: r.item_code,
+			uom: r.uom,
+			qty_delivered_now: Math.max(0, Math.min(r.qty_sold, Number(r.qty_delivered_now) || 0)),
+		})),
+	};
+}
 const deliveryDate = ref("");
 const deliveryAddress = ref("");
 const deliveryPhone = ref("");
@@ -2954,6 +3141,9 @@ watch(show, (newVal) => {
 				Boolean(defaultAddr)
 			: false;
 		createDeliveryNote.value = true;
+		pickupMode.value = "full";
+		pickupNotes.value = "";
+		initPickupRowsFromCart();
 		driverCollectionMode.value = "";
 
 		// Debug logging
@@ -3407,8 +3597,9 @@ function addCreditAccountPayment() {
 		delivery_date: isSalesOrder.value ? deliveryDate.value || today : null,
 		create_delivery_note:
 			isSalesOrder.value && settingsStore.allowDeliveryNoteOnSalesOrder
-				? createDeliveryNote.value
+				? (settingsStore.enablePickupTracking ? true : createDeliveryNote.value)
 				: false,
+		pickup_tracking: buildPickupTrackingPayload(),
 		// Despacho / Delivery fields
 		requires_delivery: requiresDelivery.value,
 		custom_fecha_entrega: requiresDelivery.value ? deliveryDate.value : null,
@@ -3483,8 +3674,9 @@ function completePayment() {
 		delivery_date: isSalesOrder.value ? deliveryDate.value || today : null,
 		create_delivery_note:
 			isSalesOrder.value && settingsStore.allowDeliveryNoteOnSalesOrder
-				? createDeliveryNote.value
+				? (settingsStore.enablePickupTracking ? true : createDeliveryNote.value)
 				: false,
+		pickup_tracking: buildPickupTrackingPayload(),
 		// Despacho / Delivery fields
 		requires_delivery: requiresDelivery.value,
 		custom_fecha_entrega: requiresDelivery.value ? deliveryDate.value : null,

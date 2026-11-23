@@ -837,6 +837,24 @@
 													</svg>
 												</button>
 												<button
+													v-if="
+														draft.draft_id &&
+														!String(draft.draft_id).startsWith('LOCAL-') &&
+														!String(draft.draft_id).startsWith('OFFLINE-') &&
+														!String(draft.draft_id).startsWith('DRAFT-')
+													"
+													type="button"
+													@click.stop="openDraftPDF(draft)"
+													class="h-7 px-2 inline-flex items-center gap-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-700 hover:text-red-700 rounded-md transition-colors shadow-2xs"
+													:title="__('Abrir PDF Tamaño Carta')"
+												>
+													<svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+														<path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+														<path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 15h6M9 11h2" />
+													</svg>
+													<span class="text-[10px] font-extrabold">PDF</span>
+												</button>
+												<button
 													v-if="posSettingsStore.enableWhatsappSend"
 													type="button"
 													@click.stop="$emit('whatsapp-invoice', {
@@ -857,9 +875,11 @@
 													</svg>
 												</button>
 												<button
+													v-if="canDiscardDrafts"
+													type="button"
 													@click.stop="$emit('delete-draft', draft.draft_id)"
 													class="text-gray-400 hover:text-red-600 transition-colors p-1"
-													:title="__('Delete draft')"
+													:title="__('Anular / descartar documento')"
 												>
 													<svg
 														class="w-4 h-4"
@@ -1340,12 +1360,305 @@
 									</div>
 								</div>
 							</div>
+
+							<!-- Por Entregar (Control de Retiros / Custodia) Tab -->
+							<div v-if="activeTab === 'pickups'" class="flex flex-col gap-3">
+								<!-- Toolbar -->
+								<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
+									<div class="flex items-center gap-2 flex-wrap">
+										<div class="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
+											<button
+												type="button"
+												@click="setPickupStatusFilter('open')"
+												:class="[
+													'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer',
+													pickupStatusFilter === 'open'
+														? 'bg-slate-900 text-white shadow-xs'
+														: 'text-slate-600 hover:text-slate-900',
+												]"
+											>
+												{{ __("Pendientes ({0})", [pickupCounts.total_open]) }}
+											</button>
+											<button
+												type="button"
+												@click="setPickupStatusFilter('Entregado')"
+												:class="[
+													'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer',
+													pickupStatusFilter === 'Entregado'
+														? 'bg-slate-900 text-white shadow-xs'
+														: 'text-slate-600 hover:text-slate-900',
+												]"
+											>
+												{{ __("Entregados ({0})", [pickupCounts.delivered]) }}
+											</button>
+										</div>
+
+										<div class="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
+											<button
+												type="button"
+												@click="pickupViewMode = 'orders'"
+												:class="[
+													'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer',
+													pickupViewMode === 'orders'
+														? 'bg-white text-slate-900 shadow-xs'
+														: 'text-slate-600 hover:text-slate-900',
+												]"
+											>
+												{{ __("Por Venta") }}
+											</button>
+											<button
+												type="button"
+												@click="pickupViewMode = 'summary'"
+												:class="[
+													'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer',
+													pickupViewMode === 'summary'
+														? 'bg-white text-slate-900 shadow-xs'
+														: 'text-slate-600 hover:text-slate-900',
+												]"
+											>
+												{{ __("Resumen por Producto ({0})", [pickupProductSummary.length]) }}
+											</button>
+										</div>
+									</div>
+
+									<div class="flex items-center gap-2 flex-1 lg:max-w-sm justify-end">
+										<div class="relative flex-1">
+											<svg class="w-4 h-4 text-slate-400 absolute start-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+											</svg>
+											<input
+												v-model="pickupSearch"
+												type="text"
+												:placeholder="__('Buscar cliente, venta o producto...')"
+												class="w-full h-8 ps-8 pe-3 text-xs bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+											/>
+										</div>
+										<button
+											v-if="pickupViewMode === 'summary' && pickupProductSummary.length > 0"
+											type="button"
+											@click="exportPickupSummaryCsv"
+											class="px-3 h-8 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shrink-0 cursor-pointer"
+										>
+											{{ __("Exportar CSV") }}
+										</button>
+									</div>
+								</div>
+
+								<!-- Loading -->
+								<div v-if="loadingPickups" class="flex flex-col items-center justify-center py-12">
+									<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-700 mb-2"></div>
+									<p class="text-xs text-slate-500">{{ __("Cargando entregas pendientes...") }}</p>
+								</div>
+
+								<!-- View 1: Product Custody Summary (for Physical Inventory Count) -->
+								<div v-else-if="pickupViewMode === 'summary'">
+									<div v-if="filteredPickupProductSummary.length === 0" class="text-center py-12 bg-white border border-slate-200 rounded-xl">
+										<p class="text-sm font-semibold text-slate-700">{{ __("No hay mercadería pendiente en custodia") }}</p>
+										<p class="text-xs text-slate-500 mt-1">{{ __("Todas las ventas registradas ya fueron retiradas.") }}</p>
+									</div>
+									<div v-else class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+										<div class="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 text-xs text-slate-600 flex items-center justify-between gap-2 flex-wrap">
+											<span>{{ __("Mercadería ya vendida (descontada del stock disponible) que permanece físicamente en almacén esperando retiro del cliente.") }}</span>
+										</div>
+										<div class="overflow-x-auto">
+											<table class="min-w-full divide-y divide-slate-200 text-xs">
+												<thead class="bg-slate-50 text-slate-600 uppercase text-[11px]">
+													<tr>
+														<th class="px-3 py-2.5 text-left font-semibold">{{ __("Código") }}</th>
+														<th class="px-3 py-2.5 text-left font-semibold">{{ __("Producto") }}</th>
+														<th class="px-3 py-2.5 text-right font-semibold">{{ __("En Custodia (Pendiente)") }}</th>
+														<th class="px-3 py-2.5 text-right font-semibold">{{ __("Stock Sistema") }}</th>
+														<th class="px-3 py-2.5 text-right font-semibold">{{ __("Físico Esperado") }}</th>
+														<th class="px-3 py-2.5 text-center font-semibold">{{ __("Ventas") }}</th>
+													</tr>
+												</thead>
+												<tbody class="divide-y divide-slate-100">
+													<tr v-for="row in filteredPickupProductSummary" :key="`${row.item_code}::${row.uom}`" class="hover:bg-slate-50">
+														<td class="px-3 py-2.5 font-mono text-slate-600">{{ row.item_code }}</td>
+														<td class="px-3 py-2.5 font-semibold text-slate-900">{{ row.item_name }}</td>
+														<td class="px-3 py-2.5 text-right tabular-nums font-bold text-slate-900">
+															{{ formatPickupQty(row.total_pending_qty) }} {{ row.uom }}
+															<div v-if="row.coverage_uom && row.total_pending_coverage > 0" class="text-[11px] font-normal text-slate-500">
+																{{ formatPickupQty(row.total_pending_coverage) }} {{ row.coverage_uom }}
+															</div>
+														</td>
+														<td class="px-3 py-2.5 text-right tabular-nums text-slate-700">{{ formatPickupQty(row.system_stock_qty) }}</td>
+														<td class="px-3 py-2.5 text-right tabular-nums font-semibold text-slate-900">{{ formatPickupQty(row.expected_physical_qty) }}</td>
+														<td class="px-3 py-2.5 text-center tabular-nums text-slate-600">{{ row.orders_count }}</td>
+													</tr>
+												</tbody>
+											</table>
+										</div>
+									</div>
+								</div>
+
+								<!-- View 2: Orders List -->
+								<div v-else>
+									<div v-if="filteredPickupControls.length === 0" class="text-center py-12 bg-white border border-slate-200 rounded-xl">
+										<p class="text-sm font-semibold text-slate-700">
+											{{ pickupStatusFilter === "open" ? __("No hay entregas pendientes") : __("No hay entregas completadas") }}
+										</p>
+										<p class="text-xs text-slate-500 mt-1">
+											{{ __("Cuando marques una venta como entrega pendiente o parcial al cobrar, aparecerá aquí.") }}
+										</p>
+									</div>
+
+									<div v-else class="flex flex-col gap-2.5">
+										<div
+											v-for="ctrl in filteredPickupControls"
+											:key="ctrl.name"
+											class="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col gap-2.5 hover:border-slate-300 transition-colors"
+										>
+											<!-- Card Top Header -->
+											<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+												<div class="min-w-0">
+													<div class="flex items-center gap-2 flex-wrap">
+														<span class="text-sm font-bold text-slate-900">{{ ctrl.customer_name || ctrl.customer }}</span>
+														<span
+															:class="[
+																'px-2 py-0.5 text-[11px] font-semibold rounded-full',
+																ctrl.status === 'Entregado'
+																	? 'bg-emerald-100 text-emerald-800'
+																	: ctrl.status === 'Parcial'
+																		? 'bg-amber-100 text-amber-800'
+																		: 'bg-blue-100 text-blue-800',
+															]"
+														>
+															{{ ctrl.status }}
+														</span>
+														<span v-if="Number(ctrl.outstanding_amount || 0) > 0.01" class="text-[11px] font-semibold text-slate-600 tabular-nums">
+															· {{ __("Saldo pago:") }} {{ formatCurrency(ctrl.outstanding_amount) }}
+														</span>
+													</div>
+													<div class="text-xs text-slate-500 mt-0.5 tabular-nums">
+														{{ ctrl.reference_name }} · {{ ctrl.posting_date }}
+														<span v-if="ctrl.notes" class="text-slate-600"> · {{ ctrl.notes }}</span>
+													</div>
+												</div>
+
+												<div class="flex items-center gap-1.5 shrink-0 flex-wrap">
+													<button
+														v-if="ctrl.status === 'Pendiente' || ctrl.status === 'Parcial'"
+														type="button"
+														@click="openPickupDialog(ctrl)"
+														class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer"
+													>
+														{{ __("Registrar Entrega") }}
+													</button>
+													<button
+														type="button"
+														@click="emit('view-invoice', ctrl.reference_name)"
+														class="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+													>
+														{{ __("Ver venta") }}
+													</button>
+													<button
+														v-if="ctrl.logs && ctrl.logs.length > 0"
+														type="button"
+														@click="handlePrintPickupLog(ctrl, ctrl.logs[0])"
+														class="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+													>
+														{{ __("Constancia") }}
+													</button>
+													<button
+														v-if="posSettingsStore.enableWhatsappSend"
+														type="button"
+														@click="handlePickupWhatsApp(ctrl)"
+														class="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+													>
+														{{ __("WhatsApp") }}
+													</button>
+												</div>
+											</div>
+
+											<!-- Items progress list -->
+											<div class="bg-slate-50 border border-slate-200/80 rounded-lg divide-y divide-slate-200/70">
+												<div
+													v-for="it in ctrl.items"
+													:key="it.name"
+													class="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs"
+												>
+													<div class="min-w-0 flex-1">
+														<span class="font-semibold text-slate-800">{{ it.item_name }}</span>
+														<span class="text-slate-400 ms-1.5 font-mono text-[11px]">{{ it.item_code }}</span>
+													</div>
+													<div class="flex items-center gap-3 tabular-nums shrink-0 text-slate-600">
+														<span>
+															{{ __("Retirado:") }}
+															<strong class="text-slate-900">{{ formatPickupQty(it.qty_delivered) }} / {{ formatPickupQty(it.qty_sold) }}</strong>
+															{{ it.uom }}
+														</span>
+														<span class="font-bold text-slate-900">
+															{{ __("Faltan:") }} {{ formatPickupQty(it.qty_pending) }} {{ it.uom }}
+															<template v-if="it.coverage_uom && it.coverage_pending > 0">
+																({{ formatPickupQty(it.coverage_pending) }} {{ it.coverage_uom }})
+															</template>
+														</span>
+													</div>
+												</div>
+											</div>
+
+											<!-- Collapsible History Logs -->
+											<div v-if="ctrl.logs && ctrl.logs.length > 0">
+												<button
+													type="button"
+													@click="togglePickupHistory(ctrl.name)"
+													class="text-[11px] font-semibold text-slate-600 hover:text-slate-900 cursor-pointer flex items-center gap-1"
+												>
+													<span>
+														{{
+															expandedPickupLogs[ctrl.name]
+																? __("Ocultar historial de retiros ({0})", [ctrl.logs.length])
+																: __("Ver historial de retiros ({0})", [ctrl.logs.length])
+														}}
+													</span>
+												</button>
+												<div
+													v-if="expandedPickupLogs[ctrl.name]"
+													class="mt-1.5 border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white"
+												>
+													<div
+														v-for="lg in ctrl.logs"
+														:key="lg.name"
+														class="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]"
+													>
+														<div class="min-w-0 flex-1">
+															<div class="font-semibold text-slate-800">
+																{{ lg.items_summary }}
+															</div>
+															<div class="text-slate-500 mt-0.5">
+																{{ formatDateTime(lg.delivery_datetime) }} · {{ __("Retiró:") }} {{ lg.received_by || "-" }} · {{ __("Atendió:") }} {{ lg.delivered_by_name }}
+																<span v-if="lg.notes"> · {{ lg.notes }}</span>
+															</div>
+														</div>
+														<button
+															type="button"
+															@click="handlePrintPickupLog(ctrl, lg)"
+															class="px-2 py-1 text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-md shrink-0 cursor-pointer"
+														>
+															{{ __("Imprimir") }}
+														</button>
+													</div>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
 			</div>
 		</div>
 	</Transition>
+
+	<!-- Pickup / Partial Delivery Modal -->
+	<PickupDeliveryDialog
+		v-model="showPickupDialog"
+		:control="selectedPickupControl"
+		:currency="currency"
+		@delivery-recorded="handlePickupRecorded"
+	/>
 
 	<!-- Payment Dialog -->
 	<PaymentDialog
@@ -1430,11 +1743,18 @@
 
 <script setup>
 import InvoiceFilters from "@/components/invoices/InvoiceFilters.vue";
+import PickupDeliveryDialog from "@/components/invoices/PickupDeliveryDialog.vue";
 import PaymentDialog from "@/components/sale/PaymentDialog.vue";
+import {
+	formatPickupQty,
+	openPickupWhatsApp,
+	printPickupReceipt,
+} from "@/utils/pickupReceipt";
 import { useInvoiceFilters } from "@/composables/useInvoiceFilters";
 import { useRealtimeStock } from "@/composables/useRealtimeStock";
 import { useInvoiceFiltersStore } from "@/stores/invoiceFilters";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
+import { getLocalDateString } from "@/utils/date";
 import { getInvoiceStatusColor } from "@/utils/invoice";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
@@ -1449,13 +1769,18 @@ import {
 	getCachedUnpaidSummary,
 } from "@/utils/offline/sync";
 import { logger } from "@/utils/logger";
+import { useBootstrapStore } from "@/stores/bootstrap";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 
 const log = logger.create("InvoiceManagement");
 const { showSuccess, showError } = useToast();
 const { formatDate, formatDateTime, formatTime } = useFormatters();
 const { onInvoiceCreated } = useRealtimeStock();
+const bootstrapStore = useBootstrapStore();
 const posSettingsStore = usePOSSettingsStore();
+const canDiscardDrafts = computed(
+	() => bootstrapStore.canCheckout() && posSettingsStore.canCancelInvoice
+);
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -1593,7 +1918,11 @@ async function confirmCancelInvoice() {
 		);
 		invoiceToCancel.value = null;
 		cancelReason.value = "";
-		await Promise.all([loadUnpaidInvoices(), loadUnpaidSummary()]);
+		await Promise.all([
+			loadUnpaidInvoices(),
+			loadUnpaidSummary(),
+			posSettingsStore.enablePickupTracking ? loadPickupControls() : Promise.resolve(),
+		]);
 		emit("refresh-history");
 		emit("invoice-cancelled", targetName);
 	} catch (error) {
@@ -1718,48 +2047,65 @@ function openDispatchPlanSheet() {
 }
 
 // Tabs configuration
-const tabs = computed(() => [
-	{
-		id: "partial",
-		label: __("Unpaid"),
-		icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z",
-		color: "orange",
-		activeClass: "text-orange-600",
-		badge: () => scopedUnpaidInvoices.value.length,
-	},
-	{
-		id: "despachos",
-		label: __("Despachos"),
-		icon: "M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0",
-		color: "amber",
-		activeClass: "text-amber-600",
-		badge: () => pendingDispatches.value.length,
-	},
-	{
-		id: "history",
-		label: __("Invoice History"),
-		icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
-		color: "indigo",
-		activeClass: "text-indigo-600",
-		badge: () => filteredHistoryInvoices.value.length,
-	},
-	{
-		id: "drafts",
-		label: __("Drafts"),
-		icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
-		color: "purple",
-		activeClass: "text-purple-600",
-		badge: () => props.draftInvoices.length,
-	},
-	{
-		id: "returns",
-		label: __("Returns"),
-		icon: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",
-		color: "red",
-		activeClass: "text-red-600",
-		badge: () => returnInvoices.value.length,
-	},
-]);
+const tabs = computed(() => {
+	const list = [
+		{
+			id: "partial",
+			label: __("Unpaid"),
+			icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z",
+			color: "orange",
+			activeClass: "text-orange-600",
+			badge: () => scopedUnpaidInvoices.value.length,
+		},
+	];
+	if (posSettingsStore.enablePickupTracking) {
+		list.push({
+			id: "pickups",
+			label: __("Por Entregar"),
+			icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+			color: "blue",
+			activeClass: "text-blue-600",
+			badge: () => pickupCounts.value.total_open,
+		});
+	}
+	if (posSettingsStore.enableDeliveryDispatch) {
+		list.push({
+			id: "despachos",
+			label: __("Despachos"),
+			icon: "M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0",
+			color: "amber",
+			activeClass: "text-amber-600",
+			badge: () => pendingDispatches.value.length,
+		});
+	}
+	list.push(
+		{
+			id: "history",
+			label: __("Invoice History"),
+			icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+			color: "indigo",
+			activeClass: "text-indigo-600",
+			badge: () => filteredHistoryInvoices.value.length,
+		},
+		{
+			id: "drafts",
+			label: __("Drafts"),
+			icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
+			color: "purple",
+			activeClass: "text-purple-600",
+			badge: () => props.draftInvoices.length,
+		},
+		{
+			id: "returns",
+			label: __("Returns"),
+			icon: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",
+			color: "red",
+			activeClass: "text-red-600",
+			badge: () => returnInvoices.value.length,
+		}
+	);
+	return list;
+});
 
 const currentTabLabel = computed(() => {
 	return tabs.value.find((t) => t.id === activeTab.value)?.label || "";
@@ -1770,6 +2116,8 @@ function getTabActiveClass(tabId) {
 	switch (tabId) {
 		case "partial":
 			return "text-orange-600 border-orange-500";
+		case "pickups":
+			return "text-blue-600 border-blue-600";
 		case "despachos":
 			return "text-amber-600 border-amber-500";
 		case "history":
@@ -1788,6 +2136,8 @@ function getBadgeActiveClass(tabId) {
 	switch (tabId) {
 		case "partial":
 			return "bg-orange-100 text-orange-700";
+		case "pickups":
+			return "bg-blue-100 text-blue-700";
 		case "despachos":
 			return "bg-amber-100 text-amber-700";
 		case "history":
@@ -1805,6 +2155,8 @@ function getBadgeInactiveClass(tabId) {
 	switch (tabId) {
 		case "partial":
 			return "bg-gray-200 text-gray-600";
+		case "pickups":
+			return "bg-gray-200 text-gray-600";
 		case "despachos":
 			return "bg-gray-200 text-gray-600";
 		case "history":
@@ -1818,6 +2170,136 @@ function getBadgeInactiveClass(tabId) {
 	}
 }
 
+// Parallel Pickup / Pending Delivery Custody State
+const loadingPickups = ref(false);
+const pickupControls = ref([]);
+const pickupProductSummary = ref([]);
+const pickupCounts = ref({ pending: 0, partial: 0, delivered: 0, total_open: 0 });
+const pickupStatusFilter = ref("open"); // 'open' | 'Entregado'
+const pickupViewMode = ref("orders"); // 'orders' | 'summary'
+const pickupSearch = ref("");
+const expandedPickupLogs = ref({});
+const showPickupDialog = ref(false);
+const selectedPickupControl = ref(null);
+
+const filteredPickupControls = computed(() => {
+	const q = pickupSearch.value.trim().toLowerCase();
+	if (!q) return pickupControls.value;
+	return pickupControls.value.filter((ctrl) => {
+		const haystack = [
+			ctrl.name,
+			ctrl.reference_name,
+			ctrl.customer,
+			ctrl.customer_name,
+			ctrl.notes,
+			...(ctrl.items || []).map((it) => `${it.item_code} ${it.item_name}`),
+		]
+			.filter(Boolean)
+			.join(" ")
+			.toLowerCase();
+		return haystack.includes(q);
+	});
+});
+
+const filteredPickupProductSummary = computed(() => {
+	const q = pickupSearch.value.trim().toLowerCase();
+	if (!q) return pickupProductSummary.value;
+	return pickupProductSummary.value.filter(
+		(row) =>
+			String(row.item_code || "").toLowerCase().includes(q) ||
+			String(row.item_name || "").toLowerCase().includes(q)
+	);
+});
+
+async function loadPickupControls() {
+	if (!props.posProfile || !posSettingsStore.enablePickupTracking || isOffline()) {
+		return;
+	}
+	loadingPickups.value = true;
+	try {
+		const res = await call("pos_next.api.delivery_control.get_pending_deliveries", {
+			pos_profile: props.posProfile,
+			status_filter: pickupStatusFilter.value,
+			filter_profile: selectedProfileFilter.value !== "ALL" ? selectedProfileFilter.value : undefined,
+		});
+		const data = res?.message || res || {};
+		pickupControls.value = data.controls || [];
+		pickupProductSummary.value = data.product_summary || [];
+		pickupCounts.value = data.counts || { pending: 0, partial: 0, delivered: 0, total_open: 0 };
+	} catch (err) {
+		log.error("Error loading pending deliveries:", err);
+	} finally {
+		loadingPickups.value = false;
+	}
+}
+
+function setPickupStatusFilter(mode) {
+	pickupStatusFilter.value = mode;
+	pickupViewMode.value = "orders";
+	loadPickupControls();
+}
+
+function togglePickupHistory(controlName) {
+	expandedPickupLogs.value = {
+		...expandedPickupLogs.value,
+		[controlName]: !expandedPickupLogs.value[controlName],
+	};
+}
+
+function openPickupDialog(ctrl) {
+	selectedPickupControl.value = ctrl;
+	showPickupDialog.value = true;
+}
+
+function handlePickupRecorded() {
+	loadPickupControls();
+}
+
+function handlePrintPickupLog(ctrl, lg) {
+	printPickupReceipt(ctrl, lg);
+}
+
+function handlePickupWhatsApp(ctrl) {
+	openPickupWhatsApp(ctrl, (ctrl.logs && ctrl.logs[0]) || null);
+}
+
+function exportPickupSummaryCsv() {
+	const headers = [
+		"Código",
+		"Producto",
+		"UDM",
+		"En Custodia (Pendiente)",
+		"UDM Cobertura",
+		"Superficie Pendiente",
+		"Stock Sistema",
+		"Físico Esperado",
+		"Ventas Pendientes",
+	];
+	const csvEscape = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+	const rows = filteredPickupProductSummary.value.map((r) => [
+		r.item_code,
+		r.item_name,
+		r.uom,
+		r.total_pending_qty,
+		r.coverage_uom || "",
+		r.total_pending_coverage || 0,
+		r.system_stock_qty,
+		r.expected_physical_qty,
+		r.orders_count,
+	]);
+	const csvContent =
+		"\uFEFF" + [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
+	const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = `pendientes-entrega-${getLocalDateString()}.csv`;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
+
 // Watchers
 watch(
 	() => props.modelValue,
@@ -1827,6 +2309,9 @@ watch(
 			loadScopeProfiles();
 			loadUnpaidInvoices();
 			loadUnpaidSummary();
+			if (posSettingsStore.enablePickupTracking) {
+				loadPickupControls();
+			}
 			// Also request history refresh if we don't have data
 			if (props.historyInvoices.length === 0) {
 				emit("refresh-history");
@@ -1846,6 +2331,8 @@ watch(activeTab, (newTab) => {
 	// This ensures up-to-date outstanding amounts and invoice data
 	if (newTab === "history" || newTab === "returns" || newTab === "despachos") {
 		emit("refresh-history");
+	} else if (newTab === "pickups") {
+		loadPickupControls();
 	} else if (newTab === "partial") {
 		// Refresh unpaid invoices when switching to partial tab
 		loadUnpaidInvoices();
@@ -1861,6 +2348,8 @@ function handleClose() {
 async function refreshCurrentTab() {
 	if (activeTab.value === "partial") {
 		await Promise.all([loadUnpaidInvoices(), loadUnpaidSummary()]);
+	} else if (activeTab.value === "pickups") {
+		await loadPickupControls();
 	} else if (
 		activeTab.value === "history" ||
 		activeTab.value === "despachos" ||
@@ -2076,6 +2565,16 @@ onMounted(() => {
 		}
 	});
 });
+
+function openDraftPDF(draft) {
+	if (!draft || !draft.draft_id) return;
+	const rawId = String(draft.draft_id).toUpperCase();
+	const inferredDt =
+		draft.doctype ||
+		(rawId.includes("-QTN-") || rawId.includes("-COT-") ? "Quotation" : "Sales Order");
+	const url = posSettingsStore.buildLetterPdfUrl(inferredDt, draft.draft_id);
+	window.open(url, "_blank");
+}
 
 onUnmounted(() => {
 	if (cleanupInvoiceRealtime) {

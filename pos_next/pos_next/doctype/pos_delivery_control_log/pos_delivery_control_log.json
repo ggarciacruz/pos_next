@@ -1,0 +1,84 @@
+{
+ "actions": [],
+ "creation": "2026-11-22 17:20:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "delivery_datetime",
+  "delivered_by",
+  "delivered_by_name",
+  "received_by",
+  "column_break_log",
+  "total_qty",
+  "items_summary",
+  "notes",
+  "items_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "delivery_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Fecha y Hora",
+   "reqd": 1
+  },
+  {
+   "fieldname": "delivered_by",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Entregado por",
+   "options": "User"
+  },
+  {
+   "fieldname": "delivered_by_name",
+   "fieldtype": "Data",
+   "label": "Nombre Responsable"
+  },
+  {
+   "fieldname": "received_by",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Retirado por"
+  },
+  {
+   "fieldname": "column_break_log",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Cantidad Entregada"
+  },
+  {
+   "fieldname": "items_summary",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Detalle Entregado"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Observación"
+  },
+  {
+   "fieldname": "items_json",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Detalle JSON"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-22 17:20:00.000000",
+ "modified_by": "Administrator",
+ "module": "POS Next",
+ "name": "POS Delivery Control Log",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

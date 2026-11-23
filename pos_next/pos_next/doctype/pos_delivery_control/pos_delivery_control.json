@@ -1,0 +1,244 @@
+{
+ "actions": [],
+ "autoname": "format:PDC-{YYYY}-{#####}",
+ "creation": "2026-11-22 17:20:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "reference_doctype",
+  "reference_name",
+  "pos_profile",
+  "company",
+  "column_break_header",
+  "customer",
+  "customer_name",
+  "posting_date",
+  "status",
+  "section_break_totals",
+  "total_qty_sold",
+  "total_qty_delivered",
+  "column_break_totals",
+  "total_qty_pending",
+  "last_delivery_date",
+  "section_break_items",
+  "items",
+  "section_break_logs",
+  "logs",
+  "section_break_notes",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Tipo de Documento",
+   "options": "Sales Order\nSales Invoice",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Documento de Venta",
+   "options": "reference_doctype",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Perfil POS",
+   "options": "POS Profile",
+   "search_index": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Empresa",
+   "options": "Company",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_header",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Cliente",
+   "options": "Customer",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Nombre del Cliente"
+  },
+  {
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Fecha de Venta",
+   "reqd": 1
+  },
+  {
+   "default": "Pendiente",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Estado",
+   "options": "Pendiente\nParcial\nEntregado\nAnulado",
+   "search_index": 1
+  },
+  {
+   "fieldname": "section_break_totals",
+   "fieldtype": "Section Break",
+   "label": "Resumen de Cantidades"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_qty_sold",
+   "fieldtype": "Float",
+   "label": "Total Vendido",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "total_qty_delivered",
+   "fieldtype": "Float",
+   "label": "Total Entregado",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_qty_pending",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Total Pendiente",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_delivery_date",
+   "fieldtype": "Datetime",
+   "label": "Última Entrega",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_items",
+   "fieldtype": "Section Break",
+   "label": "Productos en Control de Entrega"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Artículos",
+   "options": "POS Delivery Control Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_logs",
+   "fieldtype": "Section Break",
+   "label": "Historial de Retiros"
+  },
+  {
+   "fieldname": "logs",
+   "fieldtype": "Table",
+   "label": "Retiros Registrados",
+   "options": "POS Delivery Control Log"
+  },
+  {
+   "fieldname": "section_break_notes",
+   "fieldtype": "Section Break",
+   "label": "Notas"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Observaciones"
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-22 17:20:00.000000",
+ "modified_by": "Administrator",
+ "module": "POS Next",
+ "name": "POS Delivery Control",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nexus POS Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POSNext Cashier",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "customer_name",
+ "track_changes": 1
+}

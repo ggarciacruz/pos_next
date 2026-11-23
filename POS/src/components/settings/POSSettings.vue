@@ -780,10 +780,10 @@
 											/>
 											<CheckboxField
 												v-model="settings.allow_cancel_invoice"
-												:label="__('Permitir Anular Ventas Emitidas')"
+												:label="__('Permitir Anular Ventas y Pre-ventas')"
 												:description="
 													__(
-														'Habilitar el botón de Anular Venta en el POS (requiere además que el rol del usuario tenga permiso de Cancelar)'
+														'Habilitar la opción de anular ventas emitidas y descartar pre-ventas/cotizaciones en cola desde el POS (requiere además que el rol del usuario tenga permiso de Cancelar)'
 													)
 												"
 											/>
@@ -829,6 +829,15 @@
 												:min="1"
 												:max="365"
 												:step="1"
+											/>
+											<CheckboxField
+												v-model="settings.enable_pickup_tracking"
+												:label="__('Control de Entregas / Retiros Pendientes')"
+												:description="
+													__(
+														'Permite registrar al cobrar qué cantidad retira el cliente hoy y controlar retiros posteriores en la pestaña Por Entregar (descontando el 100% del stock al vender)'
+													)
+												"
 											/>
 											<SelectField
 												v-model="settings.default_print_mode"
@@ -1354,6 +1363,7 @@ const settings = ref({
 	allow_sales_order: 0,
 	allow_quotation: 0,
 	quotation_validity_days: 3,
+	enable_pickup_tracking: 0,
 	default_print_mode: "Thermal Ticket (80mm)",
 	invoice_print_format: "",
 	sales_order_print_format: "",

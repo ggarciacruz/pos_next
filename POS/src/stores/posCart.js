@@ -364,7 +364,8 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			options.deliveryData || null,
 			options.createDeliveryNote !== undefined ? Boolean(options.createDeliveryNote) : true,
 			options.billingNit || null,
-			options.billingRazonSocial || null
+			options.billingRazonSocial || null,
+			options.pickupTracking || null
 		);
 		// Reset write-off amount after successful submission
 		if (result) {

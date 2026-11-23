@@ -71,11 +71,15 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		resolved_invoice_print_format: "",
 		resolved_sales_order_print_format: "",
 		resolved_quotation_print_format: "",
+		resolved_invoice_no_letterhead: 0,
+		resolved_sales_order_no_letterhead: 0,
+		resolved_quotation_no_letterhead: 0,
 		enable_siat_fiscal_format: 0,
 		allow_print_last_invoice: 0,
 		silent_print: 0,
 		enable_whatsapp_send: 1,
 		// Delivery
+		enable_pickup_tracking: 0,
 		enable_delivery_dispatch: 0,
 		use_delivery_charges: 0,
 		auto_set_delivery_charges: 0,
@@ -256,6 +260,26 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		}
 		return null;
 	}
+
+	function buildLetterPdfUrl(doctype = "Sales Invoice", name = "", profilePrintFormat = "") {
+		const format = getPrintFormatForDoctype(doctype, profilePrintFormat);
+		let noLetterhead = false;
+		if (doctype === "Quotation") {
+			noLetterhead = Boolean(settings.value.resolved_quotation_no_letterhead);
+		} else if (doctype === "Sales Order") {
+			noLetterhead = Boolean(settings.value.resolved_sales_order_no_letterhead);
+		} else {
+			noLetterhead = Boolean(settings.value.resolved_invoice_no_letterhead);
+		}
+		let url = `/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}`;
+		if (format) {
+			url += `&format=${encodeURIComponent(format)}`;
+		}
+		if (noLetterhead) {
+			url += "&no_letterhead=1";
+		}
+		return url;
+	}
 	const enableSiatFiscalFormat = computed(() =>
 		Boolean(settings.value.enable_siat_fiscal_format)
 	);
@@ -268,6 +292,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 	);
 
 	// Computed - Delivery
+	const enablePickupTracking = computed(() =>
+		Boolean(settings.value.enable_pickup_tracking)
+	);
 	const enableDeliveryDispatch = computed(() =>
 		Boolean(settings.value.enable_delivery_dispatch)
 	);
@@ -439,10 +466,14 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 			resolved_invoice_print_format: "",
 			resolved_sales_order_print_format: "",
 			resolved_quotation_print_format: "",
+			resolved_invoice_no_letterhead: 0,
+			resolved_sales_order_no_letterhead: 0,
+			resolved_quotation_no_letterhead: 0,
 			enable_siat_fiscal_format: 0,
 			allow_print_last_invoice: 0,
 			silent_print: 0,
 			enable_whatsapp_send: 1,
+			enable_pickup_tracking: 0,
 			enable_delivery_dispatch: 0,
 			use_delivery_charges: 0,
 			auto_set_delivery_charges: 0,
@@ -596,12 +627,14 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		resolvedSalesOrderPrintFormat,
 		resolvedQuotationPrintFormat,
 		getPrintFormatForDoctype,
+		buildLetterPdfUrl,
 		enableSiatFiscalFormat,
 		allowPrintLastInvoice,
 		silentPrint,
 		enableWhatsappSend,
 
 		// Computed - Delivery
+		enablePickupTracking,
 		enableDeliveryDispatch,
 		useDeliveryCharges,
 		autoSetDeliveryCharges,

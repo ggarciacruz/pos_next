@@ -1829,6 +1829,27 @@ def submit_invoice(invoice=None, data=None):
 						reference_doctype=doctype,
 					)
 
+		# Optional parallel pickup / pending delivery custody tracking (opt-in via POS Settings.enable_pickup_tracking)
+		created_delivery_control = None
+		pickup_tracking_data = data.get("pickup_tracking") or invoice.get("pickup_tracking")
+		if (
+			pickup_tracking_data
+			and cint(safe_pos_settings.get("enable_pickup_tracking"))
+			and doctype in (DOCTYPE_SALES_INVOICE, "Sales Order")
+			and not invoice_doc.get("is_return")
+		):
+			try:
+				from pos_next.api.delivery_control import create_delivery_control_for_sale
+
+				created_delivery_control = create_delivery_control_for_sale(
+					invoice_doc, pos_profile=pos_profile, pickup_data=pickup_tracking_data
+				)
+			except Exception as dc_error:
+				frappe.log_error(
+					title="POS Delivery Control Creation Error",
+					message=f"Sale: {invoice_doc.name}, Error: {dc_error!s}\n{frappe.get_traceback()}",
+				)
+
 		if doctype == "Sales Order":
 			resolved_paid = flt(getattr(invoice_doc, "advance_paid", 0) or 0)
 			resolved_outstanding = max(0.0, flt(invoice_doc.grand_total or 0) - resolved_paid)
@@ -1850,6 +1871,8 @@ def submit_invoice(invoice=None, data=None):
 			"paid_amount": resolved_paid,
 			"change_amount": resolved_change,
 		}
+		if created_delivery_control:
+			result["delivery_control"] = created_delivery_control
 		if doctype == "Sales Order":
 			result["payment_entries"] = created_payment_entries
 			result["delivery_note"] = created_delivery_note
@@ -2141,6 +2164,14 @@ def get_invoice(invoice_name, doctype: str = None):
 			distinct=True,
 			pluck="parent",
 		)
+
+	if target_doctype in ("Sales Order", "Sales Invoice"):
+		try:
+			from pos_next.api.delivery_control import get_delivery_control_summary_for_sale
+
+			data["delivery_control"] = get_delivery_control_summary_for_sale(target_doctype, invoice.name)
+		except Exception:
+			data["delivery_control"] = None
 
 	return data
 
@@ -2440,23 +2471,102 @@ def get_draft_invoices(pos_opening_shift, doctype="Sales Order"):
 
 
 @frappe.whitelist()
-def delete_invoice(invoice):
-	"""Delete draft invoice, sales order, or quotation."""
+def delete_invoice(invoice, pos_profile=None):
+	"""Delete draft or cancel unbilled POS pre-sale / quotation with dual permission lock."""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Autenticación requerida"), frappe.AuthenticationError)
+
 	doctype = None
 	for candidate in ("Sales Order", "Quotation", "Sales Invoice"):
-		if frappe.db.exists(candidate, invoice):
+		if invoice and frappe.db.exists(candidate, invoice):
 			doctype = candidate
 			break
 
 	if not doctype:
-		frappe.throw(_("Document {0} does not exist").format(invoice))
+		frappe.throw(_("Document {0} does not exist").format(invoice or ""))
 
-	# Check if it's a draft
-	if frappe.db.get_value(doctype, invoice, "docstatus") != 0:
-		frappe.throw(_("Cannot delete submitted document {0}").format(invoice))
+	doc = frappe.get_doc(doctype, invoice)
+	user_roles = set(frappe.get_roles())
 
-	frappe.delete_doc(doctype, invoice, force=1)
-	return _("Document {0} Deleted").format(invoice)
+	# Candado base por rol: vendedores sin caja no pueden descartar ni anular documentos
+	allowed_roles = {"POSNext Cashier", "Nexus POS Manager", "Sales Manager", "System Manager", "Administrator"}
+	if not (user_roles & allowed_roles):
+		frappe.throw(
+			_("Tu rol de usuario no tiene permisos para descartar o anular pre-ventas ni cotizaciones."),
+			frappe.PermissionError,
+		)
+
+	target_profile = (
+		(pos_profile or "").strip()
+		or frappe.db.get_value(
+			"POS Opening Shift",
+			{
+				"user": frappe.session.user,
+				"status": "Open",
+				"docstatus": 1,
+				"pos_closing_shift": ["is", "not set"],
+			},
+			"pos_profile",
+			order_by="period_start_date desc",
+		)
+		or getattr(doc, "pos_profile", None)
+	)
+
+	is_temp_invoice_draft = doctype == "Sales Invoice" and cint(doc.docstatus) == 0
+	if not is_temp_invoice_draft:
+		# Candado 1: Interruptor allow_cancel_invoice en POS Settings
+		allow_cancel = 0
+		if target_profile:
+			allow_cancel = cint(
+				frappe.db.get_value(
+					"POS Settings",
+					{"pos_profile": target_profile, "enabled": 1},
+					"allow_cancel_invoice",
+				)
+				or 0
+			)
+		elif "System Manager" in user_roles or "Nexus POS Manager" in user_roles:
+			allow_cancel = 1
+
+		if not allow_cancel:
+			frappe.throw(
+				_("La anulación y eliminación de documentos está deshabilitada en la configuración de este Perfil de POS."),
+				frappe.PermissionError,
+			)
+
+		# Candado 2: Permiso de cancelación/eliminación en DocType o rol autorizado
+		has_doc_perm = bool(
+			frappe.has_permission(doctype, "cancel", doc=doc)
+			or frappe.has_permission(doctype, "delete", doc=doc)
+			or (user_roles & {"POSNext Cashier", "Nexus POS Manager", "System Manager"})
+		)
+		if not has_doc_perm:
+			frappe.throw(
+				_("Tu rol de usuario no tiene permisos para descartar o anular pre-ventas ni cotizaciones."),
+				frappe.PermissionError,
+			)
+
+	if cint(doc.docstatus) == 0:
+		frappe.delete_doc(doctype, invoice, ignore_permissions=True, force=1)
+		return {"status": "deleted", "message": _("Documento {0} eliminado").format(invoice)}
+
+	if cint(doc.docstatus) == 1:
+		if doctype == "Sales Invoice":
+			frappe.throw(_("Use la función de Anular Venta para facturas emitidas."))
+		if doctype == "Sales Order" and flt(getattr(doc, "per_billed", 0)) > 0:
+			frappe.throw(_("No se puede anular la pre-venta {0} porque ya fue facturada.").format(invoice))
+		if doctype == "Quotation" and doc.status == "Ordered":
+			frappe.throw(_("No se puede anular la cotización {0} porque ya fue convertida en orden.").format(invoice))
+
+		doc.flags.ignore_permissions = True
+		doc.cancel()
+		doc.add_comment(
+			"Comment",
+			_("Documento descartado desde bandeja POS por {0}").format(frappe.session.user),
+		)
+		return {"status": "cancelled", "message": _("Documento {0} anulado").format(invoice)}
+
+	return {"status": "already_cancelled", "message": _("El documento {0} ya estaba anulado").format(invoice)}
 
 
 @frappe.whitelist()
@@ -4236,6 +4346,14 @@ def cancel_pos_invoice(invoice_name: str, reason: str = None, pos_profile: str =
 	invoice.reload()
 	invoice.flags.ignore_permissions = True
 	invoice.cancel()
+
+	try:
+		from pos_next.api.delivery_control import cancel_delivery_control_for_sale
+
+		cancel_delivery_control_for_sale(target_doctype, invoice_name, reason=clean_reason)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Cancel POS Delivery Control Error")
+
 	frappe.db.commit()
 
 	return {

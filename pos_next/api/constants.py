@@ -58,6 +58,7 @@ POS_SETTINGS_FIELDS = [
 	"sales_order_print_format",
 	"quotation_print_format",
 	"default_print_mode",
+	"enable_pickup_tracking",
 	"enable_delivery_dispatch",
 	"enable_session_lock",
 	"session_lock_timeout",
@@ -116,6 +117,10 @@ DEFAULT_POS_SETTINGS = {
 	"resolved_invoice_print_format": "",
 	"resolved_sales_order_print_format": "",
 	"resolved_quotation_print_format": "",
+	"resolved_invoice_no_letterhead": 0,
+	"resolved_sales_order_no_letterhead": 0,
+	"resolved_quotation_no_letterhead": 0,
+	"enable_pickup_tracking": 0,
 	"enable_delivery_dispatch": 0,
 	"enable_session_lock": 0,
 	"session_lock_timeout": 5,
@@ -255,6 +260,20 @@ def resolve_pos_print_format(doctype, pos_profile=None, pos_settings=None):
 	return None
 
 
+def _print_format_embeds_letterhead(pf_name: str) -> int:
+	"""Return 1 when a custom Print Format embeds its own Letter Head HTML."""
+	import frappe
+
+	if not pf_name:
+		return 0
+	html = frappe.db.get_value("Print Format", pf_name, "html") or ""
+	return int(
+		"print-letter-head" in html
+		or 'get_doc("Letter Head"' in html
+		or "get_doc('Letter Head'" in html
+	)
+
+
 def attach_resolved_print_formats(settings, pos_profile=None):
 	"""Attach resolved print format names and Sales Order-aware cancel permission to settings dict."""
 	import frappe
@@ -271,6 +290,15 @@ def attach_resolved_print_formats(settings, pos_profile=None):
 	)
 	settings["resolved_quotation_print_format"] = (
 		resolve_pos_print_format("Quotation", pos_profile=pos_profile, pos_settings=settings) or ""
+	)
+	settings["resolved_invoice_no_letterhead"] = _print_format_embeds_letterhead(
+		settings["resolved_invoice_print_format"]
+	)
+	settings["resolved_sales_order_no_letterhead"] = _print_format_embeds_letterhead(
+		settings["resolved_sales_order_print_format"]
+	)
+	settings["resolved_quotation_no_letterhead"] = _print_format_embeds_letterhead(
+		settings["resolved_quotation_print_format"]
 	)
 
 	target_cancel_dt = "Sales Order" if cint(settings.get("create_only_sales_order")) else "Sales Invoice"

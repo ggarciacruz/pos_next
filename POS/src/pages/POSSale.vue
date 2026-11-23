@@ -153,7 +153,7 @@
 						</span>
 					</button>
 					<button
-						v-if="canAccessShiftActions"
+						v-if="canAccessShiftActions && bootstrapStore.canCheckout() && posSettingsStore.allowReturn"
 						@click="openReturnDialog"
 						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 flex items-center gap-3 transition-colors"
 					>
@@ -2627,6 +2627,7 @@ async function handlePaymentCompleted(paymentData) {
 				billingNit: paymentData.billing_nit || null,
 				billingRazonSocial: paymentData.billing_razon_social || null,
 				createDeliveryNote: paymentData.create_delivery_note !== false,
+				pickupTracking: paymentData.pickup_tracking || null,
 				deliveryData: {
 					requiresDelivery: paymentData.requires_delivery,
 					custom_fecha_entrega: paymentData.custom_fecha_entrega,
@@ -3150,10 +3151,11 @@ function inferPosDocumentDoctype(docOrObj, doctypeHint = null) {
 
 function printDocumentLetterPDF(doctype, name, printFormat = null) {
 	if (!doctype || !name) return;
-	let url = `/printview?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}`;
-	if (printFormat) {
-		url += `&format=${encodeURIComponent(printFormat)}`;
-	}
+	const url = posSettingsStore.buildLetterPdfUrl(
+		doctype,
+		name,
+		printFormat || shiftStore.currentProfile?.print_format || ""
+	);
 	window.open(url, "_blank");
 }
 

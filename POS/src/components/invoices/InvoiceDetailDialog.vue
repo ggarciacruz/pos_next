@@ -424,6 +424,90 @@
 					</div>
 				</div>
 
+				<!-- Control de Entregas / Custodia (when linked POS Delivery Control exists) -->
+				<div
+					v-if="invoiceData.delivery_control"
+					class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col gap-2.5 text-start"
+				>
+					<div class="flex items-center justify-between gap-2 flex-wrap">
+						<div class="flex items-center gap-2">
+							<svg class="w-4 h-4 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+							</svg>
+							<h4 class="text-sm font-bold text-slate-900">
+								{{ __("Control de Entregas / Retiros") }}
+							</h4>
+							<span
+								:class="[
+									'px-2 py-0.5 text-[11px] font-semibold rounded-full',
+									invoiceData.delivery_control.status === 'Entregado'
+										? 'bg-emerald-100 text-emerald-800'
+										: invoiceData.delivery_control.status === 'Anulado'
+											? 'bg-red-100 text-red-800'
+											: invoiceData.delivery_control.status === 'Parcial'
+												? 'bg-amber-100 text-amber-800'
+												: 'bg-blue-100 text-blue-800',
+								]"
+							>
+								{{ invoiceData.delivery_control.status }}
+							</span>
+						</div>
+						<button
+							v-if="
+								invoiceData.delivery_control.status === 'Pendiente' ||
+								invoiceData.delivery_control.status === 'Parcial'
+							"
+							type="button"
+							@click="openDetailPickupDialog"
+							class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer"
+						>
+							{{ __("Registrar Entrega") }}
+						</button>
+					</div>
+
+					<div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+						<div
+							v-for="it in invoiceData.delivery_control.items || []"
+							:key="it.name"
+							class="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs"
+						>
+							<span class="font-semibold text-slate-800">{{ it.item_name }}</span>
+							<div class="flex items-center gap-3 tabular-nums text-slate-600">
+								<span>{{ __("Retirado:") }} <strong class="text-slate-900">{{ formatPickupQty(it.qty_delivered) }} / {{ formatPickupQty(it.qty_sold) }}</strong> {{ it.uom }}</span>
+								<span class="font-bold text-slate-900">{{ __("Pendiente:") }} {{ formatPickupQty(it.qty_pending) }}</span>
+							</div>
+						</div>
+					</div>
+
+					<div v-if="(invoiceData.delivery_control.logs || []).length > 0" class="flex flex-col gap-1">
+						<div class="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+							{{ __("Historial de Retiros") }}
+						</div>
+						<div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+							<div
+								v-for="lg in invoiceData.delivery_control.logs"
+								:key="lg.name"
+								class="px-3 py-2 flex items-center justify-between gap-2 text-xs"
+							>
+								<div class="min-w-0 flex-1">
+									<div class="font-semibold text-slate-800">{{ lg.items_summary }}</div>
+									<div class="text-[11px] text-slate-500">
+										{{ lg.delivery_datetime }} · {{ __("Retiró:") }} {{ lg.received_by || "-" }}
+										<span v-if="lg.notes"> · {{ lg.notes }}</span>
+									</div>
+								</div>
+								<button
+									type="button"
+									@click="printPickupReceipt(invoiceData.delivery_control, lg)"
+									class="px-2.5 py-1 text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-md shrink-0 cursor-pointer"
+								>
+									{{ __("Constancia") }}
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
 				<!-- Additional Info -->
 				<div
 					v-if="invoiceData.remarks"
@@ -567,13 +651,22 @@
 			</div>
 		</template>
 	</MdxModal>
+
+	<PickupDeliveryDialog
+		v-model="showDetailPickupDialog"
+		:control="invoiceData?.delivery_control || null"
+		:currency="currency"
+		@delivery-recorded="handleDetailPickupRecorded"
+	/>
 </template>
 
 <script setup>
+import PickupDeliveryDialog from "@/components/invoices/PickupDeliveryDialog.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
 import { getInvoiceStatusColor } from "@/utils/invoice";
+import { formatPickupQty, printPickupReceipt } from "@/utils/pickupReceipt";
 import { logger } from "@/utils/logger";
 import { hydrateLocalOnlyInvoice, isLocalOnlyInvoiceName } from "@/utils/printInvoice";
 import { isOffline } from "@/utils/offline/offlineState";
@@ -737,17 +830,29 @@ function handlePrintPDF() {
 	const dt =
 		invoiceData.value.doctype ||
 		(posSettingsStore.createOnlySalesOrder ? "Sales Order" : "Sales Invoice");
-	const format = posSettingsStore.getPrintFormatForDoctype(dt);
-	let url = `/printview?doctype=${encodeURIComponent(dt)}&name=${encodeURIComponent(invoiceData.value.name)}`;
-	if (format) {
-		url += `&format=${encodeURIComponent(format)}`;
-	}
+	const url = posSettingsStore.buildLetterPdfUrl(dt, invoiceData.value.name);
 	window.open(url, "_blank");
 }
 
 function handleWhatsApp() {
 	if (!invoiceData.value) return;
 	emit("whatsapp-invoice", invoiceData.value);
+}
+
+const showDetailPickupDialog = ref(false);
+
+function openDetailPickupDialog() {
+	if (!invoiceData.value?.delivery_control) return;
+	showDetailPickupDialog.value = true;
+}
+
+function handleDetailPickupRecorded(payload) {
+	if (invoiceData.value && payload?.control) {
+		invoiceData.value = {
+			...invoiceData.value,
+			delivery_control: payload.control,
+		};
+	}
 }
 
 async function confirmCancelInvoice() {

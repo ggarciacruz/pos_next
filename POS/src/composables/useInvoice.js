@@ -995,7 +995,8 @@ export function useInvoice() {
 		deliveryData = null,
 		createDeliveryNote = true,
 		billingNit = null,
-		billingRazonSocial = null
+		billingRazonSocial = null,
+		pickupTracking = null
 	) {
 		/**
 		 * Two-step submission process with mutex protection:
@@ -1125,6 +1126,10 @@ export function useInvoice() {
 					posa_pos_opening_shift: posOpeningShift.value,
 					create_delivery_note: createDeliveryNote ? 1 : 0,
 				};
+
+				if (pickupTracking && pickupTracking.is_pending) {
+					submitData.pickup_tracking = pickupTracking;
+				}
 
 				if (redeemedCustomerCredit > 0 && customerCreditDict.length > 0) {
 					submitData.redeemed_customer_credit = redeemedCustomerCredit;
