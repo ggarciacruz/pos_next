@@ -106,47 +106,61 @@
 											: 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer',
 							]"
 						>
-							<!-- Izquierda: Nombre del Color + Indicador Compacto de Stock -->
-							<div class="min-w-0 flex-1 flex items-center gap-1.5">
+							<!-- Izquierda: Nombre del Color + Indicador Compacto de Stock + Código SKU Discreto -->
+							<div class="min-w-0 flex-1 flex flex-col justify-center">
+								<div class="min-w-0 flex items-center gap-1.5">
+									<span
+										class="text-[13px] font-bold truncate leading-tight"
+										:class="
+											getVariantQty(opt.item_code) > 0
+												? 'text-blue-950'
+												: 'text-slate-900'
+										"
+										:title="`${getVariantPrimaryLabel(opt)} (${opt.item_code})`"
+									>
+										{{ getVariantPrimaryLabel(opt) }}
+									</span>
+
+									<span
+										v-if="getAvailableStock(opt) > 0"
+										class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0 tabular-nums"
+									>
+										{{ Math.floor(getAvailableStock(opt)) }} {{ __("disp.") }}
+									</span>
+									<span
+										v-else
+										class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200/80 shrink-0 tabular-nums"
+										:title="__('Sin stock físico')"
+									>
+										0
+									</span>
+
+									<span
+										v-if="(opt.data?.other_qty || 0) > 0"
+										class="inline-flex items-center px-1 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 shrink-0 tabular-nums"
+									>
+										+{{ Math.floor(opt.data.other_qty) }}
+									</span>
+
+									<span
+										v-if="getCartReserved(opt.item_code) > 0"
+										class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-700 shrink-0 tabular-nums"
+										:title="__('Ya reservado en el carrito actual')"
+									>
+										{{ __("Carr:") }} {{ getCartReserved(opt.item_code) }}
+									</span>
+								</div>
+
 								<span
-									class="text-[13px] font-bold truncate leading-tight"
+									v-if="opt.item_code && opt.item_code !== getVariantPrimaryLabel(opt)"
+									class="text-[10px] font-mono leading-tight truncate mt-0.5"
 									:class="
 										getVariantQty(opt.item_code) > 0
-											? 'text-blue-950'
-											: 'text-slate-900'
+											? 'text-blue-700/80'
+											: 'text-slate-400'
 									"
-									:title="`${getVariantPrimaryLabel(opt)} (${opt.item_code})`"
 								>
-									{{ getVariantPrimaryLabel(opt) }}
-								</span>
-
-								<span
-									v-if="getAvailableStock(opt) > 0"
-									class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0 tabular-nums"
-								>
-									{{ Math.floor(getAvailableStock(opt)) }} {{ __("disp.") }}
-								</span>
-								<span
-									v-else
-									class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200/80 shrink-0 tabular-nums"
-									:title="__('Sin stock físico')"
-								>
-									0
-								</span>
-
-								<span
-									v-if="(opt.data?.other_qty || 0) > 0"
-									class="inline-flex items-center px-1 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 shrink-0 tabular-nums"
-								>
-									+{{ Math.floor(opt.data.other_qty) }}
-								</span>
-
-								<span
-									v-if="getCartReserved(opt.item_code) > 0"
-									class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-700 shrink-0 tabular-nums"
-									:title="__('Ya reservado en el carrito actual')"
-								>
-									{{ __("Carr:") }} {{ getCartReserved(opt.item_code) }}
+									{{ opt.item_code }}
 								</span>
 							</div>
 
@@ -416,7 +430,7 @@
 
 <script setup>
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
-import { createResource } from "frappe-ui";
+import { call } from "@/utils/apiWrapper";
 import {
 	MdxBadge,
 	MdxButton,
@@ -718,89 +732,123 @@ function mapVariantsToOptions(variants) {
 	}));
 }
 
+let requestSeq = 0;
+const activeTemplateCode = ref("");
+
+function isActiveVariantRequest(seq, requestedTemplateCode) {
+	return (
+		Boolean(requestedTemplateCode) &&
+		seq === requestSeq &&
+		Boolean(props.modelValue) &&
+		props.mode === "variant" &&
+		props.item?.item_code === requestedTemplateCode
+	);
+}
+
+function filterMatchingVariants(variants, requestedTemplateCode) {
+	if (!Array.isArray(variants) || !requestedTemplateCode) return [];
+	return variants.filter((v) => v && v.variant_of === requestedTemplateCode);
+}
+
+function resetSelectionState() {
+	options.value = [];
+	selectedOption.value = null;
+	variantQuantities.value = {};
+	variantSearch.value = "";
+	variantStockFilter.value = "all";
+}
+
 /**
  * Load variants from IndexedDB cache (for offline mode or API fallback)
  */
-async function loadVariantsFromCache() {
+async function loadVariantsFromCache(seq, requestedTemplateCode) {
 	try {
-		const cachedVariants = await getCachedVariants(props.item?.item_code);
-		options.value = cachedVariants?.length > 0 ? mapVariantsToOptions(cachedVariants) : [];
-	} catch (error) {
-		console.error("Error loading variants from cache:", error);
+		const cachedVariants = await getCachedVariants(requestedTemplateCode);
+		if (!isActiveVariantRequest(seq, requestedTemplateCode)) return;
+		const validVariants = filterMatchingVariants(cachedVariants, requestedTemplateCode);
+		options.value = validVariants.length > 0 ? mapVariantsToOptions(validVariants) : [];
+	} catch {
+		if (!isActiveVariantRequest(seq, requestedTemplateCode)) return;
 		options.value = [];
 	} finally {
-		loading.value = false;
+		if (isActiveVariantRequest(seq, requestedTemplateCode)) {
+			loading.value = false;
+		}
 	}
 }
 
-// Resource for fetching variants from API
-const variantsResource = createResource({
-	url: "pos_next.api.items.get_item_variants",
-	makeParams() {
-		return {
-			template_item: props.item?.item_code,
+/**
+ * Fetch variants from server with strict sequence and template-code isolation
+ */
+async function fetchVariantsFromServer(seq, requestedTemplateCode) {
+	try {
+		const res = await call("pos_next.api.items.get_item_variants", {
+			template_item: requestedTemplateCode,
 			pos_profile: props.posProfile,
-		};
-	},
-	auto: false,
-	async onSuccess(data) {
-		const variants = data?.message || data || [];
-		// Sync fresh variant stock into stockStore so cart reservations and badges stay unified
-		if (variants.length > 0) {
-			stockStore.init(variants);
+		});
+		const rawVariants = res?.message || res || [];
+		const validVariants = filterMatchingVariants(rawVariants, requestedTemplateCode);
+
+		// Sync fresh variant stock & offline cache (verified to belong to requestedTemplateCode)
+		if (validVariants.length > 0) {
+			stockStore.init(validVariants);
+			cacheItems(validVariants).catch(() => {});
 		}
-		options.value = mapVariantsToOptions(variants);
+
+		if (!isActiveVariantRequest(seq, requestedTemplateCode)) return;
+		options.value = mapVariantsToOptions(validVariants);
 		loading.value = false;
+	} catch {
+		if (!isActiveVariantRequest(seq, requestedTemplateCode)) return;
+		await loadVariantsFromCache(seq, requestedTemplateCode);
+	}
+}
 
-		// Cache variants for offline use
-		if (variants.length > 0) {
-			cacheItems(variants).catch((err) => console.error("Error caching variants:", err));
-		}
-	},
-	async onError(error) {
-		console.error("Error loading variants:", error);
-		// Try cache as fallback (user might have just gone offline)
-		await loadVariantsFromCache();
-	},
-});
-
-// Load options when dialog opens
+// Single unified watcher to prevent duplicate concurrent requests and purge stale state on close
 watch(
-	() => props.modelValue,
-	(isOpenVal) => {
-		if (isOpenVal && props.item) {
+	[
+		() => props.modelValue,
+		() => props.mode,
+		() => props.item?.item_code,
+		() => props.item?.resolved_uom,
+	],
+	([isOpenVal, , currentItemCode]) => {
+		if (isOpenVal && currentItemCode && props.item) {
 			loadOptions();
+		} else if (!isOpenVal) {
+			requestSeq += 1;
+			activeTemplateCode.value = "";
+			loading.value = false;
+			resetSelectionState();
 		}
 	},
 	{ immediate: true }
 );
 
-// Watch mode and item changes to reload options
-watch([() => props.mode, () => props.item], ([, newItem]) => {
-	if (props.modelValue && newItem) {
-		loadOptions();
-	}
-});
-
 /**
  * Load options based on mode (variant or UOM)
  */
 async function loadOptions() {
-	selectedOption.value = null;
-	quantity.value = props.item.resolved_qty || 1;
-	variantQuantities.value = {};
-	variantSearch.value = "";
-	variantStockFilter.value = "all";
+	const seq = ++requestSeq;
+	resetSelectionState();
+	quantity.value = props.item?.resolved_qty || 1;
 
 	if (props.mode === "variant") {
+		const requestedTemplateCode = props.item?.item_code || "";
+		activeTemplateCode.value = requestedTemplateCode;
+		if (!requestedTemplateCode) {
+			loading.value = false;
+			return;
+		}
 		loading.value = true;
 
 		if (offlineState.isOffline) {
-			await loadVariantsFromCache();
+			await loadVariantsFromCache(seq, requestedTemplateCode);
 		} else {
-			variantsResource.reload();
+			await fetchVariantsFromServer(seq, requestedTemplateCode);
 		}
 	} else {
+		activeTemplateCode.value = "";
 		// Load UOM options
 		options.value = buildUomOptions();
 		if (options.value.length > 0) {
@@ -933,10 +981,10 @@ function confirm() {
 }
 
 function cancel() {
-	selectedOption.value = null;
-	variantQuantities.value = {};
-	variantSearch.value = "";
-	variantStockFilter.value = "all";
+	requestSeq += 1;
+	activeTemplateCode.value = "";
+	loading.value = false;
+	resetSelectionState();
 	isOpen.value = false;
 }
 
