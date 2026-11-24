@@ -2,119 +2,122 @@
 	<MdxModal
 		v-model="show"
 		:title="isEditMode ? __('Edit Customer') : __('Create New Customer')"
-		size="md"
+		size="lg"
 	>
-		<div class="flex flex-col gap-3.5 px-0.5">
-			<!-- Customer Name (Required) -->
-			<div>
-				<label class="block text-start text-xs font-bold text-slate-700 mb-1">
-					{{ __("Customer Name") }} <span class="text-red-500">*</span>
-				</label>
-				<input
-					v-model="customerData.customer_name"
-					type="text"
-					:placeholder="__('Enter customer name')"
-					required
-					class="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-start"
-					@keydown.enter.prevent="handleCreate"
-				/>
-			</div>
+		<div class="flex flex-col gap-4 px-0.5">
+			<!-- Nombre y Celular en 2 columnas en escritorio -->
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				<!-- Customer Name (Required) -->
+				<div class="min-w-0">
+					<label class="block text-start text-xs font-bold text-slate-700 mb-1">
+						{{ __("Customer Name") }} <span class="text-red-500">*</span>
+					</label>
+					<input
+						v-model="customerData.customer_name"
+						type="text"
+						:placeholder="__('Enter customer name')"
+						required
+						class="w-full h-9 px-3 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-start"
+						@keydown.enter.prevent="handleCreate"
+					/>
+				</div>
 
-			<!-- Mobile Number with Country Code Selector -->
-			<div>
-				<label class="block text-start text-xs font-bold text-slate-700 mb-1">
-					{{ __("Mobile Number") }}
-				</label>
-				<div class="flex gap-2">
-					<!-- Country Code Dropdown -->
-					<div class="relative" ref="dropdownRef">
-						<button
-							type="button"
-							@click="showCountryDropdown = !showCountryDropdown"
-							class="flex items-center gap-1.5 w-24 h-9 ps-2.5 pe-1.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:bg-slate-50"
-						>
-							<img
-								:src="`https://flagcdn.com/h24/${currentCountryCode}.png`"
-								:alt="currentCountryCode"
-								class="w-5 h-auto rounded-sm"
-								@error="handleFlagError"
-							/>
-							<span class="flex-1 text-start tabular-nums">{{
-								selectedCountryCode || "+591"
-							}}</span>
-							<svg
-								class="w-4 h-4 text-slate-400"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
+				<!-- Mobile Number with Country Code Selector -->
+				<div class="min-w-0">
+					<label class="block text-start text-xs font-bold text-slate-700 mb-1">
+						{{ __("Mobile Number") }}
+					</label>
+					<div class="flex gap-2">
+						<!-- Country Code Dropdown -->
+						<div class="relative shrink-0" ref="dropdownRef">
+							<button
+								type="button"
+								@click="showCountryDropdown = !showCountryDropdown"
+								class="flex items-center gap-1.5 w-24 h-9 ps-2.5 pe-1.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:bg-slate-50"
 							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M19 9l-7 7-7-7"
+								<img
+									:src="`https://flagcdn.com/h24/${currentCountryCode}.png`"
+									:alt="currentCountryCode"
+									class="w-5 h-auto rounded-sm"
+									@error="handleFlagError"
 								/>
-							</svg>
-						</button>
-
-						<!-- Country Search Dropdown -->
-						<div
-							v-if="showCountryDropdown"
-							class="absolute start-0 z-50 mt-1 w-72 sm:w-80 max-h-72 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden"
-						>
-							<div class="sticky top-0 bg-white border-b border-slate-200 p-2">
-								<input
-									ref="countrySearchRef"
-									v-model="countrySearchQuery"
-									type="text"
-									:placeholder="__('Search country or code...')"
-									class="w-full h-8 px-3 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-									@keydown.escape="showCountryDropdown = false"
-								/>
-							</div>
-							<div class="overflow-y-auto max-h-56">
-								<button
-									v-for="country in filteredCountries"
-									:key="country.code"
-									type="button"
-									@click="selectCountry(country)"
-									class="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 transition-colors text-start"
-									:class="{
-										'bg-blue-50/60': selectedCountryCode === country.isd,
-									}"
+								<span class="flex-1 text-start tabular-nums">{{
+									selectedCountryCode || "+591"
+								}}</span>
+								<svg
+									class="w-4 h-4 text-slate-400"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
 								>
-									<img
-										:src="`https://flagcdn.com/h24/${country.code.toLowerCase()}.png`"
-										:alt="country.name"
-										class="w-5 h-auto rounded-sm shadow-sm"
-										@error="(e) => (e.target.style.display = 'none')"
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 9l-7 7-7-7"
 									/>
-									<span class="flex-1 text-xs font-semibold text-slate-700">{{
-										country.name
-									}}</span>
-									<span class="text-xs font-medium text-slate-500 tabular-nums">{{
-										country.isd
-									}}</span>
-								</button>
-								<div
-									v-if="filteredCountries.length === 0"
-									class="px-4 py-6 text-center text-xs text-slate-500"
-								>
-									{{ __("No countries found") }}
+								</svg>
+							</button>
+
+							<!-- Country Search Dropdown -->
+							<div
+								v-if="showCountryDropdown"
+								class="absolute start-0 z-50 mt-1 w-72 sm:w-80 max-h-72 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden"
+							>
+								<div class="sticky top-0 bg-white border-b border-slate-200 p-2">
+									<input
+										ref="countrySearchRef"
+										v-model="countrySearchQuery"
+										type="text"
+										:placeholder="__('Search country or code...')"
+										class="w-full h-8 px-3 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+										@keydown.escape="showCountryDropdown = false"
+									/>
+								</div>
+								<div class="overflow-y-auto max-h-56">
+									<button
+										v-for="country in filteredCountries"
+										:key="country.code"
+										type="button"
+										@click="selectCountry(country)"
+										class="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 transition-colors text-start"
+										:class="{
+											'bg-blue-50/60': selectedCountryCode === country.isd,
+										}"
+									>
+										<img
+											:src="`https://flagcdn.com/h24/${country.code.toLowerCase()}.png`"
+											:alt="country.name"
+											class="w-5 h-auto rounded-sm shadow-sm"
+											@error="(e) => (e.target.style.display = 'none')"
+										/>
+										<span class="flex-1 text-xs font-semibold text-slate-700">{{
+											country.name
+										}}</span>
+										<span class="text-xs font-medium text-slate-500 tabular-nums">{{
+											country.isd
+										}}</span>
+									</button>
+									<div
+										v-if="filteredCountries.length === 0"
+										class="px-4 py-6 text-center text-xs text-slate-500"
+									>
+										{{ __("No countries found") }}
+									</div>
 								</div>
 							</div>
 						</div>
-					</div>
 
-					<!-- Phone Number Input -->
-					<input
-						v-model="phoneNumber"
-						type="tel"
-						:placeholder="__('Enter phone number')"
-						class="flex-1 h-9 px-3 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-start tabular-nums"
-						@input="updateMobileNumber"
-						@keydown.enter.prevent="handleCreate"
-					/>
+						<!-- Phone Number Input -->
+						<input
+							v-model="phoneNumber"
+							type="tel"
+							:placeholder="__('Enter phone number')"
+							class="flex-1 min-w-0 h-9 px-3 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-start tabular-nums"
+							@input="updateMobileNumber"
+							@keydown.enter.prevent="handleCreate"
+						/>
+					</div>
 				</div>
 			</div>
 
@@ -135,7 +138,7 @@
 			<!-- Datos de Facturación (Solo visible si la Facturación está habilitada en Configuración del POS) -->
 			<div
 				v-if="settingsStore.enableSiatFiscalFormat"
-				class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-slate-200"
+				class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-200"
 			>
 				<!-- NIT / CI -->
 				<div>
@@ -200,7 +203,7 @@
 		</div>
 
 		<template #footer>
-			<div class="flex items-center justify-end gap-2 w-full">
+			<div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 w-full">
 				<MdxButton variant="secondary" @click="show = false">
 					{{ __("Cancel") }}
 				</MdxButton>

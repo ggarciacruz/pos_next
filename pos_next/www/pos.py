@@ -27,10 +27,22 @@ def get_context(context):
 		except Exception:
 			csrf_token = ""
 
+	wms_spa_boot = None
+	if session_user != "Guest":
+		try:
+			wms_spa_boot = {
+				"user": session_user,
+				"roles": frappe.get_roles(session_user),
+				"installed_apps": frappe.get_installed_apps(),
+			}
+		except Exception:
+			wms_spa_boot = None
+
 	context.boot = {
 		"csrf_token": csrf_token,
 		"session_user": session_user,
 		"sitename": getattr(frappe.local, "site", ""),
+		"wms_spa_boot": wms_spa_boot,
 	}
 
 	return context

@@ -747,16 +747,88 @@ def update_invoice(data):
 		standardize_pricing_rules(data.get("items"))
 
 		# Create or update invoice
-		if data.get("name"):
-			invoice_doc = frappe.get_doc(doctype, data.get("name"))
+		was_already_submitted = False
+		prev_item_warehouses = set()
+		existing_name = data.get("name")
+		if existing_name and frappe.db.exists(doctype, existing_name):
+			invoice_doc = frappe.get_doc(doctype, existing_name)
+			was_already_submitted = cint(invoice_doc.docstatus) == 1
+			prev_item_warehouses = {
+				(d.item_code, d.warehouse)
+				for d in invoice_doc.get("items", [])
+				if d.get("item_code") and d.get("warehouse")
+			}
+
+			if was_already_submitted:
+				if doctype == DOCTYPE_SALES_INVOICE:
+					frappe.throw(_("Esta venta ya fue emitida y no puede modificarse directamente."))
+				if doctype == "Sales Order" and (
+					flt(invoice_doc.get("per_billed")) > 0
+					or flt(invoice_doc.get("per_delivered")) > 0
+					or invoice_doc.get("status") in ("Completed", "Closed", "Cancelled")
+				):
+					frappe.throw(_("Esta pre-venta ya fue cobrada o despachada y no puede modificarse."))
+				if doctype == "Quotation" and invoice_doc.get("status") in ("Ordered", "Lost", "Cancelled"):
+					frappe.throw(
+						_("Esta cotización ya fue procesada ({0}) y no puede modificarse.").format(
+							_(invoice_doc.get("status"))
+						)
+					)
+
+				header_updates = {
+					k: v
+					for k, v in data.items()
+					if k not in ("items", "name", "doctype", "docstatus")
+				}
+				invoice_doc.update(header_updates)
+				invoice_doc.docstatus = 1
+
+				existing_items_by_name = {d.name: d for d in invoice_doc.get("items", []) if d.name}
+				used_detail_ids = set()
+				merged_items = []
+				for item_row in data.get("items") or []:
+					if not isinstance(item_row, dict):
+						continue
+					cleaned_row = {
+						k: v
+						for k, v in item_row.items()
+						if k
+						not in (
+							"name",
+							"so_detail",
+							"parent",
+							"parenttype",
+							"parentfield",
+							"doctype",
+							"docstatus",
+							"idx",
+						)
+					}
+					detail_id = item_row.get("so_detail") or item_row.get("name")
+					if (
+						detail_id
+						and detail_id in existing_items_by_name
+						and detail_id not in used_detail_ids
+					):
+						used_detail_ids.add(detail_id)
+						child_doc = existing_items_by_name[detail_id]
+						child_doc.update(cleaned_row)
+						merged_items.append(child_doc)
+					else:
+						merged_items.append(cleaned_row)
+				invoice_doc.set("items", merged_items)
+			else:
+				invoice_doc.update(data)
+		elif existing_name:
+			invoice_doc = frappe.get_doc(doctype, existing_name)
 			invoice_doc.update(data)
 		else:
 			invoice_doc = frappe.get_doc(data)
 
 		if doctype == "Quotation":
 			invoice_doc.quotation_to = "Customer"
-			invoice_doc.party_name = data.get("customer")
-			invoice_doc.customer = data.get("customer")
+			invoice_doc.party_name = data.get("customer") or invoice_doc.get("party_name")
+			invoice_doc.customer = data.get("customer") or invoice_doc.get("customer")
 		elif doctype == "Sales Order":
 			tx_date = invoice_doc.get("transaction_date") or data.get("posting_date") or nowdate()
 			deliv_date = invoice_doc.get("delivery_date") or tx_date
@@ -767,6 +839,13 @@ def update_invoice(data):
 			for item in invoice_doc.get("items", []):
 				if not item.get("delivery_date") or item.get("delivery_date") < tx_date:
 					item.delivery_date = deliv_date
+
+		if was_already_submitted and invoice_doc.get("customer"):
+			cust_display = frappe.db.get_value("Customer", invoice_doc.customer, "customer_name")
+			if cust_display:
+				invoice_doc.customer_name = cust_display
+				if invoice_doc.meta.has_field("title"):
+					invoice_doc.title = cust_display
 
 		# Important: set before set_missing_values()/pricing/validation paths that may
 		# read linked docs (e.g., Customer) and trigger controller permission checks.
@@ -1096,13 +1175,70 @@ def update_invoice(data):
 					if errors:
 						frappe.throw(frappe.as_json({"errors": errors}), frappe.ValidationError)
 
-		# Save as draft / Submit quotation
+		# Save as draft / Submit quotation / Update pending submitted Sales Order or Quotation
 		invoice_doc.flags.ignore_permissions = True
 		frappe.flags.ignore_account_permission = True
 		if doctype == "Sales Order":
 			invoice_doc.flags.skip_auto_so_hooks = True
 		req_docstatus = cint(data.get("docstatus", 0))
-		if doctype == "Quotation":
+		if was_already_submitted:
+			invoice_doc.docstatus = 1
+			invoice_doc.flags.ignore_validate_update_after_submit = True
+			for child in invoice_doc.get_all_children():
+				child.flags.ignore_validate_update_after_submit = True
+
+			if hasattr(invoice_doc, "set_qty_as_per_stock_uom"):
+				invoice_doc.set_qty_as_per_stock_uom()
+			invoice_doc.calculate_taxes_and_totals()
+			if hasattr(invoice_doc, "set_total_in_words"):
+				invoice_doc.set_total_in_words()
+			if hasattr(invoice_doc, "set_payment_schedule"):
+				invoice_doc.set_payment_schedule()
+
+			if doctype == "Sales Order":
+				from erpnext.stock.doctype.packed_item.packed_item import make_packing_list
+
+				make_packing_list(invoice_doc)
+				if hasattr(invoice_doc, "set_gross_profit"):
+					invoice_doc.set_gross_profit()
+
+			for idx, row in enumerate(invoice_doc.get("items", []), start=1):
+				row.idx = idx
+
+			invoice_doc.save(ignore_permissions=True)
+
+			if doctype == "Sales Order":
+				from erpnext.stock.stock_balance import get_reserved_qty, update_bin_qty
+
+				invoice_doc.update_reserved_qty()
+				new_item_warehouses = {
+					(d.item_code, d.warehouse)
+					for d in invoice_doc.get("items", [])
+					if d.get("item_code") and d.get("warehouse")
+				}
+				for removed_item_code, removed_wh in prev_item_warehouses - new_item_warehouses:
+					if removed_item_code and removed_wh:
+						update_bin_qty(
+							removed_item_code,
+							removed_wh,
+							{"reserved_qty": get_reserved_qty(removed_item_code, removed_wh)},
+						)
+				invoice_doc.update_delivery_status()
+				invoice_doc.update_billing_percentage()
+				invoice_doc.set_status(update=True)
+			elif doctype == "Quotation":
+				invoice_doc.set_status(update=True)
+
+			invoice_doc.add_comment(
+				"Edit",
+				_("Actualizado desde POS ({0} ítems · Total: {1})").format(
+					len(invoice_doc.get("items", [])),
+					frappe.format_value(invoice_doc.grand_total, {"fieldtype": "Currency"}),
+				),
+			)
+			frappe.clear_document_cache(doctype, invoice_doc.name)
+			invoice_doc.reload()
+		elif doctype == "Quotation":
 			if not invoice_doc.name or not frappe.db.exists("Quotation", invoice_doc.name):
 				invoice_doc.docstatus = 0
 				invoice_doc.insert(ignore_permissions=True)

@@ -72,14 +72,24 @@ def get_initial_data():
 		)[0][0]
 	)
 
+	user_roles = frappe.get_roles()
+
 	result = {
 		"success": True,
+		"user": frappe.session.user,
+		"roles": user_roles,
+		"installed_apps": frappe.get_installed_apps(),
 		"site_name": frappe.local.site,
 		"locale": _get_user_language(),
 		"precision": _get_precision_settings(),
-		"can_switch_to_desk": "Nexus POS Manager" in frappe.get_roles(),
-		"can_checkout": any(role in frappe.get_roles() for role in ["POSNext Cashier", "System Manager", "Administrator", "Nexus POS Manager"]),
-		"can_cancel_invoice": bool(frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in frappe.get_roles()),
+		"can_switch_to_desk": "Nexus POS Manager" in user_roles,
+		"can_checkout": any(
+			role in user_roles
+			for role in ["POSNext Cashier", "System Manager", "Administrator", "Nexus POS Manager"]
+		),
+		"can_cancel_invoice": bool(
+			frappe.has_permission("Sales Invoice", "cancel") or "Nexus POS Manager" in user_roles
+		),
 		"accessible_profiles_count": accessible_profiles_count,
 		"shift": None,
 		"shift_payload": None,

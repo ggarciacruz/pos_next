@@ -18,6 +18,36 @@ import { ref } from "vue";
 
 const log = logger.create("Bootstrap");
 
+export function syncSuiteBootContext(bootData) {
+	if (typeof window === "undefined" || !bootData) return;
+	const resolvedUser = bootData.user || window.session_user;
+	if (!resolvedUser || resolvedUser === "Guest") return;
+	window.session_user = resolvedUser;
+	const spaBoot = {
+		user: resolvedUser,
+		roles: Array.isArray(bootData.roles) ? bootData.roles : [],
+		installed_apps: Array.isArray(bootData.installed_apps) ? bootData.installed_apps : [],
+	};
+	window.wms_spa_boot = spaBoot;
+	try {
+		localStorage.setItem("wms_session_user", resolvedUser);
+		if (spaBoot.roles.length > 0) {
+			localStorage.setItem("wms_user_roles", JSON.stringify(spaBoot.roles));
+		}
+	} catch {}
+	window.dispatchEvent(new CustomEvent("wms-boot-context-ready", { detail: spaBoot }));
+}
+
+export function clearSuiteBootContext() {
+	if (typeof window === "undefined") return;
+	window.session_user = "Guest";
+	delete window.wms_spa_boot;
+	try {
+		localStorage.removeItem("wms_session_user");
+		localStorage.removeItem("wms_user_roles");
+	} catch {}
+}
+
 export const useBootstrapStore = defineStore("bootstrap", () => {
 	// State
 	const loaded = ref(false);
@@ -59,6 +89,7 @@ export const useBootstrapStore = defineStore("bootstrap", () => {
 			if (result?.success) {
 				data.value = result;
 				loaded.value = true;
+				syncSuiteBootContext(result);
 				log.success("Bootstrap data loaded", {
 					hasShift: !!result.shift,
 					locale: result.locale,

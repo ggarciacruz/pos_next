@@ -984,7 +984,7 @@
 								scope="col"
 								class="px-2 sm:px-3 py-2 sm:py-2.5 text-start text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 max-w-[120px] sm:max-w-[150px]"
 							>
-								{{ __("Group") }}
+								{{ __("Grupo") }}
 							</th>
 							<th
 								scope="col"

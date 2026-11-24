@@ -1387,20 +1387,28 @@
 							type="button"
 							@click="$emit('save-draft', true)"
 							class="h-8 px-2.5 rounded-lg font-bold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 border border-orange-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] touch-manipulation"
-							:title="__('Guardar como Pre-venta (Orden de Venta)')"
+							:title="
+								isPreSaleDraft
+									? __('Actualizar Pre-venta activa')
+									: __('Guardar como Pre-venta (Orden de Venta)')
+							"
 						>
 							<span class="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0"></span>
-							<span class="truncate">{{ __("Pre-venta") }}</span>
+							<span class="truncate">{{ isPreSaleDraft ? __("Actualizar Pre-venta") : __("Pre-venta") }}</span>
 						</button>
 						<button
 							v-if="settingsStore.allowQuotation"
 							type="button"
 							@click="$emit('save-quotation', true)"
 							class="h-8 px-2.5 rounded-lg font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 border border-blue-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] touch-manipulation"
-							:title="__('Guardar como Cotización')"
+							:title="
+								isQuotationDraft
+									? __('Actualizar Cotización activa')
+									: __('Guardar como Cotización')
+							"
 						>
 							<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
-							<span class="truncate">{{ __("Cotización") }}</span>
+							<span class="truncate">{{ isQuotationDraft ? __("Actualizar Cotización") : __("Cotización") }}</span>
 						</button>
 					</div>
 				</template>
@@ -1420,24 +1428,32 @@
 						type="button"
 						@click="$emit('save-draft', true)"
 						class="h-12 px-4 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow active:scale-[0.99] touch-manipulation"
-						:title="__('Guardar como Pre-venta (Orden de Venta)')"
+						:title="
+							isPreSaleDraft
+								? __('Actualizar Pre-venta activa')
+								: __('Guardar como Pre-venta (Orden de Venta)')
+						"
 					>
 						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
 						</svg>
-						<span class="truncate">{{ __("Pre-venta") }}</span>
+						<span class="truncate">{{ isPreSaleDraft ? __("Actualizar Pre-venta") : __("Pre-venta") }}</span>
 					</button>
 					<button
 						v-if="settingsStore.allowQuotation"
 						type="button"
 						@click="$emit('save-quotation', true)"
 						class="h-12 px-4 rounded-xl font-bold text-sm text-slate-700 bg-white hover:bg-slate-50 active:bg-slate-100 border border-slate-300 transition-all flex items-center justify-center gap-2 shadow-2xs active:scale-[0.99] touch-manipulation"
-						:title="__('Guardar como Cotización')"
+						:title="
+							isQuotationDraft
+								? __('Actualizar Cotización activa')
+								: __('Guardar como Cotización')
+						"
 					>
 						<svg class="w-4 h-4 shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
 						</svg>
-						<span class="truncate">{{ __("Cotización") }}</span>
+						<span class="truncate">{{ isQuotationDraft ? __("Actualizar Cotización") : __("Cotización") }}</span>
 					</button>
 				</div>
 			</div>
@@ -1664,6 +1680,10 @@ const isQuotationDraft = computed(() => {
 		draftId.startsWith("COT-")
 	);
 });
+
+const isPreSaleDraft = computed(() =>
+	Boolean(cartStore.currentDraftId && !isQuotationDraft.value)
+);
 
 function clearActiveDraft() {
 	cartStore.currentDraftId = null;

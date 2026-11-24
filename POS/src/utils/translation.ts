@@ -218,6 +218,8 @@ export function translate(msg: string, replace?: Record<string, string>, ctx?: s
     translated = "Reporte de cierre enviado a impresión"
   } else if (msg === "Shift closed successfully" && translated === "Shift closed successfully") {
     translated = "Turno cerrado con éxito"
+  } else if (msg === "Group" && (translated === "Agrupar" || translated === "Group")) {
+    translated = "Grupo"
   }
 
   // Handle any label ending with colon whose base word is translated

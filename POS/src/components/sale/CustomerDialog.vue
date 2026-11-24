@@ -1,5 +1,5 @@
 <template>
-	<MdxModal v-model="show" :title="__('Select Customer')" size="md">
+	<MdxModal v-model="show" :title="__('Select Customer')" size="lg">
 		<div class="flex flex-col gap-3.5">
 			<!-- Search Input -->
 			<div class="relative">
@@ -28,7 +28,7 @@
 					:value="searchTerm"
 					@input="handleSearchInput"
 					type="text"
-					:placeholder="__('Search customers by name, mobile, or email...')"
+					:placeholder="__('Search customers by name, NIT/CI, mobile, or email...')"
 					class="w-full h-10 border border-slate-200 rounded-xl ps-9 pe-8 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
 					@keydown="handleKeydown"
 					autofocus
@@ -83,7 +83,7 @@
 			</div>
 
 			<!-- Customers List - Optimized rendering -->
-			<div class="max-h-80 overflow-y-auto" style="will-change: scroll-position">
+			<div class="max-h-[52vh] overflow-y-auto" style="will-change: scroll-position">
 				<div v-if="loading" class="py-8 flex justify-center">
 					<MdxLoadingSpinner size="md" :text="__('Loading customers...')" />
 				</div>
@@ -158,7 +158,16 @@
 								<div class="font-bold text-sm text-slate-900 truncate">
 									{{ customer.customer_name }}
 								</div>
-								<div class="flex flex-wrap items-center text-xs text-slate-600 mt-1 gap-3">
+								<div class="flex flex-wrap items-center text-xs text-slate-600 mt-1 gap-x-4 gap-y-1">
+									<span
+										v-if="customer.tax_id"
+										class="inline-flex items-center gap-1 tabular-nums text-slate-700 font-medium"
+									>
+										<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0" />
+										</svg>
+										{{ __("NIT / CI") }}: {{ customer.tax_id }}
+									</span>
 									<span
 										v-if="customer.mobile_no"
 										class="inline-flex items-center gap-1 tabular-nums"

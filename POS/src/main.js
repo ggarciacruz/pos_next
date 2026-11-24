@@ -189,6 +189,9 @@ async function initializeApp() {
 	}
 
 	session.user = user;
+	if (user && typeof window !== "undefined") {
+		window.session_user = user;
+	}
 	log.info(`User authenticated: ${session.user}`);
 
 	// Initialize translation plugin after session state is resolved

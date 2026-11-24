@@ -5,7 +5,11 @@ import { computed, reactive } from "vue";
 import { ensureCSRFToken } from "@/utils/csrf";
 import { cleanupUserSession } from "@/utils/sessionCleanup";
 import { initTranslations } from "@/utils/translation";
-import { useBootstrapStore } from "@/stores/bootstrap";
+import {
+	clearSuiteBootContext,
+	syncSuiteBootContext,
+	useBootstrapStore,
+} from "@/stores/bootstrap";
 import { userResource, userData } from "./user";
 
 export function sessionUser() {
@@ -48,6 +52,15 @@ export const session = reactive({
 			]);
 
 			session.user = sessionUser() || userResource.data || null;
+			if (session.user && typeof window !== "undefined") {
+				window.session_user = session.user;
+				if (bootstrapStore.data) {
+					syncSuiteBootContext({
+						...bootstrapStore.data,
+						user: bootstrapStore.data.user || session.user,
+					});
+				}
+			}
 			session.login.reset();
 		},
 		onError(error) {
@@ -59,6 +72,7 @@ export const session = reactive({
 		async onSuccess() {
 			userResource.reset();
 			session.user = null;
+			clearSuiteBootContext();
 			await router.replace({ name: "Login" });
 			await cleanupUserSession();
 		},
@@ -67,6 +81,7 @@ export const session = reactive({
 			// Even if logout fails on server, clear local session
 			userResource.reset();
 			session.user = null;
+			clearSuiteBootContext();
 			await router.replace({ name: "Login" });
 			await cleanupUserSession();
 		},

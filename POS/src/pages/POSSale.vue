@@ -811,11 +811,16 @@
 			<!-- Print Pre-ticket / Quotation Confirmation Dialog (mdx_ui) -->
 			<MdxModal
 				v-model="showPrintDraftConfirmDialog"
-				:title="isSavedDraftQuotation ? __('Cotización Generada') : __('Pre-venta Registrada')"
-				size="md"
+				:title="
+					isSavedDraftQuotation
+						? (lastSavedDraft?.was_updated ? __('Cotización Actualizada') : __('Cotización Generada'))
+						: (lastSavedDraft?.was_updated ? __('Pre-venta Actualizada') : __('Pre-venta Registrada'))
+				"
+				size="xl"
+				:persistent="true"
 			>
-				<div class="space-y-3.5 text-start py-0.5">
-					<!-- Cabecera de confirmación del documento -->
+				<div class="space-y-4 text-start">
+					<!-- Cabecera ejecutiva del documento -->
 					<div class="flex items-start gap-3">
 						<div class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center shrink-0">
 							<svg v-if="isSavedDraftQuotation" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -827,75 +832,108 @@
 						</div>
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center flex-wrap gap-2">
-								<span class="text-sm font-bold text-slate-900 font-mono">
+								<span class="text-base font-extrabold text-slate-900 font-mono">
 									{{ lastSavedDraft?.draft_id || "" }}
 								</span>
 								<MdxBadge :variant="isSavedDraftQuotation ? 'info' : 'warning'" size="sm">
 									{{ isSavedDraftQuotation ? __("COTIZACIÓN") : __("PRE-VENTA") }}
 								</MdxBadge>
+								<MdxBadge v-if="lastSavedDraft?.was_updated" variant="neutral" size="sm">
+									{{ __("ACTUALIZADA") }}
+								</MdxBadge>
 							</div>
 							<p class="text-xs text-slate-500 mt-1 leading-relaxed">
 								{{
 									isSavedDraftQuotation
-										? __("Proforma informativa guardada correctamente. No descuenta inventario ni registra cobro en caja.")
-										: __("Orden de pre-venta registrada correctamente para su posterior atención o cobro en caja.")
+										? (lastSavedDraft?.was_updated
+											? __("Proforma informativa actualizada correctamente. No descuenta inventario ni registra cobro en caja.")
+											: __("Proforma informativa guardada correctamente. No descuenta inventario ni registra cobro en caja."))
+										: (lastSavedDraft?.was_updated
+											? __("Orden de pre-venta actualizada correctamente para su posterior atención o cobro en caja.")
+											: __("Orden de pre-venta registrada correctamente para su posterior atención o cobro en caja."))
 								}}
 							</p>
 						</div>
 					</div>
 
-					<!-- Tarjeta de resumen estructurado -->
-					<div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-							<div>
-								<span class="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+					<!-- Tarjeta de resumen estructurado + sub-tabla oficial -->
+					<div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
+						<div class="px-4 py-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs border-b border-slate-200">
+							<div class="min-w-0">
+								<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
 									{{ __("Cliente") }}
 								</span>
-								<span class="font-semibold text-slate-900 truncate block mt-0.5">
+								<span class="font-bold text-slate-900 truncate block mt-0.5">
 									{{ savedDraftCustomerLabel }}
 								</span>
 							</div>
-							<div v-if="isSavedDraftQuotation && savedDraftValidTillDisplay">
-								<span class="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-									{{ __("Vigencia de Cotización") }}
-								</span>
-								<span class="font-semibold text-slate-900 block mt-0.5 tabular-nums">
-									{{ __("Hasta el {0}", [savedDraftValidTillDisplay]) }}
-								</span>
-							</div>
-							<div v-else>
-								<span class="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+							<div class="min-w-0">
+								<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
 									{{ __("Resumen de Artículos") }}
 								</span>
-								<span class="font-semibold text-slate-900 block mt-0.5 tabular-nums">
+								<span class="font-bold text-slate-900 block mt-0.5 tabular-nums">
 									{{ savedDraftItems.length }} {{ savedDraftItems.length === 1 ? __("ítem") : __("ítems") }} ({{ savedDraftTotalUnits }} {{ __("unid.") }})
 								</span>
 							</div>
-						</div>
-
-						<!-- Desglose compacto de ítems cotizados -->
-						<div
-							v-if="savedDraftItems.length > 0"
-							class="border-t border-slate-200 pt-2 max-h-36 overflow-y-auto divide-y divide-slate-200/70"
-						>
-							<div
-								v-for="(it, idx) in savedDraftItems"
-								:key="`${it.code}-${idx}`"
-								class="py-1.5 flex items-baseline justify-between gap-3 text-xs"
-							>
-								<div class="min-w-0 flex-1">
-									<span class="font-semibold text-slate-800">{{ it.code }}</span>
-									<span v-if="it.name && it.name !== it.code" class="text-slate-600"> · {{ it.name }}</span>
-								</div>
-								<div class="shrink-0 text-end tabular-nums">
-									<span class="text-slate-500 me-1.5">{{ it.qty }} × {{ formatCurrency(it.rate) }}</span>
-									<span class="font-bold text-slate-900">{{ formatCurrency(it.lineTotal) }}</span>
-								</div>
+							<div v-if="isSavedDraftQuotation && savedDraftValidTillDisplay" class="min-w-0">
+								<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+									{{ __("Vigencia de Cotización") }}
+								</span>
+								<span class="font-bold text-slate-900 block mt-0.5 tabular-nums">
+									{{ __("Hasta el {0}", [savedDraftValidTillDisplay]) }}
+								</span>
+							</div>
+							<div v-else class="min-w-0">
+								<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+									{{ __("Fecha de Operación") }}
+								</span>
+								<span class="font-bold text-slate-900 block mt-0.5 tabular-nums">
+									{{ savedDraftDateDisplay }}
+								</span>
 							</div>
 						</div>
 
+						<!-- Desglose tabular oficial MdxDataTable -->
+						<div
+							v-if="savedDraftTableRows.length > 0"
+							class="max-h-[42vh] overflow-y-auto bg-white pos-receipt-subtable"
+						>
+							<MdxDataTable
+								:columns="receiptItemColumns"
+								:rows="savedDraftTableRows"
+								row-key="_rowKey"
+								pagination-mode="none"
+								:page-size="0"
+							>
+								<template #cell-line_no="{ row }">
+									<span class="text-xs font-semibold text-slate-400 tabular-nums">{{ row.line_no }}</span>
+								</template>
+								<template #cell-item_code="{ row }">
+									<span class="text-xs font-bold text-slate-700 tabular-nums">{{ row.item_code }}</span>
+								</template>
+								<template #cell-item_display="{ row }">
+									<div class="min-w-0">
+										<p class="text-xs font-semibold text-slate-900 truncate">{{ row.item_name }}</p>
+										<p v-if="row.medida" class="text-[11px] text-slate-500 truncate">{{ row.medida }}</p>
+									</div>
+								</template>
+								<template #cell-warehouse_display="{ row }">
+									<span class="text-xs text-slate-600">{{ row.warehouse_display }}</span>
+								</template>
+								<template #cell-qty_display="{ row }">
+									<span class="text-xs font-bold text-slate-900 tabular-nums">{{ row.qty_display }}</span>
+								</template>
+								<template #cell-rate_display="{ row }">
+									<span class="text-xs text-slate-700 tabular-nums">{{ row.rate_display }}</span>
+								</template>
+								<template #cell-amount_display="{ row }">
+									<span class="text-xs font-extrabold text-slate-900 tabular-nums">{{ row.amount_display }}</span>
+								</template>
+							</MdxDataTable>
+						</div>
+
 						<!-- Total cotizado -->
-						<div class="border-t border-slate-200 pt-2.5 flex items-center justify-between">
+						<div class="px-4 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
 							<span class="text-xs font-bold uppercase tracking-wide text-slate-700">
 								{{ isSavedDraftQuotation ? __("Total Cotizado") : __("Total Pre-venta") }}
 								<span class="font-normal text-slate-500 normal-case">
@@ -903,69 +941,65 @@
 								</span>
 							</span>
 							<span class="text-base font-extrabold text-slate-900 tabular-nums">
-								{{ formatCurrency(savedDraftTotalAmount) }}
+								{{ formatPosAmount(savedDraftTotalAmount) }}
 							</span>
 						</div>
 					</div>
 				</div>
 
 				<template #footer>
-					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+					<div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 w-full">
 						<MdxButton
 							variant="secondary"
 							size="md"
-							fullWidth
-							@click="confirmPrintDraft"
-						>
-							<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
-								<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-								</svg>
-								<span class="truncate">
-									{{ isSavedDraftQuotation ? __("Imprimir Ticket") : __("Imprimir Pre-ticket") }}
-								</span>
-							</span>
-						</MdxButton>
-						<MdxButton
-							variant="primary"
-							size="md"
-							fullWidth
-							@click="confirmPrintDraftPDF"
-						>
-							<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
-								<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-								</svg>
-								<span class="truncate">
-									{{ isSavedDraftQuotation ? __("Imprimir Cotización PDF") : __("Imprimir Pre-venta PDF") }}
-								</span>
-							</span>
-						</MdxButton>
-						<MdxButton
-							variant="ghost"
-							size="md"
-							fullWidth
-							:class="posSettingsStore.enableWhatsappSend ? '' : 'sm:col-span-2'"
 							@click="showPrintDraftConfirmDialog = false"
 						>
 							{{ __("Close") }}
 						</MdxButton>
-						<MdxButton
-							v-if="posSettingsStore.enableWhatsappSend"
-							variant="secondary"
-							size="md"
-							fullWidth
-							@click="confirmWhatsAppDraft"
-						>
-							<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
-								<svg class="w-4 h-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-									<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-								</svg>
-								<span class="truncate">
-									{{ isSavedDraftQuotation ? __("Enviar Cotización por WhatsApp") : __("Enviar Pre-venta por WhatsApp") }}
+
+						<div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-end">
+							<MdxButton
+								variant="secondary"
+								size="md"
+								@click="confirmPrintDraft"
+							>
+								<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
+									<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+									</svg>
+									<span class="whitespace-nowrap">
+										{{ isSavedDraftQuotation ? __("Imprimir Ticket") : __("Imprimir Pre-ticket") }}
+									</span>
 								</span>
-							</span>
-						</MdxButton>
+							</MdxButton>
+							<MdxButton
+								v-if="posSettingsStore.enableWhatsappSend"
+								variant="secondary"
+								size="md"
+								@click="confirmWhatsAppDraft"
+							>
+								<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
+									<svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+										<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+									</svg>
+									<span class="whitespace-nowrap">{{ __("Enviar por WhatsApp") }}</span>
+								</span>
+							</MdxButton>
+							<MdxButton
+								variant="primary"
+								size="md"
+								@click="confirmPrintDraftPDF"
+							>
+								<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
+									<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+									</svg>
+									<span class="whitespace-nowrap">
+										{{ isSavedDraftQuotation ? __("Imprimir Cotización PDF") : __("Imprimir Pre-venta PDF") }}
+									</span>
+								</span>
+							</MdxButton>
+						</div>
 					</div>
 				</template>
 			</MdxModal>
@@ -974,112 +1008,204 @@
 			<MdxModal
 				v-model="uiStore.showSuccessDialog"
 				:title="__('Invoice Created Successfully')"
-				size="md"
+				size="xl"
+				:persistent="true"
 			>
-				<div class="text-center py-3">
-					<div
-						class="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-emerald-50 border border-emerald-200"
-					>
-						<svg
-							class="h-7 w-7 text-emerald-600"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2.5"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
+				<div class="space-y-4 text-start">
+					<!-- Cabecera ejecutiva de venta registrada -->
+					<div class="flex items-start gap-3">
+						<div class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center shrink-0">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7" />
+							</svg>
+						</div>
+						<div class="min-w-0 flex-1">
+							<div class="flex items-center flex-wrap gap-2">
+								<span class="text-base font-extrabold text-slate-900 font-mono">
+									{{ uiStore.lastInvoiceName }}
+								</span>
+								<MdxBadge variant="success" size="sm">
+									{{ completedSaleBadgeLabel }}
+								</MdxBadge>
+								<MdxBadge v-if="lastCompletedSale?.isCreditSale" variant="warning" size="sm">
+									{{ __("A CRÉDITO") }}
+								</MdxBadge>
+								<MdxBadge v-if="lastCompletedSale?.isOffline" variant="warning" size="sm">
+									{{ __("MODO OFFLINE") }}
+								</MdxBadge>
+							</div>
+							<p class="text-xs text-slate-500 mt-1 leading-relaxed">
+								{{
+									lastCompletedSale?.isOffline
+										? __("Comprobante guardado en modo sin conexión. Se sincronizará automáticamente al restablecerse la red.")
+										: __("Transacción confirmada y registrada correctamente. Seleccione una opción para emitir o enviar el comprobante.")
+								}}
+							</p>
+						</div>
 					</div>
-					<h3 class="mt-3 text-base font-bold text-slate-900">
-						{{
-							__("Invoice {0} created successfully!", [uiStore.lastInvoiceName])
-						}}
-					</h3>
-					<div class="mt-2 flex justify-center">
-						<MdxBadge variant="neutral" size="md">
-							{{ __("Paid: {0}", [formatCurrency(uiStore.lastPaidAmount)]) }}
-						</MdxBadge>
+
+					<!-- Tarjeta de resumen estructurado + sub-tabla oficial -->
+					<div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
+						<div class="px-4 py-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs border-b border-slate-200">
+							<div class="min-w-0">
+								<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+									{{ __("Cliente") }}
+								</span>
+								<span class="font-bold text-slate-900 truncate block mt-0.5">
+									{{ completedSaleCustomerLabel }}
+								</span>
+								<span v-if="lastCompletedSale?.taxId" class="block text-[11px] text-slate-500 mt-0.5 tabular-nums">
+									{{ __("NIT / CI") }}: {{ lastCompletedSale.taxId }}
+								</span>
+							</div>
+							<div class="min-w-0">
+								<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+									{{ __("Resumen de Artículos") }}
+								</span>
+								<span class="font-bold text-slate-900 block mt-0.5 tabular-nums">
+									{{ completedSaleTableRows.length }} {{ completedSaleTableRows.length === 1 ? __("ítem") : __("ítems") }} ({{ completedSaleTotalUnits }} {{ __("unid.") }})
+								</span>
+							</div>
+							<div class="min-w-0">
+								<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+									{{ __("Modalidad de Cobro") }}
+								</span>
+								<span class="font-bold text-slate-900 truncate block mt-0.5">
+									{{ completedSalePaymentLabel }}
+								</span>
+								<span class="block text-[11px] text-slate-500 mt-0.5 tabular-nums">
+									{{ __("Pagado") }}: {{ formatPosAmount(uiStore.lastPaidAmount) }}
+									<template v-if="lastCompletedSale?.changeAmount > 0">
+										· {{ __("Cambio") }}: {{ formatPosAmount(lastCompletedSale.changeAmount) }}
+									</template>
+								</span>
+							</div>
+						</div>
+
+						<!-- Desglose tabular oficial MdxDataTable -->
+						<div
+							v-if="completedSaleTableRows.length > 0"
+							class="max-h-[42vh] overflow-y-auto bg-white pos-receipt-subtable"
+						>
+							<MdxDataTable
+								:columns="receiptItemColumns"
+								:rows="completedSaleTableRows"
+								row-key="_rowKey"
+								pagination-mode="none"
+								:page-size="0"
+							>
+								<template #cell-line_no="{ row }">
+									<span class="text-xs font-semibold text-slate-400 tabular-nums">{{ row.line_no }}</span>
+								</template>
+								<template #cell-item_code="{ row }">
+									<span class="text-xs font-bold text-slate-700 tabular-nums">{{ row.item_code }}</span>
+								</template>
+								<template #cell-item_display="{ row }">
+									<div class="min-w-0">
+										<p class="text-xs font-semibold text-slate-900 truncate">{{ row.item_name }}</p>
+										<p v-if="row.medida" class="text-[11px] text-slate-500 truncate">{{ row.medida }}</p>
+									</div>
+								</template>
+								<template #cell-warehouse_display="{ row }">
+									<span class="text-xs text-slate-600">{{ row.warehouse_display }}</span>
+								</template>
+								<template #cell-qty_display="{ row }">
+									<span class="text-xs font-bold text-slate-900 tabular-nums">{{ row.qty_display }}</span>
+								</template>
+								<template #cell-rate_display="{ row }">
+									<span class="text-xs text-slate-700 tabular-nums">{{ row.rate_display }}</span>
+								</template>
+								<template #cell-amount_display="{ row }">
+									<span class="text-xs font-extrabold text-slate-900 tabular-nums">{{ row.amount_display }}</span>
+								</template>
+							</MdxDataTable>
+						</div>
+
+						<!-- Total de la operación -->
+						<div class="px-4 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+							<span class="text-xs font-bold uppercase tracking-wide text-slate-700">
+								{{ __("Total Operación") }}
+								<span v-if="completedSaleTableRows.length > 0" class="font-normal text-slate-500 normal-case">
+									({{ completedSaleTableRows.length }} {{ completedSaleTableRows.length === 1 ? __("ítem") : __("ítems") }} · {{ completedSaleTotalUnits }} {{ __("unid.") }})
+								</span>
+							</span>
+							<span class="text-base font-extrabold text-slate-900 tabular-nums">
+								{{ formatPosAmount(uiStore.lastInvoiceTotal || uiStore.lastPaidAmount) }}
+							</span>
+						</div>
 					</div>
 				</div>
 
 				<template #footer>
-					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+					<div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 w-full">
 						<MdxButton
 							variant="secondary"
 							size="md"
-							fullWidth
-							@click="
-								() => {
-									handlePrintInvoice({ name: uiStore.lastInvoiceName, doctype: lastSubmittedDoctype, _forceThermal: true });
-									uiStore.showSuccessDialog = false;
-								}
-							"
-						>
-							<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
-								<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-								</svg>
-								<span class="truncate">{{ __("Print Ticket (Thermal)") }}</span>
-							</span>
-						</MdxButton>
-						<MdxButton
-							variant="primary"
-							size="md"
-							fullWidth
-							@click="
-								() => {
-									handlePrintInvoicePDF(uiStore.lastInvoiceName, lastSubmittedDoctype);
-									uiStore.showSuccessDialog = false;
-								}
-							"
-						>
-							<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
-								<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-								</svg>
-								<span class="truncate">
-									{{
-										lastSubmittedDoctype === "Sales Order"
-											? __("Imprimir Orden de Venta PDF")
-											: String(uiStore.lastInvoiceName || "").toUpperCase().startsWith("CF-")
-											? __("Imprimir Factura PDF")
-											: __("Print PDF (Letter Size)")
-									}}
-								</span>
-							</span>
-						</MdxButton>
-						<MdxButton
-							variant="ghost"
-							size="md"
-							fullWidth
-							:class="posSettingsStore.enableWhatsappSend ? '' : 'sm:col-span-2'"
 							@click="uiStore.showSuccessDialog = false"
 						>
 							{{ __("Close") }}
 						</MdxButton>
-						<MdxButton
-							v-if="posSettingsStore.enableWhatsappSend"
-							variant="secondary"
-							size="md"
-							fullWidth
-							@click="
-								() => {
-									handleWhatsAppInvoice({ name: uiStore.lastInvoiceName, doctype: lastSubmittedDoctype });
-									uiStore.showSuccessDialog = false;
-								}
-							"
-						>
-							<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
-								<svg class="w-4 h-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-									<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-								</svg>
-								<span class="truncate">{{ __("Enviar por WhatsApp") }}</span>
-							</span>
-						</MdxButton>
+
+						<div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-end">
+							<MdxButton
+								variant="secondary"
+								size="md"
+								@click="
+									handlePrintInvoice({
+										name: uiStore.lastInvoiceName,
+										doctype: lastSubmittedDoctype,
+										_forceThermal: true,
+									})
+								"
+							>
+								<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
+									<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+									</svg>
+									<span class="whitespace-nowrap">{{ __("Print Ticket (Thermal)") }}</span>
+								</span>
+							</MdxButton>
+							<MdxButton
+								v-if="posSettingsStore.enableWhatsappSend"
+								variant="secondary"
+								size="md"
+								@click="
+									handleWhatsAppInvoice({
+										name: uiStore.lastInvoiceName,
+										doctype: lastSubmittedDoctype,
+									})
+								"
+							>
+								<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
+									<svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+										<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+									</svg>
+									<span class="whitespace-nowrap">{{ __("Enviar por WhatsApp") }}</span>
+								</span>
+							</MdxButton>
+							<MdxButton
+								variant="primary"
+								size="md"
+								@click="
+									handlePrintInvoicePDF(uiStore.lastInvoiceName, lastSubmittedDoctype)
+								"
+							>
+								<span class="inline-flex items-center justify-center gap-1.5 min-w-0">
+									<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+									</svg>
+									<span class="whitespace-nowrap">
+										{{
+											lastSubmittedDoctype === "Sales Order"
+												? __("Imprimir Orden de Venta PDF")
+												: String(uiStore.lastInvoiceName || "").toUpperCase().startsWith("CF-")
+												? __("Imprimir Factura PDF")
+												: __("Imprimir Nota de Venta PDF")
+										}}
+									</span>
+								</span>
+							</MdxButton>
+						</div>
 					</div>
 				</template>
 			</MdxModal>
@@ -1094,7 +1220,7 @@
 							? __('Enviar Pre-venta por WhatsApp')
 							: __('Enviar Comprobante por WhatsApp')
 				"
-				size="md"
+				size="lg"
 			>
 				<div v-if="whatsAppLoading" class="py-8 flex flex-col items-center justify-center">
 					<MdxLoadingSpinner
@@ -1108,7 +1234,7 @@
 				</div>
 				<div v-else class="space-y-4 text-start">
 					<!-- Customer & Document Badge -->
-					<div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
+					<div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center justify-between gap-3">
 						<div class="min-w-0">
 							<p class="text-xs font-bold text-slate-900 truncate">
 								{{ whatsAppDoc?.customer_name || whatsAppDoc?.customer || __("Cliente Mostrador") }}
@@ -1118,7 +1244,7 @@
 							</p>
 						</div>
 						<MdxBadge variant="neutral" size="md">
-							{{ formatCurrency(whatsAppDoc?.grand_total || 0) }}
+							{{ formatPosAmount(whatsAppDoc?.grand_total || 0) }}
 						</MdxBadge>
 					</div>
 
@@ -1164,43 +1290,45 @@
 						</div>
 						<textarea
 							v-model="whatsAppMessage"
-							rows="7"
-							class="block w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+							rows="9"
+							class="block w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed font-mono text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
 						></textarea>
 					</div>
 				</div>
 
 				<template #footer>
-					<div class="flex flex-wrap gap-2 justify-end w-full">
+					<div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 w-full">
 						<MdxButton variant="secondary" @click="showWhatsAppDialog = false">
 							{{ __("Cancel") }}
 						</MdxButton>
-						<MdxButton
-							v-if="whatsAppDoc?.public_pdf_url"
-							variant="secondary"
-							:loading="whatsAppPdfSharing"
-							:disabled="whatsAppLoading"
-							@click="handleShareOrDownloadPDF"
-						>
-							<template #icon>
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-								</svg>
-							</template>
-							{{ __("Compartir / Descargar PDF") }}
-						</MdxButton>
-						<MdxButton
-							variant="primary"
-							:disabled="whatsAppLoading"
-							@click="sendWhatsAppNow"
-						>
-							<template #icon>
-								<svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-									<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-								</svg>
-							</template>
-							{{ __("Abrir WhatsApp y Enviar") }}
-						</MdxButton>
+						<div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-end">
+							<MdxButton
+								v-if="whatsAppDoc?.public_pdf_url"
+								variant="secondary"
+								:loading="whatsAppPdfSharing"
+								:disabled="whatsAppLoading"
+								@click="handleShareOrDownloadPDF"
+							>
+								<template #icon>
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+									</svg>
+								</template>
+								{{ __("Compartir / Descargar PDF") }}
+							</MdxButton>
+							<MdxButton
+								variant="primary"
+								:disabled="whatsAppLoading"
+								@click="sendWhatsAppNow"
+							>
+								<template #icon>
+									<svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+										<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+									</svg>
+								</template>
+								{{ __("Abrir WhatsApp y Enviar") }}
+							</MdxButton>
+						</div>
 					</div>
 				</template>
 			</MdxModal>
@@ -1294,6 +1422,7 @@ import { useSessionLock } from "@/composables/useSessionLock";
 import { usePOSEvents } from "@/composables/usePOSEvents";
 import { useLocale } from "@/composables/useLocale";
 import { session } from "@/data/session";
+import { formatCurrency as formatCurrencyWithSymbol } from "@/utils/currency";
 import { getLocalDateString } from "@/utils/date";
 import { useUserData } from "@/data/user";
 import { parseError } from "@/utils/errorHandler";
@@ -1322,6 +1451,7 @@ import {
 	MdxBadge,
 	MdxButton,
 	MdxConfirmDialog,
+	MdxDataTable,
 	MdxLoadingSpinner,
 	MdxModal,
 } from "mdx_ui";
@@ -1432,9 +1562,55 @@ function getSelectableItemUoms(item) {
 	return item.item_uoms;
 }
 
-// Dialog state for printing saved draft
+// Dialog state for printing saved draft & executive post-transaction receipts
 const showPrintDraftConfirmDialog = ref(false);
 const lastSavedDraft = ref(null);
+const lastCompletedSale = ref(null);
+
+function formatPosAmount(amount) {
+	return formatCurrencyWithSymbol(Number(amount || 0), shiftStore.profileCurrency || "BOB");
+}
+
+function formatReceiptWarehouseLabel(warehouse, fallbackWarehouse = "") {
+	const raw = String(warehouse || fallbackWarehouse || "").trim();
+	if (!raw) return "—";
+	return raw.replace(/\s+-\s+[A-Z0-9]{1,6}$/i, "").trim() || raw;
+}
+
+const receiptItemColumns = computed(() => [
+	{ key: "line_no", label: "#", width: 44, align: "center", hideOnMobile: true },
+	{ key: "item_code", label: __("Código"), width: 105, align: "left" },
+	{ key: "item_display", label: __("Producto / Medida"), width: 315, align: "left", primary: true },
+	{ key: "warehouse_display", label: __("Almacén"), width: 135, align: "left" },
+	{ key: "qty_display", label: __("Cant."), width: 95, align: "right" },
+	{ key: "rate_display", label: __("P. Unit."), width: 110, align: "right" },
+	{ key: "amount_display", label: __("Subtotal"), width: 115, align: "right" },
+]);
+
+function buildReceiptTableRows(rawItems, prefix = "row", fallbackWarehouse = "") {
+	const list = Array.isArray(rawItems) ? rawItems : [];
+	return list.map((it, idx) => {
+		const qty = Number(it.quantity ?? it.qty ?? 1) || 1;
+		const qtyClean = Number.isInteger(qty) ? qty : Number(qty.toFixed(2));
+		const rate = Number(it.rate ?? it.price ?? it.price_list_rate ?? 0) || 0;
+		const lineTotal = Number(it.amount ?? qty * rate) || qty * rate;
+		const uom = it.uom || it.stock_uom || "";
+		const medida = it.custom_medida || it.medida || "";
+		const itemName = it.item_name || it.item_code || "";
+		return {
+			_rowKey: it.so_detail || it.name || `${prefix}-${idx}-${it.item_code || "item"}`,
+			line_no: idx + 1,
+			item_code: it.item_code || "—",
+			item_name: itemName,
+			medida,
+			item_display: medida ? `${itemName} (${medida})` : itemName,
+			warehouse_display: formatReceiptWarehouseLabel(it.warehouse, fallbackWarehouse),
+			qty_display: uom ? `${qtyClean} ${uom}` : `${qtyClean}`,
+			rate_display: formatPosAmount(rate),
+			amount_display: formatPosAmount(lineTotal),
+		};
+	});
+}
 
 const isSavedDraftQuotation = computed(() => {
 	const d = lastSavedDraft.value;
@@ -1475,6 +1651,14 @@ const savedDraftItems = computed(() => {
 	});
 });
 
+const savedDraftTableRows = computed(() =>
+	buildReceiptTableRows(
+		lastSavedDraft.value?.items || [],
+		lastSavedDraft.value?.draft_id || "draft",
+		shiftStore.profileWarehouse || ""
+	)
+);
+
 const savedDraftTotalUnits = computed(() => {
 	const sum = savedDraftItems.value.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
 	return Number.isInteger(sum) ? sum : Number(sum.toFixed(2));
@@ -1497,6 +1681,52 @@ const savedDraftValidTillDisplay = computed(() => {
 		return `${parts[2]}/${parts[1]}/${parts[0]}`;
 	}
 	return str;
+});
+
+const savedDraftDateDisplay = computed(() => {
+	const raw = lastSavedDraft.value?.created_at || getLocalDateString();
+	const str = String(raw).slice(0, 10);
+	const parts = str.split("-");
+	if (parts.length === 3) {
+		return `${parts[2]}/${parts[1]}/${parts[0]}`;
+	}
+	return str || "—";
+});
+
+const completedSaleTableRows = computed(() =>
+	buildReceiptTableRows(
+		lastCompletedSale.value?.items || [],
+		uiStore.lastInvoiceName || "sale",
+		shiftStore.profileWarehouse || ""
+	)
+);
+
+const completedSaleTotalUnits = computed(() => {
+	const raw = lastCompletedSale.value?.items || [];
+	const sum = raw.reduce((acc, it) => acc + (Number(it.quantity ?? it.qty ?? 0) || 0), 0);
+	return Number.isInteger(sum) ? sum : Number(sum.toFixed(2));
+});
+
+const completedSaleCustomerLabel = computed(
+	() => lastCompletedSale.value?.customerLabel || __("Cliente General")
+);
+
+const completedSalePaymentLabel = computed(() => {
+	const modes = lastCompletedSale.value?.paymentModes || [];
+	if (modes.length > 0) return modes.join(" + ");
+	if (lastCompletedSale.value?.isCreditSale) return __("Venta a Crédito");
+	return __("Contado");
+});
+
+const completedSaleBadgeLabel = computed(() => {
+	if (lastSubmittedDoctype.value === "Sales Order") return __("ORDEN DE VENTA");
+	if (
+		lastCompletedSale.value?.isOfficialInvoice ||
+		String(uiStore.lastInvoiceName || "").toUpperCase().startsWith("CF-")
+	) {
+		return __("FACTURA");
+	}
+	return __("NOTA DE VENTA");
 });
 
 // Dialog state for sending receipt via WhatsApp
@@ -2483,6 +2713,31 @@ async function handlePaymentCompleted(paymentData) {
 		// Delete draft if it exists (since we're submitting/saving invoice)
 		const draftIdToDelete = cartStore.currentDraftId;
 
+		const saleSnapshotItems = cartStore.invoiceItems.map((item) => {
+			const qty = Number(item.quantity ?? item.qty ?? 1) || 1;
+			const rate = Number(item.rate ?? item.price ?? 0) || 0;
+			return {
+				item_code: item.item_code,
+				item_name: item.item_name || item.item_code || "",
+				custom_medida: item.custom_medida || item.medida || "",
+				warehouse: item.warehouse || shiftStore.profileWarehouse || "",
+				uom: item.uom || item.stock_uom || "",
+				qty,
+				rate,
+				amount: Number(item.amount ?? qty * rate) || qty * rate,
+			};
+		});
+		const saleSnapshotCustomerName =
+			cartStore.customer?.customer_name ||
+			cartStore.customer?.name ||
+			customerValue ||
+			shiftStore.profileCustomer ||
+			__("Cliente General");
+		const saleSnapshotTaxId = cartStore.customer?.tax_id || "";
+		const salePaymentModes = (cartStore.payments || [])
+			.filter((p) => Number(p.amount) > 0 && p.mode_of_payment)
+			.map((p) => p.mode_of_payment);
+
 		if (offlineStore.isOffline) {
 			// Use the same item transformation as online flow for consistency
 			// This ensures rate, discount_percentage, discount_amount, and pricing_rules
@@ -2589,6 +2844,21 @@ async function handlePaymentCompleted(paymentData) {
 				status: Math.max(0, grandTotal - paidAmount) < 0.01 ? "Paid" : "Unpaid",
 				docstatus: 0,
 			};
+			lastSubmittedDoctype.value = "Sales Invoice";
+			lastCompletedSale.value = {
+				name: offlineReceiptName,
+				doctype: "Sales Invoice",
+				isOffline: true,
+				isOfficialInvoice: Boolean(paymentData.emit_official_invoice),
+				isCreditSale: Boolean(paymentData.is_credit_sale),
+				customerLabel: offlinePrintDoc.customer_name,
+				taxId: offlinePrintDoc.tax_id || "",
+				items: saleSnapshotItems,
+				grandTotal,
+				paidAmount,
+				changeAmount: Number(paymentData.change_amount || 0),
+				paymentModes: salePaymentModes,
+			};
 			uiStore.setLastOfflinePrintDoc(offlinePrintDoc);
 			cacheOfflineReceiptPayload(offlineReceiptName, offlinePrintDoc);
 			uiStore.showPaymentDialog = false;
@@ -2679,6 +2949,28 @@ async function handlePaymentCompleted(paymentData) {
 				const invoiceName = result.name || result.message?.name || __("Unknown");
 				const invoiceTotal = result.grand_total || result.total || 0;
 				const paidAmount = paymentData.paid_amount || invoiceTotal;
+
+				lastCompletedSale.value = {
+					name: invoiceName,
+					doctype: lastSubmittedDoctype.value,
+					isOffline: false,
+					isOfficialInvoice:
+						Boolean(paymentData.emit_official_invoice) ||
+						String(invoiceName || "").toUpperCase().startsWith("CF-"),
+					isCreditSale: Boolean(paymentData.is_credit_sale),
+					customerLabel:
+						paymentData.emit_official_invoice && paymentData.billing_razon_social
+							? paymentData.billing_razon_social
+							: saleSnapshotCustomerName,
+					taxId: paymentData.emit_official_invoice
+						? paymentData.billing_nit || saleSnapshotTaxId
+						: saleSnapshotTaxId,
+					items: saleSnapshotItems,
+					grandTotal: invoiceTotal,
+					paidAmount,
+					changeAmount: Number(paymentData.change_amount || 0),
+					paymentModes: salePaymentModes,
+				};
 
 				uiStore.showPaymentDialog = false;
 				cartStore.clearCart();
@@ -3037,20 +3329,36 @@ function logoutWithCloseShift() {
 	uiStore.showCloseShiftDialog = true;
 }
 
+function isQuotationDraftId(draftId) {
+	const id = String(draftId || "");
+	return (
+		id.includes("-QTN-") ||
+		id.includes("-COT-") ||
+		id.startsWith("QTN-") ||
+		id.startsWith("COT-") ||
+		id.startsWith("SAL-QTN-")
+	);
+}
+
 async function handleSaveDraft(submit = false) {
 	if (!cartStore.customer) {
 		showWarning(__("Please select a customer before proceeding"));
 		uiStore.showCustomerDialog = true;
 		return;
 	}
+	const targetDraftId =
+		cartStore.currentDraftId && !isQuotationDraftId(cartStore.currentDraftId)
+			? cartStore.currentDraftId
+			: null;
 	const savedDraft = await draftsStore.saveDraftInvoice(
 		cartStore.invoiceItems,
 		cartStore.customer,
 		cartStore.posProfile,
 		cartStore.appliedOffers,
-		cartStore.currentDraftId,
+		targetDraftId,
 		"Sales Order",
-		submit
+		submit,
+		cartStore.additionalDiscount || 0
 	);
 	if (savedDraft) {
 		lastSavedDraft.value = savedDraft;
@@ -3068,14 +3376,19 @@ async function handleSaveQuotation(submit = false) {
 		uiStore.showCustomerDialog = true;
 		return;
 	}
+	const targetDraftId =
+		cartStore.currentDraftId && isQuotationDraftId(cartStore.currentDraftId)
+			? cartStore.currentDraftId
+			: null;
 	const savedDraft = await draftsStore.saveDraftInvoice(
 		cartStore.invoiceItems,
 		cartStore.customer,
 		cartStore.posProfile,
 		cartStore.appliedOffers,
-		null, // always insert new Quotation
+		targetDraftId,
 		"Quotation",
-		submit
+		submit,
+		cartStore.additionalDiscount || 0
 	);
 	if (savedDraft) {
 		lastSavedDraft.value = savedDraft;
@@ -3086,7 +3399,6 @@ async function handleSaveQuotation(submit = false) {
 }
 
 async function confirmPrintDraft() {
-	showPrintDraftConfirmDialog.value = false;
 	if (!lastSavedDraft.value) return;
 
 	try {
@@ -3172,7 +3484,6 @@ function printDocumentLetterPDF(doctype, name, printFormat = null) {
 }
 
 function confirmPrintDraftPDF() {
-	showPrintDraftConfirmDialog.value = false;
 	if (!lastSavedDraft.value) return;
 	const draft = lastSavedDraft.value;
 	const doctype = draft.doctype || "Quotation";
@@ -3257,7 +3568,6 @@ async function handleWhatsAppInvoice(invoiceOrDoc) {
 }
 
 async function confirmWhatsAppDraft() {
-	showPrintDraftConfirmDialog.value = false;
 	if (!lastSavedDraft.value) return;
 	const draft = lastSavedDraft.value;
 	const itemsList = draft.items || [];
@@ -3989,3 +4299,22 @@ function handleTabSwitch(tab) {
 	});
 }
 </script>
+
+<style scoped>
+.pos-receipt-subtable :deep(.mdx-table-scroll) {
+	border: none;
+	border-radius: 0;
+}
+
+.pos-receipt-subtable :deep(.mdx-table-cards) {
+	padding: 0.75rem;
+}
+
+.pos-receipt-subtable :deep(.mdx-table__row) {
+	cursor: default;
+}
+
+.pos-receipt-subtable :deep(.mdx-table__row:last-child .mdx-table__td) {
+	border-bottom: none;
+}
+</style>

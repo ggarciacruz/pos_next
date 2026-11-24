@@ -220,134 +220,172 @@
 					<div
 						v-for="draft in paginatedDrafts"
 						:key="draft.draft_id"
-						class="px-4 py-3.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4"
+						class="flex flex-col overflow-hidden"
 						:class="
 							isDraftAlreadyProcessed(draft)
-								? 'pos-draft-card pos-draft-card--processed cursor-not-allowed select-none'
+								? 'pos-draft-card pos-draft-card--processed'
 								: isDraftQuotation(draft)
-								? 'pos-draft-card pos-draft-card--quotation group cursor-pointer'
-								: 'pos-draft-card group cursor-pointer'
+								? 'pos-draft-card pos-draft-card--quotation group'
+								: 'pos-draft-card group'
 						"
-						@click="handleDraftClick(draft)"
 					>
-						<!-- Zone 1: Doc ID, Type & Status -->
-						<div class="w-full lg:w-[240px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4">
-							<div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
-								<h4
-									class="text-sm md:text-base font-extrabold tabular-nums transition-colors"
-									:class="
-										isDraftAlreadyProcessed(draft)
-											? 'text-slate-600'
-											: 'text-slate-900 group-hover:text-blue-600'
-									"
-								>
-									{{ draft.draft_id }}
-								</h4>
-								<MdxBadge
-									:variant="isDraftQuotation(draft) ? 'info' : 'neutral'"
-									size="sm"
-								>
-									{{ isDraftQuotation(draft) ? __("Cotización") : __("Pre-venta") }}
-								</MdxBadge>
-								<MdxBadge
-									v-if="isDraftAlreadyProcessed(draft)"
-									variant="success"
-									size="sm"
-								>
-									{{ isDraftQuotation(draft) ? __("Ordenada") : __("Vendido") }}
-								</MdxBadge>
-								<MdxBadge
-									v-else-if="draft.docstatus === 1"
-									variant="warning"
-									size="sm"
-									:dot="true"
-								>
-									{{ __("Pendiente") }}
-								</MdxBadge>
-								<MdxBadge
-									v-else
-									variant="neutral"
-									size="sm"
-								>
-									{{ __("Borrador") }}
-								</MdxBadge>
-							</div>
-							<div class="flex items-center gap-2 flex-wrap">
-								<p class="text-xs text-slate-500">
-									{{ formatDateTime(draft.created_at) }}
-								</p>
-								<span
-									v-if="!isDraftAlreadyProcessed(draft)"
-									class="inline-flex items-center gap-1.5 text-[10px] font-extrabold px-2 py-0.5 rounded-md border uppercase tracking-wider"
-									:class="
-										getWaitingStatus(draft.created_at) === 'critical'
-											? 'bg-red-50 text-red-700 border-red-200'
-											: getWaitingStatus(draft.created_at) === 'warning'
-											? 'bg-amber-50 text-amber-700 border-amber-200'
-											: 'bg-emerald-50 text-emerald-700 border-emerald-200'
-									"
-								>
-									<span class="relative flex h-1.5 w-1.5 shrink-0">
-										<span
-											v-if="getWaitingStatus(draft.created_at) === 'critical'"
-											class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"
-										></span>
-										<span
-											class="relative inline-flex rounded-full h-1.5 w-1.5"
-											:class="
-												getWaitingStatus(draft.created_at) === 'critical'
-													? 'bg-red-500'
-													: getWaitingStatus(draft.created_at) === 'warning'
-													? 'bg-amber-500'
-													: 'bg-emerald-500'
-											"
-										></span>
+						<!-- Card Summary Row -->
+						<div
+							class="px-4 py-3.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 cursor-pointer"
+							@click="handleCardRowClick(draft)"
+						>
+							<!-- Zone 1: Doc ID, Type & Status -->
+							<div class="w-full lg:w-[240px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4">
+								<div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+									<h4
+										class="text-sm md:text-base font-extrabold tabular-nums transition-colors"
+										:class="
+											isDraftAlreadyProcessed(draft)
+												? 'text-slate-600'
+												: 'text-slate-900 group-hover:text-blue-600'
+										"
+									>
+										{{ draft.draft_id }}
+									</h4>
+									<MdxBadge
+										:variant="isDraftQuotation(draft) ? 'info' : 'neutral'"
+										size="sm"
+									>
+										{{ isDraftQuotation(draft) ? __("Cotización") : __("Pre-venta") }}
+									</MdxBadge>
+									<MdxBadge
+										v-if="isDraftAlreadyProcessed(draft)"
+										variant="success"
+										size="sm"
+									>
+										{{ isDraftQuotation(draft) ? __("Ordenada") : __("Vendido") }}
+									</MdxBadge>
+									<MdxBadge
+										v-else-if="draft.docstatus === 1"
+										variant="warning"
+										size="sm"
+										:dot="true"
+									>
+										{{ __("Pendiente") }}
+									</MdxBadge>
+									<MdxBadge
+										v-else
+										variant="neutral"
+										size="sm"
+									>
+										{{ __("Borrador") }}
+									</MdxBadge>
+								</div>
+								<div class="flex items-center gap-2 flex-wrap">
+									<p class="text-xs text-slate-500">
+										{{ formatDateTime(draft.created_at) }}
+									</p>
+									<span
+										v-if="!isDraftAlreadyProcessed(draft)"
+										class="inline-flex items-center gap-1.5 text-[10px] font-extrabold px-2 py-0.5 rounded-md border uppercase tracking-wider"
+										:class="
+											getWaitingStatus(draft.created_at) === 'critical'
+												? 'bg-red-50 text-red-700 border-red-200'
+												: getWaitingStatus(draft.created_at) === 'warning'
+												? 'bg-amber-50 text-amber-700 border-amber-200'
+												: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+										"
+									>
+										<span class="relative flex h-1.5 w-1.5 shrink-0">
+											<span
+												v-if="getWaitingStatus(draft.created_at) === 'critical'"
+												class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"
+											></span>
+											<span
+												class="relative inline-flex rounded-full h-1.5 w-1.5"
+												:class="
+													getWaitingStatus(draft.created_at) === 'critical'
+														? 'bg-red-500'
+														: getWaitingStatus(draft.created_at) === 'warning'
+														? 'bg-amber-500'
+														: 'bg-emerald-500'
+												"
+											></span>
+										</span>
+										{{ getTimeAgo(draft.created_at) }}
 									</span>
-									{{ getTimeAgo(draft.created_at) }}
-								</span>
+								</div>
 							</div>
-						</div>
 
-						<!-- Zone 2: Customer & Salesperson -->
-						<div class="w-full lg:w-[230px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 min-w-0">
-							<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-								{{ __("Cliente") }}
-							</span>
-							<p
-								class="text-sm font-bold truncate leading-snug mt-0.5"
-								:class="isDraftAlreadyProcessed(draft) ? 'text-slate-600' : 'text-slate-900'"
-							>
-								{{ draft.customer?.customer_name || draft.customer?.name || draft.customer }}
-							</p>
-							<div v-if="draft.owner" class="text-xs text-slate-500 mt-1 flex items-center gap-1 truncate">
-								<span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider">{{ __("Vendedor:") }}</span>
-								<span class="font-semibold text-slate-600 truncate">
-									{{ userNamesMap[draft.owner] || draft.owner.split("@")[0].toUpperCase() }}
+							<!-- Zone 2: Customer & Salesperson -->
+							<div class="w-full lg:w-[230px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 min-w-0">
+								<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+									{{ __("Cliente") }}
 								</span>
-							</div>
-						</div>
-
-						<!-- Zone 3: Items Summary -->
-						<div class="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 flex flex-col justify-center">
-							<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1.5">
-								{{ __("Detalle de Items") }} ({{ draft.items?.length || 0 }})
-							</span>
-							<div class="flex flex-wrap gap-1.5 max-h-16 overflow-y-auto">
-								<span
-									v-for="(item, idx) in draft.items"
-									:key="idx"
-									class="text-[11px] border px-2.5 py-1 rounded-lg truncate max-w-full font-medium"
-									:class="
-										isDraftAlreadyProcessed(draft)
-											? 'bg-white border-slate-200 text-slate-600'
-											: 'bg-slate-50 border-slate-200 text-slate-700'
-									"
+								<p
+									class="text-sm font-bold truncate leading-snug mt-0.5"
+									:class="isDraftAlreadyProcessed(draft) ? 'text-slate-600' : 'text-slate-900'"
 								>
-									{{ item.item_name || item.item_code }}{{ (item.custom_medida || item.medida) ? " (" + (item.custom_medida || item.medida) + ")" : "" }}
-									<span class="text-slate-900 font-extrabold ms-1">x{{ item.quantity || item.qty }}</span>
-								</span>
+									{{ draft.customer?.customer_name || draft.customer?.name || draft.customer }}
+								</p>
+								<div v-if="draft.owner" class="text-xs text-slate-500 mt-1 flex items-center gap-1 truncate">
+									<span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider">{{ __("Vendedor:") }}</span>
+									<span class="font-semibold text-slate-600 truncate">
+										{{ userNamesMap[draft.owner] || draft.owner.split("@")[0].toUpperCase() }}
+									</span>
+								</div>
 							</div>
-						</div>
+
+							<!-- Zone 3: Compact Items Preview + Expand Trigger (Zero Inner Scrollbar) -->
+							<div class="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 flex flex-col justify-center">
+								<div class="flex items-center justify-between gap-2 mb-1.5">
+									<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+										{{ __("Detalle de Items") }} ({{ draft.items?.length || 0 }})
+									</span>
+									<button
+										v-if="(draft.items?.length || 0) > 0"
+										type="button"
+										@click.stop="toggleExpandDraft(draft.draft_id)"
+										class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 px-1.5 py-0.5 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+									>
+										<span>{{ isDraftExpanded(draft.draft_id) ? __("Ocultar detalle") : __("Ver detalle") }}</span>
+										<svg
+											class="w-3.5 h-3.5 transition-transform duration-150"
+											:class="isDraftExpanded(draft.draft_id) ? 'rotate-180' : ''"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											stroke-width="2"
+										>
+											<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+										</svg>
+									</button>
+								</div>
+								<div class="flex flex-wrap items-center gap-1.5">
+									<span
+										v-for="(item, idx) in getPreviewItems(draft)"
+										:key="idx"
+										class="text-[11px] border px-2.5 py-1 rounded-lg truncate max-w-[240px] xl:max-w-[280px] font-medium"
+										:class="
+											isDraftAlreadyProcessed(draft)
+												? 'bg-white border-slate-200 text-slate-600'
+												: 'bg-slate-50 border-slate-200 text-slate-700'
+										"
+										:title="`${item.item_name || item.item_code}${(item.custom_medida || item.medida) ? ' (' + (item.custom_medida || item.medida) + ')' : ''}`"
+									>
+										{{ item.item_name || item.item_code }}{{ (item.custom_medida || item.medida) ? " (" + (item.custom_medida || item.medida) + ")" : "" }}
+										<span class="text-slate-900 font-extrabold ms-1">x{{ item.quantity || item.qty }}</span>
+									</span>
+									<button
+										v-if="getHiddenItemsCount(draft) > 0"
+										type="button"
+										@click.stop="toggleExpandDraft(draft.draft_id)"
+										class="text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer shrink-0"
+										:class="
+											isDraftExpanded(draft.draft_id)
+												? 'bg-slate-900 border-slate-900 text-white'
+												: 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+										"
+									>
+										{{ isDraftExpanded(draft.draft_id) ? __("Menos") : `+${getHiddenItemsCount(draft)} ${__("más")}` }}
+									</button>
+								</div>
+							</div>
 
 						<!-- Zone 4: Amount & Quick Actions -->
 						<div class="w-full lg:w-auto shrink-0 flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-3.5">
@@ -457,6 +495,48 @@
 								</button>
 							</div>
 						</div>
+						</div>
+
+						<!-- Expandable Items Detail Sub-Table Accordion (mdx_ui MdxDataTable) -->
+						<div
+							v-if="isDraftExpanded(draft.draft_id)"
+							class="border-t border-slate-200 bg-slate-50/80 px-4 py-3 draft-items-subtable"
+							@click.stop
+						>
+							<MdxDataTable
+								:columns="draftItemColumns"
+								:rows="getDraftTableRows(draft)"
+								row-key="_rowKey"
+								pagination-mode="none"
+								:page-size="0"
+								:empty-title="__('Sin artículos registrados')"
+							>
+								<template #cell-line_no="{ row }">
+									<span class="text-xs font-semibold text-slate-400 tabular-nums">{{ row.line_no }}</span>
+								</template>
+								<template #cell-item_code="{ row }">
+									<span class="text-xs font-bold text-slate-700 tabular-nums">{{ row.item_code }}</span>
+								</template>
+								<template #cell-item_display="{ row }">
+									<div class="min-w-0">
+										<p class="text-xs font-semibold text-slate-900 truncate">{{ row.item_name }}</p>
+										<p v-if="row.medida" class="text-[11px] text-slate-500 truncate">{{ row.medida }}</p>
+									</div>
+								</template>
+								<template #cell-warehouse_display="{ row }">
+									<span class="text-xs text-slate-600">{{ row.warehouse_display }}</span>
+								</template>
+								<template #cell-qty_display="{ row }">
+									<span class="text-xs font-bold text-slate-900 tabular-nums">{{ row.qty_display }}</span>
+								</template>
+								<template #cell-rate_display="{ row }">
+									<span class="text-xs text-slate-700 tabular-nums">{{ row.rate_display }}</span>
+								</template>
+								<template #cell-amount_display="{ row }">
+									<span class="text-xs font-extrabold text-slate-900 tabular-nums">{{ row.amount_display }}</span>
+								</template>
+							</MdxDataTable>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -539,12 +619,15 @@ import {
 	MdxBadge,
 	MdxButton,
 	MdxConfirmDialog,
+	MdxDataTable,
 	MdxModal,
 	MdxSearchInput,
 	MdxSegmentedControl,
 } from "mdx_ui";
 import { db } from "@/utils/offline/db";
 import { onMounted, ref, watch, computed } from "vue";
+
+const PREVIEW_ITEMS_LIMIT = 2;
 
 const { showSuccess, showError, showWarning } = useToast();
 const bootstrapStore = useBootstrapStore();
@@ -581,6 +664,71 @@ const currentPage = ref(1);
 const pageSize = 10;
 const sortByWaiting = ref(false);
 const onlyPending = ref(false);
+const expandedDraftIds = ref(new Set());
+
+function isDraftExpanded(draftId) {
+	return Boolean(draftId && expandedDraftIds.value.has(draftId));
+}
+
+function toggleExpandDraft(draftId) {
+	if (!draftId) return;
+	const next = new Set(expandedDraftIds.value);
+	if (next.has(draftId)) {
+		next.delete(draftId);
+	} else {
+		next.add(draftId);
+	}
+	expandedDraftIds.value = next;
+}
+
+function getPreviewItems(draft) {
+	return (draft?.items || []).slice(0, PREVIEW_ITEMS_LIMIT);
+}
+
+function getHiddenItemsCount(draft) {
+	return Math.max(0, (draft?.items?.length || 0) - PREVIEW_ITEMS_LIMIT);
+}
+
+function formatWarehouseLabel(warehouse) {
+	const raw = String(warehouse || "").trim();
+	if (!raw) return "—";
+	return raw.replace(/\s+-\s+[A-Z0-9]{1,6}$/i, "").trim() || raw;
+}
+
+const draftItemColumns = computed(() => [
+	{ key: "line_no", label: "#", width: 48, align: "center", hideOnMobile: true },
+	{ key: "item_code", label: __("Código"), width: 110, align: "left" },
+	{ key: "item_display", label: __("Producto / Medida"), width: 320, align: "left", primary: true },
+	{ key: "warehouse_display", label: __("Almacén"), width: 145, align: "left" },
+	{ key: "qty_display", label: __("Cant."), width: 100, align: "right" },
+	{ key: "rate_display", label: __("P. Unit."), width: 115, align: "right" },
+	{ key: "amount_display", label: __("Subtotal"), width: 120, align: "right" },
+]);
+
+function getDraftTableRows(draft) {
+	return (draft?.items || []).map((item, idx) => {
+		const qty = Number(item.quantity ?? item.qty ?? 0);
+		const rate = Number(item.rate ?? 0);
+		const amount = Number(item.amount ?? roundCurrency(qty * roundCurrency(rate)));
+		const uom = item.uom || item.stock_uom || "";
+		const medida = item.custom_medida || item.medida || "";
+		const itemName = item.item_name || item.item_code || "";
+		return {
+			_rowKey: item.so_detail || item.name || `${draft?.draft_id || "draft"}-${idx}`,
+			line_no: idx + 1,
+			item_code: item.item_code || "—",
+			item_name: itemName,
+			medida,
+			item_display: medida ? `${itemName} (${medida})` : itemName,
+			warehouse_display: formatWarehouseLabel(item.warehouse),
+			qty,
+			uom,
+			qty_display: uom ? `${qty} ${uom}` : `${qty}`,
+			rate_display: formatCurrency(rate),
+			amount_display: formatCurrency(amount),
+		};
+	});
+}
 
 const sortedDrafts = computed(() => {
 	const list = [...filteredDrafts.value];
@@ -608,6 +756,11 @@ const paginatedDrafts = computed(() => {
 
 watch([activeTab, searchQuery, sortByWaiting, onlyPending], () => {
 	currentPage.value = 1;
+	expandedDraftIds.value = new Set();
+});
+
+watch(currentPage, () => {
+	expandedDraftIds.value = new Set();
 });
 
 async function refreshData() {
@@ -709,12 +862,22 @@ function handleDraftClick(draft) {
 	emit("load-draft", draft);
 }
 
+function handleCardRowClick(draft) {
+	if (isDraftAlreadyProcessed(draft)) {
+		toggleExpandDraft(draft?.draft_id);
+		return;
+	}
+	handleDraftClick(draft);
+}
+
 watch(
 	() => props.modelValue,
 	(val) => {
 		show.value = val;
 		if (val) {
 			loadDrafts();
+		} else {
+			expandedDraftIds.value = new Set();
 		}
 	}
 );
@@ -945,5 +1108,17 @@ function getWaitingStatus(createdAt) {
 	border: 1px solid #cbd5e1;
 	border-left: 4px solid #94a3b8;
 	box-shadow: none;
+}
+
+.draft-items-subtable :deep(.mdx-table-scroll) {
+	background-color: #ffffff;
+}
+
+.draft-items-subtable :deep(.mdx-table__row) {
+	cursor: default;
+}
+
+.draft-items-subtable :deep(.mdx-table__row:last-child .mdx-table__td) {
+	border-bottom: none;
 }
 </style>

@@ -10,6 +10,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { call } from "@/utils/apiWrapper";
 import { getLocalDateOffsetString, getLocalDateString, parseFrappeDateTime } from "@/utils/date";
+import { parseError } from "@/utils/errorHandler";
 import { isOffline } from "@/utils/offline";
 import { usePOSShiftStore } from "./posShift";
 import { usePOSSettingsStore } from "./posSettings";
@@ -153,7 +154,8 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 		appliedOffers = [],
 		draftId = null,
 		doctype = "Sales Order",
-		submit = false
+		submit = false,
+		additionalDiscount = 0
 	) {
 		if (invoiceItems.length === 0) {
 			showWarning(__("Cannot save an empty cart as draft"));
@@ -168,13 +170,18 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 		try {
 			if (!isOffline()) {
 				const today = getLocalDateString();
+				const isUpdatingServerDoc = Boolean(draftId && !draftId.startsWith("DRAFT-"));
 				const formattedItems = invoiceItems.map(item => ({
+					so_detail: item.so_detail || null,
 					item_code: item.item_code,
 					item_name: item.item_name,
 					qty: item.quantity,
 					rate: item.rate,
 					price_list_rate: item.price_list_rate,
+					discount_percentage: Number(item.discount_percentage || 0),
+					discount_amount: Number(item.discount_amount || 0),
 					uom: item.uom,
+					conversion_factor: Number(item.conversion_factor || 1) || 1,
 					warehouse: item.warehouse || shiftStore.profileWarehouse || "",
 					custom_medida: item.custom_medida || "",
 					delivery_date: today, // Required for Sales Order Item
@@ -189,6 +196,11 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					items: formattedItems,
 				};
 
+				const extraDiscount = Number(additionalDiscount || 0);
+				if (extraDiscount > 0 || isUpdatingServerDoc) {
+					invoiceData.discount_amount = extraDiscount > 0 ? extraDiscount : 0;
+				}
+
 				if (doctype === "Sales Order") {
 					invoiceData.delivery_date = today;
 					invoiceData.transaction_date = today;
@@ -202,8 +214,8 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					invoiceData.valid_till = getLocalDateOffsetString(validityDays);
 				}
 
-				// If we are updating an existing server draft
-				if (draftId && !draftId.startsWith("DRAFT-")) {
+				// If we are updating an existing server document
+				if (isUpdatingServerDoc) {
 					invoiceData.name = draftId;
 				}
 
@@ -216,11 +228,14 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					throw new Error("Invalid server draft response");
 				}
 
-				const normalizedItems = invoiceItems.map((item) => {
+				const serverItems = Array.isArray(serverDoc.items) ? serverDoc.items : [];
+				const normalizedItems = invoiceItems.map((item, idx) => {
 					const q = Number(item.quantity ?? item.qty ?? 1) || 1;
 					const r = Number(item.rate ?? item.price ?? 0) || 0;
+					const matchedServerItem = serverItems[idx];
 					return {
 						...item,
+						so_detail: matchedServerItem?.name || item.so_detail || null,
 						qty: q,
 						quantity: q,
 						rate: r,
@@ -234,6 +249,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 					draft_id: serverDoc.name,
 					doctype: serverDoc.doctype || doctype,
 					docstatus: serverDoc.docstatus ?? (submit ? 1 : 0),
+					was_updated: isUpdatingServerDoc,
 					owner: serverDoc.owner || session.user,
 					customer: customer || serverDoc.customer || serverDoc.party_name,
 					customer_name:
@@ -251,7 +267,15 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 				};
 
 				await loadDrafts();
-				showSuccess(doctype === "Quotation" ? __("Quotation created successfully") : __("Invoice saved as draft successfully"));
+				showSuccess(
+					doctype === "Quotation"
+						? (isUpdatingServerDoc
+							? __("Cotización actualizada exitosamente")
+							: __("Cotización registrada exitosamente"))
+						: (isUpdatingServerDoc
+							? __("Pre-venta actualizada exitosamente")
+							: __("Pre-venta registrada exitosamente"))
+				);
 				return savedDraft;
 			} else {
 				const normalizedOfflineItems = invoiceItems.map((item) => {
@@ -293,8 +317,8 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 			}
 		} catch (error) {
 			console.error("Error saving draft:", error);
-			const errorMsg = error.message || error.messages?.[0] || error.exception || __("Failed to save draft");
-			showError(errorMsg);
+			const parsed = parseError(error);
+			showError(parsed.message || __("No se pudo guardar el documento"), parsed.title || null);
 			return null;
 		}
 	}
