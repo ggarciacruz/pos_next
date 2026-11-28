@@ -122,3 +122,53 @@ export async function printEODReport(closingShiftName, { manual = false } = {}) 
 
 	throw new Error("QZ Tray no conectado");
 }
+
+const LETTER_CLOSING_PRINT_FORMAT = "Arqueo y Cierre de Caja Nueva Era";
+
+/**
+ * Open formal Letter Print Format ("Arqueo y Cierre de Caja Nueva Era") via safe Blob HTML preview.
+ */
+export async function printLetterClosingSheet(closingShiftName) {
+	if (!closingShiftName) {
+		throw new Error("Missing closing shift name");
+	}
+	const result = await call("frappe.www.printview.get_html_and_style", {
+		doc: "POS Closing Shift",
+		name: closingShiftName,
+		print_format: LETTER_CLOSING_PRINT_FORMAT,
+		no_letterhead: 1,
+	});
+	const html = result?.html || result?.message?.html;
+	const style = result?.style || result?.message?.style || "";
+	if (!html) {
+		throw new Error("No se pudo generar la hoja de cierre");
+	}
+	const safeName = String(closingShiftName).replace(/[^A-Za-z0-9_.-]/g, "");
+	const fullHTML = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cierre de Caja - ${safeName}</title>
+<style>
+@page { size: letter; margin: 10mm; }
+body { font-family: Arial, sans-serif; margin: 0; padding: 14px; }
+.no-print { margin-bottom: 12px; text-align: right; }
+@media print { .no-print { display: none !important; } body { padding: 0; } }
+${style}
+</style>
+</head>
+<body>
+<div class="no-print"><button type="button" onclick="window.print()" style="background:#0f172a;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-weight:600;cursor:pointer;">Imprimir / Guardar PDF</button></div>
+${html}
+</body>
+</html>`;
+	const blob = new Blob([fullHTML], { type: "text/html;charset=utf-8" });
+	const url = URL.createObjectURL(blob);
+	const win = window.open(url, "_blank");
+	if (!win) {
+		URL.revokeObjectURL(url);
+		throw new Error("Permita ventanas emergentes para imprimir la hoja de cierre");
+	}
+	setTimeout(() => URL.revokeObjectURL(url), 60000);
+	return true;
+}

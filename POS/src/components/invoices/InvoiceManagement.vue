@@ -1667,6 +1667,7 @@
 		:subtotal="selectedInvoice?.grand_total || 0"
 		:items="selectedInvoice?.items || []"
 		:customer="selectedInvoice?.customer_name || selectedInvoice?.customer"
+		:existing-invoice="selectedInvoice"
 		:pos-profile="posProfile"
 		:currency="currency"
 		:is-offline="false"
@@ -2486,9 +2487,11 @@ async function handlePaymentCompleted(paymentData) {
 
 		showSuccess(__("Payment added successfully"));
 
-		// Reload invoices and summary for partial tab
-		await loadUnpaidInvoices();
-		await loadUnpaidSummary();
+		// Reload invoices and summary
+		await Promise.all([
+			loadUnpaidInvoices(),
+			loadUnpaidSummary(),
+		]);
 
 		// Also refresh history data to show updated outstanding amounts
 		emit("refresh-history");

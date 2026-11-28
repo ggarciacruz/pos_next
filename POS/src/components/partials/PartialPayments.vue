@@ -207,12 +207,14 @@
 												</div>
 											</div>
 										</div>
-										<button
-											@click="selectInvoice(invoice)"
-											class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-semibold"
-										>
-											{{ __("Add Payment") }}
-										</button>
+										<div class="flex items-center gap-2 flex-wrap justify-end">
+											<button
+												@click="selectInvoice(invoice)"
+												class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-semibold"
+											>
+												{{ __("Add Payment") }}
+											</button>
+										</div>
 									</div>
 								</div>
 
@@ -330,6 +332,7 @@
 	<PaymentDialog
 		v-model="showPaymentDialog"
 		:grand-total="selectedInvoice?.outstanding_amount || 0"
+		:existing-invoice="selectedInvoice"
 		:pos-profile="posProfile"
 		:currency="currency"
 		:is-offline="false"
@@ -344,13 +347,11 @@ import { getInvoiceStatusColor } from "@/utils/invoice";
 import PaymentDialog from "@/components/sale/PaymentDialog.vue";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import { useToast } from "@/composables/useToast";
-import { useFormatters } from "@/composables/useFormatters";
 import { Button, call } from "frappe-ui";
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 const posSettingsStore = usePOSSettingsStore();
 const { showSuccess, showError } = useToast();
-const { formatDate, formatTime } = useFormatters();
 
 const props = defineProps({
 	modelValue: Boolean,
@@ -408,7 +409,6 @@ async function loadInvoices() {
 
 		invoices.value = result || [];
 	} catch (error) {
-		console.error("Error loading partial payments:", error);
 		showError(error.message || __("Failed to load partial payments"));
 	} finally {
 		loading.value = false;
@@ -425,50 +425,33 @@ async function loadSummary() {
 
 		summary.value = result || { count: 0, total_outstanding: 0, total_paid: 0 };
 	} catch (error) {
-		console.error("Error loading summary:", error);
+		// Summary failure is non-fatal
 	}
 }
 
 function selectInvoice(invoice) {
-	console.log("[PartialPayments] Select invoice:", {
-		invoice: invoice.name,
-		allowPartialPayment: posSettingsStore.allowPartialPayment,
-		posSettings: posSettingsStore.settings,
-	});
 	selectedInvoice.value = invoice;
 	showPaymentDialog.value = true;
 }
 
 async function handlePaymentCompleted(paymentData) {
-	console.log("[PartialPayments] Payment completed:", {
-		selectedInvoice: selectedInvoice.value?.name,
-		paymentData: paymentData,
-	});
-
 	if (!selectedInvoice.value) {
-		console.warn("[PartialPayments] No invoice selected");
 		return;
 	}
 
 	try {
-		console.log("[PartialPayments] Calling API to add payment...");
-		const result = await call("pos_next.api.partial_payments.add_payment_to_partial_invoice", {
+		await call("pos_next.api.partial_payments.add_payment_to_partial_invoice", {
 			invoice_name: selectedInvoice.value.name,
 			payments: paymentData.payments,
 		});
 
-		console.log("[PartialPayments] API response:", result);
-
 		showSuccess(__("Payment added successfully"));
 
-		// Reload invoices and summary
-		console.log("[PartialPayments] Reloading invoices and summary...");
 		await loadInvoices();
 		await loadSummary();
 
 		selectedInvoice.value = null;
 	} catch (error) {
-		console.error("[PartialPayments] Error adding payment:", error);
 		showError(error.message || __("Failed to add payment"));
 	}
 }

@@ -236,9 +236,27 @@
 					</p>
 				</div>
 
+				<!-- Existing Document Fiscal Indicator (when collecting partial payment on existing CF/SF invoice) -->
+				<div
+					v-if="!isSalesOrder && isExistingDocumentPayment && settingsStore.enableSiatFiscalFormat"
+					class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center justify-between gap-2"
+				>
+					<div class="flex items-center gap-2 min-w-0">
+						<svg class="w-4 h-4 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+						</svg>
+						<span class="text-xs font-semibold text-slate-700 truncate">
+							{{ __("Cobro de comprobante:") }} <strong class="text-slate-900 tabular-nums">{{ existingInvoice?.name }}</strong>
+						</span>
+					</div>
+					<MdxBadge :variant="isEffectiveOfficialInvoice ? 'info' : 'neutral'" size="sm">
+						{{ isEffectiveOfficialInvoice ? __("Con Factura") : __("Sin Factura") }}
+					</MdxBadge>
+				</div>
+
 				<!-- Toggle for Official Invoice (Facturado) -->
 				<div
-					v-if="!isSalesOrder && settingsStore.enableSiatFiscalFormat"
+					v-if="!isSalesOrder && !isExistingDocumentPayment && settingsStore.enableSiatFiscalFormat"
 					class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 transition-all"
 				>
 					<div class="flex items-center justify-between">
@@ -1334,7 +1352,7 @@
 								</span>
 								<MdxBadge
 									v-if="lastSelectedMethod && getSelectedMethodAccountName(lastSelectedMethod)"
-									variant="neutral"
+									:variant="getSelectedMethodAccountVariant(lastSelectedMethod)"
 									size="sm"
 								>
 									{{ getSelectedMethodAccountName(lastSelectedMethod) }}
@@ -2103,6 +2121,10 @@ const props = defineProps({
 		type: Number,
 		default: 0,
 	},
+	existingInvoice: {
+		type: Object,
+		default: null,
+	},
 });
 
 const emit = defineEmits([
@@ -2251,6 +2273,21 @@ const emitOfficialInvoice = ref(false);
 const billingNit = ref("");
 const billingRazonSocial = ref("");
 const customerSearchStore = useCustomerSearchStore();
+
+const isExistingDocumentPayment = computed(() => Boolean(props.existingInvoice?.name));
+const isEffectiveOfficialInvoice = computed(() => {
+	if (props.existingInvoice?.name) {
+		const invName = String(props.existingInvoice.name || "").trim().toUpperCase();
+		const invSeries = String(props.existingInvoice.naming_series || "").trim().toUpperCase();
+		if (invName.startsWith("SF-") || invName.startsWith("NV-") || invSeries.startsWith("SF-") || invSeries.startsWith("NV-")) {
+			return false;
+		}
+		if (invName.startsWith("CF-") || invName.startsWith("ACC-SINV-") || invSeries.startsWith("CF-") || invSeries.startsWith("ACC-SINV-")) {
+			return true;
+		}
+	}
+	return Boolean(!isSalesOrder.value && settingsStore.enableSiatFiscalFormat && emitOfficialInvoice.value);
+});
 
 // Column refs for height matching
 const rightColumnRef = ref(null);
@@ -2508,12 +2545,49 @@ function isCashPaymentMethod(method) {
 	return name.includes("cash") || name.includes("نقد") || name.includes("نقدي");
 }
 
-function getSelectedMethodAccountName(method) {
-	if (!method) return "";
+function resolveMethodAccount(method) {
+	if (!method) return {};
 	let found = method;
-	if (!found.account && !found.account_name && method.mode_of_payment) {
+	if (!found.account && !found.account_name && !found.cf_account && !found.sf_account && method.mode_of_payment) {
 		found = paymentMethods.value?.find((m) => m.mode_of_payment === method.mode_of_payment) || method;
 	}
+
+	if (!isSalesOrder.value) {
+		if (isEffectiveOfficialInvoice.value && found.cf_account) {
+			return {
+				account: found.cf_account,
+				account_name: found.cf_account_name || found.cf_account,
+				account_number: found.cf_account_number || "",
+				fiscalBranch: "CF",
+			};
+		}
+		if (!isEffectiveOfficialInvoice.value && found.sf_account) {
+			return {
+				account: found.sf_account,
+				account_name: found.sf_account_name || found.sf_account,
+				account_number: found.sf_account_number || "",
+				fiscalBranch: "SF",
+			};
+		}
+	}
+
+	return {
+		account: found.account || "",
+		account_name: found.account_name || found.account || "",
+		account_number: found.account_number || "",
+		fiscalBranch: "",
+	};
+}
+
+function getSelectedMethodAccountVariant(method) {
+	const resolved = resolveMethodAccount(method);
+	if (resolved.fiscalBranch === "CF") return "info";
+	return "neutral";
+}
+
+function getSelectedMethodAccountName(method) {
+	const found = resolveMethodAccount(method);
+	if (!found) return "";
 
 	let num = found.account_number || "";
 	let name = found.account_name || found.account || "";
@@ -2537,6 +2611,19 @@ function getSelectedMethodAccountName(method) {
 	}
 	return "";
 }
+
+watch(isEffectiveOfficialInvoice, () => {
+	for (const entry of paymentEntries.value) {
+		if (entry.is_customer_credit) continue;
+		const matched = paymentMethods.value?.find((m) => m.mode_of_payment === entry.mode_of_payment);
+		if (matched) {
+			const resolved = resolveMethodAccount(matched);
+			if (resolved.account) {
+				entry.account = resolved.account;
+			}
+		}
+	}
+});
 
 // Get available wallet balance for payment (considering already added wallet payments)
 const availableWalletBalance = computed(() => {
@@ -3254,16 +3341,21 @@ function switchToNextPaymentMethod(partialAmount) {
 // Consolidate payment entries: if a row with the same mode already exists,
 // add to it instead of creating a duplicate row.
 function _upsertPaymentEntry(method, amt) {
+	const resolved = resolveMethodAccount(method);
 	const existing = paymentEntries.value.find(
 		(e) => e.mode_of_payment === method.mode_of_payment && !e.is_customer_credit
 	);
 	if (existing) {
 		existing.amount = roundCurrency((existing.amount || 0) + amt);
+		if (resolved.account) {
+			existing.account = resolved.account;
+		}
 	} else {
 		paymentEntries.value.push({
 			mode_of_payment: method.mode_of_payment,
 			amount: roundCurrency(amt),
 			type: method.type || __("Cash"),
+			account: resolved.account || undefined,
 			is_wallet_payment: isWalletPaymentMethod(method.mode_of_payment),
 		});
 	}
@@ -3513,7 +3605,10 @@ function applyCustomerCredit() {
 
 function validateAndSyncCustomerBillingAndDelivery() {
 	const shouldEmitInvoice = Boolean(
-		!isSalesOrder.value && settingsStore.enableSiatFiscalFormat && emitOfficialInvoice.value
+		!isSalesOrder.value &&
+			!isExistingDocumentPayment.value &&
+			settingsStore.enableSiatFiscalFormat &&
+			emitOfficialInvoice.value
 	);
 	if (shouldEmitInvoice) {
 		if (!billingNit.value.trim() || !billingRazonSocial.value.trim()) {

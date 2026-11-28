@@ -1,940 +1,873 @@
 <template>
-	<MdxModal v-model="open" :title="__('Close POS Shift')" size="4xl">
-		<div class="flex flex-col gap-3 md:gap-6">
-			<div v-if="closingDataResource.loading" class="py-8 md:py-12 flex justify-center">
-				<MdxLoadingSpinner size="lg" :label="__('Loading shift data...')" />
+	<MdxModal
+		v-model="open"
+		:title="__('Cierre y Arqueo de Caja')"
+		:subtitle="closingData ? cleanProfileName(closingData.pos_profile) : ''"
+		size="5xl"
+		:persistent="showDifferenceWarningModal || submitResource.loading"
+	>
+		<template #header-icon>
+			<svg class="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+				<rect x="2" y="5" width="20" height="14" rx="2" />
+				<path stroke-linecap="round" d="M2 10h20M15 15h3" />
+			</svg>
+		</template>
+
+		<div class="flex flex-col gap-4">
+			<div v-if="closingDataResource.loading" class="py-12 flex justify-center">
+				<MdxLoadingSpinner size="lg" :label="__('Cargando datos del turno...')" />
 			</div>
 
-			<div v-else-if="closingData" class="flex flex-col gap-3 md:gap-6">
-					<!-- Idle Warning -->
-					<div
-						v-if="showIdleWarning"
-						class="rounded-lg bg-amber-50 border border-amber-300 p-3 flex items-center gap-2"
-					>
-						<FeatherIcon
-							name="alert-triangle"
-							class="w-5 h-5 text-amber-600 flex-shrink-0"
-						/>
-						<p class="text-xs md:text-sm text-amber-800 font-medium">
-							{{
-								__(
-									"This dialog has been open for over a minute. Please close the shift or close this dialog to resume the shift timer."
-								)
-							}}
-						</p>
-					</div>
+			<div v-else-if="closingData" class="flex flex-col gap-4">
+				<!-- Idle Warning -->
+				<div
+					v-if="showIdleWarning"
+					class="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-center gap-2.5 text-start"
+				>
+					<FeatherIcon name="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0" />
+					<p class="text-xs md:text-sm text-amber-900 font-medium">
+						{{
+							__(
+								"This dialog has been open for over a minute. Please close the shift or close this dialog to resume the shift timer."
+							)
+						}}
+					</p>
+				</div>
 
-					<!-- Shift Summary Header (hidden in entry mode when hideExpectedAmount is enabled) -->
-					<div
-						v-if="shouldShowSummary"
-						class="bg-white border border-gray-200 rounded-lg p-3 md:p-6 shadow-sm"
-					>
-						<div
-							class="flex flex-col sm:flex-row justify-start items-start gap-3 mb-3 md:mb-6"
-						>
-							<div class="flex-1">
-								<h3
-									class="text-start text-sm md:text-base font-medium text-gray-900"
-								>
+				<!-- Executive Shift Banner & 4 KPIs -->
+				<div
+					v-if="shouldShowSummary"
+					class="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col gap-4"
+				>
+					<div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+						<div class="text-start">
+							<div class="flex items-center gap-2 flex-wrap">
+								<h3 class="text-sm md:text-base font-bold text-slate-900">
 									{{ cleanProfileName(closingData.pos_profile) }}
 								</h3>
-								<p class="text-start text-xs md:text-sm text-gray-500 mt-1">
-									{{ formatDateTime(closingData.period_start_date) }}
-								</p>
-							</div>
-							<div class="text-start sm:text-end">
-								<div class="text-start text-xs text-gray-500 uppercase">
-									{{ __("Duration") }}
-								</div>
-								<div class="text-base md:text-lg font-semibold text-gray-900">
-									{{ getShiftDuration() }}
-								</div>
-							</div>
-						</div>
-
-						<!-- Key Metrics Grid -->
-						<div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-							<!-- Gross Sales (before returns) -->
-							<div
-								class="text-start bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4"
-							>
-								<div class="text-blue-600 text-xs uppercase font-medium mb-1">
-									{{ __("Gross Sales") }}
-								</div>
-								<div
-									class="text-lg md:text-2xl font-bold text-blue-900 mb-0.5 md:mb-1 truncate"
+								<MdxBadge
+									v-if="showSuccessReport"
+									variant="success"
+									size="sm"
 								>
-									{{ formatCurrency(grossSales) }}
-								</div>
-								<div class="text-blue-600 text-xs">
-									{{
-										__("{0} invoices", [
-											closingData.sales_count || salesInvoiceCount,
-										])
-									}}
-								</div>
-							</div>
-
-							<!-- Returns -->
-							<div
-								v-if="hasReturns"
-								class="text-start bg-red-50 border border-red-200 rounded-lg p-3 md:p-4"
-							>
-								<div class="text-red-600 text-xs uppercase font-medium mb-1">
-									{{ __("Returns") }}
-								</div>
-								<div
-									class="text-lg md:text-2xl font-bold text-red-700 mb-0.5 md:mb-1 truncate"
+									{{ __("Turno Cerrado") }}
+								</MdxBadge>
+								<MdxBadge
+									v-else
+									variant="info"
+									size="sm"
 								>
-									-{{ formatCurrency(closingData.returns_total) }}
-								</div>
-								<div class="text-red-600 text-xs">
-									{{ __("{0} returns", [closingData.returns_count]) }}
-								</div>
+									{{ __("En Proceso de Arqueo") }}
+								</MdxBadge>
 							</div>
-
-							<!-- Net Sales (after returns) -->
-							<div
-								class="text-start bg-green-50 border border-green-200 rounded-lg p-3 md:p-4"
-							>
-								<div class="text-green-600 text-xs uppercase font-medium mb-1">
-									{{ __("Net Sales") }}
-								</div>
-								<div
-									class="text-lg md:text-2xl font-bold text-green-900 mb-0.5 md:mb-1 truncate"
-								>
-									{{ formatCurrency(closingData.grand_total) }}
-								</div>
-								<div class="text-green-600 text-xs">{{ __("After returns") }}</div>
-							</div>
-
-							<!-- Tax Collected -->
-							<div
-								class="text-start bg-gray-50 border border-gray-200 rounded-lg p-3 md:p-4"
-							>
-								<div class="text-gray-600 text-xs uppercase font-medium mb-1">
-									{{ __("Tax Collected") }}
-								</div>
-								<div
-									class="text-lg md:text-2xl font-bold text-gray-900 mb-0.5 md:mb-1 truncate"
-								>
-									{{ formatCurrency(totalTax) }}
-								</div>
-								<div class="text-gray-600 text-xs">{{ __("Net tax") }}</div>
-							</div>
-						</div>
-					</div>
-
-					<!-- No Sales Warning (hidden in entry mode when hideExpectedAmount is enabled) -->
-					<div
-						v-if="shouldShowSummary && invoiceCount === 0"
-						class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 md:p-4"
-					>
-						<div class="flex items-start gap-2 md:gap-3">
-							<div class="flex-shrink-0">
-								<svg
-									class="h-4 w-4 md:h-5 md:w-5 text-yellow-600"
-									fill="currentColor"
-									viewBox="0 0 20 20"
-								>
-									<path
-										fill-rule="evenodd"
-										d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-										clip-rule="evenodd"
-									/>
-								</svg>
-							</div>
-							<div>
-								<h3 class="text-xs md:text-sm font-medium text-yellow-900">
-									{{ __("No Sales During This Shift") }}
-								</h3>
-								<p class="text-xs md:text-sm text-yellow-700 mt-1 md:mt-2">
-									{{
-										__(
-											"No invoices were created. Closing amounts should match opening amounts."
-										)
-									}}
-								</p>
-							</div>
-						</div>
-					</div>
-
-					<!-- Invoice Details (Collapsible) (hidden in entry mode when hideExpectedAmount is enabled) -->
-					<div
-						v-if="shouldShowSummary && invoiceCount > 0"
-						class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm"
-					>
-						<button
-							@click="showInvoiceDetails = !showInvoiceDetails"
-							:aria-label="`${
-								showInvoiceDetails ? 'Hide' : 'Show'
-							} invoice details for ${invoiceCount} transactions`"
-							:aria-expanded="showInvoiceDetails"
-							class="w-full px-3 py-3 md:px-6 md:py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-						>
-							<div class="text-start">
-								<h3 class="text-sm md:text-lg font-medium text-gray-900">
-									{{ __("Invoice Details") }}
-								</h3>
-								<p class="text-xs md:text-sm text-gray-500">
-									{{
-										__("{0} transactions • {1}", [
-											invoiceCount,
-											formatCurrency(closingData.grand_total),
-										])
-									}}
-								</p>
-							</div>
-							<svg
-								:class="[
-									'h-4 w-4 md:h-5 md:w-5 text-gray-400 transition-transform',
-									showInvoiceDetails ? 'transform rotate-180' : '',
-								]"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M19 9l-7 7-7-7"
-								/>
-							</svg>
-						</button>
-
-						<div v-show="showInvoiceDetails" class="border-t border-gray-200">
-							<!-- Mobile Card View -->
-							<div class="md:hidden divide-y divide-gray-200">
-								<div
-									v-for="(invoice, idx) in closingData.pos_transactions"
-									:key="idx"
-									:class="[
-										'p-3',
-										invoice.is_return
-											? 'bg-red-50 hover:bg-red-100'
-											: 'hover:bg-gray-50',
-									]"
-								>
-									<div class="flex justify-between items-start mb-2">
-										<div class="flex items-center gap-2">
-											<span
-												:class="[
-													'text-xs font-medium',
-													invoice.is_return
-														? 'text-red-700'
-														: 'text-gray-900',
-												]"
-											>
-												{{
-													invoice.pos_invoice ||
-													invoice.sales_invoice ||
-													__("N/A")
-												}}
-											</span>
-											<span
-												v-if="invoice.is_return"
-												class="px-1.5 py-0.5 text-xs font-medium bg-red-200 text-red-800 rounded"
-											>
-												{{ __("Return") }}
-											</span>
-										</div>
-										<span
-											:class="[
-												'text-sm font-semibold',
-												invoice.is_return
-													? 'text-red-700'
-													: 'text-gray-900',
-											]"
-										>
-											{{ formatCurrency(invoice.grand_total) }}
-										</span>
-									</div>
-									<div
-										class="flex justify-between items-center text-xs text-gray-600"
-									>
-										<span>{{ invoice.customer }}</span>
-										<span class="text-gray-500">{{
-											formatTime(invoice.posting_date)
-										}}</span>
-									</div>
-								</div>
-								<div class="bg-gray-50 p-3">
-									<div class="flex justify-between items-center">
-										<span class="text-xs font-semibold text-gray-700">{{
-											__("Net Total:")
-										}}</span>
-										<span class="text-sm font-bold text-gray-900">
-											{{ formatCurrency(closingData.grand_total) }}
-										</span>
-									</div>
-								</div>
-							</div>
-
-							<!-- Desktop Table View -->
-							<div class="hidden md:block overflow-x-auto">
-								<table class="min-w-full divide-y divide-gray-200">
-									<thead class="bg-gray-50">
-										<tr>
-											<th
-												class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase"
-											>
-												{{ __("Invoice") }}
-											</th>
-											<th
-												class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase"
-											>
-												{{ __("Type") }}
-											</th>
-											<th
-												class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase"
-											>
-												{{ __("Customer") }}
-											</th>
-											<th
-												class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase"
-											>
-												{{ __("Time") }}
-											</th>
-											<th
-												class="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase"
-											>
-												{{ __("Amount") }}
-											</th>
-										</tr>
-									</thead>
-									<tbody class="bg-white divide-y divide-gray-200">
-										<tr
-											v-for="(invoice, idx) in closingData.pos_transactions"
-											:key="idx"
-											:class="
-												invoice.is_return
-													? 'bg-red-50 hover:bg-red-100'
-													: 'hover:bg-gray-50'
-											"
-										>
-											<td class="text-start px-6 py-4 whitespace-nowrap">
-												<span
-													:class="[
-														'text-sm font-medium',
-														invoice.is_return
-															? 'text-red-700'
-															: 'text-gray-900',
-													]"
-												>
-													{{
-														invoice.pos_invoice ||
-														invoice.sales_invoice ||
-														__("N/A")
-													}}
-												</span>
-											</td>
-											<td class="text-start px-6 py-4 whitespace-nowrap">
-												<span
-													v-if="invoice.is_return"
-													class="px-2 py-1 text-xs font-medium bg-red-200 text-red-800 rounded"
-												>
-													{{ __("Return") }}
-												</span>
-												<span
-													v-else
-													class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded"
-												>
-													{{ __("Sale") }}
-												</span>
-											</td>
-											<td
-												class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-600"
-											>
-												{{ invoice.customer }}
-											</td>
-											<td
-												class="text-start px-6 py-4 whitespace-nowrap text-sm text-gray-500"
-											>
-												{{ formatTime(invoice.posting_date) }}
-											</td>
-											<td class="text-start px-6 py-4 whitespace-nowrap">
-												<span
-													:class="[
-														'text-sm font-semibold',
-														invoice.is_return
-															? 'text-red-700'
-															: 'text-gray-900',
-													]"
-												>
-													{{ formatCurrency(invoice.grand_total) }}
-												</span>
-											</td>
-										</tr>
-									</tbody>
-									<tfoot class="bg-gray-50">
-										<tr>
-											<td
-												colspan="4"
-												class="px-6 py-4 text-start text-sm font-semibold text-gray-700"
-											>
-												{{ __("Net Total:") }}
-											</td>
-											<td class="px-6 py-4 whitespace-nowrap text-start">
-												<span class="text-base font-bold text-gray-900">
-													{{ formatCurrency(closingData.grand_total) }}
-												</span>
-											</td>
-										</tr>
-									</tfoot>
-								</table>
-							</div>
-						</div>
-					</div>
-
-					<!-- Payment Reconciliation -->
-					<div
-						class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm"
-					>
-						<div
-							:class="[
-								'px-3 py-3 md:px-6 md:py-4 border-b border-gray-200',
-								hideExpectedAmount && showSuccessReport
-									? 'bg-green-50 border-green-200'
-									: 'bg-gray-50',
-							]"
-						>
-							<div
-								class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"
-							>
-								<div>
-									<div class="text-start flex items-center gap-2">
-										<h3 class="text-sm md:text-lg font-semibold text-gray-900">
-											{{ __("Payment Reconciliation") }}
-										</h3>
-										<span
-											v-if="hideExpectedAmount && showSuccessReport"
-											class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-										>
-											{{ __("✓ Shift Closed") }}
-										</span>
-									</div>
-									<p class="text-xs md:text-sm text-gray-600">
-										{{ reconciliationMessage }}
-									</p>
-								</div>
-								<div
-									v-if="shouldShowSummary && getTotalDifference !== 0"
-									class="text-start sm:text-end"
-								>
-									<div class="text-xs mb-1 text-gray-500 uppercase">
-										{{ __("Total Variance") }}
-									</div>
-									<div
-										:class="[
-											'text-lg md:text-xl font-bold',
-											getTotalDifference > 0
-												? 'text-blue-600'
-												: 'text-red-600',
-										]"
-									>
-										{{ getTotalDifference > 0 ? "+" : ""
-										}}{{ formatCurrency(Math.abs(getTotalDifference)) }}
-									</div>
-								</div>
-							</div>
-						</div>
-
-						<div class="p-3 md:p-6">
-							<!-- ENTRY MODE: Simple blind input list (when hideExpectedAmount is enabled and not showing report) -->
-							<div v-if="isInEntryMode" class="flex flex-col gap-3 md:gap-4">
-								<!-- VENDOR NOTICE (when !canCheckout) -->
-								<div v-if="!canCheckout" class="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-start flex flex-col gap-3">
-									<div class="flex items-center gap-2.5 text-slate-800 font-bold text-sm">
-										<div class="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
-											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-											</svg>
-										</div>
-										<div>
-											<h4>{{ __("Resumen de Cierre Comercial (Perfil Vendedor)") }}</h4>
-											<p class="text-xs text-slate-500 font-normal mt-0.5">
-												{{ __("Finalización de jornada comercial sin manejo de dinero ni arqueo de caja físico.") }}
-											</p>
-										</div>
-									</div>
-									<div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
-										<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-											<span class="text-[11px] text-slate-500 font-medium uppercase tracking-wider block mb-1">
-												{{ __("Total Operaciones") }}
-											</span>
-											<span class="text-base font-bold text-slate-900">
-												{{ closingData.sales_count || salesInvoiceCount }}
-											</span>
-										</div>
-										<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-											<span class="text-[11px] text-slate-500 font-medium uppercase tracking-wider block mb-1">
-												{{ __("Monto Total Preventas") }}
-											</span>
-											<span class="text-base font-bold text-blue-600">
-												{{ formatCurrency(closingData.grand_total) }}
-											</span>
-										</div>
-									</div>
-								</div>
-
-								<!-- CASHIER ENTRY INPUTS (when canCheckout) -->
-								<template v-else>
-								<div
-									v-for="(payment, idx) in closingData.payment_reconciliation"
-									:key="idx"
-									class="border border-slate-200 rounded-xl p-3 md:p-4 bg-white hover:border-slate-300 transition-colors"
-								>
-									<div class="flex items-center justify-between gap-3">
-										<!-- Payment Method Name with Icon -->
-										<div class="flex items-center gap-2 md:gap-3 flex-1">
-											<div
-												class="rounded-xl p-2 flex-shrink-0 bg-slate-100 border border-slate-200 text-slate-600"
-											>
-												<FeatherIcon
-													:name="getPaymentIcon(payment.mode_of_payment)"
-													class="w-4 h-4 md:w-5 md:h-5"
-												/>
-											</div>
-											<label
-												:for="`payment-${idx}`"
-												class="text-start text-sm md:text-base font-semibold text-slate-900 cursor-pointer"
-											>
-												{{ __(payment.mode_of_payment) }}
-											</label>
-										</div>
-
-										<!-- Simple Input with Native Arrows -->
-										<div class="w-40 md:w-48">
-											<input
-												:id="`payment-${idx}`"
-												:value="payment.closing_amount ?? ''"
-												@input="
-													(e) => updateClosingAmount(payment, e.target.value)
-												"
-												type="number"
-												step="10"
-												min="0"
-												placeholder="0.00"
-												:disabled="submitResource.loading"
-												:aria-label="
-													__('Enter actual amount for {0}', [
-														payment.mode_of_payment,
-													])
-												"
-												class="w-full px-3 py-2 text-base md:text-lg text-center font-semibold bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-											/>
-										</div>
-									</div>
-								</div>
+							<p class="text-xs text-slate-500 mt-0.5 tabular-nums">
+								{{ __("Apertura:") }} {{ formatDateTime(closingData.period_start_date) }}
+								<template v-if="closingData.opened_by_full_name">
+									· {{ __("Abierto por:") }} <strong class="text-slate-700">{{ closingData.opened_by_full_name }}</strong>
 								</template>
-							</div>
-
-							<!-- REVIEW MODE: Full payment method cards (when not in entry mode) -->
-							<div v-else class="flex flex-col gap-4 md:gap-5">
-								<div
-									v-for="(payment, idx) in closingData.payment_reconciliation"
-									:key="idx"
-									:class="[
-										'border rounded-xl p-3 md:p-5 transition-all',
-										!payment._touched || payment.closing_amount === null || payment.closing_amount === ''
-											? 'border-slate-200 bg-slate-50'
-											: payment.difference === 0
-											? 'border-green-200 bg-green-50'
-											: payment.difference > 0
-											? 'border-blue-200 bg-blue-50'
-											: 'border-red-200 bg-red-50',
-									]"
+								<template
+									v-if="
+										closingData.closed_by_full_name &&
+										closingData.opened_by_user &&
+										closingData.closed_by_user !== closingData.opened_by_user
+									"
 								>
-									<div
-										class="flex items-start justify-between mb-3 md:mb-4 gap-2"
-									>
-										<div class="flex items-center gap-2 md:gap-3">
-											<!-- Payment Method Icon -->
-											<div
-												class="rounded-xl p-2 bg-white border border-slate-200 text-slate-700"
-											>
-												<FeatherIcon
-													:name="getPaymentIcon(payment.mode_of_payment)"
-													class="w-4 h-4 md:w-5 md:h-5"
-												/>
-											</div>
-											<div>
-												<h4
-													class="text-start text-sm md:text-base font-semibold text-gray-900"
-												>
-													{{ __(payment.mode_of_payment) }}
-												</h4>
-												<TranslatedHTML
-													:tag="'p'"
-													class="text-xs md:text-sm text-gray-600"
-													:inner="
-														__(
-															'Expected: &lt;span class=&quot;font-medium&quot;&gt;{0}&lt;/span&gt;',
-															[
-																formatCurrency(
-																	payment.expected_amount
-																),
-															]
-														)
-													"
-												/>
-											</div>
-										</div>
-
-										<!-- Status Badge -->
-										<div class="flex-shrink-0">
-											<span
-												v-if="
-													!payment._touched ||
-													payment.closing_amount === null ||
-													payment.closing_amount === undefined ||
-													payment.closing_amount === ''
-												"
-												class="inline-flex items-center px-2 md:px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
-											>
-												{{ __("Pendiente") }}
-											</span>
-											<span
-												v-else-if="payment.difference === 0"
-												class="inline-flex items-center px-2 md:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-											>
-												{{ __("✓ Balanced") }}
-											</span>
-											<span
-												v-else-if="payment.difference > 0"
-												class="inline-flex items-center px-2 md:px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-											>
-												{{
-													__("Over {0}", [
-														formatCurrency(payment.difference),
-													])
-												}}
-											</span>
-											<span
-												v-else
-												class="inline-flex items-center px-2 md:px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
-											>
-												{{
-													__("Short {0}", [
-														formatCurrency(
-															Math.abs(payment.difference)
-														),
-													])
-												}}
-											</span>
-										</div>
-									</div>
-
-									<!-- Amount Entry Grid -->
-									<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3">
-										<!-- Opening Amount -->
-										<div
-											class="text-start bg-white rounded-lg p-2 md:p-3 border border-gray-200"
-										>
-											<label
-												class="block text-xs font-medium text-gray-500 uppercase mb-0.5 md:mb-1"
-												>{{ __("Opening") }}</label
-											>
-											<div
-												class="text-base md:text-lg font-semibold text-gray-900"
-											>
-												{{ formatCurrency(payment.opening_amount) }}
-											</div>
-											<div
-												class="text-xs text-gray-500 mt-0.5 md:mt-1 hidden sm:block"
-											>
-												{{ __("Shift start") }}
-											</div>
-										</div>
-
-										<!-- Expected Amount -->
-										<div
-											class="text-start bg-white rounded-lg p-2 md:p-3 border border-gray-200"
-										>
-											<label
-												class="block text-xs font-medium text-gray-500 uppercase mb-0.5 md:mb-1"
-												>{{ __("Expected") }}</label
-											>
-											<div
-												class="text-base md:text-lg font-semibold text-gray-900"
-											>
-												{{ formatCurrency(payment.expected_amount) }}
-											</div>
-											<div
-												class="text-xs text-gray-500 mt-0.5 md:mt-1 hidden sm:block"
-											>
-												<span v-if="getSalesForPayment(payment) > 0">
-													+{{
-														formatCurrency(getSalesForPayment(payment))
-													}}
-												</span>
-												<span v-else>{{ __("No sales") }}</span>
-											</div>
-										</div>
-
-										<!-- Actual/Closing Amount -->
-										<div
-											class="text-start bg-white rounded-lg p-2 md:p-3 border border-gray-300"
-										>
-											<label
-												class="block text-xs font-medium text-gray-700 uppercase mb-0.5 md:mb-1"
-											>
-												{{ __("Actual Amount *") }}
-											</label>
-											<input
-												:value="payment.closing_amount ?? ''"
-												@input="
-													(e) => updateClosingAmount(payment, e.target.value)
-												"
-												type="number"
-												step="0.01"
-												min="0"
-												placeholder="0.00"
-												:disabled="
-													showSuccessReport || submitResource.loading
-												"
-												:aria-label="`Enter actual amount for ${payment.mode_of_payment}`"
-												class="w-full px-3 py-1.5 text-base md:text-lg font-semibold bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-											/>
-											<div
-												class="text-xs text-gray-500 mt-0.5 md:mt-1 hidden sm:block"
-											>
-												{{
-													showSuccessReport
-														? __("Final Amount")
-														: __("Count & enter")
-												}}
-											</div>
-										</div>
-									</div>
-
-									<!-- Difference Alert -->
-									<div
-										v-if="
-											payment._touched &&
-											payment.closing_amount !== null &&
-											payment.closing_amount !== undefined &&
-											payment.closing_amount !== '' &&
-											payment.difference !== 0
-										"
-										class="text-start mt-2 md:mt-3 p-2 md:p-3 rounded-lg"
-										:class="[
-											payment.difference > 0
-												? 'bg-blue-50 border border-blue-200'
-												: 'bg-red-50 border border-red-200',
-										]"
-									>
-										<div class="flex items-center justify-between gap-2">
-											<div class="flex-1">
-												<p
-													:class="[
-														'text-xs md:text-sm font-medium',
-														payment.difference > 0
-															? 'text-blue-900'
-															: 'text-red-900',
-													]"
-												>
-													{{
-														payment.difference > 0
-															? __("Cash Over")
-															: __("Cash Short")
-													}}
-												</p>
-												<p
-													:class="[
-														'text-xs',
-														payment.difference > 0
-															? 'text-blue-700'
-															: 'text-red-700',
-													]"
-												>
-													{{
-														payment.difference > 0
-															? __("You have more than expected.")
-															: __("You have less than expected.")
-													}}
-												</p>
-											</div>
-											<div
-												:class="[
-													'text-base md:text-xl font-bold',
-													payment.difference > 0
-														? 'text-blue-700'
-														: 'text-red-700',
-												]"
-											>
-												{{ payment.difference > 0 ? "+" : ""
-												}}{{ formatCurrency(payment.difference) }}
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
+									· {{ __("Cierre por:") }} <strong class="text-slate-700">{{ closingData.closed_by_full_name }}</strong>
+								</template>
+							</p>
 						</div>
 
-						<!-- Reconciliation Summary (hidden in entry mode when hideExpectedAmount is enabled) -->
+						<div class="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-end">
+							<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+								{{ __("Duración del Turno") }}
+							</span>
+							<span class="text-sm md:text-base font-bold text-slate-900 tabular-nums">
+								{{ getShiftDuration() }}
+							</span>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+						<!-- Gross Sales -->
+						<div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 text-start">
+							<span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+								{{ __("Ventas Brutas") }}
+							</span>
+							<div class="text-lg md:text-xl font-bold text-slate-900 mt-0.5 tabular-nums truncate">
+								{{ formatCurrency(grossSales) }}
+							</div>
+							<span class="text-[11px] text-slate-500">
+								{{ __("{0} comprobantes", [closingData.sales_count || salesInvoiceCount]) }}
+							</span>
+						</div>
+
+						<!-- Returns OR Taxes -->
 						<div
-							v-if="shouldShowSummary"
-							class="text-start bg-gray-50 px-3 py-3 md:px-6 md:py-4 border-t border-gray-200"
+							v-if="hasReturns"
+							class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 text-start"
 						>
-							<div class="grid grid-cols-3 gap-2 md:gap-4">
-								<div>
-									<p class="text-xs md:text-sm text-gray-600">
-										{{ __("Total Expected") }}
-									</p>
-									<p class="text-base md:text-xl font-semibold text-gray-900">
-										{{ formatCurrency(getTotalExpected) }}
-									</p>
-								</div>
-								<div>
-									<p class="text-xs md:text-sm text-gray-600">
-										{{ __("Total Actual") }}
-									</p>
-									<p class="text-base md:text-xl font-semibold text-gray-900">
-										{{ formatCurrency(getTotalActual) }}
-									</p>
-								</div>
-								<div>
-									<p class="text-xs md:text-sm text-gray-600">
-										{{ __("Net Variance") }}
-									</p>
-									<p
-										:class="[
-											'text-base md:text-xl font-bold',
-											getTotalDifference === 0
-												? 'text-green-600'
-												: getTotalDifference > 0
-												? 'text-blue-600'
-												: 'text-red-600',
-										]"
-									>
-										{{
-											getTotalDifference === 0
-												? "✓ "
-												: getTotalDifference > 0
-												? "+"
-												: ""
-										}}{{ formatCurrency(Math.abs(getTotalDifference)) }}
-									</p>
-								</div>
+							<span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+								{{ __("Devoluciones") }}
+							</span>
+							<div class="text-lg md:text-xl font-bold text-slate-900 mt-0.5 tabular-nums truncate">
+								-{{ formatCurrency(closingData.returns_total) }}
 							</div>
+							<span class="text-[11px] text-slate-500">
+								{{ __("{0} notas", [closingData.returns_count]) }}
+							</span>
 						</div>
-					</div>
+						<div
+							v-else
+							class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 text-start"
+						>
+							<span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+								{{ __("Impuestos") }}
+							</span>
+							<div class="text-lg md:text-xl font-bold text-slate-900 mt-0.5 tabular-nums truncate">
+								{{ formatCurrency(totalTax) }}
+							</div>
+							<span class="text-[11px] text-slate-500">{{ __("IVA débito neto") }}</span>
+						</div>
 
-					<!-- Tax Summary (hidden in entry mode when hideExpectedAmount is enabled) -->
-					<div
-						v-if="
-							shouldShowSummary && closingData.taxes && closingData.taxes.length > 0
-						"
-						class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm"
-					>
-						<div class="px-3 py-3 md:px-6 md:py-4 bg-gray-50 border-b border-gray-200">
-							<h3 class="text-sm md:text-lg font-medium text-gray-900">
-								{{ __("Tax Summary") }}
-							</h3>
+						<!-- Net Sales -->
+						<div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 text-start">
+							<span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+								{{ __("Ventas Netas") }}
+							</span>
+							<div class="text-lg md:text-xl font-bold text-slate-900 mt-0.5 tabular-nums truncate">
+								{{ formatCurrency(closingData.grand_total) }}
+							</div>
+							<span class="text-[11px] text-slate-500">{{ __("Total facturado / notas") }}</span>
 						</div>
-						<div class="p-3 md:p-6">
-							<div class="flex flex-col gap-2 md:gap-3">
-								<div
-									v-for="(tax, idx) in closingData.taxes"
-									:key="idx"
-									class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
+
+						<!-- Overall Reconciliation Status -->
+						<div class="bg-white border border-slate-200 rounded-xl p-3 text-start flex flex-col justify-between">
+							<div class="flex items-center justify-between gap-1">
+								<span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+									{{ __("Varianza Total") }}
+								</span>
+								<MdxBadge
+									:variant="
+										!canSubmit
+											? 'warning'
+											: getTotalDifference === 0
+												? 'success'
+												: getTotalDifference > 0
+													? 'info'
+													: 'danger'
+									"
+									size="sm"
 								>
-									<div>
-										<p class="text-xs md:text-sm font-medium text-gray-900">
-											{{ tax.account_head }}
-										</p>
-										<p class="text-xs text-gray-500">
-											{{ formatQuantity(tax.rate) }}%
-										</p>
-									</div>
-									<div class="text-end">
-										<p
-											class="text-sm md:text-base font-semibold text-gray-900"
-										>
-											{{ formatCurrency(tax.amount) }}
-										</p>
-									</div>
-								</div>
+									{{
+										!canSubmit
+											? __("Pendiente")
+											: getTotalDifference === 0
+												? __("Cuadrado")
+												: getTotalDifference > 0
+													? __("Sobrante")
+													: __("Faltante")
+									}}
+								</MdxBadge>
 							</div>
-							<div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-200">
-								<div class="flex items-center justify-between">
-									<span class="text-xs md:text-sm font-medium text-gray-700">{{
-										__("Total Tax Collected")
-									}}</span>
-									<span class="text-base md:text-lg font-bold text-gray-900">{{
-										formatCurrency(totalTax)
-									}}</span>
-								</div>
-							</div>
-						</div>
-					</div>
-
-					<!-- Error Display -->
-					<div
-						v-if="submitResource.error || (errorMessage && !closingDataResource.error)"
-						class="rounded-lg bg-red-50 border border-red-200 p-3 md:p-4"
-					>
-						<div class="flex gap-2 md:gap-3">
-							<svg
-								class="h-4 w-4 md:h-5 md:w-5 text-red-600 flex-shrink-0"
-								fill="currentColor"
-								viewBox="0 0 20 20"
+							<div
+								:class="[
+									'text-lg md:text-xl font-extrabold mt-0.5 tabular-nums truncate',
+									!canSubmit
+										? 'text-slate-400'
+										: getTotalDifference === 0
+											? 'text-slate-900'
+											: getTotalDifference > 0
+												? 'text-blue-700'
+												: 'text-red-700',
+								]"
 							>
-								<path
-									fill-rule="evenodd"
-									d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-									clip-rule="evenodd"
-								/>
-							</svg>
-							<div class="flex-1">
-								<h4 class="text-xs md:text-sm font-medium text-red-800">
-									{{ __("Error Closing Shift") }}
-								</h4>
-								<p class="text-xs md:text-sm text-red-700 mt-1">
-									{{ errorMessage || submitResource.error }}
-								</p>
-								<button
-									v-if="errorMessage"
-									@click="errorMessage = ''"
-									class="mt-2 text-xs text-red-600 hover:text-red-800 underline"
-								>
-									{{ __("Dismiss") }}
-								</button>
+								{{ getTotalDifference > 0 ? "+" : "" }}{{ formatCurrency(getTotalDifference) }}
 							</div>
+							<span class="text-[11px] text-slate-500 tabular-nums">
+								{{ __("Esperado:") }} {{ formatCurrency(getTotalExpected) }}
+							</span>
 						</div>
 					</div>
 				</div>
 
-				<!-- Error State -->
+				<!-- Accounting Confirmation Notice (Post-Closing) -->
 				<div
-					v-else-if="closingDataResource.error || errorMessage"
-					class="rounded-lg bg-red-50 border border-red-200 p-3 md:p-4"
+					v-if="showSuccessReport && (closedDifferenceJournalEntry || closedExpenseJournalEntry || hasCashDifference)"
+					class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex flex-col gap-1.5 text-start"
 				>
-					<div class="flex gap-2 md:gap-3">
-						<svg
-							class="h-4 w-4 md:h-5 md:w-5 text-red-600 flex-shrink-0"
-							fill="currentColor"
-							viewBox="0 0 20 20"
+					<div class="flex items-center gap-2 text-xs md:text-sm font-bold text-slate-900">
+						<svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<span>{{ __("Respaldo Contable del Cierre") }}</span>
+					</div>
+					<p v-if="closedDifferenceJournalEntry" class="text-xs text-slate-700 tabular-nums">
+						{{
+							closedDifferenceAmount < 0
+								? __("Faltante de Caja (Gasto) contabilizado automáticamente por {0}. Asiento:", [formatCurrency(Math.abs(closedDifferenceAmount))])
+								: __("Sobrante de Caja (Ingreso) contabilizado automáticamente por {0}. Asiento:", [formatCurrency(Math.abs(closedDifferenceAmount))])
+						}}
+						<strong class="text-slate-900">{{ closedDifferenceJournalEntry }}</strong>
+					</p>
+					<p v-else-if="hasCashDifference" class="text-xs text-slate-600">
+						{{ __("Diferencia de arqueo registrada en el cierre (pendiente de contabilización desde Desk).") }}
+					</p>
+					<p v-if="closedExpenseJournalEntry" class="text-xs text-slate-700 tabular-nums">
+						{{ __("Gastos Menores de Caja contabilizados automáticamente. Asiento:") }}
+						<strong class="text-slate-900">{{ closedExpenseJournalEntry }}</strong>
+					</p>
+				</div>
+
+				<!-- Cashier Activity Breakdown (especially useful for shared shifts) -->
+				<div
+					v-if="shouldShowSummary && closingData.cashier_breakdown && closingData.cashier_breakdown.length > 0"
+					class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs"
+				>
+					<div class="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
+						<h3 class="text-xs md:text-sm font-bold text-slate-900">
+							{{ __("Operaciones del Turno por Usuario") }}
+						</h3>
+						<span class="text-[11px] font-semibold text-slate-500 tabular-nums">
+							{{ __("{0} participantes", [closingData.cashier_breakdown.length]) }}
+						</span>
+					</div>
+					<div class="divide-y divide-slate-100">
+						<div
+							v-for="uRow in closingData.cashier_breakdown"
+							:key="uRow.user"
+							class="px-4 py-2.5 flex items-center justify-between gap-3 text-xs"
 						>
+							<div class="min-w-0 text-start">
+								<span class="font-semibold text-slate-900 block truncate">
+									{{ uRow.full_name || uRow.user }}
+								</span>
+								<span class="text-[11px] text-slate-500 tabular-nums">
+									{{ __("{0} ventas", [uRow.sales_count || 0]) }}
+									<template v-if="uRow.returns_count">
+										· {{ __("{0} devoluciones", [uRow.returns_count]) }}
+									</template>
+								</span>
+							</div>
+							<span class="text-xs md:text-sm font-bold text-slate-900 tabular-nums shrink-0">
+								{{ formatCurrency(uRow.net_total) }}
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- No Sales Notice -->
+				<div
+					v-if="shouldShowSummary && invoiceCount === 0"
+					class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3 text-start"
+				>
+					<svg class="h-5 w-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
+					<p class="text-xs text-slate-600">
+						<strong class="text-slate-800">{{ __("Turno sin ventas registradas.") }}</strong>
+						{{ __("El monto esperado corresponde únicamente al fondo de apertura menos gastos de caja.") }}
+					</p>
+				</div>
+
+				<!-- VENDOR NOTICE (when !canCheckout) -->
+				<div
+					v-if="isInEntryMode && !canCheckout"
+					class="p-4 bg-white border border-slate-200 rounded-2xl text-start flex flex-col gap-3 shadow-2xs"
+				>
+					<div class="flex items-center gap-3 text-slate-900 font-bold text-sm">
+						<div class="w-9 h-9 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl flex items-center justify-center">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+						</div>
+						<div>
+							<h4>{{ __("Resumen de Cierre Comercial (Perfil Vendedor)") }}</h4>
+							<p class="text-xs text-slate-500 font-normal mt-0.5">
+								{{ __("Finalización de jornada comercial sin manejo de dinero ni arqueo de caja físico.") }}
+							</p>
+						</div>
+					</div>
+					<div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+						<div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+							<span class="text-[11px] text-slate-500 font-semibold uppercase tracking-wider block mb-1">
+								{{ __("Total Operaciones") }}
+							</span>
+							<span class="text-base font-bold text-slate-900 tabular-nums">
+								{{ closingData.sales_count || salesInvoiceCount }}
+							</span>
+						</div>
+						<div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+							<span class="text-[11px] text-slate-500 font-semibold uppercase tracking-wider block mb-1">
+								{{ __("Monto Total Preventas") }}
+							</span>
+							<span class="text-base font-bold text-slate-900 tabular-nums">
+								{{ formatCurrency(closingData.grand_total) }}
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- CASHIER RECONCILIATION -->
+				<template v-else-if="canCheckout">
+					<!-- HERO CARD: Physical Cash Reconciliation + Denomination Counter -->
+					<div
+						v-for="(payment, idx) in cashReconciliationRows"
+						:key="`cash-${idx}`"
+						class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs"
+					>
+						<div class="px-4 py-3.5 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+							<div class="flex items-center gap-3 text-start">
+								<div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shrink-0">
+									<FeatherIcon :name="getPaymentIcon(payment.mode_of_payment)" class="w-5 h-5" />
+								</div>
+								<div>
+									<div class="flex items-center gap-2 flex-wrap">
+										<h4 class="text-sm md:text-base font-bold text-slate-900">
+											{{ __("Arqueo de Efectivo en Caja") }} ({{ __(payment.mode_of_payment) }})
+										</h4>
+										<MdxBadge
+											v-if="shouldShowSummary"
+											:variant="getPaymentBadgeVariant(payment)"
+											size="sm"
+										>
+											{{ getPaymentStatusText(payment) }}
+										</MdxBadge>
+									</div>
+									<p class="text-xs text-slate-500 mt-0.5">
+										{{ reconciliationMessage }}
+									</p>
+								</div>
+							</div>
+
+							<div class="flex items-center gap-2 ms-auto">
+								<div class="text-end">
+									<label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+										{{ __("Efectivo Real Contado *") }}
+									</label>
+									<input
+										:value="payment.closing_amount ?? ''"
+										@input="(e) => onManualClosingInput(payment, e.target.value)"
+										type="number"
+										step="0.01"
+										min="0"
+										placeholder="0.00"
+										:disabled="showSuccessReport || submitResource.loading"
+										:aria-label="__('Ingrese el efectivo real contado')"
+										class="w-44 h-10 px-3 text-base md:text-lg text-end font-extrabold bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/15 focus:border-slate-500 transition-all tabular-nums"
+									/>
+								</div>
+							</div>
+						</div>
+
+						<div class="p-4 flex flex-col gap-4">
+							<!-- 4-Column Accounting Formula Strip (only when expected figures are visible) -->
+							<div
+								v-if="shouldShowSummary"
+								class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 bg-slate-50 border border-slate-200 rounded-xl p-3 text-start"
+							>
+								<div class="px-2 py-1">
+									<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+										{{ __("Fondo Apertura") }}
+									</span>
+									<span class="text-sm md:text-base font-bold text-slate-900 tabular-nums">
+										{{ formatCurrency(payment.opening_amount) }}
+									</span>
+								</div>
+								<div class="px-2 py-1 lg:border-s lg:border-slate-200">
+									<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+										+ {{ __("Cobros Efectivo") }}
+									</span>
+									<span class="text-sm md:text-base font-bold text-slate-900 tabular-nums">
+										{{ formatCurrency(getGrossCashSales(payment)) }}
+									</span>
+								</div>
+								<div class="px-2 py-1 lg:border-s lg:border-slate-200">
+									<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+										- {{ __("Gastos de Caja") }}
+									</span>
+									<span class="text-sm md:text-base font-bold text-slate-700 tabular-nums">
+										{{ formatCurrency(totalShiftExpenses) }}
+									</span>
+								</div>
+								<div class="px-3 py-1.5 rounded-lg bg-white border border-slate-200">
+									<span class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">
+										= {{ __("Esperado Neto") }}
+									</span>
+									<span class="text-sm md:text-base font-extrabold text-slate-900 tabular-nums">
+										{{ formatCurrency(payment.expected_amount) }}
+									</span>
+								</div>
+							</div>
+
+							<!-- Denomination Counter -->
+							<CashDenominationCounter
+								v-model="closingData.closing_denominations"
+								v-model:exchange-rate="closingData.usd_exchange_rate"
+								:disabled="showSuccessReport || submitResource.loading"
+								@total-change="(val) => onCashDenominationTotal(payment, val)"
+							/>
+
+							<!-- Difference Callout when non-zero -->
+							<div
+								v-if="
+									shouldShowSummary &&
+									payment._touched &&
+									payment.closing_amount !== null &&
+									payment.closing_amount !== undefined &&
+									payment.closing_amount !== '' &&
+									payment.difference !== 0
+								"
+								:class="[
+									'flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border text-start',
+									payment.difference > 0
+										? 'bg-slate-50 border-slate-300'
+										: 'bg-red-50/70 border-red-200',
+								]"
+							>
+								<div>
+									<span
+										:class="[
+											'text-xs font-bold block',
+											payment.difference > 0 ? 'text-slate-900' : 'text-red-900',
+										]"
+									>
+										{{ payment.difference > 0 ? __("Sobrante en Efectivo") : __("Faltante en Efectivo") }}
+									</span>
+									<span class="text-[11px] text-slate-600">
+										<template v-if="autoPostCashDifferences">
+											{{
+												payment.difference > 0
+													? __("El conteo físico supera al efectivo neto esperado. Al cerrar el turno se contabilizará automáticamente como ingreso contra Caja.")
+													: __("Revise el conteo por cortes o gastos menores. Si mantiene la diferencia al cerrar, se contabilizará automáticamente como gasto contra Caja.")
+											}}
+										</template>
+										<template v-else>
+											{{
+												payment.difference > 0
+													? __("El conteo físico supera al efectivo neto esperado.")
+													: __("Revise el conteo por cortes o gastos menores de caja.")
+											}}
+										</template>
+									</span>
+								</div>
+								<span
+									:class="[
+										'text-base font-extrabold tabular-nums shrink-0',
+										payment.difference > 0 ? 'text-blue-700' : 'text-red-700',
+									]"
+								>
+									{{ payment.difference > 0 ? "+" : "" }}{{ formatCurrency(payment.difference) }}
+								</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- COMPACT CARD: Non-Cash / Bank & Digital Methods -->
+					<div
+						v-if="nonCashReconciliationRows.length > 0"
+						class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs"
+					>
+						<div class="px-4 py-3 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+							<div class="text-start">
+								<h4 class="text-sm font-bold text-slate-900">
+									{{ __("Medios Digitales y Bancarios (QR / Transferencias)") }}
+								</h4>
+								<p class="text-xs text-slate-500">
+									{{ __("Verifique el monto recibido en bancos o medios electrónicos.") }}
+								</p>
+							</div>
+							<MdxButton
+								v-if="shouldShowSummary && !showSuccessReport"
+								variant="secondary"
+								size="sm"
+								:disabled="submitResource.loading"
+								@click="matchAllNonCashExpected"
+							>
+								{{ __("Igualar Todos al Esperado") }}
+							</MdxButton>
+						</div>
+
+						<div class="divide-y divide-slate-100">
+							<div
+								v-for="(payment, idx) in nonCashReconciliationRows"
+								:key="`noncash-${idx}`"
+								class="px-4 py-3 flex flex-wrap items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors"
+							>
+								<div class="flex items-center gap-3 min-w-[180px] flex-1 text-start">
+									<div class="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
+										<FeatherIcon :name="getPaymentIcon(payment.mode_of_payment)" class="w-4 h-4" />
+									</div>
+									<div class="min-w-0">
+										<div class="flex items-center gap-2 flex-wrap">
+											<span class="text-sm font-semibold text-slate-900">
+												{{ __(payment.mode_of_payment) }}
+											</span>
+											<MdxBadge
+												v-if="shouldShowSummary"
+												:variant="getPaymentBadgeVariant(payment)"
+												size="sm"
+											>
+												{{ getPaymentStatusText(payment) }}
+											</MdxBadge>
+										</div>
+										<div v-if="shouldShowSummary" class="text-xs text-slate-500 mt-0.5 tabular-nums">
+											{{ __("Esperado:") }} <strong class="text-slate-700">{{ formatCurrency(payment.expected_amount) }}</strong>
+											<span v-if="Number(payment.opening_amount || 0) > 0" class="ms-2">
+												({{ __("Apertura:") }} {{ formatCurrency(payment.opening_amount) }})
+											</span>
+										</div>
+									</div>
+								</div>
+
+								<div class="flex items-center gap-2 ms-auto">
+									<button
+										v-if="shouldShowSummary && !showSuccessReport"
+										type="button"
+										:disabled="submitResource.loading"
+										@click="matchExpectedAmount(payment)"
+										class="px-2.5 h-9 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+										:title="__('Copiar monto esperado')"
+									>
+										{{ __("Igualar") }}
+									</button>
+									<input
+										:value="payment.closing_amount ?? ''"
+										@input="(e) => onManualClosingInput(payment, e.target.value)"
+										type="number"
+										step="0.01"
+										min="0"
+										placeholder="0.00"
+										:disabled="showSuccessReport || submitResource.loading"
+										:aria-label="__('Enter actual amount for {0}', [payment.mode_of_payment])"
+										class="w-36 md:w-40 h-9 px-3 text-sm text-end font-bold bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/15 focus:border-slate-500 tabular-nums"
+									/>
+								</div>
+							</div>
+						</div>
+					</div>
+				</template>
+
+				<!-- Gastos Menores / Salidas de Efectivo del Turno + Observaciones -->
+				<div
+					v-if="canCheckout"
+					class="bg-white border border-slate-200 rounded-2xl shadow-2xs p-4 flex flex-col gap-3.5"
+				>
+					<div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+						<div class="text-start">
+							<div class="flex items-center gap-2">
+								<h3 class="text-sm font-bold text-slate-900">
+									{{ __("Gastos Menores y Salidas de Efectivo") }}
+								</h3>
+								<MdxBadge v-if="totalShiftExpenses > 0" variant="neutral" size="sm">
+									-{{ formatCurrency(totalShiftExpenses) }}
+								</MdxBadge>
+							</div>
+							<p class="text-xs text-slate-500 mt-0.5">
+								{{ __("Registre almuerzos, pasajes, agua o entregas a rendir pagadas con efectivo de caja.") }}
+							</p>
+						</div>
+						<MdxButton
+							v-if="!showSuccessReport"
+							variant="secondary"
+							size="sm"
+							:disabled="submitResource.loading"
+							@click="addShiftExpense"
+						>
+							{{ __("Agregar Gasto de Caja") }}
+						</MdxButton>
+					</div>
+
+					<div
+						v-if="!closingData.shift_expenses || closingData.shift_expenses.length === 0"
+						class="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-xs text-slate-500 text-start"
+					>
+						{{ __("Sin gastos menores registrados en este turno. Si retiró efectivo de caja, haga clic en \"Agregar Gasto de Caja\".") }}
+					</div>
+
+					<div v-else class="flex flex-col gap-2">
+						<!-- Desktop Column Labels -->
+						<div class="hidden md:grid md:grid-cols-12 gap-2 px-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 text-start">
+							<div class="md:col-span-3">{{ __("Categoría") }}</div>
+							<div class="md:col-span-2">{{ __("Respaldo Fiscal") }}</div>
+							<div class="md:col-span-2">{{ __("N° Factura / Recibo") }}</div>
+							<div class="md:col-span-3">{{ __("Concepto / Detalle") }}</div>
+							<div class="md:col-span-2 text-end pe-8">{{ __("Monto Bs.") }}</div>
+						</div>
+
+						<div
+							v-for="(exp, expIdx) in closingData.shift_expenses"
+							:key="`exp-${expIdx}`"
+							class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5"
+						>
+							<div class="md:col-span-3">
+								<MdxSelect
+									v-model="exp.category"
+									:options="expenseCategoryOptions"
+									:searchable="false"
+									size="sm"
+									:teleport="true"
+									:disabled="showSuccessReport || submitResource.loading"
+								/>
+							</div>
+							<div class="md:col-span-2">
+								<MdxSelect
+									v-model="exp.receipt_type"
+									:options="expenseReceiptOptions"
+									:searchable="false"
+									size="sm"
+									:teleport="true"
+									:disabled="showSuccessReport || submitResource.loading"
+								/>
+							</div>
+							<div class="md:col-span-2">
+								<input
+									v-model="exp.invoice_no"
+									type="text"
+									:disabled="showSuccessReport || submitResource.loading"
+									:placeholder="exp.receipt_type === 'Con Factura' ? __('N° Factura') : __('N° Recibo (opc.)')"
+									class="w-full h-9 px-2.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/15 focus:border-slate-500"
+								/>
+							</div>
+							<div class="md:col-span-3">
+								<input
+									v-model="exp.description"
+									type="text"
+									:disabled="showSuccessReport || submitResource.loading"
+									:placeholder="__('Detalle (ej. Almuerzo / Agua)')"
+									class="w-full h-9 px-2.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/15 focus:border-slate-500"
+								/>
+							</div>
+							<div class="md:col-span-2 flex items-center gap-1.5">
+								<input
+									v-model.number="exp.amount"
+									@input="recalculateCashAfterExpenses"
+									type="number"
+									min="0"
+									step="0.50"
+									placeholder="0.00"
+									:disabled="showSuccessReport || submitResource.loading"
+									class="w-full h-9 px-2.5 text-xs text-end font-bold bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/15 focus:border-slate-500 tabular-nums"
+								/>
+								<button
+									v-if="!showSuccessReport"
+									type="button"
+									@click="removeShiftExpense(expIdx)"
+									:disabled="submitResource.loading"
+									class="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+									:title="__('Quitar gasto')"
+								>
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+									</svg>
+								</button>
+							</div>
+						</div>
+
+						<div class="flex items-center justify-end gap-3 px-3 pt-1 text-xs text-slate-600">
+							<span>{{ __("Subtotal Gastos de Caja:") }}</span>
+							<strong class="text-sm text-slate-900 tabular-nums">{{ formatCurrency(totalShiftExpenses) }}</strong>
+						</div>
+					</div>
+
+					<!-- Observaciones del Cierre -->
+					<div class="text-start pt-1">
+						<label class="block text-xs font-bold text-slate-700 mb-1.5">
+							{{ __("Observaciones del Cierre (Opcional)") }}
+						</label>
+						<textarea
+							v-model="closingData.closing_observations"
+							rows="2"
+							:disabled="showSuccessReport || submitResource.loading"
+							:placeholder="__('Notas o aclaraciones del turno para administración...')"
+							class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/15 focus:border-slate-500"
+						></textarea>
+					</div>
+				</div>
+
+				<!-- Collapsible Invoice Details -->
+				<div
+					v-if="shouldShowSummary && invoiceCount > 0"
+					class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs"
+				>
+					<button
+						type="button"
+						@click="showInvoiceDetails = !showInvoiceDetails"
+						:aria-expanded="showInvoiceDetails"
+						class="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+					>
+						<div class="text-start">
+							<h3 class="text-sm font-bold text-slate-900">
+								{{ __("Detalle de Comprobantes del Turno") }}
+							</h3>
+							<p class="text-xs text-slate-500 tabular-nums">
+								{{ __("{0} transacciones · {1}", [invoiceCount, formatCurrency(closingData.grand_total)]) }}
+							</p>
+						</div>
+						<div class="flex items-center gap-2 text-xs font-semibold text-slate-600">
+							<span>{{ showInvoiceDetails ? __("Ocultar") : __("Ver detalle") }}</span>
+							<svg
+								:class="['h-4 w-4 text-slate-400 transition-transform', showInvoiceDetails ? 'rotate-180' : '']"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+							</svg>
+						</div>
+					</button>
+
+					<div v-show="showInvoiceDetails" class="border-t border-slate-200">
+						<!-- Mobile Card View -->
+						<div class="md:hidden divide-y divide-slate-200">
+							<div
+								v-for="(invoice, idx) in closingData.pos_transactions"
+								:key="idx"
+								class="p-3 bg-white"
+							>
+								<div class="flex justify-between items-start mb-1">
+									<div class="flex items-center gap-2">
+										<span class="text-xs font-semibold text-slate-900 tabular-nums">
+											{{ invoice.pos_invoice || invoice.sales_invoice || __("N/A") }}
+										</span>
+										<MdxBadge :variant="invoice.is_return ? 'danger' : 'success'" size="sm">
+											{{ invoice.is_return ? __("Devolución") : __("Venta") }}
+										</MdxBadge>
+									</div>
+									<span class="text-sm font-bold text-slate-900 tabular-nums">
+										{{ formatCurrency(invoice.grand_total) }}
+									</span>
+								</div>
+								<div class="flex justify-between items-center text-xs text-slate-500">
+									<span class="truncate">{{ invoice.customer }}</span>
+									<span class="tabular-nums">{{ formatTime(invoice.posting_date) }}</span>
+								</div>
+							</div>
+						</div>
+
+						<!-- Desktop Table View -->
+						<div class="hidden md:block overflow-x-auto max-h-64 overflow-y-auto">
+							<table class="min-w-full divide-y divide-slate-200">
+								<thead class="bg-slate-50 sticky top-0">
+									<tr>
+										<th class="px-4 py-2.5 text-start text-[11px] font-bold text-slate-500 uppercase">{{ __("Comprobante") }}</th>
+										<th class="px-4 py-2.5 text-start text-[11px] font-bold text-slate-500 uppercase">{{ __("Tipo") }}</th>
+										<th class="px-4 py-2.5 text-start text-[11px] font-bold text-slate-500 uppercase">{{ __("Cliente") }}</th>
+										<th class="px-4 py-2.5 text-start text-[11px] font-bold text-slate-500 uppercase">{{ __("Hora") }}</th>
+										<th class="px-4 py-2.5 text-end text-[11px] font-bold text-slate-500 uppercase">{{ __("Monto") }}</th>
+									</tr>
+								</thead>
+								<tbody class="bg-white divide-y divide-slate-100">
+									<tr
+										v-for="(invoice, idx) in closingData.pos_transactions"
+										:key="idx"
+										class="hover:bg-slate-50/70"
+									>
+										<td class="text-start px-4 py-2.5 whitespace-nowrap text-xs font-semibold text-slate-900 tabular-nums">
+											{{ invoice.pos_invoice || invoice.sales_invoice || __("N/A") }}
+										</td>
+										<td class="text-start px-4 py-2.5 whitespace-nowrap">
+											<MdxBadge :variant="invoice.is_return ? 'danger' : 'success'" size="sm">
+												{{ invoice.is_return ? __("Devolución") : __("Venta") }}
+											</MdxBadge>
+										</td>
+										<td class="text-start px-4 py-2.5 whitespace-nowrap text-xs text-slate-700">
+											{{ invoice.customer }}
+										</td>
+										<td class="text-start px-4 py-2.5 whitespace-nowrap text-xs text-slate-500 tabular-nums">
+											{{ formatTime(invoice.posting_date) }}
+										</td>
+										<td class="text-end px-4 py-2.5 whitespace-nowrap text-xs font-bold text-slate-900 tabular-nums">
+											{{ formatCurrency(invoice.grand_total) }}
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+
+				<!-- Collapsible Tax Summary -->
+				<div
+					v-if="shouldShowSummary && closingData.taxes && closingData.taxes.length > 0"
+					class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs"
+				>
+					<div class="px-4 py-3 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
+						<h3 class="text-sm font-bold text-slate-900">
+							{{ __("Resumen de Impuestos") }}
+						</h3>
+						<span class="text-sm font-bold text-slate-900 tabular-nums">
+							{{ formatCurrency(totalTax) }}
+						</span>
+					</div>
+					<div class="px-4 py-2.5 divide-y divide-slate-100">
+						<div
+							v-for="(tax, idx) in closingData.taxes"
+							:key="idx"
+							class="flex items-center justify-between py-2 text-xs"
+						>
+							<span class="font-medium text-slate-700">{{ tax.account_head }} ({{ formatQuantity(tax.rate) }}%)</span>
+							<span class="font-bold text-slate-900 tabular-nums">{{ formatCurrency(tax.amount) }}</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Error Display -->
+				<div
+					v-if="submitResource.error || (errorMessage && !closingDataResource.error)"
+					class="rounded-xl bg-red-50 border border-red-200 p-3.5 text-start"
+				>
+					<div class="flex gap-2.5">
+						<svg class="h-5 w-5 text-red-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
 							<path
 								fill-rule="evenodd"
 								d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
 								clip-rule="evenodd"
 							/>
 						</svg>
-						<div>
-							<h3 class="text-xs md:text-sm font-medium text-red-800">
-								{{ __("Failed to Load Shift Data") }}
-							</h3>
-							<p class="text-xs md:text-sm text-red-700 mt-1">
-								{{ errorMessage || closingDataResource.error }}
+						<div class="flex-1">
+							<h4 class="text-xs md:text-sm font-bold text-red-900">
+								{{ __("Error al cerrar turno") }}
+							</h4>
+							<p class="text-xs md:text-sm text-red-700 mt-0.5">
+								{{ errorMessage || submitResource.error }}
 							</p>
+							<button
+								v-if="errorMessage"
+								type="button"
+								@click="errorMessage = ''"
+								class="mt-1.5 text-xs font-semibold text-red-700 hover:text-red-900 underline cursor-pointer"
+							>
+								{{ __("Cerrar aviso") }}
+							</button>
 						</div>
 					</div>
 				</div>
 			</div>
+
+			<!-- Error State -->
+			<div
+				v-else-if="closingDataResource.error || errorMessage"
+				class="rounded-xl bg-red-50 border border-red-200 p-4 text-start"
+			>
+				<div class="flex gap-3">
+					<svg class="h-5 w-5 text-red-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+						<path
+							fill-rule="evenodd"
+							d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+							clip-rule="evenodd"
+						/>
+					</svg>
+					<div>
+						<h3 class="text-sm font-bold text-red-900">
+							{{ __("Failed to Load Shift Data") }}
+						</h3>
+						<p class="text-xs md:text-sm text-red-700 mt-1">
+							{{ errorMessage || closingDataResource.error }}
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
 
 		<template #footer-left>
 			<MdxButton
@@ -948,37 +881,34 @@
 
 		<template #footer>
 			<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
-				<!-- Validation Warning (only when fields are still missing) -->
 				<div
 					v-if="!canSubmit && closingData && !showSuccessReport"
-					class="text-xs md:text-sm text-amber-600 font-medium text-center sm:text-end"
+					class="text-xs text-amber-700 font-semibold text-center sm:text-end"
 				>
 					{{ __("Falta registrar monto real en: {0}", [missingPaymentModes.join(", ")]) }}
 				</div>
 
-				<!-- Success message (shown in report view) -->
 				<div
 					v-if="showSuccessReport"
-					class="text-xs md:text-sm text-green-700 font-medium text-center sm:text-end inline-flex items-center justify-center gap-1.5"
+					class="text-xs md:text-sm text-emerald-700 font-semibold text-center sm:text-end inline-flex items-center justify-center gap-1.5"
 				>
-					<svg class="w-4 h-4 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+					<svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
 						<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
 					</svg>
-					<span>{{ __("Shift closed successfully") }}</span>
+					<span>{{ __("Turno cerrado correctamente") }}</span>
 				</div>
 
 				<div
 					v-if="eodPrintFailed"
-					class="text-xs md:text-sm text-amber-600 font-medium text-center sm:text-end"
+					class="text-xs text-amber-700 font-medium text-center sm:text-end"
 				>
 					{{ __("EOD report pending print") }}
 				</div>
 
-				<!-- Submit/Close button (only shown in entry mode) -->
 				<MdxButton
 					v-if="!showSuccessReport"
 					variant="primary"
-					@click="submitClosing"
+					@click="handleCloseShiftClick"
 					:loading="submitResource.loading"
 					:disabled="!canSubmit"
 				>
@@ -993,6 +923,15 @@
 
 				<MdxButton
 					v-if="showSuccessReport && closedShiftName"
+					variant="secondary"
+					@click="handleLetterClosingPrint"
+					:loading="letterPrintLoading"
+				>
+					{{ __("Hoja de Cierre (Carta PDF)") }}
+				</MdxButton>
+
+				<MdxButton
+					v-if="showSuccessReport && closedShiftName"
 					variant="primary"
 					@click="handleManualEodPrint"
 					:loading="retryPrintLoading"
@@ -1001,12 +940,102 @@
 				</MdxButton>
 			</div>
 		</template>
+
+		<!-- Confirmation Warning Modal when Cash Difference exists -->
+		<MdxModal
+			v-model="showDifferenceWarningModal"
+			:title="__('Aviso de Diferencia en Arqueo de Caja')"
+			:subtitle="closingData ? cleanProfileName(closingData.pos_profile) : ''"
+			size="md"
+			:persistent="submitResource.loading"
+		>
+			<template #header-icon>
+				<svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+				</svg>
+			</template>
+
+			<div class="flex flex-col gap-4 text-start">
+				<div
+					:class="[
+						'rounded-xl border p-3.5',
+						cashDifferenceAmount < 0 ? 'bg-red-50/70 border-red-200' : 'bg-amber-50 border-amber-200',
+					]"
+				>
+					<p :class="['text-xs md:text-sm font-bold', cashDifferenceAmount < 0 ? 'text-red-900' : 'text-amber-900']">
+						{{
+							cashDifferenceAmount < 0
+								? __("Se detectó un Faltante de Efectivo en el cierre de turno.")
+								: __("Se detectó un Sobrante de Efectivo en el cierre de turno.")
+						}}
+					</p>
+					<p class="text-xs text-slate-700 mt-1 leading-relaxed">
+						<template v-if="autoPostCashDifferences">
+							{{
+								cashDifferenceAmount < 0
+									? __("Al confirmar el cierre, el sistema generará automáticamente un asiento contable contra Caja llevando el faltante directamente a cuenta de Gasto. Si hubo un error al contar o registrar gastos menores, vuelva atrás para corregirlo.")
+									: __("Al confirmar el cierre, el sistema generará automáticamente un asiento contable contra Caja registrando el sobrante en cuenta de Ingreso. Si hubo un error en el conteo, vuelva atrás para corregirlo.")
+							}}
+						</template>
+						<template v-else>
+							{{
+								__("El turno se cerrará registrando esta diferencia en el arqueo. Si hubo un error en el conteo o falta registrar un gasto menor, vuelva atrás para corregirlo.")
+							}}
+						</template>
+					</p>
+				</div>
+
+				<div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col gap-2 text-xs md:text-sm">
+					<div class="flex items-center justify-between text-slate-600">
+						<span>{{ __("Efectivo Esperado Neto") }}</span>
+						<span class="font-semibold text-slate-900 tabular-nums">{{ formatCurrency(expectedCashTotal) }}</span>
+					</div>
+					<div class="flex items-center justify-between text-slate-600">
+						<span>{{ __("Efectivo Real Contado") }}</span>
+						<span class="font-semibold text-slate-900 tabular-nums">{{ formatCurrency(countedCashTotal) }}</span>
+					</div>
+					<div class="pt-2 border-t border-slate-200 flex items-center justify-between">
+						<span class="font-bold text-slate-900">
+							{{ cashDifferenceAmount < 0 ? __("Faltante en Caja") : __("Sobrante en Caja") }}
+						</span>
+						<span
+							:class="[
+								'text-base font-extrabold tabular-nums',
+								cashDifferenceAmount < 0 ? 'text-red-700' : 'text-blue-700',
+							]"
+						>
+							{{ cashDifferenceAmount > 0 ? "+" : "" }}{{ formatCurrency(cashDifferenceAmount) }}
+						</span>
+					</div>
+				</div>
+			</div>
+
+			<template #footer-left>
+				<MdxButton
+					variant="secondary"
+					@click="showDifferenceWarningModal = false"
+					:disabled="submitResource.loading"
+				>
+					{{ __("Revisar Conteo") }}
+				</MdxButton>
+			</template>
+
+			<template #footer>
+				<MdxButton
+					variant="primary"
+					@click="confirmAndSubmitClosing"
+					:loading="submitResource.loading"
+				>
+					{{ autoPostCashDifferences ? __("Confirmar y Contabilizar Cierre") : __("Confirmar Cierre") }}
+				</MdxButton>
+			</template>
+		</MdxModal>
 	</MdxModal>
 </template>
 
 <script setup>
 import { FeatherIcon } from "frappe-ui";
-import { MdxModal, MdxButton, MdxLoadingSpinner } from "mdx_ui";
+import { MdxModal, MdxButton, MdxLoadingSpinner, MdxSelect, MdxBadge } from "mdx_ui";
 import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useShift, shiftState } from "../composables/useShift";
@@ -1014,9 +1043,9 @@ import { useFormatters } from "../composables/useFormatters";
 import { useToast } from "../composables/useToast";
 import { usePOSSettingsStore } from "../stores/posSettings";
 import { usePOSShiftStore } from "../stores/posShift";
-import { printEODReport } from "../utils/printEod";
+import { printEODReport, printLetterClosingSheet } from "../utils/printEod";
 import { qzConnected } from "../utils/qzTray";
-import TranslatedHTML from "./common/TranslatedHTML.vue";
+import CashDenominationCounter from "./common/CashDenominationCounter.vue";
 import { useBootstrapStore } from "../stores/bootstrap";
 
 const bootstrapStore = useBootstrapStore();
@@ -1049,7 +1078,7 @@ function cleanProfileName(name) {
 }
 const { showSuccess, showWarning } = useToast();
 const posSettingsStore = usePOSSettingsStore();
-const { hideExpectedAmount } = storeToRefs(posSettingsStore);
+const { hideExpectedAmount, autoPostCashDifferences } = storeToRefs(posSettingsStore);
 
 const shiftStore = usePOSShiftStore();
 
@@ -1058,12 +1087,159 @@ const closingDataResource = getClosingShiftData;
 const submitResource = submitClosingShift;
 const showInvoiceDetails = ref(false);
 const showSuccessReport = ref(false); // Track if shift is closed and showing report
+const showDifferenceWarningModal = ref(false);
+const closedDifferenceJournalEntry = ref("");
+const closedExpenseJournalEntry = ref("");
+const closedDifferenceAmount = ref(0);
 const errorMessage = ref(""); // User-friendly error message
 const eodPrintFailed = ref(null);
 const closedShiftName = ref(null);
 const retryPrintLoading = ref(false);
+const letterPrintLoading = ref(false);
 const showIdleWarning = ref(false);
 let _idleWarningTimer = null;
+
+const expenseCategoryOptions = [
+	{ value: "Alimentación y refrigerio", label: "Alimentación y refrigerio" },
+	{ value: "Pasajes y transporte", label: "Pasajes y transporte" },
+	{ value: "Agua, limpieza e insumos", label: "Agua, limpieza e insumos" },
+	{ value: "Fletes y carguío", label: "Fletes y carguío" },
+	{ value: "Combustible", label: "Combustible" },
+	{ value: "Entrega a rendir", label: "Entrega a rendir" },
+	{ value: "Otros gastos", label: "Otros gastos" },
+];
+
+const expenseReceiptOptions = [
+	{ value: "Sin Factura", label: "Sin Factura" },
+	{ value: "Con Factura", label: "Con Factura" },
+];
+
+const totalShiftExpenses = computed(() => {
+	const rows = closingData.value?.shift_expenses || [];
+	return Math.round(rows.reduce((sum, r) => sum + (Number.parseFloat(r.amount) || 0), 0) * 100) / 100;
+});
+
+function isCashMethod(modeName) {
+	if (!modeName) return false;
+	const cashMode = closingData.value?.cash_mode_of_payment;
+	if (cashMode && modeName === cashMode) return true;
+	const lower = String(modeName).toLowerCase();
+	return lower.includes("cash") || lower.includes("efectivo");
+}
+
+const cashReconciliationRows = computed(() =>
+	(closingData.value?.payment_reconciliation || []).filter((p) => isCashMethod(p.mode_of_payment))
+);
+
+const nonCashReconciliationRows = computed(() =>
+	(closingData.value?.payment_reconciliation || []).filter((p) => !isCashMethod(p.mode_of_payment))
+);
+
+const expectedCashTotal = computed(() =>
+	Math.round(
+		cashReconciliationRows.value.reduce((sum, p) => sum + (Number.parseFloat(p.expected_amount) || 0), 0) * 100
+	) / 100
+);
+
+const countedCashTotal = computed(() =>
+	Math.round(
+		cashReconciliationRows.value.reduce((sum, p) => sum + (Number.parseFloat(p.closing_amount) || 0), 0) * 100
+	) / 100
+);
+
+const cashDifferenceAmount = computed(() =>
+	Math.round(
+		cashReconciliationRows.value.reduce((sum, p) => sum + (Number.parseFloat(p.difference) || 0), 0) * 100
+	) / 100
+);
+
+const hasCashDifference = computed(() => Math.abs(cashDifferenceAmount.value) >= 0.01);
+
+function hasClosingInput(payment) {
+	return (
+		payment?._touched &&
+		payment.closing_amount !== null &&
+		payment.closing_amount !== undefined &&
+		String(payment.closing_amount).trim() !== ""
+	);
+}
+
+function getPaymentBadgeVariant(payment) {
+	if (!hasClosingInput(payment)) return "warning";
+	if (payment.difference === 0) return "success";
+	return payment.difference > 0 ? "info" : "danger";
+}
+
+function getPaymentStatusText(payment) {
+	if (!hasClosingInput(payment)) return __("Pendiente");
+	if (payment.difference === 0) return __("Cuadrado");
+	if (payment.difference > 0) return __("Sobrante {0}", [formatCurrency(payment.difference)]);
+	return __("Faltante {0}", [formatCurrency(Math.abs(payment.difference))]);
+}
+
+function getGrossCashSales(payment) {
+	const gross = Number.parseFloat(payment.gross_expected_amount ?? payment.expected_amount) || 0;
+	const opening = Number.parseFloat(payment.opening_amount) || 0;
+	return Math.round((gross - opening) * 100) / 100;
+}
+
+function matchExpectedAmount(payment) {
+	if (!payment || showSuccessReport.value || submitResource.loading) return;
+	const expected = Math.round((Number.parseFloat(payment.expected_amount) || 0) * 100) / 100;
+	updateClosingAmount(payment, expected.toFixed(2));
+}
+
+function matchAllNonCashExpected() {
+	for (const payment of nonCashReconciliationRows.value) {
+		matchExpectedAmount(payment);
+	}
+}
+
+function recalculateCashAfterExpenses() {
+	if (!closingData.value?.payment_reconciliation) return;
+	const totalExp = totalShiftExpenses.value;
+	closingData.value.total_shift_expenses = totalExp;
+	for (const payment of closingData.value.payment_reconciliation) {
+		if (isCashMethod(payment.mode_of_payment)) {
+			const gross = Number.parseFloat(payment.gross_expected_amount ?? payment.expected_amount) || 0;
+			payment.expected_amount = Math.round((gross - totalExp) * 100) / 100;
+			calculateDifference(payment);
+		}
+	}
+}
+
+function addShiftExpense() {
+	if (!closingData.value) return;
+	if (!Array.isArray(closingData.value.shift_expenses)) {
+		closingData.value.shift_expenses = [];
+	}
+	closingData.value.shift_expenses.push(
+		reactive({
+			category: "Alimentación y refrigerio",
+			receipt_type: "Sin Factura",
+			invoice_no: "",
+			description: "",
+			amount: null,
+		})
+	);
+}
+
+function removeShiftExpense(idx) {
+	if (!closingData.value?.shift_expenses) return;
+	closingData.value.shift_expenses.splice(idx, 1);
+	recalculateCashAfterExpenses();
+}
+
+function onCashDenominationTotal(payment, totalBob) {
+	updateClosingAmount(payment, totalBob > 0 ? totalBob : 0);
+}
+
+function onManualClosingInput(payment, rawVal) {
+	updateClosingAmount(payment, rawVal);
+	if (isCashMethod(payment.mode_of_payment) && closingData.value?.closing_denominations?.length > 0) {
+		closingData.value.closing_denominations = [];
+	}
+}
 
 // Computed properties for real-time recalculation (defined before immediate watcher)
 const invoiceCount = computed(() => {
@@ -1097,6 +1273,10 @@ watch(open, async (isOpen) => {
 		}
 		eodPrintFailed.value = null;
 		closedShiftName.value = null;
+		showDifferenceWarningModal.value = false;
+		closedDifferenceJournalEntry.value = "";
+		closedExpenseJournalEntry.value = "";
+		closedDifferenceAmount.value = 0;
 		if (showSuccessReport.value) {
 			showSuccessReport.value = false;
 			closingData.value = null;
@@ -1132,6 +1312,7 @@ async function loadClosingData() {
 
 				return reactive({
 					...payment,
+					gross_expected_amount: expectedVal,
 					closing_amount: autoZeroReady ? 0 : null,
 					difference: 0,
 					_touched: autoZeroReady,
@@ -1144,12 +1325,13 @@ async function loadClosingData() {
 			});
 		}
 
-		closingData.value = data;
+		data.usd_exchange_rate = Number.parseFloat(data.usd_exchange_rate) || 6.96;
+		data.closing_denominations = Array.isArray(data.closing_denominations) ? data.closing_denominations : [];
+		data.shift_expenses = Array.isArray(data.shift_expenses) ? data.shift_expenses : [];
+		data.closing_observations = data.closing_observations || "";
+		data.total_shift_expenses = Number.parseFloat(data.total_shift_expenses) || 0;
 
-		// Auto-expand invoice details if there are few invoices
-		if (invoiceCount.value > 0 && invoiceCount.value <= 10) {
-			showInvoiceDetails.value = true;
-		}
+		closingData.value = data;
 	} catch (error) {
 		console.error("Error loading closing data:", error);
 		errorMessage.value =
@@ -1202,8 +1384,66 @@ const canSubmit = computed(() => {
 	return missingPaymentModes.value.length === 0;
 });
 
+function validateAndNormalizeShiftExpenses() {
+	if (!closingData.value) return null;
+	const cleanedExpenses = [];
+	for (const exp of closingData.value.shift_expenses || []) {
+		const desc = String(exp.description || "").trim();
+		const amt = Number.parseFloat(exp.amount) || 0;
+		if (!desc && amt <= 0) {
+			continue;
+		}
+		if (amt > 0 && !desc) {
+			errorMessage.value = __("Ingrese el detalle/concepto para cada gasto de caja registrado.");
+			return null;
+		}
+		if (desc && amt <= 0) {
+			errorMessage.value = __("Ingrese un monto mayor a cero para el gasto: {0}", [desc]);
+			return null;
+		}
+		cleanedExpenses.push({
+			category: exp.category || "Otros gastos",
+			receipt_type: exp.receipt_type || "Sin Factura",
+			invoice_no: String(exp.invoice_no || "").trim(),
+			description: desc,
+			amount: Math.round(amt * 100) / 100,
+		});
+	}
+	return cleanedExpenses;
+}
+
+function handleCloseShiftClick() {
+	if (!closingData.value) return;
+	const cleanedExpenses = validateAndNormalizeShiftExpenses();
+	if (!cleanedExpenses) return;
+	closingData.value.shift_expenses = cleanedExpenses;
+	recalculateCashAfterExpenses();
+	if (closingData.value.payment_reconciliation) {
+		closingData.value.payment_reconciliation.forEach((payment) => {
+			calculateDifference(payment);
+		});
+	}
+
+	if (canCheckout.value && hasCashDifference.value) {
+		showDifferenceWarningModal.value = true;
+		return;
+	}
+	submitClosing();
+}
+
+function confirmAndSubmitClosing() {
+	showDifferenceWarningModal.value = false;
+	submitClosing();
+}
+
 async function submitClosing() {
 	if (!closingData.value) return;
+
+	// Validate petty-cash expense rows and strip completely empty ones
+	const cleanedExpenses = validateAndNormalizeShiftExpenses();
+	if (!cleanedExpenses) return;
+	closingData.value.shift_expenses = cleanedExpenses;
+	recalculateCashAfterExpenses();
 
 	try {
 		errorMessage.value = ""; // Clear any previous errors
@@ -1217,7 +1457,18 @@ async function submitClosing() {
 
 		// Submit to server
 		const result = await submitResource.submit({ closing_shift: closingData.value });
-		const closingShiftName = result?.name ?? submitResource.data?.name;
+		const payload = result ?? submitResource.data ?? {};
+		const closingShiftName = payload?.name ?? submitResource.data?.name;
+		closedDifferenceJournalEntry.value = payload?.difference_journal_entry || "";
+		closedExpenseJournalEntry.value = payload?.expense_journal_entry || "";
+		closedDifferenceAmount.value =
+			Number.parseFloat(payload?.cash_difference_amount ?? cashDifferenceAmount.value) || 0;
+		const successToast = closedDifferenceJournalEntry.value
+			? __("Turno cerrado. Diferencia contabilizada automáticamente en el asiento {0}.", [
+					closedDifferenceJournalEntry.value,
+				])
+			: __("Shift closed successfully");
+
 		if (closingShiftName) {
 			closedShiftName.value = closingShiftName;
 			if (qzConnected.value || posSettingsStore.silentPrint) {
@@ -1225,35 +1476,46 @@ async function submitClosing() {
 					await printEODReport(closingShiftName, { manual: false });
 					eodPrintFailed.value = null;
 				} catch (err) {
-					console.warn("[eod] silent print failed", err);
 					showWarning(__("EOD report did not print. Use the Reprint button to retry."));
+					if (closedDifferenceJournalEntry.value) {
+						showSuccess(successToast);
+					}
 					eodPrintFailed.value = { closingShiftName };
 					showSuccessReport.value = true;
 					return;
 				}
 			} else {
 				eodPrintFailed.value = null;
-				showSuccess(__("Shift closed successfully"));
+				showSuccess(successToast);
 				showSuccessReport.value = true;
 				return;
 			}
 		}
 
-		// If hideExpectedAmount is enabled, show success report before closing
-		if (hideExpectedAmount.value) {
-			showSuccessReport.value = true;
-			// Auto-expand invoice details in success report
-			if (invoiceCount.value > 0 && invoiceCount.value <= 10) {
-				showInvoiceDetails.value = true;
-			}
-		} else {
-			// Normal mode: close immediately
-			emit("shift-closed");
-			closeDialog();
+		showSuccess(successToast);
+		showSuccessReport.value = true;
+		if (invoiceCount.value > 0 && invoiceCount.value <= 10) {
+			showInvoiceDetails.value = true;
 		}
 	} catch (error) {
-		console.error("Error submitting closing shift:", error);
-		errorMessage.value = "Failed to close shift. Please verify all amounts and try again.";
+		const rawServerMsg = Array.isArray(error?.messages) && error.messages.length ? error.messages[0] : "";
+		const cleanServerMsg = rawServerMsg ? String(rawServerMsg).replace(/<[^>]*>/g, "").trim() : "";
+		errorMessage.value =
+			cleanServerMsg || __("No se pudo cerrar el turno. Verifique los montos e intente nuevamente.");
+	}
+}
+
+async function handleLetterClosingPrint() {
+	const targetName = closedShiftName.value || eodPrintFailed.value?.closingShiftName;
+	if (!targetName) return;
+
+	letterPrintLoading.value = true;
+	try {
+		await printLetterClosingSheet(targetName);
+	} catch (err) {
+		showWarning(err?.message || __("No se pudo abrir la hoja de cierre en tamaño carta."));
+	} finally {
+		letterPrintLoading.value = false;
 	}
 }
 
@@ -1282,6 +1544,10 @@ function closeDialog() {
 	}
 
 	open.value = false;
+	showDifferenceWarningModal.value = false;
+	closedDifferenceJournalEntry.value = "";
+	closedExpenseJournalEntry.value = "";
+	closedDifferenceAmount.value = 0;
 	closingData.value = null;
 	showInvoiceDetails.value = false;
 	errorMessage.value = ""; // Clear error messages

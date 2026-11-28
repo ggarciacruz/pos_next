@@ -196,37 +196,13 @@ def _get_precision_settings():
 
 def _get_open_shift():
 	"""
-	Get user's currently open POS shift.
-
-	Finds the most recent open shift for the current user and fetches
-	the associated POS Profile document for reuse in other functions.
-
-	Returns:
-		dict | None: Shift data with 'pos_profile_doc' attached, or None if no open shift
-			{
-				name: str,
-				pos_profile: str,
-				period_start_date: datetime,
-				status: str,
-				pos_profile_doc: Document
-			}
+	Get user's currently active open POS shift (own or shared register shift).
 	"""
-	shift = frappe.db.get_value(
-		"POS Opening Shift",
-		{
-			"user": frappe.session.user,
-			"pos_closing_shift": ["is", "not set"],
-			"docstatus": 1,
-			"status": "Open",
-		},
-		["name", "pos_profile", "period_start_date", "status"],
-		as_dict=True,
-		order_by="period_start_date desc",
-	)
+	from pos_next.api.shifts import ensure_auto_open_shift_for_user, find_active_open_shift_for_user
+
+	shift = find_active_open_shift_for_user(frappe.session.user)
 
 	if not shift:
-		from pos_next.api.shifts import ensure_auto_open_shift_for_user
-
 		auto_shift = ensure_auto_open_shift_for_user(frappe.session.user)
 		if not auto_shift:
 			return None

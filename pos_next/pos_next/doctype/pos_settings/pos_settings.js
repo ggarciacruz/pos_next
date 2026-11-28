@@ -15,6 +15,16 @@ frappe.ui.form.on("POS Settings", {
 			};
 		});
 
+		const company_account_query = function () {
+			const filters = { is_group: 0 };
+			if (frm.doc.__company) {
+				filters.company = frm.doc.__company;
+			}
+			return { filters };
+		};
+		frm.set_query("cash_shortage_account", company_account_query);
+		frm.set_query("cash_overage_account", company_account_query);
+
 		// Fetch company when form loads
 		if (frm.doc.pos_profile) {
 			fetch_pos_profile_company(frm);
@@ -22,12 +32,24 @@ frappe.ui.form.on("POS Settings", {
 	},
 
 	pos_profile(frm) {
+		const prev_company = frm.doc.__company || null;
 		// Clear loyalty program when POS Profile changes
 		frm.set_value("default_loyalty_program", "");
 		frm.doc.__company = null;
 
 		if (frm.doc.pos_profile) {
-			fetch_pos_profile_company(frm);
+			frappe.db.get_value("POS Profile", frm.doc.pos_profile, "company", (r) => {
+				if (r && r.company) {
+					frm.doc.__company = r.company;
+					if (prev_company && prev_company !== r.company) {
+						frm.set_value("cash_shortage_account", "");
+						frm.set_value("cash_overage_account", "");
+					}
+				}
+			});
+		} else {
+			frm.set_value("cash_shortage_account", "");
+			frm.set_value("cash_overage_account", "");
 		}
 	},
 });

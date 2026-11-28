@@ -33,6 +33,43 @@ class POSSettings(Document):
 					"Please disable Partial Payment first."
 				)
 
+		self.validate_cash_difference_accounts()
+
+	def validate_cash_difference_accounts(self):
+		"""Ensure configured cash difference accounts are leaf accounts belonging to the POS Profile company."""
+		from frappe import _
+
+		if not self.pos_profile:
+			return
+		profile_company = frappe.db.get_value("POS Profile", self.pos_profile, "company")
+		for fieldname, label in (
+			("cash_shortage_account", _("Cuenta de Gasto para Faltantes de Caja")),
+			("cash_overage_account", _("Cuenta de Ingreso para Sobrantes de Caja")),
+		):
+			account_name = self.get(fieldname)
+			if not account_name:
+				continue
+			acc = frappe.db.get_value(
+				"Account",
+				account_name,
+				["company", "is_group"],
+				as_dict=True,
+			)
+			if not acc:
+				frappe.throw(_("La cuenta seleccionada en {0} no existe.").format(label))
+			if cint(acc.is_group):
+				frappe.throw(
+					_("La cuenta {0} ({1}) es una cuenta grupo; debe seleccionar una cuenta de movimiento.").format(
+						account_name, label
+					)
+				)
+			if profile_company and acc.company != profile_company:
+				frappe.throw(
+					_("La cuenta {0} ({1}) pertenece a la empresa {2}, distinta a {3}.").format(
+						account_name, label, acc.company, profile_company
+					)
+				)
+
 	def on_update(self):
 		"""Sync allow_negative_stock with Stock Settings"""
 		self.sync_negative_stock_setting()

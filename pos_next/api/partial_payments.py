@@ -477,17 +477,10 @@ def create_payment_entry(
 		if reference_no:
 			pe.reference_no = str(reference_no)[:140]
 		else:
-			open_shift_name = frappe.db.get_value(
-				"POS Opening Shift",
-				{
-					"user": frappe.session.user,
-					"pos_closing_shift": ["is", "not set"],
-					"docstatus": 1,
-					"status": "Open",
-				},
-				"name",
-				order_by="period_start_date desc",
-			)
+			from pos_next.api.shifts import find_active_open_shift_for_user
+
+			active_shift = find_active_open_shift_for_user(frappe.session.user)
+			open_shift_name = active_shift.get("name") if active_shift else None
 			pe.reference_no = str(open_shift_name or f"POS-{invoice_name}")[:140]
 
 		if remarks:

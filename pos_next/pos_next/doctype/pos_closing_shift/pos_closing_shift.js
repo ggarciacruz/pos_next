@@ -41,6 +41,60 @@ frappe.ui.form.on("POS Closing Shift", {
 			},
 			__("Print")
 		);
+
+		frm.add_custom_button(
+			__("Hoja de Cierre de Caja (Carta)"),
+			() => {
+				frappe.utils.print(
+					frm.doctype,
+					frm.docname,
+					"Arqueo y Cierre de Caja Nueva Era",
+					frm.doc.letter_head,
+					frm.doc.language || frappe.boot.lang
+				);
+			},
+			__("Print")
+		);
+
+		if (flt(frm.doc.total_shift_expenses) > 0 && !frm.doc.expense_journal_entry) {
+			frm.add_custom_button(__("Contabilizar Gastos de Caja"), () => {
+				frappe.call({
+					method: "pos_next.pos_next.doctype.pos_closing_shift.pos_closing_shift.create_shift_expense_journal_entry",
+					args: { closing_shift_name: frm.doc.name },
+					freeze: true,
+					freeze_message: __("Generando asiento contable de gastos..."),
+					callback: (r) => {
+						if (r.message) {
+							frappe.show_alert({
+								message: __("Asiento contable creado: {0}", [r.message]),
+								indicator: "green",
+							});
+							frm.reload_doc();
+						}
+					},
+				});
+			});
+		}
+
+		if (Math.abs(flt(frm.doc.cash_difference_amount)) >= 0.01 && !frm.doc.difference_journal_entry) {
+			frm.add_custom_button(__("Contabilizar Diferencia de Arqueo"), () => {
+				frappe.call({
+					method: "pos_next.pos_next.doctype.pos_closing_shift.pos_closing_shift.create_cash_difference_journal_entry",
+					args: { closing_shift_name: frm.doc.name },
+					freeze: true,
+					freeze_message: __("Generando asiento contable de diferencia..."),
+					callback: (r) => {
+						if (r.message) {
+							frappe.show_alert({
+								message: __("Asiento de diferencia creado: {0}", [r.message]),
+								indicator: "green",
+							});
+							frm.reload_doc();
+						}
+					},
+				});
+			});
+		}
 	},
 
 	pos_opening_shift(frm) {
@@ -106,7 +160,7 @@ frappe.ui.form.on("POS Closing Shift Detail", {
 			cdt,
 			cdn,
 			"difference",
-			flt(row.expected_amount - row.closing_amount)
+			flt(row.closing_amount - row.expected_amount)
 		);
 	},
 });

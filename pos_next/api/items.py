@@ -1565,6 +1565,24 @@ def _resolve_item_warehouses_and_stock(
 	return item_wh_map, wh_name_map, dict(stock_map), dict(other_stock_map), dict(reserved_map)
 
 
+def _get_supplier_part_nos_map(item_codes):
+	"""Return mapping of item_code -> space-joined distinct supplier_part_no strings."""
+	if not item_codes:
+		return {}
+
+	rows = frappe.get_all(
+		"Item Supplier",
+		filters={"parent": ["in", item_codes], "supplier_part_no": ["is", "set"]},
+		fields=["parent", "supplier_part_no"],
+	)
+	grouped = defaultdict(list)
+	for row in rows:
+		part_no = (row.get("supplier_part_no") or "").strip()
+		if part_no and part_no not in grouped[row.parent]:
+			grouped[row.parent].append(part_no)
+	return {parent: " ".join(parts) for parent, parts in grouped.items()}
+
+
 @frappe.whitelist()
 def get_items(
 	pos_profile,
@@ -1643,16 +1661,20 @@ def get_items(
 			# Split search term into words for fuzzy matching
 			search_words = [word.strip() for word in effective_search_term.split() if word.strip()]
 
-			# Word-order independent: all words must appear somewhere in item fields
+			# Word-order independent: all words must appear somewhere in item fields or supplier part numbers
 			search_text = f"CONCAT(COALESCE(i.name, ''), ' ', COALESCE(i.item_name, ''), ' ', COALESCE(i.item_group, ''), ' ', COALESCE(i.description, ''){medida_search})"
-			word_conditions = " AND ".join([f"{search_text} LIKE %s"] * len(search_words))
+			per_word_clause = (
+				f"({search_text} LIKE %s OR EXISTS (SELECT 1 FROM `tabItem Supplier` isup "
+				f"WHERE isup.parent = i.name AND isup.supplier_part_no LIKE %s))"
+			)
+			word_conditions = " AND ".join([per_word_clause] * len(search_words))
 
 			# Also match if barcode contains the search term
 			barcode_condition = "ib.barcode = %s"
 
-			# Combine: match item fields OR match barcode
+			# Combine: match item fields/supplier code OR match barcode
 			conditions.append(f"(({word_conditions}) OR {barcode_condition})")
-			params.extend([f"%{word}%" for word in search_words])
+			params.extend([p for word in search_words for p in (f"%{word}%", f"%{word}%")])
 			params.append(effective_search_term)  # For barcode matching
 
 			# Relevance scoring with case-insensitive comparison
@@ -1664,8 +1686,16 @@ def get_items(
 					WHEN ib.barcode LIKE %s THEN 1200
 					WHEN LOWER(i.item_name) = LOWER(%s) THEN 1000
 					WHEN LOWER(i.name) = LOWER(%s) THEN 900
+					WHEN EXISTS (
+						SELECT 1 FROM `tabItem Supplier` isup
+						WHERE isup.parent = i.name AND LOWER(isup.supplier_part_no) = LOWER(%s)
+					) THEN 850
 					WHEN LOWER(i.item_name) LIKE LOWER(%s) THEN 500
 					WHEN LOWER(i.name) LIKE LOWER(%s) THEN 400
+					WHEN EXISTS (
+						SELECT 1 FROM `tabItem Supplier` isup
+						WHERE isup.parent = i.name AND LOWER(isup.supplier_part_no) LIKE LOWER(%s)
+					) THEN 380
 					ELSE 100
 				END)
 			"""
@@ -1674,6 +1704,8 @@ def get_items(
 				prefix_pattern,
 				effective_search_term,
 				effective_search_term,
+				effective_search_term,
+				prefix_pattern,
 				prefix_pattern,
 				prefix_pattern,
 			]
@@ -1706,6 +1738,7 @@ def get_items(
 		conversion_map = defaultdict(dict)  # parent -> {uom: factor}
 		uom_map = {}  # parent -> [ {uom, conversion_factor}, ... ]
 		uom_prices_map = {}  # item_code -> {uom: price_list_rate}
+		supplier_part_nos_map = _get_supplier_part_nos_map(item_codes)
 
 		# UOM conversions (both list & map for quick lookup)
 		if item_codes:
@@ -1933,6 +1966,7 @@ def get_items(
 
 			# UOM-specific prices map for frontend selector
 			item["uom_prices"] = uom_prices_map.get(item["item_code"], {})
+			item["supplier_part_nos"] = supplier_part_nos_map.get(item["item_code"], "")
 
 			# Variant attributes
 			if item.get("variant_of") and item["item_code"] in attributes_map:
@@ -2051,6 +2085,7 @@ def get_items_bulk(
 		conversion_map = defaultdict(dict)
 		uom_map = {}
 		uom_prices_map = {}
+		supplier_part_nos_map = _get_supplier_part_nos_map(item_codes)
 
 		# UOM conversions
 		if item_codes:
@@ -2172,6 +2207,7 @@ def get_items_bulk(
 			all_uoms = uom_map.get(item_code, []) or []
 			item["item_uoms"] = [u for u in all_uoms if u.get("uom") != stock_uom]
 			item["uom_prices"] = prices
+			item["supplier_part_nos"] = supplier_part_nos_map.get(item_code, "")
 
 			# Variant attributes
 			if item.get("variant_of") and item_code in attributes_map:

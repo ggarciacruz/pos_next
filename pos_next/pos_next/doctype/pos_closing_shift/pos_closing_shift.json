@@ -25,6 +25,15 @@
   "payment_reconciliation_details",
   "section_break_11",
   "payment_reconciliation",
+  "arqueo_cierre_section",
+  "usd_exchange_rate",
+  "closing_denominations",
+  "shift_expenses",
+  "total_shift_expenses",
+  "closing_observations",
+  "expense_journal_entry",
+  "cash_difference_amount",
+  "difference_journal_entry",
   "section_break_13",
   "grand_total",
   "net_total",
@@ -91,6 +100,7 @@
   },
   {
    "fetch_from": "pos_opening_shift.user",
+   "fetch_if_empty": 1,
    "fieldname": "user",
    "fieldtype": "Link",
    "label": "Cashier",
@@ -128,6 +138,65 @@
    "fieldtype": "Table",
    "label": "Payment Reconciliation",
    "options": "POS Closing Shift Detail"
+  },
+  {
+   "fieldname": "arqueo_cierre_section",
+   "fieldtype": "Section Break",
+   "label": "Arqueo Detallado y Gastos de Caja"
+  },
+  {
+   "default": "6.96",
+   "fieldname": "usd_exchange_rate",
+   "fieldtype": "Float",
+   "label": "Tipo de Cambio USD",
+   "precision": "2"
+  },
+  {
+   "fieldname": "closing_denominations",
+   "fieldtype": "Table",
+   "label": "Billetes y Monedas de Cierre",
+   "options": "POS Cash Denomination"
+  },
+  {
+   "fieldname": "shift_expenses",
+   "fieldtype": "Table",
+   "label": "Gastos y Salidas de Efectivo",
+   "options": "POS Shift Expense"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_shift_expenses",
+   "fieldtype": "Currency",
+   "label": "Total Gastos en Efectivo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closing_observations",
+   "fieldtype": "Small Text",
+   "label": "Observaciones del Cierre"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "expense_journal_entry",
+   "fieldtype": "Link",
+   "label": "Asiento Contable de Gastos",
+   "options": "Journal Entry",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "cash_difference_amount",
+   "fieldtype": "Currency",
+   "label": "Diferencia de Efectivo en Arqueo",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "difference_journal_entry",
+   "fieldtype": "Link",
+   "label": "Asiento Contable de Diferencia",
+   "options": "Journal Entry",
+   "read_only": 1
   },
   {
    "collapsible": 1,
@@ -200,7 +269,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-03 15:54:11.316195",
+ "modified": "2026-11-27 04:00:00.000000",
  "modified_by": "Administrator",
  "module": "POS Next",
  "name": "POS Closing Shift",

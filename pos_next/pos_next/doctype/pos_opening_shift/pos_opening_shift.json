@@ -20,6 +20,10 @@
   "user",
   "opening_balance_details_section",
   "balance_details",
+  "arqueo_apertura_section",
+  "usd_exchange_rate",
+  "opening_denominations",
+  "opening_observations",
   "section_break_9",
   "amended_from"
  ],
@@ -105,6 +109,30 @@
    "label": "Opening Balance Details",
    "options": "POS Opening Shift Detail",
    "reqd": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "arqueo_apertura_section",
+   "fieldtype": "Section Break",
+   "label": "Arqueo Detallado de Billetes y Monedas"
+  },
+  {
+   "default": "6.96",
+   "fieldname": "usd_exchange_rate",
+   "fieldtype": "Float",
+   "label": "Tipo de Cambio USD",
+   "precision": "2"
+  },
+  {
+   "fieldname": "opening_denominations",
+   "fieldtype": "Table",
+   "label": "Billetes y Monedas de Apertura",
+   "options": "POS Cash Denomination"
+  },
+  {
+   "fieldname": "opening_observations",
+   "fieldtype": "Small Text",
+   "label": "Observaciones de Apertura"
   },
   {
    "fieldname": "section_break_9",

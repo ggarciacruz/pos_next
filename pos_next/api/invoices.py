@@ -1551,6 +1551,36 @@ def submit_invoice(invoice=None, data=None):
 	# update to "synced" after successful submission.
 	# ========================================================================
 	offline_id = invoice.get("offline_id") or data.get("offline_id")
+
+	target_shift = (
+		invoice.get("posa_pos_opening_shift")
+		or data.get("posa_pos_opening_shift")
+		or invoice.get("pos_opening_shift")
+		or data.get("pos_opening_shift")
+	)
+	if (
+		not offline_id
+		and doctype == "Sales Invoice"
+		and target_shift
+		and cint(safe_pos_settings.get("enable_shift_management", 1))
+	):
+		shift_row = frappe.db.get_value(
+			"POS Opening Shift",
+			target_shift,
+			["status", "docstatus", "pos_closing_shift"],
+			as_dict=True,
+		)
+		if (
+			not shift_row
+			or cint(shift_row.get("docstatus")) != 1
+			or shift_row.get("status") != "Open"
+			or shift_row.get("pos_closing_shift")
+		):
+			frappe.throw(
+				_("El turno de caja ({0}) ya fue cerrado por otro usuario. Recargue el Punto de Venta para continuar.").format(
+					target_shift
+				)
+			)
 	sync_record_name = None
 
 	if offline_id:
@@ -2656,19 +2686,12 @@ def delete_invoice(invoice, pos_profile=None):
 			frappe.PermissionError,
 		)
 
+	from pos_next.api.shifts import find_active_open_shift_for_user
+
+	active_shift = find_active_open_shift_for_user(frappe.session.user)
 	target_profile = (
 		(pos_profile or "").strip()
-		or frappe.db.get_value(
-			"POS Opening Shift",
-			{
-				"user": frappe.session.user,
-				"status": "Open",
-				"docstatus": 1,
-				"pos_closing_shift": ["is", "not set"],
-			},
-			"pos_profile",
-			order_by="period_start_date desc",
-		)
+		or (active_shift.get("pos_profile") if active_shift else None)
 		or getattr(doc, "pos_profile", None)
 	)
 

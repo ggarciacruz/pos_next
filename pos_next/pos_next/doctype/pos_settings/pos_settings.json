@@ -42,6 +42,11 @@
   "show_variants_as_items",
   "section_break_operations",
   "enable_shift_management",
+  "share_open_shift_across_users",
+  "auto_post_cash_expenses",
+  "auto_post_cash_differences",
+  "cash_shortage_account",
+  "cash_overage_account",
   "allow_sales_order",
   "allow_quotation",
   "quotation_validity_days",
@@ -364,6 +369,46 @@
    "fieldname": "enable_shift_management",
    "fieldtype": "Check",
    "label": "Habilitar Arqueo y Cierre de Turno de Caja"
+  },
+  {
+   "default": "0",
+   "depends_on": "enable_shift_management",
+   "description": "Permite que todos los cajeros asignados a este Perfil POS trabajen sobre una única apertura y cierre diario de caja, manteniendo cada venta registrada con el usuario individual que la atendió.",
+   "fieldname": "share_open_shift_across_users",
+   "fieldtype": "Check",
+   "label": "Compartir Turno Abierto entre Usuarios de la Misma Caja"
+  },
+  {
+   "default": "0",
+   "depends_on": "enable_shift_management",
+   "description": "Genera automáticamente el asiento contable contra la cuenta Caja al cerrar el turno por los gastos con y sin factura registrados en el arqueo.",
+   "fieldname": "auto_post_cash_expenses",
+   "fieldtype": "Check",
+   "label": "Contabilizar Gastos Menores de Caja Automáticamente"
+  },
+  {
+   "default": "0",
+   "depends_on": "enable_shift_management",
+   "description": "Genera automáticamente el asiento contable contra la cuenta Caja al cerrar el turno cuando exista faltante (gasto) o sobrante (ingreso) en efectivo.",
+   "fieldname": "auto_post_cash_differences",
+   "fieldtype": "Check",
+   "label": "Contabilizar Diferencias de Arqueo Automáticamente"
+  },
+  {
+   "depends_on": "enable_shift_management",
+   "description": "Cuenta contable al Debe para faltantes de efectivo en el arqueo. Si se deja vacía, se usa la Cuenta de Castigo/Ajuste del Perfil POS o Empresa.",
+   "fieldname": "cash_shortage_account",
+   "fieldtype": "Link",
+   "label": "Cuenta de Gasto para Faltantes de Caja",
+   "options": "Account"
+  },
+  {
+   "depends_on": "enable_shift_management",
+   "description": "Cuenta contable al Haber para sobrantes de efectivo en el arqueo (ej. Otros ingresos).",
+   "fieldname": "cash_overage_account",
+   "fieldtype": "Link",
+   "label": "Cuenta de Ingreso para Sobrantes de Caja",
+   "options": "Account"
   },
   {
    "default": "0",
@@ -777,7 +822,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-22 17:20:00.000000",
+ "modified": "2026-11-27 04:00:00.000000",
  "modified_by": "Administrator",
  "module": "POS Next",
  "name": "POS Settings",

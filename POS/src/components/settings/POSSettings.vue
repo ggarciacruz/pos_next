@@ -769,6 +769,36 @@
 												"
 											/>
 											<CheckboxField
+												v-if="settings.enable_shift_management"
+												v-model="settings.share_open_shift_across_users"
+												:label="__('Compartir Turno Abierto entre Usuarios de la Misma Caja')"
+												:description="
+													__(
+														'Permite que todos los cajeros asignados a este Perfil POS trabajen sobre una única apertura y cierre diario de caja, manteniendo cada venta registrada con el usuario individual que la atendió.'
+													)
+												"
+											/>
+											<CheckboxField
+												v-if="settings.enable_shift_management"
+												v-model="settings.auto_post_cash_expenses"
+												:label="__('Contabilizar Gastos Menores de Caja Automáticamente')"
+												:description="
+													__(
+														'Genera automáticamente el asiento contable contra la cuenta Caja al cerrar el turno por los gastos con y sin factura registrados en el arqueo.'
+													)
+												"
+											/>
+											<CheckboxField
+												v-if="settings.enable_shift_management"
+												v-model="settings.auto_post_cash_differences"
+												:label="__('Contabilizar Diferencias de Arqueo Automáticamente')"
+												:description="
+													__(
+														'Genera automáticamente el asiento contable contra la cuenta Caja al cerrar el turno cuando exista faltante (gasto) o sobrante (ingreso) en efectivo.'
+													)
+												"
+											/>
+											<CheckboxField
 												v-model="settings.allow_credit_sale"
 												:label="__('Allow Credit Sale')"
 												:description="__('Enable sales on credit')"
@@ -1360,6 +1390,9 @@ const settings = ref({
 	allow_write_off_change: 0,
 	allow_partial_payment: 0,
 	enable_shift_management: 1,
+	share_open_shift_across_users: 0,
+	auto_post_cash_expenses: 0,
+	auto_post_cash_differences: 0,
 	allow_sales_order: 0,
 	allow_quotation: 0,
 	quotation_validity_days: 3,

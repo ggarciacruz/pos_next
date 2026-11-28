@@ -185,6 +185,48 @@ def get_payment_methods(pos_profile):
 		)
 
 		payment_methods = query.run(as_dict=True)
+		if (
+			company
+			and payment_methods
+			and frappe.db.has_column("Mode of Payment Account", "custom_cuenta_con_factura")
+		):
+			mode_names = [m["mode_of_payment"] for m in payment_methods if m.get("mode_of_payment")]
+			if mode_names:
+				cf_rows = frappe.get_all(
+					"Mode of Payment Account",
+					filters={
+						"company": company,
+						"parent": ["in", mode_names],
+						"custom_cuenta_con_factura": ["is", "set"],
+					},
+					fields=["parent", "custom_cuenta_con_factura"],
+					limit_page_length=0,
+				)
+				cf_by_mode = {
+					row.parent: row.custom_cuenta_con_factura
+					for row in cf_rows
+					if row.custom_cuenta_con_factura
+				}
+				cf_accounts = list(set(cf_by_mode.values()))
+				acc_meta = {}
+				if cf_accounts:
+					for acc in frappe.get_all(
+						"Account",
+						filters={"name": ["in", cf_accounts]},
+						fields=["name", "account_name", "account_number"],
+						limit_page_length=0,
+					):
+						acc_meta[acc.name] = acc
+				for method in payment_methods:
+					cf_acc = cf_by_mode.get(method.get("mode_of_payment"))
+					if cf_acc and cf_acc in acc_meta:
+						info = acc_meta[cf_acc]
+						method["cf_account"] = info.name
+						method["cf_account_name"] = info.account_name or ""
+						method["cf_account_number"] = info.account_number or ""
+						method["sf_account"] = method.get("account") or ""
+						method["sf_account_name"] = method.get("account_name") or ""
+						method["sf_account_number"] = method.get("account_number") or ""
 		return payment_methods
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "Get Payment Methods Error")

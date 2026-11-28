@@ -41,6 +41,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		show_variants_as_items: 0,
 		// Operations
 		enable_shift_management: 1,
+		share_open_shift_across_users: 0,
+		auto_post_cash_expenses: 0,
+		auto_post_cash_differences: 0,
 		allow_sales_order: 0,
 		allow_quotation: 0,
 		quotation_validity_days: 3,
@@ -166,6 +169,15 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 		settings.value.enable_shift_management === undefined
 			? true
 			: Boolean(settings.value.enable_shift_management)
+	);
+	const shareOpenShiftAcrossUsers = computed(() =>
+		Boolean(settings.value.share_open_shift_across_users)
+	);
+	const autoPostCashExpenses = computed(() =>
+		Boolean(settings.value.auto_post_cash_expenses)
+	);
+	const autoPostCashDifferences = computed(() =>
+		Boolean(settings.value.auto_post_cash_differences)
 	);
 	const allowSalesOrder = computed(() => Boolean(settings.value.allow_sales_order));
 	const allowQuotation = computed(() => Boolean(settings.value.allow_quotation));
@@ -593,6 +605,9 @@ export const usePOSSettingsStore = defineStore("posSettings", () => {
 
 		// Computed - Operations
 		enableShiftManagement,
+		shareOpenShiftAcrossUsers,
+		autoPostCashExpenses,
+		autoPostCashDifferences,
 		allowSalesOrder,
 		allowQuotation,
 		quotationValidityDays,

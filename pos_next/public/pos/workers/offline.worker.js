@@ -532,7 +532,8 @@ async function searchCachedItems(searchTerm = "", limit = 50, offset = 0) {
 		const term = searchTerm.toLowerCase().trim();
 		const searchWords = term.split(/\s+/).filter(Boolean);
 
-		// Optimize: Use indexes for single-word searches
+		// Optimize: Use barcode index for exact single-token scans; other searches fall through
+		// to the unified ranking scan so item_code, item_name, custom_medida and supplier_part_nos are covered.
 		if (searchWords.length === 1) {
 			// Try barcode index first (most specific)
 			const barcodeResults = await db
@@ -548,40 +549,9 @@ async function searchCachedItems(searchTerm = "", limit = 50, offset = 0) {
 				recordMetric("searchCachedItems", performance.now() - startTime, false);
 				return barcodeResults;
 			}
-
-			// Try item_code index (second most specific)
-			const codeResults = await db
-				.table("items")
-				.where("item_code")
-				.startsWithIgnoreCase(term)
-				.filter((item) => !item.disabled)
-				.limit(limit)
-				.toArray();
-
-			if (codeResults.length > 0) {
-				cacheQueryResult(cacheKey, codeResults);
-				recordMetric("searchCachedItems", performance.now() - startTime, false);
-				return codeResults;
-			}
-
-			// Try item_name index
-			const nameResults = await db
-				.table("items")
-				.where("item_name")
-				.startsWithIgnoreCase(term)
-				.filter((item) => !item.disabled)
-				.limit(limit)
-				.toArray();
-
-			if (nameResults.length > 0) {
-				cacheQueryResult(cacheKey, nameResults);
-				recordMetric("searchCachedItems", performance.now() - startTime, false);
-				return nameResults;
-			}
 		}
 
-		// Fallback: Multi-word or complex search
-		// Fetch larger sample and filter in memory (trade memory for speed)
+		// Unified multi-field ranking scan over cached items
 		const allItems = await db
 			.table("items")
 			.filter((item) => !item.disabled)
@@ -589,21 +559,25 @@ async function searchCachedItems(searchTerm = "", limit = 50, offset = 0) {
 
 		const results = allItems
 			.map((item) => {
+				const supplierNos = (item.supplier_part_nos || "").toLowerCase();
 				const searchable = `${item.item_code || ""} ${item.item_name || ""} ${
 					item.description || ""
-				} ${item.custom_medida || ""}`.toLowerCase();
+				} ${item.custom_medida || ""} ${supplierNos}`.toLowerCase();
 
 				// All words must match
 				if (!searchWords.every((word) => searchable.includes(word))) {
 					return null;
 				}
 
+				const supplierTokens = supplierNos ? supplierNos.split(/\s+/).filter(Boolean) : [];
 				// Score for relevance ranking
 				let score = 100;
 				if (item.item_name?.toLowerCase() === term) score = 1000;
 				else if (item.item_code?.toLowerCase() === term) score = 900;
+				else if (supplierTokens.includes(term)) score = 850;
 				else if (item.item_name?.toLowerCase().startsWith(term)) score = 500;
 				else if (item.item_code?.toLowerCase().startsWith(term)) score = 400;
+				else if (supplierTokens.some((code) => code.startsWith(term))) score = 380;
 
 				return { item, score };
 			})
