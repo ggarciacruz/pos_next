@@ -302,6 +302,14 @@ watch(
 			// Cache password hash for offline session unlock
 			await cachePasswordHashFromLogin(loginForm.password);
 
+			// Preload bootstrap data so profiles without shift management enter POS directly
+			try {
+				bootstrapStore.reset();
+				await bootstrapStore.loadInitialData();
+			} catch (bootError) {
+				log.warn("Bootstrap preload after login failed:", bootError);
+			}
+
 			// Enter POS directly if shift management is disabled and shift is ready, otherwise open shift dialog
 			proceedAfterAuth();
 		}

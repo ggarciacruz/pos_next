@@ -1025,7 +1025,22 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					show_variants_as_items: getShowVariantsFlag(),
 					stock_filter: stockFilter.value,
 				});
-				const list = response?.message || response || [];
+				let list = response?.message || response || [];
+
+				// Retry once if server reports existing catalog items but initial batch arrived empty
+				if (list.length === 0 && totalItemCount > 0) {
+					await new Promise((resolve) => setTimeout(resolve, 350));
+					const retryResponse = await call("pos_next.api.items.get_items", {
+						pos_profile: profile,
+						search_term: "",
+						item_group: null,
+						start: 0,
+						limit: unfilteredLimit,
+						show_variants_as_items: getShowVariantsFlag(),
+						stock_filter: stockFilter.value,
+					});
+					list = retryResponse?.message || retryResponse || [];
+				}
 
 				if (list.length > 0) {
 					// Store first batch in allItems
@@ -1059,7 +1074,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 					totalItemsLoaded.value = 0;
 					currentOffset.value = 0;
 					hasMore.value = false;
-					serverDataFresh.value = true;
+					serverDataFresh.value = totalItemCount === 0;
 				}
 
 				// Start background sync for large catalogs to cache ALL items to IndexedDB
@@ -2282,7 +2297,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		// Skip re-initialization if same profile is already loaded and initialized
 		// This prevents redundant API calls when mobile tab switching
 		// remounts the ItemsSelector component
-		if (profile && profile === posProfile.value && serverDataFresh.value) {
+		if (profile && profile === posProfile.value && serverDataFresh.value && allItems.value.length > 0) {
 			log.debug("setPosProfile skipped — same profile already active", { profile });
 			return;
 		}
@@ -2410,6 +2425,33 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 	function invalidateCache() {
 		// Clear caches to force UI refresh with updated stock
 		clearBaseCache();
+	}
+
+	function resetSessionState() {
+		stopBackgroundCacheSync();
+		if (searchDebounceTimer) {
+			clearTimeout(searchDebounceTimer);
+			searchDebounceTimer = null;
+		}
+		if (posProfileUpdateCleanup) {
+			posProfileUpdateCleanup();
+			posProfileUpdateCleanup = null;
+		}
+		replaceAllItems([]);
+		setSearchResults([]);
+		searchTerm.value = "";
+		searching.value = false;
+		selectedItemGroup.value = null;
+		selectedBrand.value = null;
+		posProfile.value = null;
+		serverDataFresh.value = false;
+		currentOffset.value = 0;
+		totalItemsLoaded.value = 0;
+		totalServerItems.value = 0;
+		hasMore.value = true;
+		clearBaseCache();
+		filteredItemsCache.clear();
+		lastFilterKey = "";
 	}
 
 	/**
@@ -2689,6 +2731,7 @@ export const useItemSearchStore = defineStore("itemSearch", () => {
 		stopBackgroundCacheSync,
 		cleanup,
 		invalidateCache,
+		resetSessionState,
 		upsertCatalogItem,
 		setSortFilter,
 		clearSortFilter,

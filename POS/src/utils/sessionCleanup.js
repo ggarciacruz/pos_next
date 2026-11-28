@@ -4,6 +4,7 @@ import { usePOSCartStore } from "@/stores/posCart";
 import { usePOSUIStore } from "@/stores/posUI";
 import { useBootstrapStore } from "@/stores/bootstrap";
 import { useItemSearchStore } from "@/stores/itemSearch";
+import { useStockStore } from "@/stores/stock";
 import { useSessionLock } from "@/composables/useSessionLock";
 import { shiftState } from "@/composables/useShift";
 
@@ -43,6 +44,7 @@ export async function cleanupUserSession() {
 	const uiStore = usePOSUIStore();
 	const bootstrapStore = useBootstrapStore();
 	const itemSearchStore = useItemSearchStore();
+	const stockStore = useStockStore();
 	cartStore.clearCart();
 	// Reset shift/profile refs that persist in the useInvoice singleton
 	// (clearCart intentionally does NOT reset these since it's also called between transactions)
@@ -51,9 +53,15 @@ export async function cleanupUserSession() {
 	uiStore.resetAllDialogs();
 	bootstrapStore.reset();
 	try {
-		itemSearchStore.invalidateCache?.();
-		itemSearchStore.allItems = [];
-		itemSearchStore.selectedItemGroup = null;
+		if (typeof itemSearchStore.resetSessionState === "function") {
+			itemSearchStore.resetSessionState();
+		} else {
+			itemSearchStore.invalidateCache?.();
+			itemSearchStore.allItems = [];
+			itemSearchStore.selectedItemGroup = null;
+			itemSearchStore.posProfile = null;
+		}
+		stockStore.reset?.();
 	} catch {
 		// Ignore if store not ready
 	}

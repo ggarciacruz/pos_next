@@ -319,19 +319,31 @@
 						></span>
 					</div>
 
-					<!-- Refresh -->
-					<ActionButton
-						:icon="refreshIcon"
-						:title="isRefreshing ? __('Refreshing...') : __('Refresh')"
+					<!-- Refresh (Standardized with MdxSyncOverlay) -->
+					<button
+						type="button"
+						:disabled="isRefreshing"
 						@click="$emit('refresh-click')"
-						:class="[
-							'touch-manipulation',
-							isRefreshing ? 'animate-spin' : '',
-						]"
-						:aria-label="
-							isRefreshing ? __('Refreshing...') : __('Refresh items and customers')
-						"
-					/>
+						class="app-nav-btn touch-manipulation transition-colors"
+						:class="isRefreshing ? 'bg-blue-50 border-blue-200 text-blue-600 cursor-wait' : ''"
+						:title="isRefreshing ? __('Sincronizando...') : __('Actualizar catálogo y stock')"
+						:aria-label="isRefreshing ? __('Sincronizando...') : __('Actualizar catálogo y stock')"
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							:class="isRefreshing ? 'animate-spin text-blue-600' : ''"
+						>
+							<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+							<path d="M21 3v5h-5" />
+							<path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+							<path d="M8 16H3v5" />
+						</svg>
+					</button>
 
 					<!-- User Menu -->
 					<UserMenu
@@ -376,6 +388,8 @@
 				<span v-if="isOffline" class="pos-navbar-expand-dot"></span>
 			</button>
 		</transition>
+
+		<MdxSyncOverlay :show="Boolean(isRefreshing)" :label="__('Sincronizando...')" />
 	</div>
 </template>
 
@@ -385,6 +399,7 @@ import StatusBadge from "@/components/common/StatusBadge.vue";
 import UserMenu from "@/components/common/UserMenu.vue";
 import { DEFAULT_LOCALE } from "@/utils/currency";
 import MdxNavbar from "mdx_ui/components/MdxNavbar.vue";
+import MdxSyncOverlay from "mdx_ui/components/MdxSyncOverlay.vue";
 import { computed, onMounted, ref } from "vue";
 
 const showCacheTooltip = ref(false);
@@ -588,8 +603,6 @@ const shiftIcon =
 	"M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z";
 const printerIcon =
 	"M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z";
-const refreshIcon =
-	"M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15";
 </script>
 
 <style scoped>

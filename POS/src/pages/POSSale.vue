@@ -38,7 +38,7 @@
 				:cache-syncing="itemStore.cacheSyncing"
 				:cache-stats="itemStore.cacheStats"
 				:stock-sync-active="isStockSyncActive"
-				:is-refreshing="stockStore.refreshing"
+				:is-refreshing="isHeaderSyncing"
 				:silent-print-enabled="posSettingsStore.silentPrint"
 				:qz-connected="qzConnected"
 				@sync-click="handleSyncClick"
@@ -1794,6 +1794,30 @@ const invoiceHistoryData = ref([]);
 
 // Stock sync status
 const isStockSyncActive = ref(false);
+const isManualRefreshing = ref(false);
+const isHeaderSyncing = computed(() =>
+	Boolean(
+		isManualRefreshing.value ||
+			stockStore.refreshing ||
+			(shiftStore.hasOpenShift && itemStore.loading && itemStore.allItems.length === 0)
+	)
+);
+
+function ensureCatalogLoaded() {
+	const profile = shiftStore.profileName;
+	if (!profile || !shiftStore.hasOpenShift) return;
+	setTimeout(() => {
+		if (
+			shiftStore.hasOpenShift &&
+			shiftStore.profileName === profile &&
+			itemStore.allItems.length === 0 &&
+			!itemStore.loading
+		) {
+			log.info("Recovery: catalog empty on active shift, loading items", { profile });
+			itemStore.setPosProfile(profile, true);
+		}
+	}, 150);
+}
 
 // Warehouses state and resource
 const warehousesList = ref([]);
@@ -2055,6 +2079,7 @@ onMounted(async () => {
 			log.debug("Skipping init — already initialized (remount)");
 			startActivityTracking();
 			updateLayoutBounds();
+			ensureCatalogLoaded();
 			return;
 		}
 
@@ -2125,6 +2150,7 @@ onMounted(async () => {
 
 		// Reveal the POS shell immediately so <ItemsSelector> mounts and renders products right away
 		uiStore.setLoading(false);
+		ensureCatalogLoaded();
 
 		// Run non-blocking background initialization (default customer, tax rules, drafts, offline cache)
 		Promise.allSettled([
@@ -2474,6 +2500,7 @@ async function handleShiftOpened() {
 
 	// Start session lock tracking now that a shift is open and POS is ready
 	startActivityTracking();
+	ensureCatalogLoaded();
 	showSuccess(__("You can now start making sales"));
 }
 
@@ -3790,18 +3817,25 @@ async function handleCustomerUpdated(updatedCustomer) {
 }
 
 async function handleRefresh() {
+	if (isManualRefreshing.value) return;
+	isManualRefreshing.value = true;
 	try {
 		log.info("Manual refresh initiated (items, customers, stock)");
+		if (shiftStore.profileWarehouse) {
+			stockStore.setWarehouse(shiftStore.profileWarehouse);
+		}
 
-		// Refresh items, customers, and stock in parallel
+		// Refresh items and customers in parallel (force server fetch)
 		await Promise.all([
-			// Refresh items from server (force server fetch)
 			itemStore.loadAllItems(shiftStore.profileName, true),
-			// Refresh customers from server (force reload)
 			customerSearchStore.loadAllCustomers(shiftStore.profileName, true),
-			// Refresh stock from server (preserves reservations internally)
-			stockStore.refresh(null, shiftStore.profileWarehouse),
 		]);
+
+		// Refresh live stock for all loaded item codes
+		const codes = itemStore.allItems.map((it) => it.item_code).filter(Boolean);
+		if (codes.length > 0 && shiftStore.profileWarehouse) {
+			await stockStore.refresh(codes, shiftStore.profileWarehouse);
+		}
 
 		// Refresh cache stats to update "Last Updated" timestamp
 		const stats = await offlineWorker.getCacheStats();
@@ -3810,6 +3844,8 @@ async function handleRefresh() {
 		log.success("Manual refresh completed (items, customers, stock)");
 	} catch (error) {
 		log.error("Manual refresh failed:", error);
+	} finally {
+		isManualRefreshing.value = false;
 	}
 }
 

@@ -589,7 +589,7 @@
 	<!-- Delete Single Draft Confirmation (mdx_ui) -->
 	<MdxConfirmDialog
 		v-model="showDeleteDialog"
-		variant="danger"
+		:isDangerous="true"
 		icon="trash"
 		:title="__('¿Anular / Descartar Documento?')"
 		:message="__('¿Desea anular y retirar este documento pendiente de la bandeja?')"
@@ -597,6 +597,8 @@
 		:confirm-text="__('Sí, descartar')"
 		@confirm="confirmDeleteDraft"
 	/>
+
+	<MdxSyncOverlay :show="Boolean(isRefreshing)" :label="__('Sincronizando...')" />
 </template>
 
 <script setup>
@@ -623,6 +625,7 @@ import {
 	MdxModal,
 	MdxSearchInput,
 	MdxSegmentedControl,
+	MdxSyncOverlay,
 } from "mdx_ui";
 import { db } from "@/utils/offline/db";
 import { onMounted, ref, watch, computed } from "vue";

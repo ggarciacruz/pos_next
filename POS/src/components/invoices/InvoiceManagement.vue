@@ -1,1646 +1,1574 @@
 <template>
-	<!-- Full Page Overlay -->
-	<Transition name="fade">
-		<div
-			v-if="show"
-			class="fixed inset-0 bg-black bg-opacity-50 z-[300]"
-			@click.self="handleClose"
-		>
-			<!-- Main Container -->
-			<div class="fixed inset-0 flex items-center justify-center p-4">
-				<div
-					class="w-full h-full max-w-[95vw] max-h-[95vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200"
-				>
-					<!-- Header -->
-					<div
-						class="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-200 bg-white shrink-0"
+	<MdxModal
+		v-model="show"
+		size="full"
+		:noPadding="true"
+	>
+		<!-- Standardized Corporate Modal Header -->
+		<template #header>
+			<div class="flex items-center gap-3 min-w-0">
+				<div class="w-9 h-9 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center shrink-0">
+					<svg
+						class="w-5 h-5 text-blue-600"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
 					>
-						<div class="flex items-center gap-3 min-w-0">
-							<div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
-								<svg
-									class="w-5 h-5 text-blue-600"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-									/>
-								</svg>
-							</div>
-							<div class="min-w-0">
-								<h2 class="text-base font-bold text-slate-900 leading-tight truncate">
-									{{ __("Invoice Management") }}
-								</h2>
-								<p class="text-xs text-slate-500 flex items-center mt-0.5 truncate">
-									{{ __("Manage all your invoices in one place") }}
-								</p>
-							</div>
-						</div>
-						<div class="flex items-center gap-2 ms-auto">
-							<div v-if="showProfileSelector" class="w-52 sm:w-64">
-								<MdxSelect
-									v-model="selectedProfileFilter"
-									:options="profileFilterOptions"
-									:placeholder="''"
-									:teleport="true"
-								/>
-							</div>
-							<Button
-								@click="refreshCurrentTab"
-								:loading="loading"
-								variant="ghost"
-								size="sm"
-							>
-								<template #prefix>
-									<svg
-										class="w-4 h-4"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-										/>
-									</svg>
-								</template>
-								{{ __("Refresh") }}
-							</Button>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+						/>
+					</svg>
+				</div>
+				<div class="min-w-0 text-start">
+					<h2 class="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">
+						{{ __("Invoice Management") }}
+					</h2>
+					<p class="text-xs text-slate-500 mt-0.5 truncate">
+						{{ __("Manage all your invoices in one place") }}
+					</p>
+				</div>
+			</div>
+
+			<div class="flex items-center gap-2 shrink-0">
+				<div v-if="showProfileSelector" class="hidden md:block w-52 lg:w-60">
+					<MdxSelect
+						v-model="selectedProfileFilter"
+						:options="profileFilterOptions"
+						:placeholder="''"
+						size="sm"
+						:teleport="true"
+					/>
+				</div>
+
+				<MdxButton
+					variant="secondary"
+					size="sm"
+					:loading="isRefreshingModal"
+					@click="refreshCurrentTab"
+				>
+					<span class="inline-flex items-center gap-1.5">
+						<svg
+							v-if="!isRefreshingModal"
+							class="w-3.5 h-3.5"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							stroke-width="2"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+							/>
+						</svg>
+						<span>{{ __("Actualizar") }}</span>
+					</span>
+				</MdxButton>
+
+				<button
+					type="button"
+					@click="handleClose"
+					class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer focus:outline-none"
+					:title="__('Cerrar')"
+				>
+					<svg
+						class="w-5 h-5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						stroke-width="2"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+		</template>
+
+		<!-- Body Content (Pinned Toolbar + Full-Height Scrollable Canvas) -->
+		<div class="flex-1 min-h-0 flex flex-col bg-slate-50/50">
+			<!-- Pinned White Toolbar -->
+			<div class="shrink-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex flex-col gap-2.5">
+				<!-- Mobile Profile Scope Selector (if enabled) -->
+				<div v-if="showProfileSelector" class="md:hidden w-full">
+					<MdxSelect
+						v-model="selectedProfileFilter"
+						:options="profileFilterOptions"
+						:placeholder="''"
+						size="sm"
+						:teleport="true"
+					/>
+				</div>
+
+				<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+					<!-- Standardized Segmented Tabs (Left) -->
+					<div class="w-full lg:w-auto min-w-0">
+						<MdxSegmentedControl
+							v-model="activeTab"
+							:options="segmentedTabOptions"
+							size="sm"
+							:full-width="false"
+							:scrollable="true"
+						/>
+					</div>
+
+					<!-- Contextual Right Controls by Active Tab -->
+					<div
+						v-if="activeTab === 'partial'"
+						class="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end"
+					>
+						<div class="flex items-center gap-1.5 flex-wrap">
 							<button
-								@click="handleClose"
-								class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+								v-for="chip in unpaidFilterChips"
+								:key="chip.value"
+								type="button"
+								@click="unpaidFilter = chip.value"
+								class="h-8 px-2.5 text-xs font-bold rounded-lg border transition-colors cursor-pointer whitespace-nowrap"
+								:class="
+									unpaidFilter === chip.value
+										? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+										: 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+								"
 							>
-								<svg
-									class="w-5 h-5"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M6 18L18 6M6 6l12 12"
-									/>
-								</svg>
+								{{ chip.label }} ({{ chip.count }})
 							</button>
+						</div>
+						<div class="flex-1 lg:w-64 xl:w-72 min-w-[200px] inv-search-box">
+							<MdxSearchInput
+								v-model="unpaidSearchQuery"
+								:placeholder="__('Buscar por número o cliente...')"
+								:debounce="80"
+								:enable-shortcut-listener="false"
+								:shortcut-key="''"
+							/>
 						</div>
 					</div>
 
-					<!-- Tabs Navigation -->
-					<div class="border-b border-gray-200 bg-gray-50">
-						<nav class="flex gap-1 px-4 overflow-x-auto" :aria-label="__('Tabs')">
+					<div
+						v-else-if="activeTab === 'drafts'"
+						class="flex items-center gap-2 w-full lg:w-auto lg:justify-end"
+					>
+						<div class="flex-1 lg:w-72 xl:w-80 min-w-[200px] inv-search-box">
+							<MdxSearchInput
+								v-model="draftsSearchQuery"
+								:placeholder="__('Buscar orden por número o cliente...')"
+								:debounce="80"
+								:enable-shortcut-listener="false"
+								:shortcut-key="''"
+							/>
+						</div>
+					</div>
+
+					<div
+						v-else-if="activeTab === 'returns'"
+						class="flex items-center gap-2 w-full lg:w-auto lg:justify-end"
+					>
+						<div class="flex-1 lg:w-72 xl:w-80 min-w-[200px] inv-search-box">
+							<MdxSearchInput
+								v-model="returnsSearchQuery"
+								:placeholder="__('Buscar devolución o cliente...')"
+								:debounce="80"
+								:enable-shortcut-listener="false"
+								:shortcut-key="''"
+							/>
+						</div>
+					</div>
+
+					<div
+						v-else-if="activeTab === 'despachos'"
+						class="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end"
+					>
+						<div class="flex items-center gap-1.5 flex-wrap">
 							<button
-								v-for="tab in tabs"
-								:key="tab.id"
-								@click="activeTab = tab.id"
+								v-for="chip in dispatchFilterChips"
+								:key="chip.value"
+								type="button"
+								@click="dispatchesFilter = chip.value"
+								class="h-8 px-2.5 text-xs font-bold rounded-lg border transition-colors cursor-pointer whitespace-nowrap"
+								:class="
+									dispatchesFilter === chip.value
+										? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+										: 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+								"
+							>
+								{{ chip.label }} ({{ chip.count }})
+							</button>
+						</div>
+
+						<div class="w-36 shrink-0">
+							<MdxDatePicker v-model="dispatchDateFilter" size="sm" />
+						</div>
+
+						<a
+							href="/despacho"
+							target="_blank"
+							class="h-8 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold text-xs rounded-lg inline-flex items-center gap-1.5 transition-colors no-underline shadow-2xs shrink-0"
+							:title="__('Abrir Portal Móvil de Choferes en nueva pestaña')"
+						>
+							<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+							</svg>
+							<span>{{ __("Portal Chofer") }}</span>
+						</a>
+
+						<MdxButton variant="secondary" size="sm" @click="openDispatchPlanSheet">
+							<span class="inline-flex items-center gap-1.5">
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+								</svg>
+								<span>{{ __("Planilla Diaria de Despacho") }}</span>
+							</span>
+						</MdxButton>
+					</div>
+
+					<div
+						v-else-if="activeTab === 'pickups'"
+						class="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end"
+					>
+						<div class="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
+							<button
+								type="button"
+								@click="setPickupStatusFilter('open')"
 								:class="[
-									'px-3.5 py-2.5 text-xs font-semibold transition-all border-b-2 relative whitespace-nowrap',
-									activeTab === tab.id
-										? getTabActiveClass(tab.id)
-										: 'text-gray-600 border-transparent hover:text-gray-800 hover:border-gray-300',
+									'px-2.5 py-1 rounded-md text-xs font-bold transition-colors cursor-pointer whitespace-nowrap',
+									pickupStatusFilter === 'open'
+										? 'bg-slate-900 text-white shadow-2xs'
+										: 'text-slate-600 hover:text-slate-900',
 								]"
 							>
-								<div class="flex items-center gap-1.5">
-									<svg
-										class="w-4 h-4"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											:d="tab.icon"
-										/>
-									</svg>
-									<span>{{ tab.label }}</span>
-									<span
-										v-if="tab.badge && tab.badge() > 0"
-										:class="[
-											'ms-0.5 px-1.5 py-0.5 text-[11px] font-bold rounded-full leading-none',
-											activeTab === tab.id
-												? getBadgeActiveClass(tab.id)
-												: getBadgeInactiveClass(tab.id),
-										]"
-									>
-										{{ tab.badge() }}
-									</span>
-								</div>
+								{{ __("Pendientes ({0})", [pickupCounts.total_open]) }}
 							</button>
-						</nav>
+							<button
+								type="button"
+								@click="setPickupStatusFilter('Entregado')"
+								:class="[
+									'px-2.5 py-1 rounded-md text-xs font-bold transition-colors cursor-pointer whitespace-nowrap',
+									pickupStatusFilter === 'Entregado'
+										? 'bg-slate-900 text-white shadow-2xs'
+										: 'text-slate-600 hover:text-slate-900',
+								]"
+							>
+								{{ __("Entregados ({0})", [pickupCounts.delivered]) }}
+							</button>
+						</div>
+
+						<div class="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
+							<button
+								type="button"
+								@click="pickupViewMode = 'orders'"
+								:class="[
+									'px-2.5 py-1 rounded-md text-xs font-bold transition-colors cursor-pointer whitespace-nowrap',
+									pickupViewMode === 'orders'
+										? 'bg-white text-slate-900 shadow-2xs'
+										: 'text-slate-600 hover:text-slate-900',
+								]"
+							>
+								{{ __("Por Venta") }}
+							</button>
+							<button
+								type="button"
+								@click="pickupViewMode = 'summary'"
+								:class="[
+									'px-2.5 py-1 rounded-md text-xs font-bold transition-colors cursor-pointer whitespace-nowrap',
+									pickupViewMode === 'summary'
+										? 'bg-white text-slate-900 shadow-2xs'
+										: 'text-slate-600 hover:text-slate-900',
+								]"
+							>
+								{{ __("Resumen por Producto ({0})", [pickupProductSummary.length]) }}
+							</button>
+						</div>
+
+						<div class="flex-1 lg:w-56 min-w-[180px] inv-search-box">
+							<MdxSearchInput
+								v-model="pickupSearch"
+								:placeholder="__('Buscar cliente, venta o producto...')"
+								:debounce="80"
+								:enable-shortcut-listener="false"
+								:shortcut-key="''"
+							/>
+						</div>
+
+						<MdxButton
+							v-if="pickupViewMode === 'summary' && pickupProductSummary.length > 0"
+							variant="secondary"
+							size="sm"
+							@click="exportPickupSummaryCsv"
+						>
+							{{ __("Exportar CSV") }}
+						</MdxButton>
+					</div>
+				</div>
+			</div>
+
+			<!-- Scrollable List Canvas -->
+			<div class="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 flex flex-col pos-inv-canvas">
+				<!-- Loading State (Partial Initial Load) -->
+				<div
+					v-if="loading && activeTab === 'partial' && filteredUnpaidInvoices.length === 0"
+					class="flex-1 flex flex-col items-center justify-center py-12"
+				>
+					<div class="animate-spin rounded-full h-9 w-9 border-b-2 border-blue-600 mb-3"></div>
+					<p class="text-xs font-medium text-slate-600">
+						{{ __("Loading {0}...", [currentTabLabel]) }}
+					</p>
+				</div>
+
+				<!-- ============================================================ -->
+				<!-- TAB 1: UNPAID / PARTIALLY PAID INVOICES                      -->
+				<!-- ============================================================ -->
+				<div v-else-if="activeTab === 'partial'" class="flex-1 flex flex-col gap-3">
+					<!-- Clean Summary Strip (Neutral Slate) -->
+					<div
+						v-if="filteredUnpaidSummary.count > 0"
+						class="bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs"
+					>
+						<div class="flex items-center gap-2">
+							<span class="text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+								{{ __("Outstanding Payments") }}:
+							</span>
+							<span class="text-sm font-extrabold text-slate-900 tabular-nums">
+								{{ formatCurrency(filteredUnpaidSummary.total_outstanding) }}
+							</span>
+						</div>
+						<div class="flex items-center gap-3 text-slate-600 tabular-nums">
+							<span>{{ __("{0} invoices", [filteredUnpaidSummary.count]) }}</span>
+							<span class="text-slate-300">|</span>
+							<span>
+								{{ __("Paid") }}:
+								<strong class="font-bold text-slate-900">{{ formatCurrency(filteredUnpaidSummary.total_paid) }}</strong>
+							</span>
+						</div>
 					</div>
 
-					<!-- Tab Content -->
-					<div class="flex-1 overflow-y-auto pos-inv-canvas">
-						<!-- Loading State -->
+					<!-- Offline Warning -->
+					<div
+						v-if="isOffline()"
+						class="bg-white border border-amber-200 rounded-xl p-3 flex items-center gap-3"
+					>
+						<div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+							<svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+							</svg>
+						</div>
+						<div class="flex-1 text-start">
+							<p class="text-xs font-bold text-slate-900">{{ __("You are offline") }}</p>
+							<p class="text-xs text-slate-500">
+								{{ __("Payments cannot be added while offline. Connect to the internet to add payments.") }}
+							</p>
+						</div>
+					</div>
+
+					<!-- Empty State -->
+					<div
+						v-if="filteredUnpaidInvoices.length === 0"
+						class="flex-1 flex flex-col items-center justify-center text-center py-12"
+					>
+						<div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-2xs">
+							<svg class="h-8 w-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+						</div>
+						<p class="text-sm font-semibold text-slate-700">{{ __("No Unpaid Invoices") }}</p>
+						<p class="text-xs text-slate-500 mt-1">{{ __("All invoices are fully paid") }}</p>
+					</div>
+
+					<!-- Horizontal 4-Zone Unpaid Cards -->
+					<div v-else class="flex flex-col gap-3">
 						<div
-							v-if="loading && activeTab === 'partial'"
-							class="flex flex-col items-center justify-center py-12"
+							v-for="invoice in paginatedUnpaidInvoices"
+							:key="invoice.name"
+							class="pos-inv-row-card flex flex-col overflow-hidden group"
+						>
+							<div class="px-4 py-3.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+								<!-- Zone 1: Invoice ID, Status & Timestamp -->
+								<div class="w-full lg:w-[240px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 text-start">
+									<div class="flex items-center gap-1.5 mb-1 flex-wrap">
+										<h4 class="text-sm md:text-base font-extrabold text-slate-900 tabular-nums">
+											{{ invoice.name }}
+										</h4>
+										<MdxBadge :variant="getInvoiceBadgeVariant(invoice)" size="sm">
+											{{ __(invoice.status) }}
+										</MdxBadge>
+									</div>
+									<p class="text-xs text-slate-500 tabular-nums">
+										{{ formatDate(invoice.posting_date) }} {{ formatTime(invoice.posting_time) }}
+									</p>
+									<p
+										v-if="showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)"
+										class="text-[11px] font-medium text-slate-500 mt-0.5 truncate"
+									>
+										{{ invoice.pos_profile_label || invoice.pos_profile }}
+									</p>
+								</div>
+
+								<!-- Zone 2: Customer & Salesperson -->
+								<div class="w-full lg:w-[220px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 min-w-0 text-start">
+									<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+										{{ __("Cliente") }}
+									</span>
+									<p class="text-sm font-bold text-slate-900 truncate leading-snug mt-0.5">
+										{{ invoice.customer_name || invoice.customer }}
+									</p>
+									<div v-if="invoice.owner_full_name || invoice.owner" class="text-xs text-slate-500 mt-1 flex items-center gap-1 truncate">
+										<span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider">{{ __("Vendedor:") }}</span>
+										<span class="font-semibold text-slate-600 truncate">
+											{{ invoice.owner_full_name || invoice.owner.split("@")[0] }}
+										</span>
+									</div>
+								</div>
+
+								<!-- Zone 3: Amounts Breakdown & Payment History Pills -->
+								<div class="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 flex flex-col justify-center text-start gap-1.5">
+									<div class="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs tabular-nums">
+										<div>
+											<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{{ __("Total Amount") }}</span>
+											<span class="font-bold text-slate-900">{{ formatCurrency(invoice.grand_total) }}</span>
+										</div>
+										<div>
+											<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{{ __("Paid") }}</span>
+											<span class="font-bold text-slate-700">{{ formatCurrency(invoice.paid_amount) }}</span>
+										</div>
+										<div v-if="(invoice.paid_amount || 0) > 0 && invoice.grand_total > 0" class="min-w-[90px] flex-1 max-w-[160px]">
+											<div class="flex items-center justify-between text-[10px] text-slate-500 mb-0.5">
+												<span>{{ __("Avance") }}</span>
+												<span class="font-bold text-slate-700">{{ Math.min(100, Math.round((invoice.paid_amount / invoice.grand_total) * 100)) }}%</span>
+											</div>
+											<div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+												<div
+													class="h-full bg-blue-600 transition-all duration-300"
+													:style="{ width: `${Math.min(100, (invoice.paid_amount / invoice.grand_total) * 100)}%` }"
+												></div>
+											</div>
+										</div>
+									</div>
+
+									<div v-if="invoice.payments && invoice.payments.length > 0" class="flex flex-wrap items-center gap-1.5">
+										<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 me-0.5">
+											{{ __("Cobros:") }}
+										</span>
+										<span
+											v-for="(payment, idx) in invoice.payments"
+											:key="idx"
+											class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[11px] text-slate-700 tabular-nums"
+										>
+											<span class="font-medium">{{ payment.mode_of_payment || __("N/A") }}</span>
+											<span class="font-bold text-slate-900">{{ formatCurrency(payment.amount) }}</span>
+											<span v-if="payment.posting_date" class="text-[10px] text-slate-400">
+												({{ formatDate(payment.posting_date) }})
+											</span>
+										</span>
+									</div>
+								</div>
+
+								<!-- Zone 4: Outstanding Amount & Actions -->
+								<div class="w-full lg:w-auto shrink-0 flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-3.5">
+									<div class="flex flex-col lg:items-end shrink-0 whitespace-nowrap text-start lg:text-end">
+										<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">
+											{{ __("Saldo Pendiente") }}
+										</span>
+										<span class="text-base md:text-lg font-extrabold text-slate-900 tabular-nums mt-1">
+											{{ formatCurrency(invoice.outstanding_amount) }}
+										</span>
+									</div>
+
+									<div class="flex items-center gap-1.5 shrink-0">
+										<MdxButton
+											variant="primary"
+											size="sm"
+											:loading="loadingInvoiceDetails"
+											:disabled="isOffline()"
+											:title="isOffline() ? __('Payments cannot be added while offline') : ''"
+											@click="selectInvoiceForPayment(invoice)"
+										>
+											{{ __("Add Payment") }}
+										</MdxButton>
+
+										<button
+											type="button"
+											@click="$emit('print-invoice', invoice)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Print')"
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+											</svg>
+										</button>
+
+										<button
+											type="button"
+											@click="openDocumentPDF(invoice.doctype || 'Sales Invoice', invoice.name)"
+											class="h-8 px-2.5 inline-flex items-center justify-center gap-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-700 hover:text-red-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Abrir PDF Tamaño Carta')"
+										>
+											<svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+												<path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 15h6M9 11h2" />
+											</svg>
+											<span class="text-[11px] font-extrabold tracking-tight">PDF</span>
+										</button>
+
+										<button
+											v-if="posSettingsStore.enableWhatsappSend"
+											type="button"
+											@click="$emit('whatsapp-invoice', invoice)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-600 hover:text-emerald-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Enviar por WhatsApp')"
+										>
+											<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+												<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+											</svg>
+										</button>
+
+										<button
+											v-if="canCancelInvoice(invoice)"
+											type="button"
+											@click="openCancelModal(invoice)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-600 hover:text-red-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Anular Venta')"
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+											</svg>
+										</button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ============================================================ -->
+				<!-- TAB 2: INVOICE HISTORY                                       -->
+				<!-- ============================================================ -->
+				<div v-else-if="activeTab === 'history'" class="flex-1 flex flex-col gap-3">
+					<InvoiceFilters
+						:unique-customers="invoiceFilters.uniqueCustomers.value"
+						:unique-products="invoiceFilters.uniqueProducts.value"
+						:filter-stats="invoiceFilters.filterStats.value"
+					/>
+
+					<!-- Empty State -->
+					<div
+						v-if="filteredHistoryInvoices.length === 0"
+						class="flex-1 flex flex-col items-center justify-center text-center py-12"
+					>
+						<div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-2xs">
+							<svg class="h-8 w-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+							</svg>
+						</div>
+						<p class="text-sm font-semibold text-slate-700">{{ __("No invoices found") }}</p>
+						<p class="text-xs text-slate-500 mt-1">{{ __("Intente ajustar los filtros de búsqueda") }}</p>
+					</div>
+
+					<!-- Horizontal 4-Zone History Rows -->
+					<div v-else class="flex flex-col gap-3">
+						<div
+							v-for="invoice in paginatedHistoryInvoices"
+							:key="invoice.name"
+							class="pos-inv-row-card flex flex-col overflow-hidden group"
 						>
 							<div
-								class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500 mb-3"
-							></div>
-							<p class="text-xs font-medium text-gray-600">
-								{{ __("Loading {0}...", [currentTabLabel]) }}
+								class="px-4 py-3.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 cursor-pointer"
+								@click="$emit('view-invoice', invoice)"
+							>
+								<!-- Zone 1: Invoice ID, Status & Timestamp -->
+								<div class="w-full lg:w-[240px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 text-start">
+									<div class="flex items-center gap-1.5 mb-1 flex-wrap">
+										<h4 class="text-sm md:text-base font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors tabular-nums">
+											{{ invoice.name }}
+										</h4>
+										<MdxBadge :variant="getInvoiceBadgeVariant(invoice)" size="sm">
+											{{ __(invoice.status) }}
+										</MdxBadge>
+									</div>
+									<p class="text-xs text-slate-500 tabular-nums">
+										{{ formatDate(invoice.posting_date) }} {{ formatTime(invoice.posting_time) }}
+									</p>
+									<p
+										v-if="showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)"
+										class="text-[11px] font-medium text-slate-500 mt-0.5 truncate"
+									>
+										{{ invoice.pos_profile_label || invoice.pos_profile }}
+									</p>
+								</div>
+
+								<!-- Zone 2: Customer, Salesperson & Payment Mode -->
+								<div class="w-full lg:w-[230px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 min-w-0 text-start">
+									<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+										{{ __("Cliente") }}
+									</span>
+									<p class="text-sm font-bold text-slate-900 truncate leading-snug mt-0.5">
+										{{ invoice.customer_name || invoice.customer }}
+									</p>
+									<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 mt-1">
+										<span v-if="invoice.owner_full_name || invoice.owner" class="truncate">
+											<span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider">{{ __("Vendedor:") }}</span>
+											{{ invoice.owner_full_name || invoice.owner.split("@")[0] }}
+										</span>
+										<span class="truncate text-slate-600 font-medium" :title="formatPaymentModes(invoice)">
+											{{ formatPaymentModes(invoice) }}
+										</span>
+									</div>
+								</div>
+
+								<!-- Zone 3: Items Preview & Expandable MdxDataTable + Balance Summary -->
+								<div class="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 flex flex-col justify-center text-start">
+									<template v-if="Array.isArray(invoice.items) && invoice.items.length > 0">
+										<div class="flex items-center justify-between gap-2 mb-1.5">
+											<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+												{{ __("Detalle de Items") }} ({{ invoice.items.length }})
+											</span>
+											<button
+												type="button"
+												@click.stop="toggleExpandRow(`inv-${invoice.name}`)"
+												class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 px-1.5 py-0.5 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+											>
+												<span>{{ isRowExpanded(`inv-${invoice.name}`) ? __("Ocultar detalle") : __("Ver detalle") }}</span>
+												<svg
+													class="w-3.5 h-3.5 transition-transform duration-150"
+													:class="isRowExpanded(`inv-${invoice.name}`) ? 'rotate-180' : ''"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+													stroke-width="2"
+												>
+													<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+												</svg>
+											</button>
+										</div>
+										<div class="flex flex-wrap items-center gap-1.5">
+											<span
+												v-for="(item, idx) in getPreviewItems(invoice.items)"
+												:key="idx"
+												class="text-[11px] bg-slate-50 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg truncate max-w-[240px] xl:max-w-[280px] font-medium"
+											>
+												{{ item.item_name || item.item_code }}{{ (item.custom_medida || item.medida) ? " (" + (item.custom_medida || item.medida) + ")" : "" }}
+												<span class="text-slate-900 font-extrabold ms-1">x{{ item.quantity || item.qty }}</span>
+											</span>
+											<button
+												v-if="getHiddenItemsCount(invoice.items) > 0"
+												type="button"
+												@click.stop="toggleExpandRow(`inv-${invoice.name}`)"
+												class="text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer shrink-0"
+												:class="
+													isRowExpanded(`inv-${invoice.name}`)
+														? 'bg-slate-900 border-slate-900 text-white'
+														: 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+												"
+											>
+												{{ isRowExpanded(`inv-${invoice.name}`) ? __("Menos") : `+${getHiddenItemsCount(invoice.items)} ${__("más")}` }}
+											</button>
+										</div>
+									</template>
+									<div v-else class="flex flex-wrap items-center gap-4 text-xs tabular-nums">
+										<div>
+											<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{{ __("Paid") }}</span>
+											<span class="font-bold text-slate-900">{{ formatCurrency(invoice.paid_amount || 0) }}</span>
+										</div>
+										<div v-if="(invoice.outstanding_amount || 0) > 0.01">
+											<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{{ __("Saldo Pendiente") }}</span>
+											<span class="font-bold text-slate-700">{{ formatCurrency(invoice.outstanding_amount || 0) }}</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- Zone 4: Grand Total & Neutral Actions -->
+								<div class="w-full lg:w-auto shrink-0 flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-3.5" @click.stop>
+									<div class="flex flex-col lg:items-end shrink-0 whitespace-nowrap text-start lg:text-end">
+										<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">
+											{{ __("Total") }}
+										</span>
+										<span class="text-base md:text-lg font-extrabold text-slate-900 tabular-nums mt-1">
+											{{ formatCurrency(invoice.grand_total) }}
+										</span>
+										<span
+											v-if="(invoice.outstanding_amount || 0) > 0.01"
+											class="text-[11px] font-semibold text-slate-500 tabular-nums"
+										>
+											{{ __("Saldo:") }} {{ formatCurrency(invoice.outstanding_amount) }}
+										</span>
+									</div>
+
+									<div class="flex items-center gap-1.5 shrink-0">
+										<MdxButton
+											variant="secondary"
+											size="sm"
+											@click="$emit('view-invoice', invoice)"
+										>
+											{{ __("View") }}
+										</MdxButton>
+
+										<button
+											type="button"
+											@click="$emit('print-invoice', invoice)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Print')"
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+											</svg>
+										</button>
+
+										<button
+											type="button"
+											@click="openDocumentPDF(invoice.doctype || 'Sales Invoice', invoice.name)"
+											class="h-8 px-2.5 inline-flex items-center justify-center gap-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-700 hover:text-red-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Abrir PDF Tamaño Carta')"
+										>
+											<svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+												<path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 15h6M9 11h2" />
+											</svg>
+											<span class="text-[11px] font-extrabold tracking-tight">PDF</span>
+										</button>
+
+										<button
+											v-if="posSettingsStore.enableWhatsappSend"
+											type="button"
+											@click="$emit('whatsapp-invoice', invoice)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-600 hover:text-emerald-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Enviar por WhatsApp')"
+										>
+											<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+												<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+											</svg>
+										</button>
+
+										<button
+											v-if="canCancelInvoice(invoice)"
+											type="button"
+											@click="openCancelModal(invoice)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-600 hover:text-red-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Anular Venta')"
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+											</svg>
+										</button>
+									</div>
+								</div>
+							</div>
+
+							<!-- Expandable Items Detail Sub-Table (MdxDataTable) -->
+							<div
+								v-if="isRowExpanded(`inv-${invoice.name}`) && Array.isArray(invoice.items) && invoice.items.length > 0"
+								class="border-t border-slate-200 bg-slate-50/80 px-4 py-3 inv-items-subtable"
+								@click.stop
+							>
+								<MdxDataTable
+									:columns="detailItemColumns"
+									:rows="buildDetailTableRows(invoice.items, `inv-${invoice.name}`)"
+									row-key="_rowKey"
+									pagination-mode="none"
+									:page-size="0"
+									:empty-title="__('Sin artículos registrados')"
+								>
+									<template #cell-line_no="{ row }">
+										<span class="text-xs font-semibold text-slate-400 tabular-nums">{{ row.line_no }}</span>
+									</template>
+									<template #cell-item_code="{ row }">
+										<span class="text-xs font-bold text-slate-700 tabular-nums">{{ row.item_code }}</span>
+									</template>
+									<template #cell-item_display="{ row }">
+										<div class="min-w-0">
+											<p class="text-xs font-semibold text-slate-900 truncate">{{ row.item_name }}</p>
+											<p v-if="row.medida" class="text-[11px] text-slate-500 truncate">{{ row.medida }}</p>
+										</div>
+									</template>
+									<template #cell-warehouse_display="{ row }">
+										<span class="text-xs text-slate-600">{{ row.warehouse_display }}</span>
+									</template>
+									<template #cell-qty_display="{ row }">
+										<span class="text-xs font-bold text-slate-900 tabular-nums">{{ row.qty_display }}</span>
+									</template>
+									<template #cell-rate_display="{ row }">
+										<span class="text-xs text-slate-700 tabular-nums">{{ row.rate_display }}</span>
+									</template>
+									<template #cell-amount_display="{ row }">
+										<span class="text-xs font-extrabold text-slate-900 tabular-nums">{{ row.amount_display }}</span>
+									</template>
+								</MdxDataTable>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ============================================================ -->
+				<!-- TAB 3: DRAFTS / SALES ORDERS / QUOTATIONS                    -->
+				<!-- ============================================================ -->
+				<div v-else-if="activeTab === 'drafts'" class="flex-1 flex flex-col">
+					<!-- Empty State -->
+					<div
+						v-if="filteredDrafts.length === 0"
+						class="flex-1 flex flex-col items-center justify-center text-center py-12"
+					>
+						<div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-2xs">
+							<svg class="h-8 w-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+							</svg>
+						</div>
+						<p class="text-sm font-semibold text-slate-700">
+							{{ draftsSearchQuery ? __("No se encontraron resultados") : __("No draft invoices") }}
+						</p>
+						<p class="text-xs text-slate-500 mt-1">
+							{{ __("Save invoices as drafts to continue later") }}
+						</p>
+					</div>
+
+					<!-- Horizontal 4-Zone Cards (Matching DraftInvoicesDialog) -->
+					<div v-else class="flex flex-col gap-3">
+						<div
+							v-for="draft in paginatedDrafts"
+							:key="draft.draft_id"
+							class="pos-inv-row-card flex flex-col overflow-hidden group"
+							:class="isDraftQuotation(draft) ? 'pos-inv-row-card--quotation' : ''"
+						>
+							<div
+								class="px-4 py-3.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 cursor-pointer"
+								@click="$emit('load-draft', draft)"
+							>
+								<!-- Zone 1: Doc ID, Type & Status -->
+								<div class="w-full lg:w-[240px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 text-start">
+									<div class="flex items-center gap-1.5 mb-1 flex-wrap">
+										<h4 class="text-sm md:text-base font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors tabular-nums">
+											{{ draft.draft_id }}
+										</h4>
+										<MdxBadge :variant="isDraftQuotation(draft) ? 'info' : 'neutral'" size="sm">
+											{{ isDraftQuotation(draft) ? __("Cotización") : __("Pre-venta") }}
+										</MdxBadge>
+										<MdxBadge
+											v-if="draft.docstatus === 1"
+											variant="warning"
+											size="sm"
+											:dot="true"
+										>
+											{{ __("Pendiente") }}
+										</MdxBadge>
+										<MdxBadge v-else variant="neutral" size="sm">
+											{{ __("Borrador") }}
+										</MdxBadge>
+									</div>
+									<p class="text-xs text-slate-500 tabular-nums">
+										{{ formatDateTime(draft.created_at) }}
+									</p>
+								</div>
+
+								<!-- Zone 2: Customer & Salesperson -->
+								<div class="w-full lg:w-[230px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 min-w-0 text-start">
+									<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+										{{ __("Cliente") }}
+									</span>
+									<p class="text-sm font-bold text-slate-900 truncate leading-snug mt-0.5">
+										{{ draft.customer?.customer_name || draft.customer?.name || draft.customer || __("Sin cliente") }}
+									</p>
+									<div v-if="draft.owner" class="text-xs text-slate-500 mt-1 flex items-center gap-1 truncate">
+										<span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider">{{ __("Vendedor:") }}</span>
+										<span class="font-semibold text-slate-600 truncate">
+											{{ draft.owner_full_name || draft.owner.split("@")[0] }}
+										</span>
+									</div>
+								</div>
+
+								<!-- Zone 3: Items Preview & Expand Trigger -->
+								<div class="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 flex flex-col justify-center text-start">
+									<div class="flex items-center justify-between gap-2 mb-1.5">
+										<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+											{{ __("Detalle de Items") }} ({{ draft.items?.length || 0 }})
+										</span>
+										<button
+											v-if="(draft.items?.length || 0) > 0"
+											type="button"
+											@click.stop="toggleExpandRow(`draft-${draft.draft_id}`)"
+											class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 px-1.5 py-0.5 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+										>
+											<span>{{ isRowExpanded(`draft-${draft.draft_id}`) ? __("Ocultar detalle") : __("Ver detalle") }}</span>
+											<svg
+												class="w-3.5 h-3.5 transition-transform duration-150"
+												:class="isRowExpanded(`draft-${draft.draft_id}`) ? 'rotate-180' : ''"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												stroke-width="2"
+											>
+												<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+											</svg>
+										</button>
+									</div>
+									<div class="flex flex-wrap items-center gap-1.5">
+										<span
+											v-for="(item, idx) in getPreviewItems(draft.items)"
+											:key="idx"
+											class="text-[11px] bg-slate-50 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg truncate max-w-[240px] xl:max-w-[280px] font-medium"
+										>
+											{{ item.item_name || item.item_code }}{{ (item.custom_medida || item.medida) ? " (" + (item.custom_medida || item.medida) + ")" : "" }}
+											<span class="text-slate-900 font-extrabold ms-1">x{{ item.quantity || item.qty }}</span>
+										</span>
+										<button
+											v-if="getHiddenItemsCount(draft.items) > 0"
+											type="button"
+											@click.stop="toggleExpandRow(`draft-${draft.draft_id}`)"
+											class="text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer shrink-0"
+											:class="
+												isRowExpanded(`draft-${draft.draft_id}`)
+													? 'bg-slate-900 border-slate-900 text-white'
+													: 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+											"
+										>
+											{{ isRowExpanded(`draft-${draft.draft_id}`) ? __("Menos") : `+${getHiddenItemsCount(draft.items)} ${__("más")}` }}
+										</button>
+									</div>
+								</div>
+
+								<!-- Zone 4: Amount & Quick Actions -->
+								<div class="w-full lg:w-auto shrink-0 flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-3.5" @click.stop>
+									<div class="flex flex-col lg:items-end shrink-0 whitespace-nowrap text-start lg:text-end">
+										<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">
+											{{ __("Total a Cobrar") }}
+										</span>
+										<span class="text-base md:text-lg font-extrabold text-slate-900 tabular-nums mt-1">
+											{{ formatCurrency(calculateDraftTotal(draft.items)) }}
+										</span>
+									</div>
+
+									<div class="flex items-center gap-1.5 shrink-0">
+										<MdxButton
+											variant="primary"
+											size="sm"
+											@click.stop="$emit('load-draft', draft)"
+										>
+											{{ bootstrapStore.canCheckout() ? __("Vender / Cobrar") : __("Cargar") }}
+										</MdxButton>
+
+										<button
+											v-if="isServerDraft(draft.draft_id)"
+											type="button"
+											@click.stop="
+												$emit('print-invoice', {
+													name: draft.draft_id,
+													doctype: draft.doctype || 'Sales Order',
+												})
+											"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Imprimir')"
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+											</svg>
+										</button>
+
+										<button
+											v-if="isServerDraft(draft.draft_id)"
+											type="button"
+											@click.stop="openDraftPDF(draft)"
+											class="h-8 px-2.5 inline-flex items-center justify-center gap-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-700 hover:text-red-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Abrir PDF Tamaño Carta')"
+										>
+											<svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+												<path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 15h6M9 11h2" />
+											</svg>
+											<span class="text-[11px] font-extrabold tracking-tight">PDF</span>
+										</button>
+
+										<button
+											v-if="posSettingsStore.enableWhatsappSend"
+											type="button"
+											@click.stop="
+												$emit('whatsapp-invoice', {
+													name: draft.draft_id,
+													draft_id: draft.draft_id,
+													doctype: draft.doctype,
+													items: draft.items || [],
+													customer: draft.customer,
+													customer_name: draft.customer?.customer_name || draft.customer?.name || draft.customer,
+													grand_total: calculateDraftTotal(draft.items),
+													posting_date: draft.created_at,
+												})
+											"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-600 hover:text-emerald-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Enviar por WhatsApp')"
+										>
+											<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+												<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+											</svg>
+										</button>
+
+										<button
+											v-if="canDiscardDrafts"
+											type="button"
+											@click.stop="$emit('delete-draft', draft.draft_id)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-600 hover:text-red-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Anular / descartar documento')"
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+											</svg>
+										</button>
+									</div>
+								</div>
+							</div>
+
+							<!-- Expandable Items Detail Sub-Table (MdxDataTable) -->
+							<div
+								v-if="isRowExpanded(`draft-${draft.draft_id}`)"
+								class="border-t border-slate-200 bg-slate-50/80 px-4 py-3 inv-items-subtable"
+								@click.stop
+							>
+								<MdxDataTable
+									:columns="detailItemColumns"
+									:rows="buildDetailTableRows(draft.items, `draft-${draft.draft_id}`)"
+									row-key="_rowKey"
+									pagination-mode="none"
+									:page-size="0"
+									:empty-title="__('Sin artículos registrados')"
+								>
+									<template #cell-line_no="{ row }">
+										<span class="text-xs font-semibold text-slate-400 tabular-nums">{{ row.line_no }}</span>
+									</template>
+									<template #cell-item_code="{ row }">
+										<span class="text-xs font-bold text-slate-700 tabular-nums">{{ row.item_code }}</span>
+									</template>
+									<template #cell-item_display="{ row }">
+										<div class="min-w-0">
+											<p class="text-xs font-semibold text-slate-900 truncate">{{ row.item_name }}</p>
+											<p v-if="row.medida" class="text-[11px] text-slate-500 truncate">{{ row.medida }}</p>
+										</div>
+									</template>
+									<template #cell-warehouse_display="{ row }">
+										<span class="text-xs text-slate-600">{{ row.warehouse_display }}</span>
+									</template>
+									<template #cell-qty_display="{ row }">
+										<span class="text-xs font-bold text-slate-900 tabular-nums">{{ row.qty_display }}</span>
+									</template>
+									<template #cell-rate_display="{ row }">
+										<span class="text-xs text-slate-700 tabular-nums">{{ row.rate_display }}</span>
+									</template>
+									<template #cell-amount_display="{ row }">
+										<span class="text-xs font-extrabold text-slate-900 tabular-nums">{{ row.amount_display }}</span>
+									</template>
+								</MdxDataTable>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ============================================================ -->
+				<!-- TAB 4: RETURN INVOICES                                       -->
+				<!-- ============================================================ -->
+				<div v-else-if="activeTab === 'returns'" class="flex-1 flex flex-col">
+					<!-- Empty State -->
+					<div
+						v-if="filteredReturnInvoices.length === 0"
+						class="flex-1 flex flex-col items-center justify-center text-center py-12"
+					>
+						<div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-2xs">
+							<svg class="h-8 w-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+							</svg>
+						</div>
+						<p class="text-sm font-semibold text-slate-700">{{ __("No return invoices") }}</p>
+						<p class="text-xs text-slate-500 mt-1">{{ __("Return invoices will appear here") }}</p>
+					</div>
+
+					<!-- Horizontal 4-Zone Return Cards -->
+					<div v-else class="flex flex-col gap-3">
+						<div
+							v-for="invoice in paginatedReturnInvoices"
+							:key="invoice.name"
+							class="pos-inv-row-card pos-inv-row-card--return flex flex-col overflow-hidden group"
+						>
+							<div
+								class="px-4 py-3.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 cursor-pointer"
+								@click="$emit('view-invoice', invoice)"
+							>
+								<!-- Zone 1: Return ID & Status -->
+								<div class="w-full lg:w-[240px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 text-start">
+									<div class="flex items-center gap-1.5 mb-1 flex-wrap">
+										<h4 class="text-sm md:text-base font-extrabold text-slate-900 tabular-nums">
+											{{ invoice.name }}
+										</h4>
+										<MdxBadge variant="danger" size="sm">
+											{{ __("Return") }}
+										</MdxBadge>
+									</div>
+									<p class="text-xs text-slate-500 tabular-nums">
+										{{ formatDate(invoice.posting_date) }} {{ formatTime(invoice.posting_time) }}
+									</p>
+									<p
+										v-if="showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)"
+										class="text-[11px] font-medium text-slate-500 mt-0.5 truncate"
+									>
+										{{ invoice.pos_profile_label || invoice.pos_profile }}
+									</p>
+								</div>
+
+								<!-- Zone 2: Customer & Salesperson -->
+								<div class="w-full lg:w-[220px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 min-w-0 text-start">
+									<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+										{{ __("Cliente") }}
+									</span>
+									<p class="text-sm font-bold text-slate-900 truncate leading-snug mt-0.5">
+										{{ invoice.customer_name || invoice.customer }}
+									</p>
+									<div v-if="invoice.owner_full_name || invoice.owner" class="text-xs text-slate-500 mt-1 truncate">
+										<span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider">{{ __("Vendedor:") }}</span>
+										{{ invoice.owner_full_name || invoice.owner.split("@")[0] }}
+									</div>
+								</div>
+
+								<!-- Zone 3: Return Reference & Items Preview -->
+								<div class="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 flex flex-col justify-center text-start gap-1.5">
+									<div v-if="invoice.return_against" class="flex items-center gap-1.5 flex-wrap">
+										<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+											{{ __("Documento Origen:") }}
+										</span>
+										<span class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 tabular-nums">
+											{{ invoice.return_against }}
+										</span>
+									</div>
+									<div v-if="Array.isArray(invoice.items) && invoice.items.length > 0" class="flex flex-wrap gap-1.5">
+										<span
+											v-for="(item, idx) in getPreviewItems(invoice.items)"
+											:key="idx"
+											class="text-[11px] bg-slate-50 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg truncate max-w-[240px] font-medium"
+										>
+											{{ item.item_name || item.item_code }}
+											<span class="text-slate-900 font-extrabold ms-1">x{{ Math.abs(item.quantity || item.qty || 0) }}</span>
+										</span>
+									</div>
+								</div>
+
+								<!-- Zone 4: Return Amount & Actions -->
+								<div class="w-full lg:w-auto shrink-0 flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-3.5" @click.stop>
+									<div class="flex flex-col lg:items-end shrink-0 whitespace-nowrap text-start lg:text-end">
+										<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">
+											{{ __("Total Devuelto") }}
+										</span>
+										<span class="text-base md:text-lg font-extrabold text-slate-900 tabular-nums mt-1">
+											-{{ formatCurrency(Math.abs(invoice.grand_total)) }}
+										</span>
+									</div>
+
+									<div class="flex items-center gap-1.5 shrink-0">
+										<MdxButton
+											variant="secondary"
+											size="sm"
+											@click="$emit('view-invoice', invoice)"
+										>
+											{{ __("View") }}
+										</MdxButton>
+
+										<button
+											type="button"
+											@click="$emit('print-invoice', invoice)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Print')"
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+											</svg>
+										</button>
+
+										<button
+											type="button"
+											@click="openDocumentPDF(invoice.doctype || 'Sales Invoice', invoice.name)"
+											class="h-8 px-2.5 inline-flex items-center justify-center gap-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-700 hover:text-red-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Abrir PDF Tamaño Carta')"
+										>
+											<svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+												<path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 15h6M9 11h2" />
+											</svg>
+											<span class="text-[11px] font-extrabold tracking-tight">PDF</span>
+										</button>
+
+										<button
+											v-if="posSettingsStore.enableWhatsappSend"
+											type="button"
+											@click="$emit('whatsapp-invoice', invoice)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-600 hover:text-emerald-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Enviar por WhatsApp')"
+										>
+											<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+												<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+											</svg>
+										</button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ============================================================ -->
+				<!-- TAB 5: DESPACHOS EN CAMION                                   -->
+				<!-- ============================================================ -->
+				<div v-else-if="activeTab === 'despachos'" class="flex-1 flex flex-col">
+					<!-- Empty State -->
+					<div
+						v-if="filteredDispatches.length === 0"
+						class="flex-1 flex flex-col items-center justify-center text-center py-12"
+					>
+						<div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-2xs">
+							<svg class="h-8 w-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+							</svg>
+						</div>
+						<p class="text-sm font-semibold text-slate-700">{{ __("No hay despachos registrados") }}</p>
+						<p class="text-xs text-slate-500 mt-1 max-w-sm">
+							{{ __("Las ventas marcadas con 'Despacho en Camión' aparecerán aquí organizadas para la carga del camión y cobro.") }}
+						</p>
+					</div>
+
+					<!-- Horizontal 4-Zone Dispatch Cards -->
+					<div v-else class="flex flex-col gap-3">
+						<div
+							v-for="dispatch in paginatedDispatches"
+							:key="dispatch.name"
+							class="pos-inv-row-card flex flex-col overflow-hidden"
+							:class="isDispatchDelivered(dispatch) ? 'pos-inv-row-card--delivered' : ''"
+						>
+							<div class="px-4 py-3.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+								<!-- Zone 1: Doc ID, Delivery Status & Scheduled Date -->
+								<div class="w-full lg:w-[240px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 text-start">
+									<div class="flex items-center gap-1.5 mb-1 flex-wrap">
+										<h4 class="text-sm md:text-base font-extrabold text-slate-900 tabular-nums">
+											{{ dispatch.name }}
+										</h4>
+										<MdxBadge :variant="isDispatchDelivered(dispatch) ? 'success' : 'warning'" size="sm">
+											{{ dispatch.custom_estado_entrega || __("Pendiente de Carga") }}
+										</MdxBadge>
+									</div>
+									<p class="text-xs text-slate-500">
+										<span class="font-semibold">{{ __("Entrega:") }}</span>
+										{{ formatDate(dispatch.custom_fecha_entrega) || __("Hoy") }}
+									</p>
+									<p
+										v-if="showProfileSelector && (dispatch.pos_profile_label || dispatch.pos_profile)"
+										class="text-[11px] font-medium text-slate-500 mt-0.5 truncate"
+									>
+										{{ dispatch.pos_profile_label || dispatch.pos_profile }}
+									</p>
+								</div>
+
+								<!-- Zone 2: Customer & Contact Phone -->
+								<div class="w-full lg:w-[220px] shrink-0 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 min-w-0 text-start">
+									<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+										{{ __("Cliente") }}
+									</span>
+									<p class="text-sm font-bold text-slate-900 truncate leading-snug mt-0.5">
+										{{ dispatch.customer_name || dispatch.customer }}
+									</p>
+									<div v-if="dispatch.custom_telefono_contacto" class="text-xs text-slate-600 mt-1 truncate tabular-nums">
+										<span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider">{{ __("Tel:") }}</span>
+										<a :href="`tel:${dispatch.custom_telefono_contacto}`" class="font-semibold text-slate-700 hover:underline ms-1">
+											{{ dispatch.custom_telefono_contacto }}
+										</a>
+									</div>
+								</div>
+
+								<!-- Zone 3: Delivery Address & Collection Mode -->
+								<div class="flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200 pb-3 lg:pb-0 lg:pe-4 flex flex-col justify-center text-start gap-1">
+									<div v-if="dispatch.custom_direccion_entrega">
+										<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+											{{ __("Puesto / Dirección") }}
+										</span>
+										<p class="text-xs font-medium text-slate-800 leading-snug">
+											{{ dispatch.custom_direccion_entrega }}
+										</p>
+									</div>
+									<div v-if="dispatch.custom_modalidad_cobro_chofer" class="text-xs text-slate-600">
+										<span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider">{{ __("Modalidad:") }}</span>
+										<span class="ms-1 font-medium text-slate-700">
+											{{
+												dispatch.custom_modalidad_cobro_chofer === "Cobrar al Chofer Contra Entrega"
+													? __("Pagar al Chofer Contra Entrega")
+													: dispatch.custom_modalidad_cobro_chofer
+											}}
+										</span>
+									</div>
+								</div>
+
+								<!-- Zone 4: Balance & Actions -->
+								<div class="w-full lg:w-auto shrink-0 flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-3.5">
+									<div class="flex flex-col lg:items-end shrink-0 whitespace-nowrap text-start lg:text-end">
+										<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">
+											{{ (dispatch.outstanding_amount || 0) > 0.01 ? __("Saldo a Cobrar") : __("Total") }}
+										</span>
+										<span class="text-base md:text-lg font-extrabold text-slate-900 tabular-nums mt-1">
+											{{
+												(dispatch.outstanding_amount || 0) > 0.01
+													? formatCurrency(dispatch.outstanding_amount)
+													: formatCurrency(dispatch.grand_total)
+											}}
+										</span>
+										<span v-if="(dispatch.outstanding_amount || 0) <= 0.01" class="text-[11px] font-semibold text-slate-500">
+											{{ __("Pagado") }}
+										</span>
+									</div>
+
+									<div class="flex items-center gap-1.5 shrink-0">
+										<MdxButton
+											v-if="!isDispatchDelivered(dispatch)"
+											variant="primary"
+											size="sm"
+											:loading="Boolean(loadingDelivery[dispatch.name])"
+											@click="markAsDelivered(dispatch)"
+										>
+											{{ __("Marcar Entregado") }}
+										</MdxButton>
+
+										<button
+											type="button"
+											@click="$emit('view-invoice', dispatch.name)"
+											class="h-8 px-2.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Ver Detalle')"
+										>
+											{{ __("Ver") }}
+										</button>
+
+										<button
+											type="button"
+											@click="$emit('print-invoice', dispatch)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Imprimir Nota de Venta')"
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+											</svg>
+										</button>
+
+										<button
+											v-if="posSettingsStore.enableWhatsappSend"
+											type="button"
+											@click="$emit('whatsapp-invoice', dispatch)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-600 hover:text-emerald-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Enviar por WhatsApp')"
+										>
+											<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+												<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+											</svg>
+										</button>
+
+										<button
+											v-if="canCancelInvoice(dispatch)"
+											type="button"
+											@click="openCancelModal(dispatch)"
+											class="w-8 h-8 flex items-center justify-center bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-600 hover:text-red-700 rounded-lg transition-all shadow-2xs cursor-pointer"
+											:title="__('Anular Venta')"
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+											</svg>
+										</button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ============================================================ -->
+				<!-- TAB 6: POR ENTREGAR (CUSTODY / PICKUPS)                      -->
+				<!-- ============================================================ -->
+				<div v-else-if="activeTab === 'pickups'" class="flex-1 flex flex-col gap-3">
+					<!-- Loading -->
+					<div v-if="loadingPickups" class="flex-1 flex flex-col items-center justify-center py-12">
+						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-700 mb-2"></div>
+						<p class="text-xs text-slate-500">{{ __("Cargando entregas pendientes...") }}</p>
+					</div>
+
+					<!-- View 1: Product Custody Summary (MdxDataTable) -->
+					<div v-else-if="pickupViewMode === 'summary'" class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+						<div class="px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs text-slate-600 text-start">
+							{{ __("Mercadería ya vendida (descontada del stock disponible) que permanece físicamente en almacén esperando retiro del cliente.") }}
+						</div>
+						<MdxDataTable
+							:columns="pickupSummaryColumns"
+							:rows="paginatedPickupProductSummary"
+							row-key="_rowKey"
+							pagination-mode="none"
+							:page-size="0"
+							:empty-title="__('No hay mercadería pendiente en custodia')"
+						>
+							<template #cell-item_code="{ row }">
+								<span class="text-xs font-mono font-bold text-slate-700">{{ row.item_code }}</span>
+							</template>
+							<template #cell-item_name="{ row }">
+								<span class="text-xs font-semibold text-slate-900">{{ row.item_name }}</span>
+							</template>
+							<template #cell-pending_display="{ row }">
+								<div class="text-end tabular-nums">
+									<div class="text-xs font-extrabold text-slate-900">
+										{{ formatPickupQty(row.total_pending_qty) }} {{ row.uom }}
+									</div>
+									<div v-if="row.coverage_uom && row.total_pending_coverage > 0" class="text-[11px] text-slate-500">
+										{{ formatPickupQty(row.total_pending_coverage) }} {{ row.coverage_uom }}
+									</div>
+								</div>
+							</template>
+							<template #cell-system_stock_qty="{ row }">
+								<span class="text-xs text-slate-700 tabular-nums">{{ formatPickupQty(row.system_stock_qty) }}</span>
+							</template>
+							<template #cell-expected_physical_qty="{ row }">
+								<span class="text-xs font-bold text-slate-900 tabular-nums">{{ formatPickupQty(row.expected_physical_qty) }}</span>
+							</template>
+							<template #cell-orders_count="{ row }">
+								<span class="text-xs font-semibold text-slate-700 tabular-nums">{{ row.orders_count }}</span>
+							</template>
+						</MdxDataTable>
+					</div>
+
+					<!-- View 2: Orders List -->
+					<div v-else class="flex-1 flex flex-col">
+						<div
+							v-if="filteredPickupControls.length === 0"
+							class="flex-1 flex flex-col items-center justify-center text-center py-12"
+						>
+							<div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-2xs">
+								<svg class="h-8 w-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+								</svg>
+							</div>
+							<p class="text-sm font-semibold text-slate-700">
+								{{ pickupStatusFilter === "open" ? __("No hay entregas pendientes") : __("No hay entregas completadas") }}
+							</p>
+							<p class="text-xs text-slate-500 mt-1">
+								{{ __("Cuando marques una venta como entrega pendiente o parcial al cobrar, aparecerá aquí.") }}
 							</p>
 						</div>
 
-						<!-- Tab Content -->
-						<div class="p-4">
-							<!-- Unpaid Tab -->
-							<div v-if="activeTab === 'partial'" class="flex flex-col gap-2.5">
-								<!-- Filter Buttons + Summary inline bar -->
-								<div class="flex flex-wrap items-center justify-between gap-2">
-									<div class="flex items-center gap-1.5 flex-wrap">
-										<button
-											@click="unpaidFilter = 'all'"
-											:class="[
-												'px-3 py-1.5 rounded-lg font-semibold text-xs transition-all',
-												unpaidFilter === 'all'
-													? 'bg-orange-500 text-white shadow-xs'
-													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-											]"
-										>
-											{{ __("All ({0})", [scopedUnpaidInvoices.length]) }}
-										</button>
-										<button
-											@click="unpaidFilter = 'partial'"
-											:class="[
-												'px-3 py-1.5 rounded-lg font-semibold text-xs transition-all',
-												unpaidFilter === 'partial'
-													? 'bg-orange-500 text-white shadow-xs'
-													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-											]"
-										>
-											{{
-												__("Partially Paid ({0})", [
-													scopedUnpaidInvoices.filter(
-														(inv) => inv.status === "Partly Paid"
-													).length,
-												])
-											}}
-										</button>
-										<button
-											@click="unpaidFilter = 'unpaid'"
-											:class="[
-												'px-3 py-1.5 rounded-lg font-semibold text-xs transition-all',
-												unpaidFilter === 'unpaid'
-													? 'bg-orange-500 text-white shadow-xs'
-													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-											]"
-										>
-											{{
-												__("Unpaid ({0})", [
-													scopedUnpaidInvoices.filter(
-														(inv) => inv.status === "Unpaid"
-													).length,
-												])
-											}}
-										</button>
-										<button
-											@click="unpaidFilter = 'overdue'"
-											:class="[
-												'px-3 py-1.5 rounded-lg font-semibold text-xs transition-all',
-												unpaidFilter === 'overdue'
-													? 'bg-red-500 text-white shadow-xs'
-													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-											]"
-										>
-											{{
-												__("Overdue ({0})", [
-													scopedUnpaidInvoices.filter(
-														(inv) => inv.status === "Overdue"
-													).length,
-												])
-											}}
-										</button>
-									</div>
-
-									<!-- Compact Summary Pill -->
-									<div
-										v-if="filteredUnpaidSummary.count > 0"
-										class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg px-3.5 py-1.5 flex items-center gap-4 text-xs"
-									>
-										<div class="flex items-center gap-1.5">
-											<span class="text-orange-700 font-semibold">{{ __("Outstanding Payments") }}:</span>
-											<span class="text-sm font-bold text-gray-900 tabular-nums">
-												{{ formatCurrency(filteredUnpaidSummary.total_outstanding) }}
+						<div v-else class="flex flex-col gap-3">
+							<div
+								v-for="ctrl in paginatedPickupControls"
+								:key="ctrl.name"
+								class="pos-inv-row-card p-4 flex flex-col gap-2.5 text-start"
+							>
+								<!-- Top Header -->
+								<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+									<div class="min-w-0">
+										<div class="flex items-center gap-2 flex-wrap">
+											<span class="text-sm font-extrabold text-slate-900">{{ ctrl.customer_name || ctrl.customer }}</span>
+											<MdxBadge
+												:variant="ctrl.status === 'Entregado' ? 'success' : ctrl.status === 'Parcial' ? 'warning' : 'info'"
+												size="sm"
+											>
+												{{ ctrl.status }}
+											</MdxBadge>
+											<span v-if="Number(ctrl.outstanding_amount || 0) > 0.01" class="text-xs font-semibold text-slate-600 tabular-nums">
+												· {{ __("Saldo pago:") }} {{ formatCurrency(ctrl.outstanding_amount) }}
 											</span>
 										</div>
-										<div class="h-3.5 w-px bg-orange-200"></div>
-										<div class="flex items-center gap-2 text-gray-600">
-											<span>{{ __("{0} invoices", [filteredUnpaidSummary.count]) }}</span>
-											<span>·</span>
-											<span class="font-semibold text-green-700 tabular-nums">
-												{{ __("{0} paid", [formatCurrency(filteredUnpaidSummary.total_paid)]) }}
+										<div class="text-xs text-slate-500 mt-0.5 tabular-nums">
+											{{ ctrl.reference_name }} · {{ ctrl.posting_date }}
+											<span v-if="ctrl.notes" class="text-slate-600"> · {{ ctrl.notes }}</span>
+										</div>
+									</div>
+
+									<div class="flex items-center gap-1.5 shrink-0 flex-wrap">
+										<MdxButton
+											v-if="ctrl.status === 'Pendiente' || ctrl.status === 'Parcial'"
+											variant="primary"
+											size="sm"
+											@click="openPickupDialog(ctrl)"
+										>
+											{{ __("Registrar Entrega") }}
+										</MdxButton>
+										<MdxButton
+											variant="secondary"
+											size="sm"
+											@click="emit('view-invoice', ctrl.reference_name)"
+										>
+											{{ __("Ver venta") }}
+										</MdxButton>
+										<MdxButton
+											v-if="ctrl.logs && ctrl.logs.length > 0"
+											variant="secondary"
+											size="sm"
+											@click="handlePrintPickupLog(ctrl, ctrl.logs[0])"
+										>
+											{{ __("Constancia") }}
+										</MdxButton>
+										<MdxButton
+											v-if="posSettingsStore.enableWhatsappSend"
+											variant="secondary"
+											size="sm"
+											@click="handlePickupWhatsApp(ctrl)"
+										>
+											{{ __("WhatsApp") }}
+										</MdxButton>
+									</div>
+								</div>
+
+								<!-- Items Progress List -->
+								<div class="bg-slate-50 border border-slate-200/80 rounded-lg divide-y divide-slate-200/70">
+									<div
+										v-for="it in ctrl.items"
+										:key="it.name"
+										class="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs"
+									>
+										<div class="min-w-0 flex-1">
+											<span class="font-semibold text-slate-800">{{ it.item_name }}</span>
+											<span class="text-slate-400 ms-1.5 font-mono text-[11px]">{{ it.item_code }}</span>
+										</div>
+										<div class="flex items-center gap-3 tabular-nums shrink-0 text-slate-600">
+											<span>
+												{{ __("Retirado:") }}
+												<strong class="text-slate-900">{{ formatPickupQty(it.qty_delivered) }} / {{ formatPickupQty(it.qty_sold) }}</strong>
+												{{ it.uom }}
+											</span>
+											<span class="font-bold text-slate-900">
+												{{ __("Faltan:") }} {{ formatPickupQty(it.qty_pending) }} {{ it.uom }}
+												<template v-if="it.coverage_uom && it.coverage_pending > 0">
+													({{ formatPickupQty(it.coverage_pending) }} {{ it.coverage_uom }})
+												</template>
 											</span>
 										</div>
 									</div>
 								</div>
 
-								<!-- Offline Warning -->
-								<div
-									v-if="isOffline()"
-									class="bg-yellow-50 border border-yellow-300 rounded-lg p-3 flex items-center gap-3"
-								>
-									<svg
-										class="w-5 h-5 text-yellow-600 flex-shrink-0"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
+								<!-- Collapsible History Logs -->
+								<div v-if="ctrl.logs && ctrl.logs.length > 0">
+									<button
+										type="button"
+										@click="togglePickupHistory(ctrl.name)"
+										class="text-[11px] font-semibold text-slate-600 hover:text-slate-900 cursor-pointer flex items-center gap-1"
 									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-										/>
-									</svg>
-									<div class="flex-1 text-start">
-										<p class="text-sm font-medium text-yellow-800">
-											{{ __("You are offline") }}
-										</p>
-										<p class="text-xs text-yellow-700">
+										<span>
 											{{
-												__(
-													"Payments cannot be added while offline. Connect to the internet to add payments."
-												)
+												expandedPickupLogs[ctrl.name]
+													? __("Ocultar historial de retiros ({0})", [ctrl.logs.length])
+													: __("Ver historial de retiros ({0})", [ctrl.logs.length])
 											}}
-										</p>
-									</div>
-								</div>
-
-								<!-- Empty State -->
-								<div
-									v-if="filteredUnpaidInvoices.length === 0"
-									class="flex flex-col items-center justify-center py-16 text-center"
-								>
-									<svg
-										class="w-16 h-16 text-gray-400 mb-4"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
-									<p class="text-gray-600 font-medium">
-										{{ __("No Unpaid Invoices") }}
-									</p>
-									<p class="text-gray-500 text-sm mt-1">
-										{{ __("All invoices are fully paid") }}
-									</p>
-								</div>
-
-								<!-- Invoices List -->
-								<div v-else class="flex flex-col gap-2.5">
+										</span>
+									</button>
 									<div
-										v-for="invoice in filteredUnpaidInvoices"
-										:key="invoice.name"
-										class="pos-inv-card overflow-hidden transition-all"
+										v-if="expandedPickupLogs[ctrl.name]"
+										class="mt-1.5 border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white"
 									>
-										<!-- Compact Single-Row Invoice Card -->
-										<div class="px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 bg-white">
-											<!-- Left: Document + Status + Customer + Date -->
-											<div class="min-w-[210px] flex-1">
-												<div class="flex items-center gap-2 flex-wrap">
-													<h3 class="text-sm font-bold text-gray-900 tabular-nums">
-														{{ invoice.name }}
-													</h3>
-													<span
-														:class="[
-															'px-2 py-0.5 text-[11px] font-semibold rounded-full',
-															getInvoiceStatusColor(invoice),
-														]"
-													>
-														{{ __(invoice.status) }}
-													</span>
-													<span
-														v-if="showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)"
-														class="px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200"
-													>
-														{{ invoice.pos_profile_label || invoice.pos_profile }}
-													</span>
-												</div>
-												<div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-600">
-													<div class="flex items-center font-medium text-gray-800">
-														<svg
-															class="w-3.5 h-3.5 me-1 text-gray-400"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-															/>
-														</svg>
-														{{ invoice.customer_name || invoice.customer }}
-													</div>
-													<div class="flex items-center text-gray-500 tabular-nums">
-														<svg
-															class="w-3.5 h-3.5 me-1 text-gray-400"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-															/>
-														</svg>
-														{{ formatDate(invoice.posting_date) }}
-														{{ formatTime(invoice.posting_time) }}
-													</div>
-													<div
-														v-if="invoice.owner_full_name || invoice.owner"
-														class="flex items-center text-slate-500"
-													>
-														<span class="font-medium me-1">{{ __("Vendedor:") }}</span>
-														<span>{{ invoice.owner_full_name || invoice.owner.split('@')[0] }}</span>
-													</div>
-												</div>
-											</div>
-
-											<!-- Center: Inline Financial Summary -->
-											<div class="flex items-center gap-2 sm:gap-3 text-xs tabular-nums">
-												<div class="px-2.5 py-1 rounded-lg text-right pos-inv-stat-total">
-													<div class="text-[10px] text-gray-500 leading-tight">
-														{{ __("Total Amount") }}
-													</div>
-													<div class="text-xs sm:text-sm font-bold text-gray-900">
-														{{ formatCurrency(invoice.grand_total) }}
-													</div>
-												</div>
-												<div class="px-2.5 py-1 rounded-lg text-right pos-inv-stat-paid">
-													<div class="text-[10px] text-gray-500 leading-tight">
-														{{ __("Paid") }}
-													</div>
-													<div class="text-xs sm:text-sm font-bold text-green-600">
-														{{ formatCurrency(invoice.paid_amount) }}
-													</div>
-												</div>
-												<div class="px-2.5 py-1 rounded-lg text-right pos-inv-stat-due">
-													<div class="text-[10px] text-orange-700 font-medium leading-tight">
-														{{ __("Saldo Pendiente") }}
-													</div>
-													<div class="text-xs sm:text-sm font-bold text-orange-600">
-														{{ formatCurrency(invoice.outstanding_amount) }}
-													</div>
-												</div>
-											</div>
-
-											<!-- Right: Compact Action Buttons -->
-											<div class="flex items-center gap-1.5">
-												<button
-													type="button"
-													@click="$emit('print-invoice', invoice)"
-													class="px-2.5 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
-													:title="__('Print')"
-												>
-													<svg class="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-													</svg>
-													<span class="hidden sm:inline">{{ __("Print") }}</span>
-												</button>
-												<button
-													v-if="posSettingsStore.enableWhatsappSend"
-													type="button"
-													@click="$emit('whatsapp-invoice', invoice)"
-													class="px-2.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-1"
-													style="background-color: #16a34a; color: #ffffff;"
-													:title="__('Enviar por WhatsApp')"
-												>
-													<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-														<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-													</svg>
-													<span class="hidden sm:inline">WhatsApp</span>
-												</button>
-												<button
-													v-if="canCancelInvoice(invoice)"
-													type="button"
-													@click="openCancelModal(invoice)"
-													class="px-2.5 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-													:title="__('Anular Venta')"
-												>
-													<svg class="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-													</svg>
-													<span class="hidden sm:inline">{{ __("Anular") }}</span>
-												</button>
-												<button
-													@click="selectInvoiceForPayment(invoice)"
-													:disabled="
-														loadingInvoiceDetails || isOffline()
-													"
-													:title="
-														isOffline()
-															? __(
-																	'Payments cannot be added while offline'
-															  )
-															: ''
-													"
-													class="px-3 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-												>
-													<LoadingIndicator
-														v-if="loadingInvoiceDetails"
-														class="w-3.5 h-3.5"
-													/>
-													{{ __("Add Payment") }}
-												</button>
-											</div>
-										</div>
-
-										<!-- Optional Partial Payment Progress & History (only when there are payments) -->
 										<div
-											v-if="(invoice.paid_amount || 0) > 0 || (invoice.payments && invoice.payments.length > 0)"
-											class="px-3.5 py-2 pos-inv-card-footer"
+											v-for="lg in ctrl.logs"
+											:key="lg.name"
+											class="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]"
 										>
-											<div
-												v-if="(invoice.paid_amount || 0) > 0 && invoice.grand_total > 0"
-												class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden mb-1.5"
-											>
-												<div
-													class="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-300"
-													:style="{
-														width: `${Math.min(100, (invoice.paid_amount / invoice.grand_total) * 100)}%`,
-													}"
-												></div>
-											</div>
-											<div
-												v-if="invoice.payments && invoice.payments.length > 0"
-												class="flex flex-wrap items-center gap-1.5"
-											>
-												<span class="text-[11px] font-medium text-gray-500 me-1">
-													{{ __("Payment History") }}:
-												</span>
-												<div
-													v-for="(payment, idx) in invoice.payments"
-													:key="idx"
-													:class="[
-														'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px]',
-														payment.source === 'Payment Entry'
-															? 'bg-blue-50 border-blue-200 text-blue-800'
-															: 'bg-white border-gray-200 text-gray-700',
-													]"
-												>
-													<span class="font-medium">{{ payment.mode_of_payment || __("N/A") }}</span>
-													<span class="font-bold tabular-nums">{{ formatCurrency(payment.amount) }}</span>
-													<span v-if="payment.posting_date" class="text-[10px] text-gray-400">
-														({{ formatDate(payment.posting_date) }})
-													</span>
+											<div class="min-w-0 flex-1">
+												<div class="font-semibold text-slate-800">{{ lg.items_summary }}</div>
+												<div class="text-slate-500 mt-0.5">
+													{{ formatDateTime(lg.delivery_datetime) }} · {{ __("Retiró:") }} {{ lg.received_by || "-" }} · {{ __("Atendió:") }} {{ lg.delivered_by_name }}
+													<span v-if="lg.notes"> · {{ lg.notes }}</span>
 												</div>
 											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<!-- Invoice History Tab -->
-							<div v-if="activeTab === 'history'">
-								<!-- Filters Component -->
-								<div class="mb-3">
-									<InvoiceFilters
-										:unique-customers="invoiceFilters.uniqueCustomers.value"
-										:unique-products="invoiceFilters.uniqueProducts.value"
-										:filter-stats="invoiceFilters.filterStats.value"
-									/>
-								</div>
-
-								<!-- Empty State -->
-								<div
-									v-if="filteredHistoryInvoices.length === 0"
-									class="flex flex-col items-center justify-center py-12 text-center"
-								>
-									<svg
-										class="w-12 h-12 text-gray-400 mb-3"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-										/>
-									</svg>
-									<p class="text-gray-600 font-medium text-sm">
-										{{ __("No invoices found") }}
-									</p>
-								</div>
-
-								<!-- Invoices Grid - Compact 3 columns on XL screens -->
-								<div v-else class="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-									<div
-										v-for="invoice in filteredHistoryInvoices"
-										:key="invoice.name"
-										class="pos-inv-card transition-all overflow-hidden flex flex-col justify-between"
-									>
-										<!-- Compact Card Header -->
-										<div
-											class="pos-inv-card-header px-3.5 py-2 flex items-center justify-between gap-2"
-										>
-											<div class="flex items-center gap-2 min-w-0">
-												<h3 class="text-sm font-bold text-gray-900 truncate tabular-nums">
-													{{ invoice.name }}
-												</h3>
-												<span
-													:class="[
-														'text-[11px] px-2 py-0.5 rounded-full font-semibold shrink-0',
-														getInvoiceStatusColor(invoice),
-													]"
-												>
-													{{ __(invoice.status) }}
-												</span>
-											</div>
-											<div class="text-end shrink-0 flex items-baseline gap-1.5">
-												<span class="text-[10px] font-semibold text-gray-500 uppercase">{{ __("Total") }}</span>
-												<span class="text-sm font-bold text-gray-900 tabular-nums">
-													{{ formatCurrency(invoice.grand_total) }}
-												</span>
-											</div>
-										</div>
-
-										<!-- Compact Card Body -->
-										<div class="px-3.5 py-2.5 flex flex-col gap-2 bg-white">
-											<!-- Customer + Date & Time on one line -->
-											<div class="flex items-center justify-between gap-2 text-xs">
-												<div class="flex items-center min-w-0 font-semibold text-gray-900 truncate">
-													<svg
-														class="w-3.5 h-3.5 text-gray-400 me-1.5 shrink-0"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-														/>
-													</svg>
-													<span class="truncate">{{ invoice.customer_name || invoice.customer }}</span>
-												</div>
-												<div class="flex items-center text-[11px] text-gray-500 tabular-nums shrink-0">
-													<svg
-														class="w-3.5 h-3.5 text-gray-400 me-1 shrink-0"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-														/>
-													</svg>
-													{{ formatDate(invoice.posting_date) }}
-													{{ formatTime(invoice.posting_time) }}
-												</div>
-											</div>
-
-											<!-- POS Profile & Seller Attribution -->
-											<div
-												v-if="(showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)) || invoice.owner_full_name || invoice.owner"
-												class="flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-slate-500"
+											<MdxButton
+												variant="secondary"
+												size="sm"
+												@click="handlePrintPickupLog(ctrl, lg)"
 											>
-												<span
-													v-if="showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)"
-													class="px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200 truncate max-w-[180px]"
-													:title="invoice.pos_profile_label || invoice.pos_profile"
-												>
-													{{ invoice.pos_profile_label || invoice.pos_profile }}
-												</span>
-												<span
-													v-if="invoice.owner_full_name || invoice.owner"
-													class="truncate ms-auto"
-												>
-													<span class="font-medium">{{ __("Vendedor:") }}</span>
-													{{ invoice.owner_full_name || invoice.owner.split('@')[0] }}
-												</span>
-											</div>
-
-											<!-- Payment Details in 3 columns -->
-											<div
-												class="grid grid-cols-3 gap-2 pt-2 pos-inv-card-divider text-xs"
-											>
-												<div>
-													<div class="text-[10px] text-gray-500 leading-tight">
-														{{ __("Paid") }}
-													</div>
-													<div class="text-xs font-semibold text-green-600 tabular-nums mt-0.5">
-														{{ formatCurrency(invoice.paid_amount || 0) }}
-													</div>
-												</div>
-												<div>
-													<div class="text-[10px] text-gray-500 leading-tight">
-														{{ __("Saldo Pendiente") }}
-													</div>
-													<div class="text-xs font-semibold text-orange-600 tabular-nums mt-0.5">
-														{{ formatCurrency(invoice.outstanding_amount || 0) }}
-													</div>
-												</div>
-												<div class="min-w-0">
-													<div class="text-[10px] text-gray-500 leading-tight">
-														{{ __("Payment Mode") }}
-													</div>
-													<div
-														class="text-xs font-semibold text-gray-800 truncate mt-0.5"
-														:title="formatPaymentModes(invoice)"
-													>
-														{{ formatPaymentModes(invoice) }}
-													</div>
-												</div>
-											</div>
-										</div>
-
-										<!-- Compact Card Footer with Actions -->
-										<div
-											class="px-3 py-1.5 pos-inv-card-footer flex items-center justify-end gap-1.5"
-										>
-											<button
-												@click="$emit('view-invoice', invoice)"
-												class="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors flex items-center gap-1"
-												:title="__('View Details')"
-											>
-												<svg
-													class="w-3.5 h-3.5"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-													/>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-													/>
-												</svg>
-												<span>{{ __("View") }}</span>
-											</button>
-											<button
-												@click="$emit('print-invoice', invoice)"
-												class="px-2.5 py-1 text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors flex items-center gap-1"
-												:title="__('Print')"
-											>
-												<svg
-													class="w-3.5 h-3.5"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-													/>
-												</svg>
-												<span>{{ __("Print") }}</span>
-											</button>
-											<button
-												v-if="posSettingsStore.enableWhatsappSend"
-												type="button"
-												@click="$emit('whatsapp-invoice', invoice)"
-												class="px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors flex items-center gap-1"
-												style="background-color: #16a34a; color: #ffffff;"
-												:title="__('Enviar por WhatsApp')"
-											>
-												<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-													<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-												</svg>
-												<span>WhatsApp</span>
-											</button>
-											<button
-												v-if="canCancelInvoice(invoice)"
-												type="button"
-												@click="openCancelModal(invoice)"
-												class="px-2.5 py-1 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
-												:title="__('Anular Venta')"
-											>
-												<svg class="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-												</svg>
-												<span>{{ __("Anular") }}</span>
-											</button>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<!-- Draft Invoices Tab -->
-							<div v-if="activeTab === 'drafts'">
-								<!-- Empty State -->
-								<div
-									v-if="draftInvoices.length === 0"
-									class="flex flex-col items-center justify-center py-16 text-center"
-								>
-									<svg
-										class="w-16 h-16 text-gray-400 mb-4"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-										/>
-									</svg>
-									<p class="text-gray-600 font-medium">
-										{{ __("No draft invoices") }}
-									</p>
-									<p class="text-gray-500 text-sm mt-1">
-										{{ __("Save invoices as drafts to continue later") }}
-									</p>
-								</div>
-
-								<!-- Drafts Grid -->
-								<div v-else class="grid gap-3">
-									<div
-										v-for="draft in draftInvoices"
-										:key="draft.draft_id"
-										class="pos-inv-card p-3.5 transition-all cursor-pointer"
-										@click="$emit('load-draft', draft)"
-									>
-										<div class="flex items-start justify-between mb-2">
-											<div class="flex-1">
-												<h4 class="text-sm font-semibold text-gray-900">
-													{{ draft.draft_id }}
-												</h4>
-												<p
-													v-if="draft.customer"
-													class="text-xs text-gray-500 mt-0.5"
-												>
-													{{
-														__("Customer: {0}", [
-															draft.customer?.customer_name ||
-																draft.customer?.name ||
-																draft.customer,
-														])
-													}}
-												</p>
-												<p class="text-xs text-gray-400 mt-0.5">
-													{{ formatDateTime(draft.created_at) }}
-												</p>
-											</div>
-											<div class="flex items-center gap-1">
-												<button
-													v-if="
-														draft.draft_id &&
-														!String(draft.draft_id).startsWith('LOCAL-') &&
-														!String(draft.draft_id).startsWith('OFFLINE-') &&
-														!String(draft.draft_id).startsWith('DRAFT-')
-													"
-													type="button"
-													@click.stop="
-														$emit('print-invoice', {
-															name: draft.draft_id,
-															doctype: draft.doctype || 'Sales Order',
-														})
-													"
-													class="text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors p-1.5"
-													:title="__('Imprimir')"
-												>
-													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-														/>
-													</svg>
-												</button>
-												<button
-													v-if="
-														draft.draft_id &&
-														!String(draft.draft_id).startsWith('LOCAL-') &&
-														!String(draft.draft_id).startsWith('OFFLINE-') &&
-														!String(draft.draft_id).startsWith('DRAFT-')
-													"
-													type="button"
-													@click.stop="openDraftPDF(draft)"
-													class="h-7 px-2 inline-flex items-center gap-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-700 hover:text-red-700 rounded-md transition-colors shadow-2xs"
-													:title="__('Abrir PDF Tamaño Carta')"
-												>
-													<svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-														<path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
-														<path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 15h6M9 11h2" />
-													</svg>
-													<span class="text-[10px] font-extrabold">PDF</span>
-												</button>
-												<button
-													v-if="posSettingsStore.enableWhatsappSend"
-													type="button"
-													@click.stop="$emit('whatsapp-invoice', {
-														name: draft.draft_id,
-														draft_id: draft.draft_id,
-														doctype: draft.doctype,
-														items: draft.items || [],
-														customer: draft.customer,
-														customer_name: draft.customer?.customer_name || draft.customer?.name || draft.customer,
-														grand_total: calculateDraftTotal(draft.items),
-														posting_date: draft.created_at,
-													})"
-													class="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors p-1.5"
-													:title="__('Enviar por WhatsApp')"
-												>
-													<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
-														<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-													</svg>
-												</button>
-												<button
-													v-if="canDiscardDrafts"
-													type="button"
-													@click.stop="$emit('delete-draft', draft.draft_id)"
-													class="text-gray-400 hover:text-red-600 transition-colors p-1"
-													:title="__('Anular / descartar documento')"
-												>
-													<svg
-														class="w-4 h-4"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-														/>
-													</svg>
-												</button>
-											</div>
-										</div>
-
-										<div class="flex items-center justify-between text-xs">
-											<span class="text-gray-600">{{
-												__("{0} item(s)", [draft.items?.length || 0])
-											}}</span>
-											<span class="font-bold text-purple-600">{{
-												formatCurrency(calculateDraftTotal(draft.items))
-											}}</span>
-										</div>
-
-										<!-- Items Preview -->
-										<div
-											v-if="draft.items && draft.items.length > 0"
-											class="mt-2 pt-2 border-t border-gray-100"
-										>
-											<div class="flex flex-wrap gap-1">
-												<span
-													v-for="(item, idx) in draft.items.slice(0, 3)"
-													:key="idx"
-													class="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded"
-												>
-													{{ item.item_name }} ({{
-														item.quantity || item.qty
-													}})
-												</span>
-												<span
-													v-if="draft.items.length > 3"
-													class="text-[10px] text-gray-500 px-1.5 py-0.5"
-												>
-													{{ __("+{0} more", [draft.items.length - 3]) }}
-												</span>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<!-- Return Invoices Tab -->
-							<div v-if="activeTab === 'returns'">
-								<!-- Empty State -->
-								<div
-									v-if="returnInvoices.length === 0"
-									class="flex flex-col items-center justify-center py-16 text-center"
-								>
-									<svg
-										class="w-16 h-16 text-gray-400 mb-4"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-										/>
-									</svg>
-									<p class="text-gray-600 font-medium">
-										{{ __("No return invoices") }}
-									</p>
-									<p class="text-gray-500 text-sm mt-1">
-										{{ __("Return invoices will appear here") }}
-									</p>
-								</div>
-
-								<!-- Returns Grid -->
-								<div v-else class="grid gap-3">
-									<div
-										v-for="invoice in returnInvoices"
-										:key="invoice.name"
-										class="pos-inv-card p-3.5 transition-all"
-									>
-										<div class="flex items-start justify-between">
-											<div class="flex-1">
-												<div class="flex items-center gap-2 mb-1 flex-wrap">
-													<h4
-														class="text-sm font-semibold text-gray-900"
-													>
-														{{ invoice.name }}
-													</h4>
-													<span
-														class="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800"
-													>
-														{{ __("Return") }}
-													</span>
-													<span
-														v-if="showProfileSelector && (invoice.pos_profile_label || invoice.pos_profile)"
-														class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200"
-													>
-														{{ invoice.pos_profile_label || invoice.pos_profile }}
-													</span>
-												</div>
-												<div
-													class="flex items-center gap-4 text-xs text-gray-600"
-												>
-													<span>{{ invoice.customer_name }}</span>
-													<span>{{
-														formatDate(invoice.posting_date)
-													}}</span>
-													<span v-if="invoice.return_against">{{
-														__("Against: {0}", [
-															invoice.return_against,
-														])
-													}}</span>
-												</div>
-											</div>
-
-											<div class="text-end ms-4">
-												<p class="text-sm font-bold text-red-600">
-													-{{
-														formatCurrency(
-															Math.abs(invoice.grand_total)
-														)
-													}}
-												</p>
-												<div class="flex items-center gap-1 mt-2">
-													<button
-														@click="$emit('view-invoice', invoice)"
-														class="p-1.5 hover:bg-blue-50 rounded transition-colors"
-														:title="__('View Details')"
-													>
-														<svg
-															class="w-4 h-4 text-blue-600"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-															/>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-															/>
-														</svg>
-													</button>
-													<button
-														@click="$emit('print-invoice', invoice)"
-														class="p-1.5 hover:bg-green-50 rounded transition-colors"
-														:title="__('Print')"
-													>
-														<svg
-															class="w-4 h-4 text-green-600"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-															/>
-														</svg>
-													</button>
-													<button
-														v-if="posSettingsStore.enableWhatsappSend"
-														type="button"
-														@click="$emit('whatsapp-invoice', invoice)"
-														class="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded transition-colors"
-														:title="__('Enviar por WhatsApp')"
-													>
-														<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
-															<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-														</svg>
-													</button>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<!-- Despachos en Camión Tab -->
-							<div v-if="activeTab === 'despachos'" class="flex flex-col gap-4">
-								<!-- Dispatch Toolbar & Filters -->
-								<div class="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-gray-200">
-									<div class="flex items-center gap-2 flex-wrap">
-										<button
-											@click="dispatchesFilter = 'pending'"
-											:class="[
-												'px-3.5 py-1.5 rounded-lg font-medium text-xs transition-all flex items-center gap-1.5',
-												dispatchesFilter === 'pending'
-													? 'bg-amber-600 text-white shadow-sm'
-													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-											]"
-										>
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-											</svg>
-											{{ __("Por Despachar ({0})", [pendingDispatches.length]) }}
-										</button>
-										<button
-											@click="dispatchesFilter = 'delivered'"
-											:class="[
-												'px-3.5 py-1.5 rounded-lg font-medium text-xs transition-all flex items-center gap-1.5',
-												dispatchesFilter === 'delivered'
-													? 'bg-green-600 text-white shadow-sm'
-													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-											]"
-										>
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-											</svg>
-											{{ __("Entregados ({0})", [deliveredDispatches.length]) }}
-										</button>
-										<button
-											@click="dispatchesFilter = 'all'"
-											:class="[
-												'px-3.5 py-1.5 rounded-lg font-medium text-xs transition-all',
-												dispatchesFilter === 'all'
-													? 'bg-gray-800 text-white shadow-sm'
-													: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
-											]"
-										>
-											{{ __("Todos ({0})", [allDispatches.length]) }}
-										</button>
-									</div>
-
-									<div class="flex items-center gap-2">
-										<!-- Filter by date -->
-										<div class="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs">
-											<span class="text-gray-500 font-medium">{{ __("Fecha:") }}</span>
-											<input
-												type="date"
-												v-model="dispatchDateFilter"
-												class="text-xs bg-transparent border-none p-0 focus:ring-0 text-gray-800"
-											/>
-											<button
-												v-if="dispatchDateFilter"
-												@click="dispatchDateFilter = ''"
-												class="text-gray-400 hover:text-gray-600 ml-1 text-xs"
-												:title="__('Limpiar fecha')"
-											>
-												✕
-											</button>
-										</div>
-
-										<!-- Driver Portal Direct Link -->
-										<a
-											href="/despacho"
-											target="_blank"
-											class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium text-xs px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors no-underline"
-											:title="__('Abrir Portal Móvil de Choferes en nueva pestaña')"
-										>
-											<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-											</svg>
-											<span>{{ __("Portal Chofer") }}</span>
-										</a>
-
-										<!-- Print Dispatch Sheet button -->
-										<button
-											@click="openDispatchPlanSheet"
-											class="bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors"
-											:title="__('Imprimir Planilla de Carga y Ruta para el Chofer')"
-										>
-											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-											</svg>
-											<span>{{ __("Planilla Diaria de Despacho") }}</span>
-										</button>
-									</div>
-								</div>
-
-								<!-- Empty state -->
-								<div
-									v-if="filteredDispatches.length === 0"
-									class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-dashed border-gray-300 p-8"
-								>
-									<div class="p-3 bg-amber-50 rounded-full mb-3 text-amber-600">
-										<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-										</svg>
-									</div>
-									<h3 class="text-sm font-semibold text-gray-900 mb-1">
-										{{ __("No hay despachos registrados") }}
-									</h3>
-									<p class="text-xs text-gray-500 max-w-sm">
-										{{ __("Las ventas marcadas con 'Despacho en Camión' aparecerán aquí organizadas para la carga del camión y cobro.") }}
-									</p>
-								</div>
-
-								<!-- Dispatch Cards Grid -->
-								<div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-									<div
-										v-for="dispatch in filteredDispatches"
-										:key="dispatch.name"
-										class="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-3 relative"
-										:class="[
-											isDispatchDelivered(dispatch)
-												? 'border-green-200 bg-green-50/20'
-												: 'border-amber-200 bg-amber-50/10'
-										]"
-									>
-										<!-- Card Header -->
-										<div class="flex items-start justify-between gap-2">
-											<div>
-												<div class="flex items-center gap-1.5 flex-wrap">
-													<span class="text-xs font-mono font-bold text-gray-800">
-														{{ dispatch.name }}
-													</span>
-													<span
-														v-if="showProfileSelector && (dispatch.pos_profile_label || dispatch.pos_profile)"
-														class="text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200"
-													>
-														{{ dispatch.pos_profile_label || dispatch.pos_profile }}
-													</span>
-												</div>
-												<h4 class="text-sm font-bold text-gray-900 leading-tight mt-0.5">
-													{{ dispatch.customer_name || dispatch.customer }}
-												</h4>
-											</div>
-											<!-- Status Badge -->
-											<span
-												:class="[
-													'px-2.5 py-1 text-[11px] font-bold rounded-full flex items-center gap-1',
-													isDispatchDelivered(dispatch)
-														? 'bg-green-100 text-green-800 border border-green-300'
-														: 'bg-amber-100 text-amber-800 border border-amber-300'
-												]"
-											>
-												<span class="w-1.5 h-1.5 rounded-full" :class="isDispatchDelivered(dispatch) ? 'bg-green-600' : 'bg-amber-600'"></span>
-												{{ dispatch.custom_estado_entrega || __('Pendiente de Carga') }}
-											</span>
-										</div>
-
-										<!-- Delivery Details -->
-										<div class="bg-gray-50 rounded-lg p-2.5 flex flex-col gap-1.5 text-xs border border-gray-100">
-											<!-- Date -->
-											<div class="flex items-center gap-1.5 text-gray-700">
-												<svg class="w-3.5 h-3.5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-												</svg>
-												<span class="font-semibold text-gray-600">{{ __('Entrega:') }}</span>
-												<span class="font-medium text-gray-900">{{ formatDate(dispatch.custom_fecha_entrega) || __('Hoy') }}</span>
-											</div>
-
-											<!-- Stall / Address -->
-											<div v-if="dispatch.custom_direccion_entrega" class="flex items-start gap-1.5 text-gray-700">
-												<svg class="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-												</svg>
-												<span class="font-semibold text-gray-600">{{ __('Puesto/Dir:') }}</span>
-												<span class="font-medium text-gray-900 leading-tight">{{ dispatch.custom_direccion_entrega }}</span>
-											</div>
-
-											<!-- Phone -->
-											<div v-if="dispatch.custom_telefono_contacto" class="flex items-center gap-1.5 text-gray-700">
-												<svg class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-												</svg>
-												<span class="font-semibold text-gray-600">{{ __('Tel:') }}</span>
-												<a :href="'tel:' + dispatch.custom_telefono_contacto" class="font-semibold text-blue-600 hover:underline">
-													{{ dispatch.custom_telefono_contacto }}
-												</a>
-											</div>
-
-											<!-- Collection Mode -->
-											<div v-if="dispatch.custom_modalidad_cobro_chofer" class="flex items-center gap-1.5 pt-1 border-t border-gray-200/60">
-												<span class="font-semibold text-gray-600">{{ __('Modalidad:') }}</span>
-												<span class="font-medium text-gray-800">
-													{{ dispatch.custom_modalidad_cobro_chofer === 'Cobrar al Chofer Contra Entrega' ? __('Pagar al Chofer Contra Entrega') : dispatch.custom_modalidad_cobro_chofer }}
-												</span>
-											</div>
-										</div>
-
-										<!-- Financial Summary & Balance to Collect -->
-										<div class="flex items-center justify-between pt-1">
-											<div>
-												<span class="text-[10px] text-gray-500 block uppercase font-bold">{{ __('Total') }}</span>
-												<span class="text-sm font-bold text-gray-900">{{ formatCurrency(dispatch.grand_total) }}</span>
-											</div>
-											<div class="text-right">
-												<span class="text-[10px] text-gray-500 block uppercase font-bold">{{ __('Saldo a Cobrar') }}</span>
-												<span
-													:class="[
-														'text-sm font-bold',
-														(dispatch.outstanding_amount || 0) > 0.01
-															? 'text-red-600'
-															: 'text-green-600'
-													]"
-												>
-													{{ (dispatch.outstanding_amount || 0) > 0.01 ? formatCurrency(dispatch.outstanding_amount) : __('Pagado') }}
-												</span>
-											</div>
-										</div>
-
-										<!-- Card Actions -->
-										<div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
-											<div class="flex items-center gap-1">
-												<button
-													@click="$emit('view-invoice', dispatch.name)"
-													class="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
-													:title="__('Ver Detalle')"
-												>
-													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-													</svg>
-												</button>
-												<button
-													@click="$emit('print-invoice', dispatch)"
-													class="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
-													:title="__('Imprimir Nota de Venta')"
-												>
-													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-													</svg>
-												</button>
-												<button
-													v-if="posSettingsStore.enableWhatsappSend"
-													type="button"
-													@click="$emit('whatsapp-invoice', dispatch)"
-													class="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors"
-													:title="__('Enviar por WhatsApp')"
-												>
-													<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
-														<path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-													</svg>
-												</button>
-												<button
-													v-if="canCancelInvoice(dispatch)"
-													type="button"
-													@click="openCancelModal(dispatch)"
-													class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
-													:title="__('Anular Venta')"
-												>
-													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-													</svg>
-												</button>
-											</div>
-
-											<!-- Mark Delivered Button -->
-											<button
-												v-if="!isDispatchDelivered(dispatch)"
-												@click="markAsDelivered(dispatch)"
-												:disabled="loadingDelivery[dispatch.name]"
-												class="bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-50 text-white font-semibold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-												style="background-color: #16a34a; color: #ffffff;"
-											>
-												<svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-												</svg>
-												<span class="text-white">{{ loadingDelivery[dispatch.name] ? __('Guardando...') : __('Marcar Entregado') }}</span>
-											</button>
-											<span v-else class="text-xs text-green-700 font-semibold flex items-center gap-1">
-												<svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-												</svg>
-												{{ dispatch.custom_estado_entrega || __('Entregado') }}
-											</span>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<!-- Por Entregar (Control de Retiros / Custodia) Tab -->
-							<div v-if="activeTab === 'pickups'" class="flex flex-col gap-3">
-								<!-- Toolbar -->
-								<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
-									<div class="flex items-center gap-2 flex-wrap">
-										<div class="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
-											<button
-												type="button"
-												@click="setPickupStatusFilter('open')"
-												:class="[
-													'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer',
-													pickupStatusFilter === 'open'
-														? 'bg-slate-900 text-white shadow-xs'
-														: 'text-slate-600 hover:text-slate-900',
-												]"
-											>
-												{{ __("Pendientes ({0})", [pickupCounts.total_open]) }}
-											</button>
-											<button
-												type="button"
-												@click="setPickupStatusFilter('Entregado')"
-												:class="[
-													'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer',
-													pickupStatusFilter === 'Entregado'
-														? 'bg-slate-900 text-white shadow-xs'
-														: 'text-slate-600 hover:text-slate-900',
-												]"
-											>
-												{{ __("Entregados ({0})", [pickupCounts.delivered]) }}
-											</button>
-										</div>
-
-										<div class="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
-											<button
-												type="button"
-												@click="pickupViewMode = 'orders'"
-												:class="[
-													'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer',
-													pickupViewMode === 'orders'
-														? 'bg-white text-slate-900 shadow-xs'
-														: 'text-slate-600 hover:text-slate-900',
-												]"
-											>
-												{{ __("Por Venta") }}
-											</button>
-											<button
-												type="button"
-												@click="pickupViewMode = 'summary'"
-												:class="[
-													'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer',
-													pickupViewMode === 'summary'
-														? 'bg-white text-slate-900 shadow-xs'
-														: 'text-slate-600 hover:text-slate-900',
-												]"
-											>
-												{{ __("Resumen por Producto ({0})", [pickupProductSummary.length]) }}
-											</button>
-										</div>
-									</div>
-
-									<div class="flex items-center gap-2 flex-1 lg:max-w-sm justify-end">
-										<div class="relative flex-1">
-											<svg class="w-4 h-4 text-slate-400 absolute start-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-											</svg>
-											<input
-												v-model="pickupSearch"
-												type="text"
-												:placeholder="__('Buscar cliente, venta o producto...')"
-												class="w-full h-8 ps-8 pe-3 text-xs bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-											/>
-										</div>
-										<button
-											v-if="pickupViewMode === 'summary' && pickupProductSummary.length > 0"
-											type="button"
-											@click="exportPickupSummaryCsv"
-											class="px-3 h-8 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shrink-0 cursor-pointer"
-										>
-											{{ __("Exportar CSV") }}
-										</button>
-									</div>
-								</div>
-
-								<!-- Loading -->
-								<div v-if="loadingPickups" class="flex flex-col items-center justify-center py-12">
-									<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-700 mb-2"></div>
-									<p class="text-xs text-slate-500">{{ __("Cargando entregas pendientes...") }}</p>
-								</div>
-
-								<!-- View 1: Product Custody Summary (for Physical Inventory Count) -->
-								<div v-else-if="pickupViewMode === 'summary'">
-									<div v-if="filteredPickupProductSummary.length === 0" class="text-center py-12 bg-white border border-slate-200 rounded-xl">
-										<p class="text-sm font-semibold text-slate-700">{{ __("No hay mercadería pendiente en custodia") }}</p>
-										<p class="text-xs text-slate-500 mt-1">{{ __("Todas las ventas registradas ya fueron retiradas.") }}</p>
-									</div>
-									<div v-else class="bg-white border border-slate-200 rounded-xl overflow-hidden">
-										<div class="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 text-xs text-slate-600 flex items-center justify-between gap-2 flex-wrap">
-											<span>{{ __("Mercadería ya vendida (descontada del stock disponible) que permanece físicamente en almacén esperando retiro del cliente.") }}</span>
-										</div>
-										<div class="overflow-x-auto">
-											<table class="min-w-full divide-y divide-slate-200 text-xs">
-												<thead class="bg-slate-50 text-slate-600 uppercase text-[11px]">
-													<tr>
-														<th class="px-3 py-2.5 text-left font-semibold">{{ __("Código") }}</th>
-														<th class="px-3 py-2.5 text-left font-semibold">{{ __("Producto") }}</th>
-														<th class="px-3 py-2.5 text-right font-semibold">{{ __("En Custodia (Pendiente)") }}</th>
-														<th class="px-3 py-2.5 text-right font-semibold">{{ __("Stock Sistema") }}</th>
-														<th class="px-3 py-2.5 text-right font-semibold">{{ __("Físico Esperado") }}</th>
-														<th class="px-3 py-2.5 text-center font-semibold">{{ __("Ventas") }}</th>
-													</tr>
-												</thead>
-												<tbody class="divide-y divide-slate-100">
-													<tr v-for="row in filteredPickupProductSummary" :key="`${row.item_code}::${row.uom}`" class="hover:bg-slate-50">
-														<td class="px-3 py-2.5 font-mono text-slate-600">{{ row.item_code }}</td>
-														<td class="px-3 py-2.5 font-semibold text-slate-900">{{ row.item_name }}</td>
-														<td class="px-3 py-2.5 text-right tabular-nums font-bold text-slate-900">
-															{{ formatPickupQty(row.total_pending_qty) }} {{ row.uom }}
-															<div v-if="row.coverage_uom && row.total_pending_coverage > 0" class="text-[11px] font-normal text-slate-500">
-																{{ formatPickupQty(row.total_pending_coverage) }} {{ row.coverage_uom }}
-															</div>
-														</td>
-														<td class="px-3 py-2.5 text-right tabular-nums text-slate-700">{{ formatPickupQty(row.system_stock_qty) }}</td>
-														<td class="px-3 py-2.5 text-right tabular-nums font-semibold text-slate-900">{{ formatPickupQty(row.expected_physical_qty) }}</td>
-														<td class="px-3 py-2.5 text-center tabular-nums text-slate-600">{{ row.orders_count }}</td>
-													</tr>
-												</tbody>
-											</table>
-										</div>
-									</div>
-								</div>
-
-								<!-- View 2: Orders List -->
-								<div v-else>
-									<div v-if="filteredPickupControls.length === 0" class="text-center py-12 bg-white border border-slate-200 rounded-xl">
-										<p class="text-sm font-semibold text-slate-700">
-											{{ pickupStatusFilter === "open" ? __("No hay entregas pendientes") : __("No hay entregas completadas") }}
-										</p>
-										<p class="text-xs text-slate-500 mt-1">
-											{{ __("Cuando marques una venta como entrega pendiente o parcial al cobrar, aparecerá aquí.") }}
-										</p>
-									</div>
-
-									<div v-else class="flex flex-col gap-2.5">
-										<div
-											v-for="ctrl in filteredPickupControls"
-											:key="ctrl.name"
-											class="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col gap-2.5 hover:border-slate-300 transition-colors"
-										>
-											<!-- Card Top Header -->
-											<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-												<div class="min-w-0">
-													<div class="flex items-center gap-2 flex-wrap">
-														<span class="text-sm font-bold text-slate-900">{{ ctrl.customer_name || ctrl.customer }}</span>
-														<span
-															:class="[
-																'px-2 py-0.5 text-[11px] font-semibold rounded-full',
-																ctrl.status === 'Entregado'
-																	? 'bg-emerald-100 text-emerald-800'
-																	: ctrl.status === 'Parcial'
-																		? 'bg-amber-100 text-amber-800'
-																		: 'bg-blue-100 text-blue-800',
-															]"
-														>
-															{{ ctrl.status }}
-														</span>
-														<span v-if="Number(ctrl.outstanding_amount || 0) > 0.01" class="text-[11px] font-semibold text-slate-600 tabular-nums">
-															· {{ __("Saldo pago:") }} {{ formatCurrency(ctrl.outstanding_amount) }}
-														</span>
-													</div>
-													<div class="text-xs text-slate-500 mt-0.5 tabular-nums">
-														{{ ctrl.reference_name }} · {{ ctrl.posting_date }}
-														<span v-if="ctrl.notes" class="text-slate-600"> · {{ ctrl.notes }}</span>
-													</div>
-												</div>
-
-												<div class="flex items-center gap-1.5 shrink-0 flex-wrap">
-													<button
-														v-if="ctrl.status === 'Pendiente' || ctrl.status === 'Parcial'"
-														type="button"
-														@click="openPickupDialog(ctrl)"
-														class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer"
-													>
-														{{ __("Registrar Entrega") }}
-													</button>
-													<button
-														type="button"
-														@click="emit('view-invoice', ctrl.reference_name)"
-														class="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
-													>
-														{{ __("Ver venta") }}
-													</button>
-													<button
-														v-if="ctrl.logs && ctrl.logs.length > 0"
-														type="button"
-														@click="handlePrintPickupLog(ctrl, ctrl.logs[0])"
-														class="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
-													>
-														{{ __("Constancia") }}
-													</button>
-													<button
-														v-if="posSettingsStore.enableWhatsappSend"
-														type="button"
-														@click="handlePickupWhatsApp(ctrl)"
-														class="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
-													>
-														{{ __("WhatsApp") }}
-													</button>
-												</div>
-											</div>
-
-											<!-- Items progress list -->
-											<div class="bg-slate-50 border border-slate-200/80 rounded-lg divide-y divide-slate-200/70">
-												<div
-													v-for="it in ctrl.items"
-													:key="it.name"
-													class="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs"
-												>
-													<div class="min-w-0 flex-1">
-														<span class="font-semibold text-slate-800">{{ it.item_name }}</span>
-														<span class="text-slate-400 ms-1.5 font-mono text-[11px]">{{ it.item_code }}</span>
-													</div>
-													<div class="flex items-center gap-3 tabular-nums shrink-0 text-slate-600">
-														<span>
-															{{ __("Retirado:") }}
-															<strong class="text-slate-900">{{ formatPickupQty(it.qty_delivered) }} / {{ formatPickupQty(it.qty_sold) }}</strong>
-															{{ it.uom }}
-														</span>
-														<span class="font-bold text-slate-900">
-															{{ __("Faltan:") }} {{ formatPickupQty(it.qty_pending) }} {{ it.uom }}
-															<template v-if="it.coverage_uom && it.coverage_pending > 0">
-																({{ formatPickupQty(it.coverage_pending) }} {{ it.coverage_uom }})
-															</template>
-														</span>
-													</div>
-												</div>
-											</div>
-
-											<!-- Collapsible History Logs -->
-											<div v-if="ctrl.logs && ctrl.logs.length > 0">
-												<button
-													type="button"
-													@click="togglePickupHistory(ctrl.name)"
-													class="text-[11px] font-semibold text-slate-600 hover:text-slate-900 cursor-pointer flex items-center gap-1"
-												>
-													<span>
-														{{
-															expandedPickupLogs[ctrl.name]
-																? __("Ocultar historial de retiros ({0})", [ctrl.logs.length])
-																: __("Ver historial de retiros ({0})", [ctrl.logs.length])
-														}}
-													</span>
-												</button>
-												<div
-													v-if="expandedPickupLogs[ctrl.name]"
-													class="mt-1.5 border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white"
-												>
-													<div
-														v-for="lg in ctrl.logs"
-														:key="lg.name"
-														class="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]"
-													>
-														<div class="min-w-0 flex-1">
-															<div class="font-semibold text-slate-800">
-																{{ lg.items_summary }}
-															</div>
-															<div class="text-slate-500 mt-0.5">
-																{{ formatDateTime(lg.delivery_datetime) }} · {{ __("Retiró:") }} {{ lg.received_by || "-" }} · {{ __("Atendió:") }} {{ lg.delivered_by_name }}
-																<span v-if="lg.notes"> · {{ lg.notes }}</span>
-															</div>
-														</div>
-														<button
-															type="button"
-															@click="handlePrintPickupLog(ctrl, lg)"
-															class="px-2 py-1 text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-md shrink-0 cursor-pointer"
-														>
-															{{ __("Imprimir") }}
-														</button>
-													</div>
-												</div>
-											</div>
+												{{ __("Imprimir") }}
+											</MdxButton>
 										</div>
 									</div>
 								</div>
@@ -1650,7 +1578,48 @@
 				</div>
 			</div>
 		</div>
-	</Transition>
+
+		<!-- Standardized Modal Footer (Pagination + Close) -->
+		<template #footer>
+			<div
+				class="flex items-center w-full gap-3"
+				:class="totalPages > 1 ? 'justify-between' : 'justify-end'"
+			>
+				<div v-if="totalPages > 1" class="hidden sm:block"></div>
+
+				<div v-if="totalPages > 1" class="flex items-center gap-3">
+					<button
+						type="button"
+						@click="currentPage--"
+						:disabled="currentPage === 1"
+						class="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer focus:outline-none"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+						</svg>
+					</button>
+					<span class="text-xs font-bold text-slate-700 tabular-nums">
+						{{ __("Página {0} de {1}", [currentPage, totalPages]) }}
+						<span class="text-slate-400 font-medium">({{ __("Total: {0}", [currentListTotal]) }})</span>
+					</span>
+					<button
+						type="button"
+						@click="currentPage++"
+						:disabled="currentPage === totalPages"
+						class="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer focus:outline-none"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+						</svg>
+					</button>
+				</div>
+
+				<MdxButton variant="secondary" @click="handleClose">
+					{{ __("Cerrar") }}
+				</MdxButton>
+			</div>
+		</template>
+	</MdxModal>
 
 	<!-- Pickup / Partial Delivery Modal -->
 	<PickupDeliveryDialog
@@ -1675,71 +1644,84 @@
 		@payment-completed="handlePaymentCompleted"
 	/>
 
-	<!-- Cancel Invoice Confirmation Modal -->
-	<Transition name="fade">
-		<div
-			v-if="invoiceToCancel"
-			class="fixed inset-0 bg-black/60 z-[450] flex items-center justify-center p-4"
-			@click.self="closeCancelModal"
-		>
-			<div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-5 flex flex-col gap-4 text-start border border-gray-200">
-				<div class="flex items-start gap-3">
-					<div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-						</svg>
-					</div>
-					<div class="flex-1 min-w-0">
-						<h3 class="text-base font-bold text-gray-900">
-							{{ __("¿Anular la venta {0}?", [invoiceToCancel.name]) }}
-						</h3>
-						<p class="text-xs text-gray-600 mt-1">
-							{{ __("Cliente:") }} <strong class="text-gray-900">{{ invoiceToCancel.customer_name || invoiceToCancel.customer }}</strong> · {{ __("Total:") }} <strong class="text-red-600">{{ formatCurrency(invoiceToCancel.grand_total) }}</strong>
-						</p>
-						<p class="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2.5 mt-2">
-							{{ __("Se anularán automáticamente los cobros/anticipos vinculados y los muebles se reingresarán al stock del almacén.") }}
-						</p>
-					</div>
+	<!-- Cancel Invoice Confirmation Modal (Standardized MdxModal) -->
+	<MdxModal
+		:modelValue="Boolean(invoiceToCancel)"
+		@update:modelValue="(val) => { if (!val) closeCancelModal(); }"
+		size="md"
+		:persistent="cancellingInvoice"
+	>
+		<template #header>
+			<div class="flex items-center gap-3 min-w-0">
+				<div class="w-9 h-9 rounded-xl bg-red-50 border border-red-100 text-red-600 flex items-center justify-center shrink-0">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+					</svg>
 				</div>
-
-				<div>
-					<label class="block text-xs font-semibold text-gray-700 mb-1">
-						{{ __("Motivo de anulación (opcional)") }}
-					</label>
-					<input
-						v-model="cancelReason"
-						type="text"
-						:placeholder="__('Ej: Error en digitación de productos o cliente...')"
-						class="w-full px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-800"
-						@keyup.enter="confirmCancelInvoice"
-					/>
-				</div>
-
-				<div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-					<button
-						type="button"
-						:disabled="cancellingInvoice"
-						@click="closeCancelModal"
-						class="px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
-					>
-						{{ __("No, volver") }}
-					</button>
-					<button
-						type="button"
-						:disabled="cancellingInvoice"
-						@click="confirmCancelInvoice"
-						class="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-					>
-						<svg v-if="cancellingInvoice" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-						</svg>
-						<span>{{ cancellingInvoice ? __("Anulando...") : __("Sí, Anular Venta") }}</span>
-					</button>
+				<div class="min-w-0 text-start">
+					<h3 class="text-sm sm:text-base font-bold text-slate-900 truncate">
+						{{ __("¿Anular la venta {0}?", [invoiceToCancel?.name || ""]) }}
+					</h3>
+					<p v-if="invoiceToCancel" class="text-xs text-slate-500 truncate mt-0.5">
+						{{ invoiceToCancel.customer_name || invoiceToCancel.customer }} · {{ formatCurrency(invoiceToCancel.grand_total) }}
+					</p>
 				</div>
 			</div>
+			<button
+				type="button"
+				:disabled="cancellingInvoice"
+				@click="closeCancelModal"
+				class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+			>
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+				</svg>
+			</button>
+		</template>
+
+		<div v-if="invoiceToCancel" class="space-y-3 text-start">
+			<p class="text-xs text-slate-700 bg-red-50 border border-red-200 rounded-xl p-3">
+				{{ __("Se anularán automáticamente los cobros/anticipos vinculados y los productos se reingresarán al stock del almacén.") }}
+			</p>
+
+			<div>
+				<label class="block text-xs font-semibold text-slate-700 mb-1.5">
+					{{ __("Motivo de anulación (opcional)") }}
+				</label>
+				<input
+					v-model="cancelReason"
+					type="text"
+					:placeholder="__('Ej: Error en digitación de productos o cliente...')"
+					class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+					@keyup.enter="confirmCancelInvoice"
+				/>
+			</div>
 		</div>
-	</Transition>
+
+		<template #footer>
+			<div class="flex items-center justify-end gap-2 w-full">
+				<MdxButton
+					variant="secondary"
+					size="sm"
+					:disabled="cancellingInvoice"
+					@click="closeCancelModal"
+				>
+					{{ __("No, volver") }}
+				</MdxButton>
+				<MdxButton
+					variant="danger"
+					size="sm"
+					:loading="cancellingInvoice"
+					@click="confirmCancelInvoice"
+				>
+					{{ cancellingInvoice ? __("Anulando...") : __("Sí, Anular Venta") }}
+				</MdxButton>
+			</div>
+		</template>
+	</MdxModal>
+
+	<!-- Universal Synchronization Floating Overlay -->
+	<MdxSyncOverlay :show="Boolean(isRefreshingModal)" :label="__('Sincronizando...')" />
 </template>
 
 <script setup>
@@ -1754,13 +1736,22 @@ import {
 import { useInvoiceFilters } from "@/composables/useInvoiceFilters";
 import { useRealtimeStock } from "@/composables/useRealtimeStock";
 import { useInvoiceFiltersStore } from "@/stores/invoiceFilters";
-import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
+import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil, roundCurrency } from "@/utils/currency";
 import { getLocalDateString } from "@/utils/date";
-import { getInvoiceStatusColor } from "@/utils/invoice";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
-import { Button, call, LoadingIndicator } from "frappe-ui";
-import { MdxSelect } from "mdx_ui";
+import { call } from "frappe-ui";
+import {
+	MdxBadge,
+	MdxButton,
+	MdxDataTable,
+	MdxDatePicker,
+	MdxModal,
+	MdxSearchInput,
+	MdxSegmentedControl,
+	MdxSelect,
+	MdxSyncOverlay,
+} from "mdx_ui";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { isOffline } from "@/utils/offline/offlineState";
 import {
@@ -1772,6 +1763,9 @@ import {
 import { logger } from "@/utils/logger";
 import { useBootstrapStore } from "@/stores/bootstrap";
 import { usePOSSettingsStore } from "@/stores/posSettings";
+
+const PREVIEW_ITEMS_LIMIT = 2;
+const PAGE_SIZE = 10;
 
 const log = logger.create("InvoiceManagement");
 const { showSuccess, showError } = useToast();
@@ -1790,7 +1784,6 @@ const props = defineProps({
 		type: String,
 		default: DEFAULT_CURRENCY,
 	},
-	// Pass in data from parent stores
 	historyInvoices: {
 		type: Array,
 		default: () => [],
@@ -1814,9 +1807,16 @@ const emit = defineEmits([
 
 const show = ref(props.modelValue);
 const loading = ref(false);
+const isRefreshingModal = ref(false);
 const activeTab = ref("partial");
+const currentPage = ref(1);
+const expandedRowIds = ref(new Set());
 
-// Initialize filter store and composable
+// Tab-level quick search inputs
+const unpaidSearchQuery = ref("");
+const draftsSearchQuery = ref("");
+const returnsSearchQuery = ref("");
+
 const filterStore = useInvoiceFiltersStore();
 
 // Multi-POS profile scope filter for POS Managers
@@ -1858,13 +1858,12 @@ const scopedHistoryInvoices = computed(() => {
 	return allInvoices.filter((inv) => inv.pos_profile === selectedProfileFilter.value);
 });
 
-// Create a computed ref for history invoices to use with filter composable
 const historyInvoicesRef = computed(() => scopedHistoryInvoices.value);
 const invoiceFilters = useInvoiceFilters(historyInvoicesRef);
 
 // Unpaid invoices data
 const unpaidInvoices = ref([]);
-const unpaidFilter = ref("all"); // "all", "partial", "unpaid"
+const unpaidFilter = ref("all");
 const unpaidSummary = ref({
 	count: 0,
 	total_outstanding: 0,
@@ -1882,6 +1881,25 @@ const scopedUnpaidInvoices = computed(() => {
 	}
 	return unpaidInvoices.value.filter((inv) => inv.pos_profile === selectedProfileFilter.value);
 });
+
+const unpaidFilterChips = computed(() => [
+	{ value: "all", label: __("Todos"), count: scopedUnpaidInvoices.value.length },
+	{
+		value: "partial",
+		label: __("Parcialmente Pagado"),
+		count: scopedUnpaidInvoices.value.filter((inv) => inv.status === "Partly Paid").length,
+	},
+	{
+		value: "unpaid",
+		label: __("Impagado"),
+		count: scopedUnpaidInvoices.value.filter((inv) => inv.status === "Unpaid").length,
+	},
+	{
+		value: "overdue",
+		label: __("Vencido"),
+		count: scopedUnpaidInvoices.value.filter((inv) => inv.status === "Overdue").length,
+	},
+]);
 
 function canCancelInvoice(invoice) {
 	if (!posSettingsStore.canCancelInvoice || !invoice) return false;
@@ -1934,28 +1952,29 @@ async function confirmCancelInvoice() {
 	}
 }
 
-// Filtered unpaid invoices based on payment amounts
 const filteredUnpaidInvoices = computed(() => {
-	const baseList = scopedUnpaidInvoices.value;
+	let baseList = scopedUnpaidInvoices.value;
 	if (unpaidFilter.value === "partial") {
-		// Partially paid: status is 'Partly Paid' only
-		return baseList.filter((inv) => inv.status === "Partly Paid");
+		baseList = baseList.filter((inv) => inv.status === "Partly Paid");
+	} else if (unpaidFilter.value === "unpaid") {
+		baseList = baseList.filter((inv) => inv.status === "Unpaid");
+	} else if (unpaidFilter.value === "overdue") {
+		baseList = baseList.filter((inv) => inv.status === "Overdue");
 	}
-	if (unpaidFilter.value === "unpaid") {
-		// Totally unpaid: status is 'Unpaid'
-		return baseList.filter((inv) => inv.status === "Unpaid");
-	}
-	if (unpaidFilter.value === "overdue") {
-		// Overdue: invoice status is Overdue
-		return baseList.filter((inv) => inv.status === "Overdue");
-	}
-	return baseList; // "all"
+
+	const q = unpaidSearchQuery.value.trim().toLowerCase();
+	if (!q) return baseList;
+	return baseList.filter((inv) => {
+		const hay = [inv.name, inv.customer_name, inv.customer, inv.owner_full_name]
+			.filter(Boolean)
+			.join(" ")
+			.toLowerCase();
+		return hay.includes(q);
+	});
 });
 
-// Filtered summary based on selected filter
 const filteredUnpaidSummary = computed(() => {
 	const filtered = filteredUnpaidInvoices.value;
-
 	return {
 		count: filtered.length,
 		total_outstanding: filtered.reduce((sum, inv) => sum + (inv.outstanding_amount || 0), 0),
@@ -1963,49 +1982,80 @@ const filteredUnpaidSummary = computed(() => {
 	};
 });
 
-// Return invoices (filtered from history)
-const returnInvoices = computed(() => {
-	return scopedHistoryInvoices.value.filter((inv) => inv.is_return);
+// Return invoices
+const returnInvoices = computed(() => scopedHistoryInvoices.value.filter((inv) => inv.is_return));
+
+const filteredReturnInvoices = computed(() => {
+	const q = returnsSearchQuery.value.trim().toLowerCase();
+	if (!q) return returnInvoices.value;
+	return returnInvoices.value.filter((inv) => {
+		const hay = [inv.name, inv.customer_name, inv.customer, inv.return_against]
+			.filter(Boolean)
+			.join(" ")
+			.toLowerCase();
+		return hay.includes(q);
+	});
 });
 
-// Filtered history using the composable (exclude returns, show in separate tab)
-const filteredHistoryInvoices = computed(() => {
-	// Filter out return invoices, then apply all filters from the store
-	const nonReturnInvoices = scopedHistoryInvoices.value.filter((inv) => !inv.is_return);
+// Drafts filtered by search
+const filteredDrafts = computed(() => {
+	const list = Array.isArray(props.draftInvoices) ? props.draftInvoices : [];
+	const q = draftsSearchQuery.value.trim().toLowerCase();
+	if (!q) return list;
+	return list.filter((draft) => {
+		const custName =
+			draft.customer?.customer_name || draft.customer?.name || draft.customer || "";
+		return (
+			String(draft.draft_id || "").toLowerCase().includes(q) ||
+			String(custName).toLowerCase().includes(q)
+		);
+	});
+});
 
-	// Use the filter composable with non-return invoices
+// Filtered history using the composable (exclude returns, shown in separate tab)
+const filteredHistoryInvoices = computed(() => {
+	const nonReturnInvoices = scopedHistoryInvoices.value.filter((inv) => !inv.is_return);
 	const tempInvoicesRef = computed(() => nonReturnInvoices);
 	const tempFilters = useInvoiceFilters(tempInvoicesRef);
-
 	return tempFilters.filteredInvoices.value;
 });
 
 // Dispatches state & computeds
-const dispatchesFilter = ref("pending"); // "pending", "delivered", "all"
+const dispatchesFilter = ref("pending");
 const dispatchDateFilter = ref("");
 const loadingDelivery = ref({});
 
 const allDispatches = computed(() => {
-	return scopedHistoryInvoices.value.filter(
-		(inv) => Boolean(
+	return scopedHistoryInvoices.value.filter((inv) =>
+		Boolean(
 			inv.custom_direccion_entrega ||
-			(inv.custom_fecha_entrega && inv.custom_estado_entrega && inv.custom_estado_entrega !== "Entregado en Tienda") ||
-			(inv.custom_estado_entrega && ["Pendiente de Entrega", "En Ruta de Despacho", "Pendiente de Carga", "En Camino"].includes(inv.custom_estado_entrega))
+				(inv.custom_fecha_entrega &&
+					inv.custom_estado_entrega &&
+					inv.custom_estado_entrega !== "Entregado en Tienda") ||
+				(inv.custom_estado_entrega &&
+					[
+						"Pendiente de Entrega",
+						"En Ruta de Despacho",
+						"Pendiente de Carga",
+						"En Camino",
+					].includes(inv.custom_estado_entrega))
 		)
 	);
 });
 
-const pendingDispatches = computed(() => {
-	return allDispatches.value.filter(
-		(inv) => !isDispatchDelivered(inv)
-	);
-});
+const pendingDispatches = computed(() =>
+	allDispatches.value.filter((inv) => !isDispatchDelivered(inv))
+);
 
-const deliveredDispatches = computed(() => {
-	return allDispatches.value.filter(
-		(inv) => isDispatchDelivered(inv)
-	);
-});
+const deliveredDispatches = computed(() =>
+	allDispatches.value.filter((inv) => isDispatchDelivered(inv))
+);
+
+const dispatchFilterChips = computed(() => [
+	{ value: "pending", label: __("Por Despachar"), count: pendingDispatches.value.length },
+	{ value: "delivered", label: __("Entregados"), count: deliveredDispatches.value.length },
+	{ value: "all", label: __("Todos"), count: allDispatches.value.length },
+]);
 
 const filteredDispatches = computed(() => {
 	let list = allDispatches.value;
@@ -2021,7 +2071,10 @@ const filteredDispatches = computed(() => {
 });
 
 function isDispatchDelivered(dispatch) {
-	return dispatch.custom_estado_entrega === "Entregado" || dispatch.custom_estado_entrega === "Entregado al Cliente";
+	return (
+		dispatch.custom_estado_entrega === "Entregado" ||
+		dispatch.custom_estado_entrega === "Entregado al Cliente"
+	);
 }
 
 async function markAsDelivered(dispatch) {
@@ -2047,137 +2100,13 @@ function openDispatchPlanSheet() {
 	window.open("/app/query-report/Planilla%20Diaria%20de%20Despacho", "_blank");
 }
 
-// Tabs configuration
-const tabs = computed(() => {
-	const list = [
-		{
-			id: "partial",
-			label: __("Unpaid"),
-			icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z",
-			color: "orange",
-			activeClass: "text-orange-600",
-			badge: () => scopedUnpaidInvoices.value.length,
-		},
-	];
-	if (posSettingsStore.enablePickupTracking) {
-		list.push({
-			id: "pickups",
-			label: __("Por Entregar"),
-			icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
-			color: "blue",
-			activeClass: "text-blue-600",
-			badge: () => pickupCounts.value.total_open,
-		});
-	}
-	if (posSettingsStore.enableDeliveryDispatch) {
-		list.push({
-			id: "despachos",
-			label: __("Despachos"),
-			icon: "M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0",
-			color: "amber",
-			activeClass: "text-amber-600",
-			badge: () => pendingDispatches.value.length,
-		});
-	}
-	list.push(
-		{
-			id: "history",
-			label: __("Invoice History"),
-			icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
-			color: "indigo",
-			activeClass: "text-indigo-600",
-			badge: () => filteredHistoryInvoices.value.length,
-		},
-		{
-			id: "drafts",
-			label: __("Drafts"),
-			icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
-			color: "purple",
-			activeClass: "text-purple-600",
-			badge: () => props.draftInvoices.length,
-		},
-		{
-			id: "returns",
-			label: __("Returns"),
-			icon: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",
-			color: "red",
-			activeClass: "text-red-600",
-			badge: () => returnInvoices.value.length,
-		}
-	);
-	return list;
-});
-
-const currentTabLabel = computed(() => {
-	return tabs.value.find((t) => t.id === activeTab.value)?.label || "";
-});
-
-// Tab class helpers
-function getTabActiveClass(tabId) {
-	switch (tabId) {
-		case "partial":
-			return "text-orange-600 border-orange-500";
-		case "pickups":
-			return "text-blue-600 border-blue-600";
-		case "despachos":
-			return "text-amber-600 border-amber-500";
-		case "history":
-			return "text-indigo-600 border-indigo-500";
-		case "drafts":
-			return "text-purple-600 border-purple-500";
-		case "returns":
-			return "text-red-600 border-red-500";
-		default:
-			return "text-gray-600 border-gray-500";
-	}
-}
-
-// Badge class helpers
-function getBadgeActiveClass(tabId) {
-	switch (tabId) {
-		case "partial":
-			return "bg-orange-100 text-orange-700";
-		case "pickups":
-			return "bg-blue-100 text-blue-700";
-		case "despachos":
-			return "bg-amber-100 text-amber-700";
-		case "history":
-			return "bg-indigo-100 text-indigo-700";
-		case "drafts":
-			return "bg-purple-100 text-purple-700";
-		case "returns":
-			return "bg-red-100 text-red-700";
-		default:
-			return "bg-gray-100 text-gray-700";
-	}
-}
-
-function getBadgeInactiveClass(tabId) {
-	switch (tabId) {
-		case "partial":
-			return "bg-gray-200 text-gray-600";
-		case "pickups":
-			return "bg-gray-200 text-gray-600";
-		case "despachos":
-			return "bg-gray-200 text-gray-600";
-		case "history":
-			return "bg-gray-200 text-gray-600";
-		case "drafts":
-			return "bg-gray-200 text-gray-600";
-		case "returns":
-			return "bg-gray-200 text-gray-600";
-		default:
-			return "bg-gray-200 text-gray-600";
-	}
-}
-
-// Parallel Pickup / Pending Delivery Custody State
+// Pickup / Pending Delivery Custody State
 const loadingPickups = ref(false);
 const pickupControls = ref([]);
 const pickupProductSummary = ref([]);
 const pickupCounts = ref({ pending: 0, partial: 0, delivered: 0, total_open: 0 });
-const pickupStatusFilter = ref("open"); // 'open' | 'Entregado'
-const pickupViewMode = ref("orders"); // 'orders' | 'summary'
+const pickupStatusFilter = ref("open");
+const pickupViewMode = ref("orders");
 const pickupSearch = ref("");
 const expandedPickupLogs = ref({});
 const showPickupDialog = ref(false);
@@ -2204,13 +2133,253 @@ const filteredPickupControls = computed(() => {
 
 const filteredPickupProductSummary = computed(() => {
 	const q = pickupSearch.value.trim().toLowerCase();
-	if (!q) return pickupProductSummary.value;
-	return pickupProductSummary.value.filter(
+	const list = pickupProductSummary.value.map((row) => ({
+		...row,
+		_rowKey: `${row.item_code}::${row.uom}`,
+	}));
+	if (!q) return list;
+	return list.filter(
 		(row) =>
 			String(row.item_code || "").toLowerCase().includes(q) ||
 			String(row.item_name || "").toLowerCase().includes(q)
 	);
 });
+
+const pickupSummaryColumns = computed(() => [
+	{ key: "item_code", label: __("Código"), width: 120, align: "left" },
+	{ key: "item_name", label: __("Producto"), width: 300, align: "left", primary: true },
+	{ key: "pending_display", label: __("En Custodia (Pendiente)"), width: 165, align: "right" },
+	{ key: "system_stock_qty", label: __("Stock Sistema"), width: 120, align: "right" },
+	{ key: "expected_physical_qty", label: __("Físico Esperado"), width: 130, align: "right" },
+	{ key: "orders_count", label: __("Ventas"), width: 90, align: "center" },
+]);
+
+// Tabs for MdxSegmentedControl
+const segmentedTabOptions = computed(() => {
+	const list = [
+		{
+			value: "partial",
+			label: __("Unpaid"),
+			badge: scopedUnpaidInvoices.value.length,
+		},
+	];
+	if (posSettingsStore.enablePickupTracking) {
+		list.push({
+			value: "pickups",
+			label: __("Por Entregar"),
+			badge: pickupCounts.value.total_open,
+		});
+	}
+	if (posSettingsStore.enableDeliveryDispatch) {
+		list.push({
+			value: "despachos",
+			label: __("Despachos"),
+			badge: pendingDispatches.value.length,
+		});
+	}
+	list.push(
+		{
+			value: "history",
+			label: __("Invoice History"),
+			badge: filteredHistoryInvoices.value.length,
+		},
+		{
+			value: "drafts",
+			label: __("Drafts"),
+			badge: props.draftInvoices.length,
+		},
+		{
+			value: "returns",
+			label: __("Returns"),
+			badge: returnInvoices.value.length,
+		}
+	);
+	return list;
+});
+
+const currentTabLabel = computed(
+	() => segmentedTabOptions.value.find((t) => t.value === activeTab.value)?.label || ""
+);
+
+// Pagination Computeds
+const currentListTotal = computed(() => {
+	switch (activeTab.value) {
+		case "partial":
+			return filteredUnpaidInvoices.value.length;
+		case "history":
+			return filteredHistoryInvoices.value.length;
+		case "drafts":
+			return filteredDrafts.value.length;
+		case "returns":
+			return filteredReturnInvoices.value.length;
+		case "despachos":
+			return filteredDispatches.value.length;
+		case "pickups":
+			return pickupViewMode.value === "orders"
+				? filteredPickupControls.value.length
+				: filteredPickupProductSummary.value.length;
+		default:
+			return 0;
+	}
+});
+
+const totalPages = computed(() => Math.ceil(currentListTotal.value / PAGE_SIZE) || 1);
+
+function paginateSlice(arr) {
+	const start = (currentPage.value - 1) * PAGE_SIZE;
+	return arr.slice(start, start + PAGE_SIZE);
+}
+
+const paginatedUnpaidInvoices = computed(() => paginateSlice(filteredUnpaidInvoices.value));
+const paginatedHistoryInvoices = computed(() => paginateSlice(filteredHistoryInvoices.value));
+const paginatedDrafts = computed(() => paginateSlice(filteredDrafts.value));
+const paginatedReturnInvoices = computed(() => paginateSlice(filteredReturnInvoices.value));
+const paginatedDispatches = computed(() => paginateSlice(filteredDispatches.value));
+const paginatedPickupControls = computed(() => paginateSlice(filteredPickupControls.value));
+const paginatedPickupProductSummary = computed(() =>
+	paginateSlice(filteredPickupProductSummary.value)
+);
+
+watch(
+	[
+		activeTab,
+		selectedProfileFilter,
+		unpaidFilter,
+		unpaidSearchQuery,
+		draftsSearchQuery,
+		returnsSearchQuery,
+		dispatchesFilter,
+		dispatchDateFilter,
+		pickupStatusFilter,
+		pickupViewMode,
+		pickupSearch,
+		() => filterStore.searchTerm,
+		() => filterStore.status,
+		() => filterStore.customer,
+		() => filterStore.product,
+		() => filterStore.dateFrom,
+		() => filterStore.dateTo,
+	],
+	() => {
+		currentPage.value = 1;
+		expandedRowIds.value = new Set();
+	}
+);
+
+watch(currentPage, () => {
+	expandedRowIds.value = new Set();
+});
+
+// Shared Detail Table & Badge Helpers
+const detailItemColumns = computed(() => [
+	{ key: "line_no", label: "#", width: 48, align: "center", hideOnMobile: true },
+	{ key: "item_code", label: __("Código"), width: 110, align: "left" },
+	{ key: "item_display", label: __("Producto / Medida"), width: 320, align: "left", primary: true },
+	{ key: "warehouse_display", label: __("Almacén"), width: 145, align: "left" },
+	{ key: "qty_display", label: __("Cant."), width: 100, align: "right" },
+	{ key: "rate_display", label: __("P. Unit."), width: 115, align: "right" },
+	{ key: "amount_display", label: __("Subtotal"), width: 120, align: "right" },
+]);
+
+function isRowExpanded(rowKey) {
+	return Boolean(rowKey && expandedRowIds.value.has(rowKey));
+}
+
+function toggleExpandRow(rowKey) {
+	if (!rowKey) return;
+	const next = new Set(expandedRowIds.value);
+	if (next.has(rowKey)) {
+		next.delete(rowKey);
+	} else {
+		next.add(rowKey);
+	}
+	expandedRowIds.value = next;
+}
+
+function getPreviewItems(items) {
+	return Array.isArray(items) ? items.slice(0, PREVIEW_ITEMS_LIMIT) : [];
+}
+
+function getHiddenItemsCount(items) {
+	return Math.max(0, (Array.isArray(items) ? items.length : 0) - PREVIEW_ITEMS_LIMIT);
+}
+
+function formatWarehouseLabel(warehouse) {
+	const raw = String(warehouse || "").trim();
+	if (!raw) return "—";
+	return raw.replace(/\s+-\s+[A-Z0-9]{1,6}$/i, "").trim() || raw;
+}
+
+function buildDetailTableRows(items, prefix) {
+	return (Array.isArray(items) ? items : []).map((item, idx) => {
+		const qty = Number(item.quantity ?? item.qty ?? 0);
+		const rate = Number(item.rate ?? 0);
+		const amount = Number(item.amount ?? roundCurrency(qty * roundCurrency(rate)));
+		const uom = item.uom || item.stock_uom || "";
+		const medida = item.custom_medida || item.medida || "";
+		const itemName = item.item_name || item.item_code || "";
+		return {
+			_rowKey: item.so_detail || item.name || `${prefix}-${idx}`,
+			line_no: idx + 1,
+			item_code: item.item_code || "—",
+			item_name: itemName,
+			medida,
+			item_display: medida ? `${itemName} (${medida})` : itemName,
+			warehouse_display: formatWarehouseLabel(item.warehouse),
+			qty_display: uom ? `${qty} ${uom}` : `${qty}`,
+			rate_display: formatCurrency(rate),
+			amount_display: formatCurrency(amount),
+		};
+	});
+}
+
+function getInvoiceBadgeVariant(invoice) {
+	if (!invoice) return "neutral";
+	const status = String(invoice.status || "").toLowerCase();
+	if (status === "overdue" || status === "cancelled" || status === "cancelado" || invoice.docstatus === 2) {
+		return "danger";
+	}
+	if (status === "partly paid" || status === "partially paid" || status === "unpaid") {
+		return "warning";
+	}
+	if (status === "credit note issued" || status === "return") {
+		return "info";
+	}
+	if (status === "paid" || invoice.docstatus === 1) {
+		return "success";
+	}
+	return "neutral";
+}
+
+function isServerDraft(draftId) {
+	if (!draftId) return false;
+	const idStr = String(draftId);
+	return (
+		!idStr.startsWith("LOCAL-") &&
+		!idStr.startsWith("OFFLINE-") &&
+		!idStr.startsWith("DRAFT-")
+	);
+}
+
+function isDraftQuotation(draft) {
+	const rawId = String(draft?.draft_id || "").toUpperCase();
+	return draft?.doctype === "Quotation" || rawId.includes("-QTN-") || rawId.includes("-COT-");
+}
+
+function openDocumentPDF(doctype, name, profilePrintFormat = "") {
+	if (!name) return;
+	const url = posSettingsStore.buildLetterPdfUrl(doctype || "Sales Invoice", name, profilePrintFormat);
+	window.open(url, "_blank");
+}
+
+function openDraftPDF(draft) {
+	if (!draft || !draft.draft_id) return;
+	const rawId = String(draft.draft_id).toUpperCase();
+	const inferredDt =
+		draft.doctype ||
+		(rawId.includes("-QTN-") || rawId.includes("-COT-") ? "Quotation" : "Sales Order");
+	openDocumentPDF(inferredDt, draft.draft_id);
+}
 
 async function loadPickupControls() {
 	if (!props.posProfile || !posSettingsStore.enablePickupTracking || isOffline()) {
@@ -2221,7 +2390,8 @@ async function loadPickupControls() {
 		const res = await call("pos_next.api.delivery_control.get_pending_deliveries", {
 			pos_profile: props.posProfile,
 			status_filter: pickupStatusFilter.value,
-			filter_profile: selectedProfileFilter.value !== "ALL" ? selectedProfileFilter.value : undefined,
+			filter_profile:
+				selectedProfileFilter.value !== "ALL" ? selectedProfileFilter.value : undefined,
 		});
 		const data = res?.message || res || {};
 		pickupControls.value = data.controls || [];
@@ -2307,13 +2477,13 @@ watch(
 	(val) => {
 		show.value = val;
 		if (val) {
+			currentPage.value = 1;
 			loadScopeProfiles();
 			loadUnpaidInvoices();
 			loadUnpaidSummary();
 			if (posSettingsStore.enablePickupTracking) {
 				loadPickupControls();
 			}
-			// Also request history refresh if we don't have data
 			if (props.historyInvoices.length === 0) {
 				emit("refresh-history");
 			}
@@ -2326,85 +2496,69 @@ watch(show, (val) => {
 	emit("update:modelValue", val);
 });
 
-// Watch for tab changes to emit refresh event for history/returns tabs
 watch(activeTab, (newTab) => {
-	// Always emit refresh event when switching to history or returns tabs
-	// This ensures up-to-date outstanding amounts and invoice data
 	if (newTab === "history" || newTab === "returns" || newTab === "despachos") {
 		emit("refresh-history");
 	} else if (newTab === "pickups") {
 		loadPickupControls();
 	} else if (newTab === "partial") {
-		// Refresh unpaid invoices when switching to partial tab
 		loadUnpaidInvoices();
 		loadUnpaidSummary();
 	}
 });
 
-// Methods
 function handleClose() {
 	show.value = false;
 }
 
 async function refreshCurrentTab() {
-	if (activeTab.value === "partial") {
-		await Promise.all([loadUnpaidInvoices(), loadUnpaidSummary()]);
-	} else if (activeTab.value === "pickups") {
-		await loadPickupControls();
-	} else if (
-		activeTab.value === "history" ||
-		activeTab.value === "despachos" ||
-		activeTab.value === "drafts" ||
-		activeTab.value === "returns"
-	) {
-		emit("refresh-history");
+	isRefreshingModal.value = true;
+	try {
+		if (activeTab.value === "partial") {
+			await Promise.all([loadUnpaidInvoices(), loadUnpaidSummary()]);
+		} else if (activeTab.value === "pickups") {
+			await loadPickupControls();
+		} else {
+			emit("refresh-history");
+			await new Promise((resolve) => setTimeout(resolve, 450));
+		}
+	} finally {
+		isRefreshingModal.value = false;
 	}
 }
 
 async function loadUnpaidInvoices() {
 	if (!props.posProfile) return;
-
-	// Start loading immediately - show skeleton while fetching
 	loading.value = true;
 
-	// Load cached data immediately for instant display
 	try {
 		const cachedInvoices = await getCachedUnpaidInvoices(props.posProfile, {
 			limit: 200,
 		});
 		if (cachedInvoices && cachedInvoices.length > 0) {
 			unpaidInvoices.value = cachedInvoices;
-			loading.value = false; // Hide skeleton once we have cached data
-			log.debug("Loaded", cachedInvoices.length, "unpaid invoices from cache (instant)");
+			loading.value = false;
 		}
 	} catch (cacheError) {
 		log.debug("No cached unpaid invoices available");
 	}
 
-	// If offline, we're done - use only cached data
 	if (isOffline()) {
-		log.info("Offline mode - using cached unpaid invoices");
 		loading.value = false;
 		return;
 	}
 
-	// Fetch fresh data from server in background
 	try {
 		const result = await call("pos_next.api.partial_payments.get_unpaid_invoices", {
 			pos_profile: props.posProfile,
 			limit: 200,
 		});
-
 		unpaidInvoices.value = result || [];
-
-		// Cache for offline use
 		if (result && result.length > 0) {
 			cacheUnpaidInvoices(result, props.posProfile);
 		}
 	} catch (error) {
 		log.error("Error loading unpaid invoices:", error);
-
-		// If we already have cached data, don't show error
 		if (unpaidInvoices.value.length === 0) {
 			showError(error.message || __("Failed to load unpaid invoices"));
 		}
@@ -2416,42 +2570,31 @@ async function loadUnpaidInvoices() {
 async function loadUnpaidSummary() {
 	if (!props.posProfile) return;
 
-	// Load cached summary immediately for instant display
 	try {
 		const cachedSummary = await getCachedUnpaidSummary(props.posProfile);
 		if (cachedSummary && (cachedSummary.count > 0 || cachedSummary.total_outstanding > 0)) {
 			unpaidSummary.value = cachedSummary;
-			log.debug("Loaded unpaid summary from cache (instant)");
 		}
 	} catch (cacheError) {
 		log.debug("No cached unpaid summary available");
 	}
 
-	// If offline, we're done - use only cached data
-	if (isOffline()) {
-		log.info("Offline mode - using cached unpaid summary");
-		return;
-	}
+	if (isOffline()) return;
 
-	// Fetch fresh summary from server in background
 	try {
 		const result = await call("pos_next.api.partial_payments.get_unpaid_summary", {
 			pos_profile: props.posProfile,
 		});
-
 		unpaidSummary.value = result || {
 			count: 0,
 			total_outstanding: 0,
 			total_paid: 0,
 		};
-
-		// Cache for offline use
 		if (result) {
 			cacheUnpaidSummary(result, props.posProfile);
 		}
 	} catch (error) {
 		log.error("Error loading summary:", error);
-		// If we already have cached data, don't show any error - silent fail
 	}
 }
 
@@ -2460,7 +2603,6 @@ const loadingInvoiceDetails = ref(false);
 async function selectInvoiceForPayment(invoice) {
 	loadingInvoiceDetails.value = true;
 	try {
-		// Fetch full invoice details including items for the payment dialog
 		const details = await call("pos_next.api.partial_payments.get_partial_payment_details", {
 			invoice_name: invoice.name,
 		});
@@ -2468,7 +2610,6 @@ async function selectInvoiceForPayment(invoice) {
 		showPaymentDialog.value = true;
 	} catch (error) {
 		log.error("Error loading invoice details:", error);
-		// Fallback to basic invoice data
 		selectedInvoice.value = invoice;
 		showPaymentDialog.value = true;
 	} finally {
@@ -2486,16 +2627,8 @@ async function handlePaymentCompleted(paymentData) {
 		});
 
 		showSuccess(__("Payment added successfully"));
-
-		// Reload invoices and summary
-		await Promise.all([
-			loadUnpaidInvoices(),
-			loadUnpaidSummary(),
-		]);
-
-		// Also refresh history data to show updated outstanding amounts
+		await Promise.all([loadUnpaidInvoices(), loadUnpaidSummary()]);
 		emit("refresh-history");
-
 		selectedInvoice.value = null;
 	} catch (error) {
 		console.error("Error adding payment:", error);
@@ -2524,20 +2657,6 @@ function formatPaymentModes(invoice) {
 		.join(", ");
 }
 
-function getPaymentSourceLabel(source) {
-	// Convert source to user-friendly label
-	switch (source) {
-		case "POS":
-			return "POS";
-		case "POS Payment Entry":
-			return "POS";
-		case "Payment Entry":
-			return "Back Office";
-		default:
-			return source;
-	}
-}
-
 function calculateDraftTotal(items) {
 	if (!items || items.length === 0) return 0;
 	return items.reduce(
@@ -2548,9 +2667,7 @@ function calculateDraftTotal(items) {
 
 let cleanupInvoiceRealtime = null;
 
-// Lifecycle
 onMounted(() => {
-	// Load saved filter presets from localStorage
 	filterStore.loadSavedFiltersFromStorage();
 
 	if (show.value) {
@@ -2569,16 +2686,6 @@ onMounted(() => {
 	});
 });
 
-function openDraftPDF(draft) {
-	if (!draft || !draft.draft_id) return;
-	const rawId = String(draft.draft_id).toUpperCase();
-	const inferredDt =
-		draft.doctype ||
-		(rawId.includes("-QTN-") || rawId.includes("-COT-") ? "Quotation" : "Sales Order");
-	const url = posSettingsStore.buildLetterPdfUrl(inferredDt, draft.draft_id);
-	window.open(url, "_blank");
-}
-
 onUnmounted(() => {
 	if (cleanupInvoiceRealtime) {
 		cleanupInvoiceRealtime();
@@ -2587,82 +2694,49 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Canvas & Card visual separation (independent of frappe-ui preset palette) */
+.inv-search-box :deep(.mdx-search) {
+	max-width: none;
+}
+
 .pos-inv-canvas {
 	background-color: #eef2f6;
 }
 
-.pos-inv-card {
+.pos-inv-row-card {
 	background-color: #ffffff;
 	border: 1px solid #cbd5e1;
-	border-radius: 0.75rem;
-	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+	border-left: 4px solid #2563eb;
+	border-radius: 0.875rem;
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+	transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.pos-inv-card:hover {
+.pos-inv-row-card--quotation {
+	border-left-color: #0284c7;
+}
+
+.pos-inv-row-card--return {
+	border-left-color: #dc2626;
+}
+
+.pos-inv-row-card--delivered {
+	border-left-color: #16a34a;
+}
+
+.pos-inv-row-card:hover {
 	border-color: #94a3b8;
-	box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+	box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.1);
 }
 
-.pos-inv-card-header {
-	background-color: #f1f5f9;
-	border-bottom: 1px solid #cbd5e1;
+.inv-items-subtable :deep(.mdx-table-scroll) {
+	background-color: #ffffff;
 }
 
-.pos-inv-card-divider {
-	border-top: 1px solid #e2e8f0;
+.inv-items-subtable :deep(.mdx-table__row) {
+	cursor: default;
 }
 
-.pos-inv-card-footer {
-	background-color: #f8fafc;
-	border-top: 1px solid #cbd5e1;
-}
-
-.pos-inv-stat-total {
-	background-color: #f8fafc;
-	border: 1px solid #cbd5e1;
-}
-
-.pos-inv-stat-paid {
-	background-color: #f0fdf4;
-	border: 1px solid #bbf7d0;
-}
-
-.pos-inv-stat-due {
-	background-color: #fff7ed;
-	border: 1px solid #fed7aa;
-}
-
-/* Fade transition for overlay */
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
-
-/* Slide down transition for filter panel */
-.slide-down-enter-active,
-.slide-down-leave-active {
-	transition: all 0.3s ease-in-out;
-	max-height: 600px;
-	overflow: hidden;
-}
-
-.slide-down-enter-from,
-.slide-down-leave-to {
-	max-height: 0;
-	opacity: 0;
-	transform: translateY(-10px);
-}
-
-.slide-down-enter-to,
-.slide-down-leave-from {
-	max-height: 600px;
-	opacity: 1;
-	transform: translateY(0);
+.inv-items-subtable :deep(.mdx-table__row:last-child .mdx-table__td) {
+	border-bottom: none;
 }
 </style>
